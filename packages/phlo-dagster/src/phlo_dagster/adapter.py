@@ -50,6 +50,7 @@ from typing import Any, Iterable, Mapping
 
 import dagster as dg
 
+from phlo._correlation import resolve_project_identity
 from phlo.capabilities.runtime import (
     RuntimeContext,
     RuntimeRouting,
@@ -189,30 +190,20 @@ class DagsterRuntime(RuntimeContext):
     @property
     def tags(self) -> dict[str, str]:
         """Return run tags from the best available context attribute."""
-        configured_project = get_settings().phlo_project
         direct_tags = getattr(self.context, "tags", None)
         if isinstance(direct_tags, Mapping):
-            tags = {str(key): str(value) for key, value in direct_tags.items()}
-            if configured_project and "phlo/project_id" not in tags:
-                tags["phlo/project_id"] = configured_project
-            return tags
+            return {str(key): str(value) for key, value in direct_tags.items()}
 
         run_tags = getattr(self.context, "run_tags", None)
         if isinstance(run_tags, Mapping):
-            tags = {str(key): str(value) for key, value in run_tags.items()}
-            if configured_project and "phlo/project_id" not in tags:
-                tags["phlo/project_id"] = configured_project
-            return tags
+            return {str(key): str(value) for key, value in run_tags.items()}
 
         run = getattr(self.context, "run", None)
         run_level_tags = getattr(run, "tags", None) if run is not None else None
         if isinstance(run_level_tags, Mapping):
-            tags = {str(key): str(value) for key, value in run_level_tags.items()}
-            if configured_project and "phlo/project_id" not in tags:
-                tags["phlo/project_id"] = configured_project
-            return tags
+            return {str(key): str(value) for key, value in run_level_tags.items()}
 
-        return {"phlo/project_id": configured_project} if configured_project else {}
+        return {}
 
     @property
     def logger(self) -> Any:
@@ -257,6 +248,7 @@ class DagsterRuntime(RuntimeContext):
         }
         capability_overrides = capability_overrides_from_tags(tags)
         attempt, attempt_error = attempt_from_tags(tags)
+        project = resolve_project_identity(tags, get_settings().phlo_project)
         for capability_type, provider_name in self.asset_capability_overrides.items():
             capability_overrides.setdefault(capability_type, provider_name)
         return RuntimeRouting(
@@ -264,7 +256,8 @@ class DagsterRuntime(RuntimeContext):
             ref=tags.get("phlo/ref") or tags.get("ref") or tags.get("branch"),
             partition_key=self.partition_key,
             run_id=self.run_id,
-            project_id=tags.get("phlo/project_id") or get_settings().phlo_project,
+            project_id=project.project_id,
+            project_error=project.error,
             attempt=attempt,
             attempt_error=attempt_error,
             resources=self.resources,

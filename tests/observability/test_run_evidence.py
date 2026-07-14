@@ -50,7 +50,8 @@ from phlo.run_evidence import (
 )
 from phlo.run_evidence.emit import emit_observation
 from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
-from phlo.run_evidence.redaction import payload_checksum
+from phlo.run_evidence.redaction import canonical_json, payload_checksum
+from phlo.run_evidence.store import _catalog_checksum_payload, _resource_checksum_payload
 
 
 def _store_with_run(*, project_id: str = "project", run_id: str = "run") -> SQLiteRunEvidenceStore:
@@ -70,6 +71,223 @@ def _event(*, payload: dict, event_id: str = "event", producer: str = "producer"
     )
 
 
+def _make_sqlite_v2_store(path: Path) -> SQLiteRunEvidenceStore:
+    """Create a real 002+003 SQLite store without applying 004."""
+    store = SQLiteRunEvidenceStore(path)
+    sql_root = Path(__file__).parents[2] / "src" / "phlo" / "sql"
+    sql = (sql_root / "002_create_run_evidence.sql").read_text(encoding="utf-8")
+    for old, new in {
+        "CREATE SCHEMA IF NOT EXISTS phlo;": "",
+        "phlo.": "",
+        "BIGSERIAL": "INTEGER",
+        "TIMESTAMPTZ": "TEXT",
+        "JSONB": "TEXT",
+        "DOUBLE PRECISION": "REAL",
+        "BOOLEAN": "INTEGER",
+        "DEFAULT NOW()": "DEFAULT CURRENT_TIMESTAMP",
+        "DEFAULT '{}'::jsonb": "DEFAULT '{}'",
+        "DEFAULT '[]'::jsonb": "DEFAULT '[]'",
+        "INSERT INTO run_evidence_schema_version(version) VALUES (1)\nON CONFLICT (version) DO NOTHING;": "INSERT OR IGNORE INTO run_evidence_schema_version(version) VALUES (1);",
+    }.items():
+        sql = sql.replace(old, new)
+    sql = "\n".join(line for line in sql.splitlines() if not line.strip().startswith("COMMENT ON"))
+    store._connection.executescript(sql)
+    store._migrate_sqlite_reconciliation_schema()
+    store._connection.commit()
+    store._initialized = True
+    return store
+
+
+def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
+    """Insert rows using only the columns available after migrations 002+003."""
+    project_id = "legacy-project"
+    run_id = "legacy-run"
+    attempt = 2
+    observed_at = datetime(2026, 7, 1, tzinfo=UTC).isoformat()
+    resource = RunResource(
+        project_id=project_id,
+        run_id=run_id,
+        resource_id="legacy-resource",
+        attempt=attempt,
+        resource_kind="staged_object",
+        role="staged",
+        table_name="raw.events",
+        staged_objects=[{"identity": "staged/events.parquet", "checksum": "abc"}],
+    )
+    catalog = RunCatalogChange(
+        project_id=project_id,
+        run_id=run_id,
+        catalog_change_id="legacy-catalog",
+        attempt=attempt,
+        operation="promotion",
+        catalog_ref="main",
+        metadata={"legacy": True},
+    )
+    quality = RunQualityResult(
+        project_id=project_id,
+        run_id=run_id,
+        quality_result_id="legacy-quality",
+        attempt=attempt,
+        check_id="legacy-check",
+        blocking=True,
+        passed=True,
+        metadata={"legacy": True},
+    )
+    artifact = RunArtifact(
+        project_id=project_id,
+        run_id=run_id,
+        artifact_id="legacy-artifact",
+        attempt=attempt,
+        artifact_kind="report",
+        legal_hold=True,
+    )
+    event_payload = {"legacy": True}
+    event = RunEvent(
+        project_id=project_id,
+        run_id=run_id,
+        event_id="legacy-event",
+        event_type="ingestion.end",
+        producer="legacy",
+        payload=event_payload,
+        observed_at=datetime.fromisoformat(observed_at),
+        attempt=attempt,
+    )
+    store.append_pipeline_run(
+        PipelineRun(
+            project_id=project_id,
+            run_id=run_id,
+            attempt=attempt,
+            status="success",
+            started_at=datetime.fromisoformat(observed_at),
+            finished_at=datetime.fromisoformat(observed_at),
+        )
+    )
+    with store._transaction() as (_, cursor):
+        p = store.placeholder
+        cursor.execute(
+            f"INSERT INTO {store._table('run_event')} "
+            "(project_id, run_id, event_id, event_type, schema_version, producer, observed_at, "
+            "attempt, payload, payload_checksum) VALUES (" + ", ".join([p] * 10) + ")",
+            (
+                project_id,
+                run_id,
+                event.event_id,
+                event.event_type,
+                event.schema_version,
+                event.producer,
+                observed_at,
+                attempt,
+                canonical_json(event_payload),
+                payload_checksum(event_payload),
+            ),
+        )
+        resource_checksum = payload_checksum(_resource_checksum_payload(resource))
+        cursor.execute(
+            f"INSERT INTO {store._table('run_resource')} "
+            "(resource_id, project_id, run_id, attempt, resource_kind, role, table_name, "
+            "staged_objects, record_checksum) VALUES (" + ", ".join([p] * 9) + ")",
+            (
+                resource.resource_id,
+                project_id,
+                run_id,
+                attempt,
+                resource.resource_kind,
+                resource.role,
+                resource.table_name,
+                canonical_json(resource.staged_objects),
+                resource_checksum,
+            ),
+        )
+        catalog_checksum = payload_checksum(_catalog_checksum_payload(catalog))
+        cursor.execute(
+            f"INSERT INTO {store._table('run_catalog_change')} "
+            "(catalog_change_id, project_id, run_id, attempt, catalog_ref, operation, metadata, "
+            "record_checksum) VALUES (" + ", ".join([p] * 8) + ")",
+            (
+                catalog.catalog_change_id,
+                project_id,
+                run_id,
+                attempt,
+                catalog.catalog_ref,
+                catalog.operation,
+                canonical_json(catalog.metadata),
+                catalog_checksum,
+            ),
+        )
+        quality_checksum = payload_checksum(
+            {key: value for key, value in asdict(quality).items() if key != "quality_result_id"}
+        )
+        cursor.execute(
+            f"INSERT INTO {store._table('run_quality_result')} "
+            "(quality_result_id, project_id, run_id, attempt, check_id, blocking, passed, metadata, "
+            "record_checksum) VALUES (" + ", ".join([p] * 9) + ")",
+            (
+                quality.quality_result_id,
+                project_id,
+                run_id,
+                attempt,
+                quality.check_id,
+                quality.blocking,
+                quality.passed,
+                canonical_json(quality.metadata),
+                quality_checksum,
+            ),
+        )
+        artifact_checksum = payload_checksum(
+            {key: value for key, value in asdict(artifact).items() if key != "artifact_id"}
+        )
+        cursor.execute(
+            f"INSERT INTO {store._table('run_artifact')} "
+            "(artifact_id, project_id, run_id, attempt, artifact_kind, legal_hold, status, "
+            "record_checksum) VALUES (" + ", ".join([p] * 8) + ")",
+            (
+                artifact.artifact_id,
+                project_id,
+                run_id,
+                attempt,
+                artifact.artifact_kind,
+                artifact.legal_hold,
+                artifact.status.value,
+                artifact_checksum,
+            ),
+        )
+    return {
+        "project_id": project_id,
+        "run_id": run_id,
+        "attempt": attempt,
+        "event": event,
+        "resource": resource,
+        "catalog": catalog,
+        "quality": quality,
+        "artifact": artifact,
+    }
+
+
+def _assert_public_record_shapes(store: object, fixture: dict[str, object]) -> None:
+    project_id = fixture["project_id"]
+    run_id = fixture["run_id"]
+    attempt = fixture["attempt"]
+    resource = store.list_resources(project_id, run_id, attempt=attempt)[0]
+    catalog = store.list_catalog_changes(project_id, run_id, attempt=attempt)[0]
+    quality = store.list_quality_results(project_id, run_id, attempt=attempt)[0]
+    artifact = store.list_artifacts(project_id, run_id, attempt=attempt)[0]
+    assert resource["staged_objects"] == [{"identity": "staged/events.parquet", "checksum": "abc"}]
+    assert isinstance(resource["metadata"], dict)
+    assert isinstance(catalog["metadata"], dict)
+    assert quality["blocking"] is True
+    assert quality["passed"] is True
+    assert artifact["legal_hold"] is True
+
+
+def _fixture_checksums(store: object) -> dict[str, str]:
+    checksums: dict[str, str] = {}
+    with store._transaction() as (_, cursor):
+        for table in ("run_resource", "run_catalog_change", "run_quality_result", "run_artifact"):
+            cursor.execute(f"SELECT record_checksum FROM {store._table(table)}")
+            checksums[table] = cursor.fetchone()[0]
+    return checksums
+
+
 def test_event_append_is_redacted_checksumed_and_idempotent() -> None:
     store = _store_with_run()
     event = _event(payload={"nested": {"token": "secret", "value": 1}})
@@ -80,7 +298,7 @@ def test_event_append_is_redacted_checksumed_and_idempotent() -> None:
 
     row = store.list_events("project", "run")[0]
     assert "secret" not in row["payload"]
-    assert "<redacted>" in row["payload"]
+    assert row["payload"]["nested"]["token"] == "<redacted>"
     assert row["schema_version"] == "1.0"
 
 
@@ -109,7 +327,7 @@ def test_event_payload_conflict_rolls_back_and_preserves_original() -> None:
     with pytest.raises(IdempotencyConflict):
         store.append_event(replace(event, payload={"value": 2}))
 
-    assert store.list_events("project", "run")[0]["payload"] == '{"value":1}'
+    assert store.list_events("project", "run")[0]["payload"] == {"value": 1}
 
 
 @pytest.mark.parametrize(
@@ -1343,37 +1561,136 @@ def test_v2_field_order_and_additive_checksums_are_compatibility_safe() -> None:
     with pytest.raises(IdempotencyConflict):
         store.append_resource(replace(resource, schema_hash_before="changed"))
     with pytest.raises(IdempotencyConflict):
+        store.append_resource(replace(resource, schema_hash_after="changed"))
+    with pytest.raises(IdempotencyConflict):
+        store.append_resource(replace(resource, metadata={"source": "changed"}))
+    with pytest.raises(IdempotencyConflict):
         store.append_catalog_change(replace(catalog_change, quality_decision_id="quality-real"))
     with pytest.raises(IdempotencyConflict):
         store.append_lineage_edge(replace(lineage, attempt=2))
 
 
-def test_repeated_instrumentation_upgrade_preserves_v2_rows_and_checksums(tmp_path) -> None:
-    database = tmp_path / "v2-evidence.db"
-    store = SQLiteRunEvidenceStore(str(database))
-    store.append_pipeline_run(PipelineRun(project_id="project", run_id="run", attempt=1))
-    resource = RunResource(
-        project_id="project", run_id="run", resource_id="legacy", attempt=1, table_name="raw.events"
-    )
-    store.append_resource(resource)
+def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible(tmp_path) -> None:
+    store = _make_sqlite_v2_store(tmp_path / "v2-evidence.db")
+    fixture = _insert_v2_fixture_rows(store)
+    before_checksums = _fixture_checksums(store)
     with store._transaction() as (_, cursor):
-        cursor.execute(
-            "SELECT record_checksum FROM run_resource WHERE resource_id = ?", ("legacy",)
-        )
-        before = cursor.fetchone()[0]
         cursor.execute("SELECT version FROM run_evidence_schema_version ORDER BY version")
-        assert [row[0] for row in cursor.fetchall()] == [1, 2, 3]
+        assert [row[0] for row in cursor.fetchall()] == [1, 2]
 
     store._initialized = False
     store._initialize_schema()
     store._initialized = False
     store._initialize_schema()
-    assert store.append_resource(resource) is None
+
     with store._transaction() as (_, cursor):
-        cursor.execute(
-            "SELECT record_checksum FROM run_resource WHERE resource_id = ?", ("legacy",)
-        )
-        assert cursor.fetchone()[0] == before
+        cursor.execute("SELECT version FROM run_evidence_schema_version ORDER BY version")
+        assert [row[0] for row in cursor.fetchall()] == [1, 2, 3]
+    assert _fixture_checksums(store) == before_checksums
+
+    assert store.append_event(fixture["event"]) is False
+    assert store.append_resource(fixture["resource"]) is None
+    assert store.append_catalog_change(fixture["catalog"]) is None
+    assert store.append_quality_result(fixture["quality"]) is None
+    assert store.append_artifact(fixture["artifact"]) is None
+    with pytest.raises(IdempotencyConflict):
+        store.append_resource(replace(fixture["resource"], uri="https://changed.example"))
+    with pytest.raises(IdempotencyConflict):
+        store.append_catalog_change(replace(fixture["catalog"], quality_decision_id="forged"))
+
+    lineage_v1 = RunLineageEdge(
+        project_id=fixture["project_id"],
+        run_id=fixture["run_id"],
+        lineage_edge_id="legacy-lineage-v1",
+        source="raw.events",
+        target="analytics.events",
+        attempt=1,
+    )
+    lineage_v2 = replace(lineage_v1, lineage_edge_id="legacy-lineage-v2", attempt=2)
+    store.append_lineage_edge(lineage_v1)
+    store.append_lineage_edge(lineage_v2)
+    assert len(store.list_lineage_edges(fixture["project_id"], fixture["run_id"], attempt=1)) == 1
+    assert len(store.list_lineage_edges(fixture["project_id"], fixture["run_id"], attempt=2)) == 1
+    _assert_public_record_shapes(store, fixture)
+
+
+def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres() -> None:
+    dsn = os.environ.get("PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN")
+    if not dsn:
+        pytest.skip("set PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN for the live PostgreSQL upgrade gate")
+    pytest.importorskip("psycopg2")
+
+    schema = f"run_evidence_v2_{uuid4().hex}"
+    sql_root = Path(__file__).parents[2] / "src" / "phlo" / "sql"
+
+    class TemporaryPostgresStore(PostgresRunEvidenceStore):
+        table_prefix = f'"{schema}".'
+
+        def apply_migrations(self, names: tuple[str, ...]) -> None:
+            connection = self._connect()
+            try:
+                with connection.cursor() as cursor:
+                    for name in names:
+                        sql = (sql_root / name).read_text(encoding="utf-8")
+                        sql = sql.replace(
+                            "CREATE SCHEMA IF NOT EXISTS phlo;",
+                            f'CREATE SCHEMA IF NOT EXISTS "{schema}";',
+                        ).replace("phlo.", f'"{schema}".')
+                        cursor.execute(sql)
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+            finally:
+                connection.close()
+
+        def _initialize_schema(self) -> None:
+            self.apply_migrations(
+                (
+                    "002_create_run_evidence.sql",
+                    "003_reconcile_run_evidence.sql",
+                    "004_run_evidence_instrumentation.sql",
+                )
+            )
+
+    store = TemporaryPostgresStore(dsn)
+    try:
+        store.apply_migrations(("002_create_run_evidence.sql", "003_reconcile_run_evidence.sql"))
+        store._initialized = True
+        fixture = _insert_v2_fixture_rows(store)
+        with store._transaction() as (_, cursor):
+            cursor.execute(
+                'SELECT version FROM "' + schema + '".run_evidence_schema_version ORDER BY version'
+            )
+            assert [row[0] for row in cursor.fetchall()] == [1, 2]
+        before_checksums = _fixture_checksums(store)
+
+        store._initialized = False
+        store._initialize_schema()
+        store._initialized = False
+        store._initialize_schema()
+        assert _fixture_checksums(store) == before_checksums
+        assert store.list_events(fixture["project_id"], fixture["run_id"])[0]["payload"] == {
+            "legacy": True
+        }
+        assert store.append_event(fixture["event"]) is False
+        assert store.append_resource(fixture["resource"]) is None
+        assert store.append_catalog_change(fixture["catalog"]) is None
+        assert store.append_quality_result(fixture["quality"]) is None
+        assert store.append_artifact(fixture["artifact"]) is None
+        with pytest.raises(IdempotencyConflict):
+            store.append_resource(replace(fixture["resource"], uri="https://changed.example"))
+        with pytest.raises(IdempotencyConflict):
+            store.append_catalog_change(replace(fixture["catalog"], quality_decision_id="forged"))
+        _assert_public_record_shapes(store, fixture)
+    finally:
+        connection = store._connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+            connection.commit()
+        finally:
+            connection.close()
 
 
 def test_wap_rejection_is_failed_terminal_publish_evidence() -> None:
@@ -1405,6 +1722,66 @@ def test_wap_rejection_is_failed_terminal_publish_evidence() -> None:
         == "rejected_quality"
     )
     assert store.list_events("project", "run")[0]["event_type"] == "run_evidence.observation"
+
+
+def test_terminal_only_observation_does_not_fabricate_stage_start() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    timestamp = datetime(2026, 7, 14, 12, 0, tzinfo=UTC)
+    CoreRunEvidenceHookProvider(store)._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            event_id="terminal-only",
+            observation_type="ingestion",
+            status="success",
+            run_status="success",
+            producer="test",
+            timestamp=timestamp,
+            correlation=HookCorrelation(project_id="project", run_id="run"),
+        )
+    )
+
+    with store._transaction() as (_, cursor):
+        cursor.execute("SELECT started_at, finished_at FROM run_stage")
+        started_at, finished_at = cursor.fetchone()
+    assert started_at is None
+    assert finished_at == timestamp.isoformat()
+
+
+def test_terminal_observation_preserves_prior_stage_start() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    provider = CoreRunEvidenceHookProvider(store)
+    started = datetime(2026, 7, 14, 12, 0, tzinfo=UTC)
+    finished = datetime(2026, 7, 14, 12, 1, tzinfo=UTC)
+    correlation = HookCorrelation(project_id="project", run_id="run")
+    provider._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            event_id="stage-start",
+            observation_type="ingestion",
+            status="running",
+            producer="test",
+            timestamp=started,
+            correlation=correlation,
+        )
+    )
+    provider._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            event_id="stage-finish",
+            observation_type="ingestion",
+            status="success",
+            run_status="success",
+            producer="test",
+            timestamp=finished,
+            correlation=correlation,
+        )
+    )
+
+    with store._transaction() as (_, cursor):
+        cursor.execute("SELECT started_at, finished_at FROM run_stage")
+        started_at, finished_at = cursor.fetchone()
+    assert started_at == started.isoformat()
+    assert finished_at == finished.isoformat()
 
 
 def test_wap_rejection_preserves_authoritative_success_status() -> None:

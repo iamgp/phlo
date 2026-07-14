@@ -184,6 +184,10 @@ def _stage_for_event(event: HookEvent, *, project_id: str, run_id: str) -> RunSt
         status = "running"
     elif status == "rejected":
         status = "failed"
+    stage_started_at = (
+        event.timestamp if event.event_type.endswith(".start") or status == "running" else None
+    )
+    stage_finished_at = event.timestamp if status not in {"running", "observed"} else None
     return RunStage(
         project_id=project_id,
         run_id=run_id,
@@ -194,8 +198,8 @@ def _stage_for_event(event: HookEvent, *, project_id: str, run_id: str) -> RunSt
         asset=asset,
         status=status,
         attempt=event.correlation.attempt,
-        started_at=event.timestamp,
-        finished_at=event.timestamp if status not in {"running", "observed"} else None,
+        started_at=stage_started_at,
+        finished_at=stage_finished_at,
         metrics=getattr(event, "metrics", {}) or {},
         error=getattr(event, "error", None),
     )

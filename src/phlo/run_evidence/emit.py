@@ -45,9 +45,10 @@ def emit_lifecycle_safely(emitter: object, method_name: str, **kwargs: Any) -> N
 
 def emit_observation(
     *,
-    project_id: str,
+    project_id: str | None,
     run_id: str,
-    attempt: int = 1,
+    attempt: int | None = 1,
+    correlation_error: str | None = None,
     observation_type: str,
     status: str,
     run_status: str | None = None,
@@ -72,6 +73,7 @@ def emit_observation(
                 attempt=_safe_text(attempt),
                 producer=_safe_text(producer),
                 observation_type=_safe_text(observation_type),
+                correlation_error=_safe_text(correlation_error),
                 missing_evidence=["attempt"],
             )
             return
@@ -83,6 +85,7 @@ def emit_observation(
                 attempt=_safe_text(attempt),
                 producer=_safe_text(producer),
                 observation_type=_safe_text(observation_type),
+                correlation_error=_safe_text(correlation_error),
                 missing_evidence=[
                     name
                     for name, value in (("project_id", project_id), ("run_id", run_id))

@@ -20,6 +20,8 @@ from phlo.run_evidence import SQLiteRunEvidenceStore
 from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phlo_ingestion
 from phlo_dlt.dlt_helpers import get_branch_from_context, get_write_branch_from_context
+from phlo_dlt.executor import DltIngester
+from phlo_dlt.registry import TableConfig
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
@@ -108,7 +110,7 @@ def test_blessed_decorator_persists_runtime_correlation(monkeypatch, tmp_path) -
 def test_blessed_decorator_persists_runtime_correlation_through_sqlite(
     monkeypatch, tmp_path
 ) -> None:
-    """The real Dagster runtime and hook provider persist correlated evidence."""
+    """The real Dagster runtime uses configured project identity without a tag."""
 
     class _Schema:
         __annotations__ = {"id": int}
@@ -142,6 +144,10 @@ def test_blessed_decorator_persists_runtime_correlation_through_sqlite(
         "phlo_dlt.executor.merge_to_table_store",
         lambda **_kwargs: {"rows_inserted": 1, "rows_deleted": 0},
     )
+    monkeypatch.setattr(
+        "phlo_dagster.adapter.get_settings",
+        lambda: SimpleNamespace(phlo_project="project-durable"),
+    )
 
     @phlo_ingestion(
         table_name="events",
@@ -154,7 +160,7 @@ def test_blessed_decorator_persists_runtime_correlation_through_sqlite(
     def events(partition_date: str):
         return []
 
-    tags = {"phlo/project_id": "project-durable", "phlo/attempt": "2"}
+    tags = {"phlo/attempt": "2"}
     from phlo_dagster.adapter import DagsterRuntime
 
     runtime_context = SimpleNamespace(
@@ -182,6 +188,92 @@ def test_blessed_decorator_persists_runtime_correlation_through_sqlite(
     assert store.list_resources("project-durable", "run-durable", attempt=2)
     assert store.list_resources("project-durable", "run-durable", attempt=1) == []
     assert store.count_events("project-durable", "run-durable") > 0
+
+
+@pytest.mark.parametrize(
+    ("tags", "configured", "expected_project", "expected_error"),
+    [
+        ({"phlo/project_id": "project"}, "project", "project", None),
+        ({"phlo/project_id": "tag"}, "project", None, "project_conflict"),
+        ({}, None, None, "project_missing"),
+    ],
+)
+def test_dagster_runtime_project_identity_is_explicit(
+    monkeypatch, tags, configured, expected_project, expected_error
+):
+    from phlo_dagster.adapter import DagsterRuntime
+
+    monkeypatch.setattr(
+        "phlo_dagster.adapter.get_settings",
+        lambda: SimpleNamespace(phlo_project=configured),
+    )
+    runtime_tags = {**tags, "phlo/attempt": "1"}
+    runtime = DagsterRuntime(
+        context=SimpleNamespace(
+            tags=runtime_tags,
+            run=SimpleNamespace(run_id="run-project", tags=runtime_tags),
+            has_partition_key=False,
+            log=get_logger("test_project_identity"),
+            resources=SimpleNamespace(),
+        )
+    )
+
+    routing = runtime.routing
+
+    assert routing.project_id == expected_project
+    assert routing.project_error == expected_error
+
+
+@pytest.mark.parametrize(
+    ("tags", "configured", "expected_error"),
+    [
+        ({"phlo/project_id": "tag"}, "configured", "project_conflict"),
+        ({}, None, "project_missing"),
+    ],
+)
+def test_dlt_emits_explicit_project_correlation_gap(monkeypatch, tags, configured, expected_error):
+    """DLT keeps the run visible while marking missing or conflicting project identity."""
+    from phlo_dagster.adapter import DagsterRuntime
+
+    monkeypatch.setattr(
+        "phlo_dagster.adapter.get_settings",
+        lambda: SimpleNamespace(phlo_project=configured),
+    )
+    runtime_tags = {**tags, "phlo/attempt": "1"}
+    runtime = DagsterRuntime(
+        context=SimpleNamespace(
+            tags=runtime_tags,
+            run=SimpleNamespace(run_id="run-gap", tags=runtime_tags),
+            has_partition_key=False,
+            log=get_logger("test_dlt_project_gap"),
+            resources=SimpleNamespace(),
+        )
+    )
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        "phlo_dlt.executor.emit_observation",
+        lambda **kwargs: captured.append(kwargs),
+    )
+    ingester = DltIngester(
+        context=runtime,
+        logger=get_logger("test_dlt_project_gap"),
+        table_config=TableConfig(
+            table_name="entries",
+            table_schema=None,
+            validation_schema=None,
+            unique_key="name",
+            group_name="raw",
+        ),
+        table_store_resource=SimpleNamespace(),
+        dlt_source_func=lambda partition_date: None,
+        validate=False,
+    )
+
+    result = ingester.run_ingestion(partition_key="2026-03-05")
+
+    assert result.status == "no_data"
+    assert captured[0]["project_id"] is None
+    assert captured[0]["correlation_error"] == expected_error
 
 
 @pytest.mark.parametrize("raw_attempt", ["0", "garbage"])

@@ -55,11 +55,13 @@ from typing import Any
 
 import dagster as dg
 
+from phlo._correlation import ProjectIdentity, resolve_project_identity
 from phlo.capabilities.interfaces import VersionedCatalog
 from phlo.capabilities.resolver import resolve_capability
 from phlo._attempt import attempt_from_tags
 from phlo.hooks import HookCorrelation, QualityResultEvent, get_hook_bus
 from phlo.logging import get_logger
+from phlo.config import get_settings
 from phlo.run_evidence import default_run_evidence_store, emit_observation
 
 logger = get_logger(__name__)
@@ -167,10 +169,16 @@ def _wap_branch_name(run_id: str) -> str:
     return f"{WAP_BRANCH_PREFIX}run-{run_id}"
 
 
+def _project_identity_for_run(run: Any) -> ProjectIdentity:
+    """Resolve run tags against the configured single-project identity."""
+    return resolve_project_identity(
+        getattr(run, "tags", {}) or {},
+        get_settings().phlo_project,
+    )
+
+
 def _project_id_for_run(run: Any) -> str | None:
-    """Resolve the explicit project boundary used by run evidence."""
-    tags = getattr(run, "tags", {}) or {}
-    return tags.get("phlo/project_id")
+    return _project_identity_for_run(run).project_id
 
 
 def _attempt_for_run(run: Any) -> int | None:
@@ -215,6 +223,8 @@ def _persist_aggregate_quality_decision(
     *, project_id: str, run_id: str, attempt: int, checks: list[dict[str, Any]]
 ) -> str | None:
     """Persist and return the durable aggregate quality-result identity."""
+    if not checks or any(not check.get("event_id") for check in checks):
+        return None
     passed = all(check["passed"] for check in checks)
     event_id = (
         "wap-quality-"
@@ -259,7 +269,12 @@ def _persist_aggregate_quality_decision(
         )
         return None
     for result in results:
-        if result.get("check_id") == "wap.aggregate":
+        metadata = result.get("metadata") or {}
+        if (
+            result.get("check_id") == "wap.aggregate"
+            and bool(result.get("passed")) == passed
+            and metadata.get("checks") == checks
+        ):
             return str(result["quality_result_id"])
     return None
 
@@ -280,14 +295,7 @@ def _quality_evidence(
         return None, {"quality_evidence": {"status": "unavailable"}}
     if report.get("run_id") != run_id:
         return None, {"quality_evidence": {"status": "unavailable"}}
-    quality_id = next(
-        (
-            report.get(key)
-            for key in ("quality_result_id", "quality_decision_id", "artifact_id")
-            if isinstance(report.get(key), str) and report.get(key)
-        ),
-        None,
-    )
+    quality_id = None
     checks = _quality_check_records(instance, run_id) if instance is not None else None
     failed_check_ids = [
         check["event_id"] for check in checks or [] if not check["passed"] and check["event_id"]
@@ -309,8 +317,6 @@ def _quality_evidence(
             "identifier_source": (
                 "durable_aggregate_quality_result"
                 if quality_id and checks is not None and project_id and attempt is not None
-                else "recorded_report_field"
-                if quality_id
                 else None
             ),
             "decision_scope": "aggregate" if checks is not None else "unavailable",
@@ -345,6 +351,20 @@ def _record_uncorrelated_gap(run_id: str, *, branch: str, missing: list[str], re
     )
 
 
+def _normalized_dagster_status(run: Any) -> str | None:
+    raw_status = getattr(run, "status", None)
+    value = getattr(raw_status, "value", raw_status)
+    normalized = str(value).rsplit(".", 1)[-1].lower() if value is not None else ""
+    return {
+        "success": "success",
+        "failure": "failed",
+        "failed": "failed",
+        "canceled": "cancelled",
+        "cancelled": "cancelled",
+        "skipped": "skipped",
+    }.get(normalized)
+
+
 def _emit_wap_observation(
     *,
     run: Any,
@@ -359,6 +379,7 @@ def _emit_wap_observation(
     metadata: dict[str, Any] | None = None,
 ) -> None:
     project_id = _project_id_for_run(run)
+    project_identity = _project_identity_for_run(run)
     attempt = _attempt_for_run(run)
     run_id = getattr(run, "run_id", None)
     if not run_id:
@@ -369,7 +390,10 @@ def _emit_wap_observation(
             branch=catalog_ref,
             missing=[
                 field
-                for field, value in (("project_id", project_id), ("attempt", attempt))
+                for field, value in (
+                    (project_identity.error or "project_id", project_id),
+                    ("attempt", attempt),
+                )
                 if not value
             ],
             reason="missing_run_correlation",
@@ -676,6 +700,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             _emit_wap_observation(
                 run=run,
                 status="failed",
+                run_status="success",
                 operation="promotion",
                 catalog_ref="main",
                 source_hash=source_hash,
@@ -716,6 +741,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         _emit_wap_observation(
             run=run,
             status="success",
+            run_status="success",
             operation="promotion",
             catalog_ref="main",
             source_hash=source_hash,
@@ -731,6 +757,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         _emit_wap_observation(
             run=run,
             status="success" if source_deleted else "incomplete",
+            run_status="success",
             operation="cleanup",
             catalog_ref=branch_name,
             source_hash=source_hash,
@@ -842,9 +869,46 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
                 report.get("run_id") != run_id or report.get("branch") not in (None, branch.name)
             ):
                 report = None
-            project_id = report.get("project_id") if report else None
-            attempt = report.get("attempt") if report else None
-            if not project_id or not isinstance(attempt, int) or attempt <= 0:
+            dagster_run = None
+            run_status = None
+            get_run_by_id = getattr(context.instance, "get_run_by_id", None)
+            if callable(get_run_by_id):
+                dagster_run = get_run_by_id(run_id)
+                if dagster_run is not None:
+                    run_status = _normalized_dagster_status(dagster_run)
+            report_status = report.get("run_status") if report else None
+            if report_status in {"success", "failed", "error", "cancelled", "canceled", "skipped"}:
+                run_status = report_status
+            elif report and report.get("status") == "promoted":
+                run_status = "success"
+            if run_status is None:
+                _record_uncorrelated_gap(
+                    run_id,
+                    branch=branch.name,
+                    missing=["run_status"],
+                    reason="cleanup_authoritative_status_missing",
+                )
+                continue
+
+            tags = dict(getattr(dagster_run, "tags", {}) or {}) if dagster_run else {}
+            report_project = report.get("project_id") if report else None
+            tagged_project = tags.get("phlo/project_id")
+            if report_project and tagged_project and report_project != tagged_project:
+                _record_uncorrelated_gap(
+                    run_id,
+                    branch=branch.name,
+                    missing=["project_id"],
+                    reason="cleanup_project_conflict",
+                )
+                continue
+            if report_project and not tagged_project:
+                tags["phlo/project_id"] = report_project
+            if "phlo/attempt" not in tags and report:
+                tags["phlo/attempt"] = str(report.get("attempt", ""))
+            cleanup_run = type("CleanupRun", (), {"run_id": run_id, "tags": tags})()
+            project_id = _project_id_for_run(cleanup_run)
+            attempt = _attempt_for_run(cleanup_run)
+            if not project_id or attempt is None:
                 _record_uncorrelated_gap(
                     run_id,
                     branch=branch.name,
@@ -857,18 +921,9 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
                 )
                 continue
             _emit_wap_observation(
-                run=type(
-                    "CleanupRun",
-                    (),
-                    {
-                        "run_id": run_id,
-                        "tags": {
-                            "phlo/project_id": project_id,
-                            "phlo/attempt": str(attempt),
-                        },
-                    },
-                )(),
+                run=cleanup_run,
                 status="success",
+                run_status=run_status,
                 operation="cleanup",
                 catalog_ref=branch.name,
                 source_hash=branch.hash,

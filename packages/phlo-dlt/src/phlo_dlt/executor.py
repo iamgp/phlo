@@ -233,6 +233,9 @@ class DltIngester(BaseIngester):
         target_branch_name = parameters.get("target_branch_name", branch_name)
         run_id = parameters.get("run_id") or routing.run_id or "unknown"
         project_id = parameters.get("project_id") or routing.project_id
+        project_error = getattr(routing, "project_error", None)
+        if project_error:
+            project_id = None
         raw_attempt = parameters.get("attempt", routing.attempt)
         try:
             attempt = normalize_attempt(raw_attempt)
@@ -301,11 +304,12 @@ class DltIngester(BaseIngester):
                     emit_lifecycle_safely(
                         emitter, "emit_end", status="no_data", metrics={"rows_loaded": 0}
                     )
-                if project_id and run_id != "unknown":
+                if run_id != "unknown":
                     emit_observation(
                         project_id=project_id,
                         run_id=run_id,
                         attempt=attempt,
+                        correlation_error=project_error,
                         observation_type="ingest",
                         status="no_data",
                         producer="phlo-dlt",
@@ -517,11 +521,12 @@ class DltIngester(BaseIngester):
                         "target_branch_name": target_branch_name,
                     },
                 )
-            if project_id and run_id != "unknown":
+            if run_id != "unknown":
                 emit_observation(
                     project_id=project_id,
                     run_id=run_id,
                     attempt=attempt,
+                    correlation_error=project_error,
                     observation_type="ingest",
                     status="success",
                     producer="phlo-dlt",
@@ -563,11 +568,12 @@ class DltIngester(BaseIngester):
                     metrics={"total_elapsed_seconds": total_elapsed},
                     error=safe_error,
                 )
-            if project_id and run_id != "unknown":
+            if run_id != "unknown":
                 emit_observation(
                     project_id=project_id,
                     run_id=run_id,
                     attempt=attempt,
+                    correlation_error=project_error,
                     observation_type="ingest",
                     status="failed",
                     producer="phlo-dlt",

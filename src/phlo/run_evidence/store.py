@@ -89,6 +89,21 @@ def _catalog_checksum_payload(change: RunCatalogChange) -> dict[str, Any]:
     return payload
 
 
+_JSON_ROW_FIELDS: dict[str, dict[str, type]] = {
+    "run_event": {"payload": dict},
+    "run_stage": {"metrics": dict},
+    "run_resource": {"staged_objects": list, "metadata": dict},
+    "run_lineage_edge": {"column_mapping": dict},
+    "run_catalog_change": {"metadata": dict},
+    "run_quality_result": {"metadata": dict},
+    "run_reconciliation_decision": {"missing_evidence": list},
+}
+_BOOLEAN_ROW_FIELDS = {
+    "run_quality_result": {"blocking", "passed"},
+    "run_artifact": {"legal_hold"},
+}
+
+
 class _SqlRunEvidenceStore:
     """Shared SQL implementation; subclasses provide transaction connections."""
 
@@ -402,7 +417,9 @@ class _SqlRunEvidenceStore:
             )
             existing_before = cursor.fetchone()
             existing_before_row = (
-                self._row_dict(cursor, existing_before) if existing_before is not None else None
+                self._row_dict(cursor, existing_before, table="pipeline_run")
+                if existing_before is not None
+                else None
             )
             provider_absent = observation.lookup_outcome is RunLookupOutcome.ABSENT
             if provider_absent:
@@ -458,19 +475,23 @@ class _SqlRunEvidenceStore:
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
                 (observation.project_id, observation.run_id),
             )
-            run_row = self._row_dict(cursor, cursor.fetchone())
+            run_row = self._row_dict(cursor, cursor.fetchone(), table="pipeline_run")
             cursor.execute(
                 f"SELECT * FROM {self._table('run_event')} "
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
                 (observation.project_id, observation.run_id),
             )
-            event_rows = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            event_rows = [
+                self._row_dict(cursor, row, table="run_event") for row in cursor.fetchall()
+            ]
             cursor.execute(
                 f"SELECT * FROM {self._table('run_stage')} "
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
                 (observation.project_id, observation.run_id),
             )
-            stage_rows = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            stage_rows = [
+                self._row_dict(cursor, row, table="run_stage") for row in cursor.fetchall()
+            ]
             record_rows: dict[str, list[dict[str, Any]]] = {}
             for family, table in (
                 ("resource", "run_resource"),
@@ -484,7 +505,9 @@ class _SqlRunEvidenceStore:
                     f"AND attempt = {self.placeholder}",
                     (observation.project_id, observation.run_id, observation.attempt),
                 )
-                record_rows[family] = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+                record_rows[family] = [
+                    self._row_dict(cursor, row, table=table) for row in cursor.fetchall()
+                ]
             decision = evaluate_reconciliation(
                 observation=observation,
                 profile=profile,
@@ -574,7 +597,10 @@ class _SqlRunEvidenceStore:
                 "ORDER BY decided_at, id",
                 (project_id, run_id),
             )
-            return [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            return [
+                self._row_dict(cursor, row, table="run_reconciliation_decision")
+                for row in cursor.fetchall()
+            ]
 
     def get_run(self, project_id: str, run_id: str) -> dict[str, Any] | None:
         with self._transaction() as (_, cursor):
@@ -586,7 +612,7 @@ class _SqlRunEvidenceStore:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return self._row_dict(cursor, row)
+            return self._row_dict(cursor, row, table="pipeline_run")
 
     def list_events(self, project_id: str, run_id: str) -> list[dict[str, Any]]:
         with self._transaction() as (_, cursor):
@@ -596,7 +622,7 @@ class _SqlRunEvidenceStore:
                 "ORDER BY observed_at, id",
                 (project_id, run_id),
             )
-            return [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            return [self._row_dict(cursor, row, table="run_event") for row in cursor.fetchall()]
 
     def count_events(self, project_id: str, run_id: str) -> int:
         with self._transaction() as (_, cursor):
@@ -647,7 +673,7 @@ class _SqlRunEvidenceStore:
                 f"SELECT * FROM {self._table(table)} WHERE {where} ORDER BY record_checksum",
                 params,
             )
-            return [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            return [self._row_dict(cursor, row, table=table) for row in cursor.fetchall()]
 
     def _upsert_run(self, cursor: Any, run: PipelineRun) -> None:
         cursor.execute(
@@ -885,7 +911,7 @@ class _SqlRunEvidenceStore:
                 raise IdempotencyConflict(
                     f"reconciliation decision {decision.project_id}/{decision.decision_id} conflicted"
                 )
-            existing_row = self._row_dict(cursor, existing)
+            existing_row = self._row_dict(cursor, existing, table="run_reconciliation_decision")
             if existing_row["record_checksum"] != record_checksum:
                 raise IdempotencyConflict(
                     f"reconciliation decision {decision.project_id}/{decision.decision_id} conflicted"
@@ -1056,19 +1082,24 @@ class _SqlRunEvidenceStore:
             )
         p = self.placeholder
         cursor.execute(
-            f"UPDATE {self._table('run_stage')} SET status = CASE "
-            f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"UPDATE {self._table('run_stage')} SET started_at = CASE "
+            f"WHEN started_at IS NOT NULL THEN started_at "
+            f"WHEN {p} IN ('running', 'started', 'start') THEN {p} "
+            f"ELSE started_at END, status = CASE "
+            f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN status ELSE {p} END, "
             f"finished_at = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN COALESCE(finished_at, {p}) ELSE COALESCE({p}, finished_at) END, "
             f"metrics = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN metrics ELSE {p} END, error = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN COALESCE(error, {p}) ELSE COALESCE({p}, error) END "
             f"WHERE project_id = {p} AND run_id = {p} AND stage_id = {p}",
             (
+                stage.status,
+                _timestamp(stage.started_at),
                 stage.status,
                 _timestamp(stage.finished_at),
                 _timestamp(stage.finished_at),
@@ -1295,11 +1326,32 @@ class _SqlRunEvidenceStore:
             )
 
     @staticmethod
-    def _row_dict(cursor: Any, row: Any) -> dict[str, Any]:
+    def _row_dict(cursor: Any, row: Any, *, table: str | None = None) -> dict[str, Any]:
         if hasattr(row, "keys"):
-            return dict(row)
-        columns = [description[0] for description in cursor.description]
-        return dict(zip(columns, row, strict=True))
+            result = dict(row)
+        else:
+            columns = [description[0] for description in cursor.description]
+            result = dict(zip(columns, row, strict=True))
+        if table is None:
+            return result
+        for field, expected_type in _JSON_ROW_FIELDS.get(table, {}).items():
+            value = result.get(field)
+            if isinstance(value, (bytes, bytearray)):
+                value = value.decode("utf-8")
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    value = None
+            if value is None:
+                value = [] if expected_type is list else {}
+            if not isinstance(value, expected_type):
+                raise ValueError(f"{table}.{field} must be a {expected_type.__name__}")
+            result[field] = value
+        for field in _BOOLEAN_ROW_FIELDS.get(table, set()):
+            if result.get(field) is not None:
+                result[field] = bool(result[field])
+        return result
 
     @staticmethod
     def _require_id(name: str, value: str) -> None:
