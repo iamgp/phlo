@@ -6,6 +6,7 @@ configuration parameters, and error handling.
 """
 
 from datetime import datetime
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -31,6 +32,74 @@ def _clear_ingestion_registry() -> None:
 def test_phlo_ingestion_export_is_available() -> None:
     """Verify the ingestion decorator export is callable."""
     assert callable(phlo_ingestion)
+
+
+def test_blessed_decorator_persists_runtime_correlation(monkeypatch, tmp_path) -> None:
+    """The normal decorated asset path persists project and attempt into DLT evidence."""
+
+    class _Schema:
+        __annotations__ = {"id": int}
+
+    captured: list[dict[str, Any]] = []
+    states = iter(
+        [
+            {"state": "absent", "snapshot_id": None, "schema_hash": None, "metadata": {}},
+            {"state": "present", "snapshot_id": "after", "schema_hash": "schema", "metadata": {}},
+        ]
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.decorator._resolve_table_store_capability",
+        lambda _runtime: (SimpleNamespace(), "test-store"),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.setup_dlt_pipeline",
+        lambda **_kwargs: (SimpleNamespace(), tmp_path),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.stage_to_parquet",
+        lambda **_kwargs: ([tmp_path / "staged.parquet"], 0.01),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.staged_object_inventory",
+        lambda _paths: [{"identity": "staged.parquet", "checksum": "abc", "byte_count": 1}],
+    )
+    monkeypatch.setattr("phlo_dlt.executor.dlt_execution_identity", lambda *args: ("exec-1", True))
+    monkeypatch.setattr("phlo_dlt.executor.dlt_observed_metrics", lambda _pipeline: {})
+    monkeypatch.setattr("phlo_dlt.executor.table_state", lambda *_args: next(states))
+    monkeypatch.setattr(
+        "phlo_dlt.executor.merge_to_table_store",
+        lambda **_kwargs: {"rows_inserted": 1, "rows_deleted": 0},
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.emit_observation",
+        lambda **kwargs: captured.append(kwargs),
+    )
+
+    @phlo_ingestion(
+        table_name="events",
+        unique_key="id",
+        group="raw",
+        validation_schema=_Schema,
+        validate=False,
+        add_metadata_columns=False,
+    )
+    def events(partition_date: str):
+        return []
+
+    runtime = SimpleNamespace(
+        run_id="run-decorated",
+        partition_key="2026-07-13",
+        tags={"phlo/project_id": "project-decorated", "phlo/attempt": "2"},
+        resources={},
+        logger=SimpleNamespace(info=lambda *args, **kwargs: None),
+    )
+
+    list(get_ingestion_assets()[0].run.fn(runtime))
+
+    assert captured[0]["run_id"] == "run-decorated"
+    assert captured[0]["project_id"] == "project-decorated"
+    assert captured[0]["attempt"] == 2
+    assert captured[0]["resources"]
 
 
 def test_dlt_ingestion_asset_has_provider_neutral_metadata() -> None:

@@ -55,6 +55,7 @@ from phlo.capabilities.runtime import (
     RuntimeRouting,
     capability_overrides_from_tags,
 )
+from phlo.config import get_settings
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
@@ -187,20 +188,30 @@ class DagsterRuntime(RuntimeContext):
     @property
     def tags(self) -> dict[str, str]:
         """Return run tags from the best available context attribute."""
+        configured_project = get_settings().phlo_project
         direct_tags = getattr(self.context, "tags", None)
         if isinstance(direct_tags, Mapping):
-            return {str(key): str(value) for key, value in direct_tags.items()}
+            tags = {str(key): str(value) for key, value in direct_tags.items()}
+            if configured_project and "phlo/project_id" not in tags:
+                tags["phlo/project_id"] = configured_project
+            return tags
 
         run_tags = getattr(self.context, "run_tags", None)
         if isinstance(run_tags, Mapping):
-            return {str(key): str(value) for key, value in run_tags.items()}
+            tags = {str(key): str(value) for key, value in run_tags.items()}
+            if configured_project and "phlo/project_id" not in tags:
+                tags["phlo/project_id"] = configured_project
+            return tags
 
         run = getattr(self.context, "run", None)
         run_level_tags = getattr(run, "tags", None) if run is not None else None
         if isinstance(run_level_tags, Mapping):
-            return {str(key): str(value) for key, value in run_level_tags.items()}
+            tags = {str(key): str(value) for key, value in run_level_tags.items()}
+            if configured_project and "phlo/project_id" not in tags:
+                tags["phlo/project_id"] = configured_project
+            return tags
 
-        return {}
+        return {"phlo/project_id": configured_project} if configured_project else {}
 
     @property
     def logger(self) -> Any:
@@ -251,6 +262,10 @@ class DagsterRuntime(RuntimeContext):
             ref=tags.get("phlo/ref") or tags.get("ref") or tags.get("branch"),
             partition_key=self.partition_key,
             run_id=self.run_id,
+            project_id=tags.get("phlo/project_id") or get_settings().phlo_project,
+            attempt=(
+                int(tags.get("phlo/attempt", "1")) if tags.get("phlo/attempt", "1").isdigit() else 1
+            ),
             resources=self.resources,
             feature_flags=feature_flags,
             capability_overrides=capability_overrides,

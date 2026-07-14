@@ -12,14 +12,17 @@ from phlo.hooks.events import (
     LineageEvent,
     PublishEvent,
     QualityResultEvent,
+    RunEvidenceObservationEvent,
     TransformEvent,
 )
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookRegistration
 from phlo.run_evidence.models import (
     PipelineRun,
+    RunCatalogChange,
     RunEvent,
     RunLineageEdge,
     RunQualityResult,
+    RunResource,
     RunStage,
 )
 from phlo.run_evidence.store import (
@@ -39,6 +42,7 @@ _LIFECYCLE_EVENT_TYPES = {
     "publish.start",
     "publish.end",
     "lineage.edges",
+    "run_evidence.observation",
 }
 
 
@@ -59,7 +63,10 @@ class CoreRunEvidenceHookProvider:
                 handler=self._handle_event,
                 priority=0,
                 filters=HookFilter(event_types=set(_LIFECYCLE_EVENT_TYPES)),
-                failure_policy=FailurePolicy.RAISE,
+                # Evidence persistence is observational. A provider operation
+                # must not become a provider failure because its post-submit
+                # evidence sink is unavailable.
+                failure_policy=FailurePolicy.LOG,
             )
         ]
 
@@ -87,12 +94,21 @@ class CoreRunEvidenceHookProvider:
             trace_id=event.correlation.trace_id,
             status=_run_status(event),
             attempt=event.correlation.attempt,
+            finished_at=(
+                event.timestamp
+                if _run_status(event)
+                in {"failed", "error", "cancelled", "canceled", "skipped", "no_data"}
+                else None
+            ),
+            failure_summary=getattr(event, "error", None),
         )
         stage = _stage_for_event(event, project_id=project_id, run_id=run_id)
         quality_result = _quality_for_event(
             event, project_id=project_id, run_id=run_id, stage=stage
         )
         lineage_edges = _lineage_for_event(event, project_id=project_id, run_id=run_id)
+        resources = _resources_for_event(event, project_id=project_id, run_id=run_id)
+        catalog_change = _catalog_change_for_event(event, project_id=project_id, run_id=run_id)
         store.append_event(
             RunEvent(
                 project_id=project_id,
@@ -103,13 +119,15 @@ class CoreRunEvidenceHookProvider:
                 schema_version=event.version,
                 observed_at=event.timestamp,
                 payload=_event_payload(event),
-                stage_id=stage.stage_id if stage else None,
                 attempt=event.correlation.attempt,
+                stage_id=stage.stage_id if stage else None,
             ),
             run=run,
             stage=stage,
             quality_result=quality_result,
             lineage_edges=tuple(lineage_edges),
+            resources=tuple(resources),
+            catalog_change=catalog_change,
         )
 
 
@@ -157,6 +175,8 @@ def _stage_for_event(event: HookEvent, *, project_id: str, run_id: str) -> RunSt
     status = getattr(event, "status", None) or "observed"
     if status in {"started", "start", "running"}:
         status = "running"
+    elif status == "rejected":
+        status = "failed"
     return RunStage(
         project_id=project_id,
         run_id=run_id,
@@ -191,6 +211,7 @@ def _quality_for_event(
             project_id, run_id, str(event.correlation.attempt), "quality", event.check_name
         ),
         check_id=event.check_name,
+        attempt=event.correlation.attempt,
         asset=event.asset_key,
         stage_id=stage.stage_id if stage else None,
         severity=event.severity,
@@ -199,7 +220,6 @@ def _quality_for_event(
         evaluated_count=_as_int(metadata.get("evaluated_count", metadata.get("total_rows"))),
         failed_count=_as_int(metadata.get("failed_count", metadata.get("failed_rows"))),
         metadata=metadata,
-        attempt=event.correlation.attempt,
     )
 
 
@@ -216,7 +236,10 @@ def _lineage_for_event(
         RunLineageEdge(
             project_id=project_id,
             run_id=run_id,
-            lineage_edge_id=_stable_id(project_id, run_id, event.event_id, str(index)),
+            lineage_edge_id=_stable_id(
+                project_id, run_id, str(event.correlation.attempt), event.event_id, str(index)
+            ),
+            attempt=event.correlation.attempt,
             source=source,
             target=target,
             column_mapping=metadata.get("column_mapping", {}),
@@ -229,6 +252,8 @@ def _lineage_for_event(
 
 
 def _stage_type(event: HookEvent) -> str | None:
+    if isinstance(event, RunEvidenceObservationEvent):
+        return event.observation_type
     if isinstance(event, IngestionEvent):
         return "ingest"
     if isinstance(event, TransformEvent):
@@ -242,7 +267,107 @@ def _stage_type(event: HookEvent) -> str | None:
     return None
 
 
+def _resources_for_event(event: HookEvent, *, project_id: str, run_id: str) -> list[Any]:
+    if not isinstance(event, RunEvidenceObservationEvent):
+        return []
+    resources: list[Any] = []
+    for index, raw in enumerate(event.resources):
+        if not isinstance(raw, dict):
+            continue
+        values = dict(raw)
+        values.setdefault(
+            "resource_id",
+            _stable_id(
+                project_id, run_id, str(event.correlation.attempt), event.event_id, str(index)
+            ),
+        )
+        values["project_id"] = project_id
+        values["run_id"] = run_id
+        values.setdefault("attempt", event.correlation.attempt)
+        allowed = {
+            "project_id",
+            "run_id",
+            "resource_id",
+            "attempt",
+            "resource_kind",
+            "role",
+            "normalized_identity",
+            "uri",
+            "table_name",
+            "catalog",
+            "ref_name",
+            "schema_hash",
+            "schema_hash_before",
+            "schema_hash_after",
+            "watermark",
+            "record_count",
+            "byte_count",
+            "staged_objects",
+            "snapshot_before",
+            "snapshot_after",
+            "metadata",
+        }
+        resources.append(
+            RunResource(**{key: value for key, value in values.items() if key in allowed})
+        )
+    return resources
+
+
+def _catalog_change_for_event(
+    event: HookEvent, *, project_id: str, run_id: str
+) -> RunCatalogChange | None:
+    if not isinstance(event, RunEvidenceObservationEvent) or not event.catalog_change:
+        return None
+    values = dict(event.catalog_change)
+    values.setdefault(
+        "catalog_change_id",
+        _stable_id(project_id, run_id, str(event.correlation.attempt), event.event_id, "catalog"),
+    )
+    values.update(project_id=project_id, run_id=run_id)
+    values.setdefault("attempt", event.correlation.attempt)
+    allowed = {
+        "project_id",
+        "run_id",
+        "catalog_change_id",
+        "attempt",
+        "operation",
+        "catalog_ref",
+        "content_key",
+        "source_hash",
+        "target_hash",
+        "commit_hash",
+        "commit_message",
+        "merge_outcome",
+        "snapshot_before",
+        "snapshot_after",
+        "quality_decision_id",
+        "metadata",
+    }
+    return RunCatalogChange(**{key: value for key, value in values.items() if key in allowed})
+
+
 def _run_status(event: HookEvent) -> str:
+    if isinstance(event, RunEvidenceObservationEvent):
+        if event.run_status in {
+            "queued",
+            "not_started",
+            "starting",
+            "started",
+            "running",
+            "canceling",
+            "success",
+            "failed",
+            "error",
+            "cancelled",
+            "canceled",
+            "skipped",
+            "no_data",
+            "abandoned",
+        }:
+            return event.run_status
+        if event.status in {"failed", "error", "cancelled", "canceled", "no_data"}:
+            return event.status
+        return "running"
     if event.event_type not in {"run.end", "run.terminal"}:
         return "running"
     status = getattr(event, "status", None)

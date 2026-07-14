@@ -7,9 +7,10 @@ import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -28,6 +29,7 @@ from phlo.hooks.events import (
     LineageEvent,
     PublishEvent,
     QualityResultEvent,
+    RunEvidenceObservationEvent,
     TransformEvent,
 )
 from phlo.run_evidence import (
@@ -46,7 +48,9 @@ from phlo.run_evidence import (
     SQLiteRunEvidenceStore,
     default_run_evidence_store,
 )
+from phlo.run_evidence.emit import emit_observation
 from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
+from phlo.run_evidence.redaction import payload_checksum
 
 
 def _store_with_run(*, project_id: str = "project", run_id: str = "run") -> SQLiteRunEvidenceStore:
@@ -846,7 +850,7 @@ def test_sqlite_migration_is_versioned_and_idempotent() -> None:
     store._initialize_schema()
     with store._transaction() as (_, cursor):
         cursor.execute("SELECT version FROM run_evidence_schema_version")
-        assert [row[0] for row in cursor.fetchall()] == [1, RUN_EVIDENCE_SCHEMA_VERSION]
+        assert [row[0] for row in cursor.fetchall()] == [1, 2, RUN_EVIDENCE_SCHEMA_VERSION]
         for table in (
             "run_event",
             "run_resource",
@@ -1043,3 +1047,449 @@ def test_normalized_resource_payload_is_redacted() -> None:
         uri, staged_objects = cursor.fetchone()
     assert "secret" not in uri
     assert "secret" not in staged_objects
+
+
+def test_observation_persists_provider_resources_and_catalog_change() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    provider = CoreRunEvidenceHookProvider(store)
+    provider._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            observation_type="iceberg",
+            status="success",
+            producer="provider",
+            resources=[
+                {
+                    "resource_kind": "staged_object",
+                    "role": "staged",
+                    "staged_objects": [
+                        {"identity": "sha256:abc", "checksum": "abc", "byte_count": 10}
+                    ],
+                    "metadata": {"watermark": {"status": "unavailable"}},
+                }
+            ],
+            catalog_change={
+                "operation": "promotion",
+                "catalog_ref": "main",
+                "source_hash": "source",
+                "target_hash": "target",
+                "merge_outcome": "promoted",
+            },
+            correlation=HookCorrelation(project_id="project", run_id="run", attempt=2),
+        )
+    )
+
+    with store._transaction() as (_, cursor):
+        cursor.execute("SELECT attempt, staged_objects, metadata FROM run_resource")
+        resource = cursor.fetchone()
+        cursor.execute(
+            "SELECT attempt, source_hash, target_hash, merge_outcome FROM run_catalog_change"
+        )
+        change = cursor.fetchone()
+    assert resource[0] == 2
+    assert "sha256:abc" in resource[1]
+    assert resource[2] == '{"watermark":{"status":"unavailable"}}'
+    assert change[0] == 2
+    assert tuple(change[1:]) == ("source", "target", "promoted")
+
+
+def test_observation_redacts_rows_and_credentials() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    provider = CoreRunEvidenceHookProvider(store)
+    provider._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            observation_type="ingest",
+            status="failed",
+            producer="provider",
+            error="authorization=TOPSECRET",
+            resources=[
+                {
+                    "resource_kind": "staged_object",
+                    "role": "staged",
+                    "uri": "https://example.test/object?client_secret=TOPSECRET",
+                    "metadata": {"rows": [{"email": "alice@example.test"}]},
+                }
+            ],
+            correlation=HookCorrelation(project_id="project", run_id="run"),
+        )
+    )
+    event_payload = store.list_events("project", "run")[0]["payload"]
+    with store._transaction() as (_, cursor):
+        cursor.execute("SELECT uri, metadata FROM run_resource")
+        uri, metadata = cursor.fetchone()
+    for value in (event_payload, uri, metadata):
+        assert "TOPSECRET" not in value
+        assert "alice@example.test" not in value
+
+
+def test_event_identity_rejects_cross_run_reuse() -> None:
+    store = _store_with_run()
+    store.append_pipeline_run(PipelineRun(project_id="project", run_id="other"))
+    event = _event(payload={"value": 1})
+    assert store.append_event(event) is True
+    with pytest.raises(IdempotencyConflict):
+        store.append_event(replace(event, run_id="other"))
+    with pytest.raises(IdempotencyConflict):
+        store.append_event(replace(event, attempt=2))
+
+
+def test_new_attempt_fields_are_positive_and_staged_objects_are_structured() -> None:
+    with pytest.raises(ValueError, match="positive"):
+        RunEvent(
+            project_id="project",
+            run_id="run",
+            event_id="e",
+            event_type="x",
+            producer="p",
+            payload={},
+            attempt=0,
+        )
+    with pytest.raises(ValueError, match="stable identity"):
+        RunResource(
+            project_id="project", run_id="run", resource_id="r", staged_objects=[{"checksum": "x"}]
+        )
+    with pytest.raises(ValueError, match="positive"):
+        RunQualityResult(
+            project_id="project", run_id="run", quality_result_id="q", check_id="c", attempt=0
+        )
+    with pytest.raises(ValueError, match="positive"):
+        RunArtifact(
+            project_id="project", run_id="run", artifact_id="a", artifact_kind="log", attempt=0
+        )
+
+
+def test_attempt_scoped_child_evidence_and_reports_are_isolated() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    store.append_pipeline_run(PipelineRun(project_id="project", run_id="run", attempt=2))
+    for attempt in (1, 2):
+        store.append_resource(
+            RunResource(
+                project_id="project",
+                run_id="run",
+                attempt=attempt,
+                resource_id=f"resource:{attempt}",
+                resource_kind="staged",
+            )
+        )
+        store.append_catalog_change(
+            RunCatalogChange(
+                project_id="project",
+                run_id="run",
+                attempt=attempt,
+                catalog_change_id=f"catalog:{attempt}",
+                operation="promotion",
+                source_hash=f"source:{attempt}",
+                target_hash=f"target:{attempt}",
+            )
+        )
+        store.append_quality_result(
+            RunQualityResult(
+                project_id="project",
+                run_id="run",
+                attempt=attempt,
+                quality_result_id=f"quality:{attempt}",
+                check_id="gate",
+                passed=attempt == 2,
+            )
+        )
+        store.append_artifact(
+            RunArtifact(
+                project_id="project",
+                run_id="run",
+                attempt=attempt,
+                artifact_id=f"artifact:{attempt}",
+                artifact_kind="quality-report",
+            )
+        )
+
+    assert [row["attempt"] for row in store.list_resources("project", "run", attempt=1)] == [1]
+    assert [row["attempt"] for row in store.list_resources("project", "run", attempt=2)] == [2]
+    assert [
+        row["source_hash"] for row in store.list_catalog_changes("project", "run", attempt=2)
+    ] == ["source:2"]
+    assert [row["passed"] for row in store.list_quality_results("project", "run", attempt=1)] == [0]
+    assert [row["attempt"] for row in store.list_artifacts("project", "run", attempt=2)] == [2]
+    assert len(store.list_resources("project", "run")) == 2
+
+    with store._transaction() as (_, cursor):
+        for table in ("run_lineage_edge", "run_quality_result", "run_artifact"):
+            cursor.execute(f"PRAGMA table_info({table})")
+            assert "attempt" in {row[1] for row in cursor.fetchall()}
+
+
+def test_sqlite_v1_store_upgrades_additive_instrumentation_columns(tmp_path) -> None:
+    database = tmp_path / "run-evidence.db"
+    connection = sqlite3.connect(database)
+    foundation = Path(__file__).parents[2] / "src/phlo/sql/002_create_run_evidence.sql"
+    foundation_sql = foundation.read_text(encoding="utf-8")
+    for old, new in {
+        "CREATE SCHEMA IF NOT EXISTS phlo;": "",
+        "phlo.": "",
+        "BIGSERIAL": "INTEGER",
+        "TIMESTAMPTZ": "TEXT",
+        "JSONB": "TEXT",
+        "DOUBLE PRECISION": "REAL",
+        "BOOLEAN": "INTEGER",
+        "DEFAULT NOW()": "DEFAULT CURRENT_TIMESTAMP",
+        "DEFAULT '{}'::jsonb": "DEFAULT '{}'",
+        "DEFAULT '[]'::jsonb": "DEFAULT '[]'",
+        "INSERT INTO run_evidence_schema_version(version) VALUES (1)\nON CONFLICT (version) DO NOTHING;": "INSERT OR IGNORE INTO run_evidence_schema_version(version) VALUES (1);",
+    }.items():
+        foundation_sql = foundation_sql.replace(old, new)
+    connection.executescript(foundation_sql)
+    connection.commit()
+    connection.close()
+
+    store = SQLiteRunEvidenceStore(str(database))
+    store.append_pipeline_run(PipelineRun(project_id="project", run_id="run"))
+    store.append_resource(
+        RunResource(
+            project_id="project",
+            run_id="run",
+            resource_id="resource",
+            attempt=2,
+            schema_hash_before="before",
+            schema_hash_after="after",
+        )
+    )
+
+    with store._transaction() as (_, cursor):
+        cursor.execute("PRAGMA table_info(run_event)")
+        event_columns = {row[1] for row in cursor.fetchall()}
+        cursor.execute("PRAGMA table_info(run_resource)")
+        resource_columns = {row[1] for row in cursor.fetchall()}
+        cursor.execute("PRAGMA table_info(run_lineage_edge)")
+        lineage_columns = {row[1] for row in cursor.fetchall()}
+        cursor.execute("PRAGMA table_info(run_quality_result)")
+        quality_columns = {row[1] for row in cursor.fetchall()}
+        cursor.execute("PRAGMA table_info(run_artifact)")
+        artifact_columns = {row[1] for row in cursor.fetchall()}
+        cursor.execute("SELECT version FROM run_evidence_schema_version ORDER BY version")
+        versions = [row[0] for row in cursor.fetchall()]
+    assert "attempt" in event_columns
+    assert {"attempt", "schema_hash_before", "schema_hash_after", "metadata"} <= resource_columns
+    assert "attempt" in lineage_columns
+    assert "attempt" in quality_columns
+    assert "attempt" in artifact_columns
+    assert versions == [1, 2, RUN_EVIDENCE_SCHEMA_VERSION]
+
+
+def test_v2_field_order_and_additive_checksums_are_compatibility_safe() -> None:
+    from dataclasses import fields
+
+    assert [field.name for field in fields(RunResource)][-4:] == [
+        "attempt",
+        "schema_hash_before",
+        "schema_hash_after",
+        "metadata",
+    ]
+    assert [field.name for field in fields(RunCatalogChange)][-2:] == [
+        "attempt",
+        "quality_decision_id",
+    ]
+    assert [field.name for field in fields(RunArtifact)][-1:] == ["attempt"]
+    assert [field.name for field in fields(RunLineageEdge)][-1:] == ["attempt"]
+
+    store = _store_with_run()
+    resource = RunResource(project_id="project", run_id="run", resource_id="resource")
+    catalog_change = RunCatalogChange(
+        project_id="project", run_id="run", catalog_change_id="catalog", operation="promotion"
+    )
+    lineage = RunLineageEdge(
+        project_id="project", run_id="run", lineage_edge_id="lineage", source="a", target="b"
+    )
+    store.append_resource(resource)
+    store.append_catalog_change(catalog_change)
+    store.append_lineage_edge(lineage)
+
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT record_checksum FROM run_resource WHERE resource_id = ?", ("resource",)
+        )
+        resource_checksum = cursor.fetchone()[0]
+        cursor.execute(
+            "SELECT record_checksum FROM run_catalog_change WHERE catalog_change_id = ?",
+            ("catalog",),
+        )
+        catalog_checksum = cursor.fetchone()[0]
+        cursor.execute(
+            "SELECT record_checksum FROM run_lineage_edge WHERE lineage_edge_id = ?",
+            ("lineage",),
+        )
+        lineage_checksum = cursor.fetchone()[0]
+    assert resource_checksum == payload_checksum(
+        {
+            key: value
+            for key, value in asdict(resource).items()
+            if key != "resource_id"
+            and key not in {"schema_hash_before", "schema_hash_after", "metadata"}
+        }
+    )
+    assert catalog_checksum == payload_checksum(
+        {
+            key: value
+            for key, value in asdict(catalog_change).items()
+            if key != "catalog_change_id" and key != "quality_decision_id"
+        }
+    )
+    assert lineage_checksum == payload_checksum(
+        {
+            key: value
+            for key, value in asdict(lineage).items()
+            if key not in {"lineage_edge_id", "attempt"}
+        }
+    )
+    with pytest.raises(IdempotencyConflict):
+        store.append_resource(replace(resource, schema_hash_before="changed"))
+    with pytest.raises(IdempotencyConflict):
+        store.append_catalog_change(replace(catalog_change, quality_decision_id="quality-real"))
+    with pytest.raises(IdempotencyConflict):
+        store.append_lineage_edge(replace(lineage, attempt=2))
+
+
+def test_repeated_instrumentation_upgrade_preserves_v2_rows_and_checksums(tmp_path) -> None:
+    database = tmp_path / "v2-evidence.db"
+    store = SQLiteRunEvidenceStore(str(database))
+    store.append_pipeline_run(PipelineRun(project_id="project", run_id="run", attempt=1))
+    resource = RunResource(
+        project_id="project", run_id="run", resource_id="legacy", attempt=1, table_name="raw.events"
+    )
+    store.append_resource(resource)
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT record_checksum FROM run_resource WHERE resource_id = ?", ("legacy",)
+        )
+        before = cursor.fetchone()[0]
+        cursor.execute("SELECT version FROM run_evidence_schema_version ORDER BY version")
+        assert [row[0] for row in cursor.fetchall()] == [1, 2, 3]
+
+    store._initialized = False
+    store._initialize_schema()
+    store._initialized = False
+    store._initialize_schema()
+    assert store.append_resource(resource) is None
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT record_checksum FROM run_resource WHERE resource_id = ?", ("legacy",)
+        )
+        assert cursor.fetchone()[0] == before
+
+
+def test_wap_rejection_is_failed_terminal_publish_evidence() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    provider = CoreRunEvidenceHookProvider(store)
+    timestamp = datetime.now(UTC)
+    provider._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            event_id="wap-rejected",
+            observation_type="publish",
+            status="rejected",
+            producer="phlo-dagster-nessie",
+            timestamp=timestamp,
+            catalog_change={
+                "operation": "promotion",
+                "catalog_ref": "main",
+                "merge_outcome": "rejected_quality",
+            },
+            correlation=HookCorrelation(project_id="project", run_id="run", attempt=1),
+        )
+    )
+    run = store.get_run("project", "run")
+    assert run is not None
+    assert run["status"] == "running"
+    assert run["finished_at"] is None
+    assert (
+        store.list_catalog_changes("project", "run", attempt=1)[0]["merge_outcome"]
+        == "rejected_quality"
+    )
+    assert store.list_events("project", "run")[0]["event_type"] == "run_evidence.observation"
+
+
+def test_wap_rejection_preserves_authoritative_success_status() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    store.append_pipeline_run(
+        PipelineRun(
+            project_id="project", run_id="run", status="success", finished_at=datetime.now(UTC)
+        )
+    )
+    provider = CoreRunEvidenceHookProvider(store)
+    provider._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            event_id="wap-rejected-existing",
+            observation_type="publish",
+            status="rejected",
+            run_status="success",
+            producer="phlo-dagster-nessie",
+            catalog_change={"operation": "promotion", "merge_outcome": "rejected_quality"},
+            correlation=HookCorrelation(project_id="project", run_id="run"),
+        )
+    )
+    run = store.get_run("project", "run")
+    assert run is not None and run["status"] == "success"
+
+
+@pytest.mark.parametrize("sink_error", [RuntimeError("store unavailable"), TypeError("bad row")])
+def test_post_submit_observation_sink_failure_does_not_escape(
+    monkeypatch: pytest.MonkeyPatch, sink_error: Exception
+) -> None:
+    class FailingBus:
+        def emit(self, _event: object) -> None:
+            raise sink_error
+
+    logger = MagicMock()
+    monkeypatch.setattr("phlo.run_evidence.emit.get_hook_bus", lambda: FailingBus())
+    monkeypatch.setattr("phlo.run_evidence.emit.logger", logger)
+
+    emit_observation(
+        project_id="project",
+        run_id="run",
+        attempt=2,
+        observation_type="iceberg",
+        status="success",
+        producer="provider",
+    )
+
+    logger.error.assert_called_once()
+    fields = logger.error.call_args.kwargs
+    assert fields["project_id"] == "project"
+    assert fields["run_id"] == "run"
+    assert fields["attempt"] == "2"
+    assert fields["error_type"] == type(sink_error).__name__
+
+
+def test_observation_boundary_logs_invalid_correlation_and_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = MagicMock()
+    monkeypatch.setattr("phlo.run_evidence.emit.logger", logger)
+
+    emit_observation(
+        project_id="project",
+        run_id="run",
+        attempt=0,
+        observation_type="ingest",
+        status="success",
+        producer="provider",
+    )
+
+    class Unstringifiable:
+        def __str__(self) -> str:
+            raise RuntimeError("must not escape")
+
+    emit_observation(
+        project_id="project",
+        run_id="run",
+        attempt=1,
+        observation_type="ingest",
+        status="success",
+        producer="provider",
+        identity_parts=(Unstringifiable(),),
+    )
+
+    assert logger.error.call_count == 2
+    for call in logger.error.call_args_list:
+        assert call.kwargs["project_id"] == "project"
+        assert call.kwargs["run_id"] == "run"

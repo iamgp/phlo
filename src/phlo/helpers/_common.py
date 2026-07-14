@@ -15,6 +15,7 @@ SENSITIVE_KEYWORDS = (
     "secret",
     "authorization",
     "api_key",
+    "api-key",
     "apikey",
     "credential",
     "private_key",

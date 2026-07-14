@@ -1,5 +1,6 @@
 """Durable, provider-neutral pipeline run evidence."""
 
+from phlo.run_evidence.emit import emit_lifecycle_safely, emit_observation
 from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 from phlo.run_evidence.models import (
     RUN_EVIDENCE_SCHEMA_VERSION,
@@ -12,6 +13,7 @@ from phlo.run_evidence.models import (
     RunQualityResult,
     RunResource,
     RunStage,
+    StagedObject,
 )
 from phlo.run_evidence.reconciliation import (
     DEFAULT_CLOCK_SKEW,
@@ -60,6 +62,9 @@ __all__ = [
     "RunQualityResult",
     "RunResource",
     "RunStage",
+    "StagedObject",
+    "emit_observation",
+    "emit_lifecycle_safely",
     "SQLiteRunEvidenceStore",
     "default_run_evidence_store",
 ]

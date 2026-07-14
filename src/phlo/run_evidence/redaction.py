@@ -13,12 +13,28 @@ from phlo.exceptions import redact_sensitive_text
 from phlo.helpers._common import is_sensitive_key
 
 _TEXT_SECRET_PATTERN = re.compile(
-    r"(?i)\b(password|passwd|token|secret|api[_-]?key|access[_-]?token)\s*[:=]\s*([^&\s/]+)"
+    r"(?i)\b(password|passwd|token|secret|client[_-]?secret|authorization|api[_-]?key|access[_-]?token|private[_-]?key)\s*[:=]\s*([^&\s/]+)"
 )
+_ROW_DATA_KEYS = {
+    "rows",
+    "records",
+    "row_data",
+    "raw_rows",
+    "sample_rows",
+    "failure_cases",
+    "sample",
+    "sample_failures",
+}
 
 
 def redact_payload(value: Any, *, key: str | None = None) -> Any:
     """Deep-redact sensitive keys and credential-bearing strings."""
+    if (
+        key is not None
+        and key.lower() in _ROW_DATA_KEYS
+        and isinstance(value, (Mapping, list, tuple, str))
+    ):
+        return "<redacted>" if value not in (None, "") else value
     if key is not None and is_sensitive_key(key):
         return "<redacted>" if value not in (None, "") else value
     if isinstance(value, Mapping):

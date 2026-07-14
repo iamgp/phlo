@@ -163,3 +163,179 @@ def test_dlt_failure_events_carry_runtime_correlation(monkeypatch, tmp_path) -> 
     assert telemetry.correlation.job_name == "daily_ingestion"
     assert telemetry.correlation.partition_key == "2026-03-05"
     assert telemetry.correlation.asset_key == "dlt_entries"
+
+
+@pytest.mark.parametrize("sink_error", [RuntimeError("sink failed"), TypeError("bad sink")])
+def test_lifecycle_sink_failures_do_not_mask_provider_failure(
+    monkeypatch, tmp_path, sink_error: Exception
+) -> None:
+    """Start/end/failure evidence sinks cannot replace the provider exception."""
+
+    class RaisingBus:
+        def emit(self, _event: object) -> None:
+            raise sink_error
+
+    monkeypatch.setattr("phlo.hooks.emitters.get_hook_bus", lambda: RaisingBus())
+    monkeypatch.setattr(
+        "phlo_dlt.executor.setup_dlt_pipeline",
+        lambda **_kwargs: (SimpleNamespace(), tmp_path),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.stage_to_parquet",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("provider stage failed")),
+    )
+
+    ingester = DltIngester(
+        context=SimpleNamespace(run_id="run-sink", tags={"phlo/project_id": "project-sink"}),
+        logger=get_logger("test_dlt_sink_failure"),
+        table_config=TableConfig(
+            table_name="entries",
+            table_schema=None,
+            validation_schema=None,
+            unique_key="name",
+            group_name="raw",
+        ),
+        table_store_resource=cast(Any, SimpleNamespace()),
+        dlt_source_func=lambda partition_date: object(),
+        validate=False,
+    )
+
+    with pytest.raises(RuntimeError, match="provider stage failed"):
+        ingester.run_ingestion(partition_key="2026-03-05")
+
+
+def test_provider_exception_records_unknown_output_without_claiming_no_write(
+    monkeypatch, tmp_path
+) -> None:
+    """A failed submission still records the target with an unknown after-state."""
+    parquet_path = tmp_path / "staged.parquet"
+    captured: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        "phlo_dlt.executor.setup_dlt_pipeline",
+        lambda **_kwargs: (SimpleNamespace(), tmp_path),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.stage_to_parquet",
+        lambda **_kwargs: ([parquet_path], 0.01),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.staged_object_inventory",
+        lambda _paths: [{"identity": "staged/file.parquet", "checksum": "abc", "byte_count": 1}],
+    )
+    monkeypatch.setattr("phlo_dlt.executor.dlt_execution_identity", lambda *args: ("exec-1", True))
+    monkeypatch.setattr("phlo_dlt.executor.dlt_observed_metrics", lambda _pipeline: {})
+    monkeypatch.setattr(
+        "phlo_dlt.executor.table_state",
+        lambda *_args: {
+            "state": "present",
+            "snapshot_id": "before-snapshot",
+            "schema_hash": "before-schema",
+            "metadata": {},
+        },
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.merge_to_table_store",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("provider committed? token=secret")),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.emit_observation",
+        lambda **kwargs: captured.append(kwargs),
+    )
+
+    ingester = DltIngester(
+        context=SimpleNamespace(run_id="run-unknown", tags={"phlo/project_id": "project-unknown"}),
+        logger=get_logger("test_dlt_unknown_output"),
+        table_config=TableConfig(
+            table_name="entries",
+            table_schema=None,
+            validation_schema=None,
+            unique_key="name",
+            group_name="raw",
+        ),
+        table_store_resource=cast(Any, SimpleNamespace()),
+        dlt_source_func=lambda partition_date: object(),
+        validate=False,
+        add_metadata_columns=False,
+    )
+
+    with pytest.raises(RuntimeError, match=r"provider committed\?"):
+        ingester.run_ingestion(partition_key="2026-03-05")
+
+    output = next(resource for resource in captured[0]["resources"] if resource["role"] == "output")
+    assert output["snapshot_before"] == "before-snapshot"
+    assert output["snapshot_after"] is None
+    assert output["metadata"]["outcome"] == "unknown"
+    assert output["metadata"]["evidence_completeness"] == "incomplete"
+    assert "secret" not in captured[0]["error"]
+
+
+def test_successful_write_with_contradictory_readback_stays_successful(
+    monkeypatch, tmp_path
+) -> None:
+    """A successful provider call is retained when readback says the table is absent."""
+    parquet_path = tmp_path / "staged.parquet"
+    captured: list[dict[str, Any]] = []
+    states = iter(
+        [
+            {
+                "state": "present",
+                "snapshot_id": "before",
+                "schema_hash": "schema-before",
+                "metadata": {},
+            },
+            {
+                "state": "absent",
+                "snapshot_id": None,
+                "schema_hash": None,
+                "metadata": {},
+            },
+        ]
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.setup_dlt_pipeline",
+        lambda **_kwargs: (SimpleNamespace(), tmp_path),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.stage_to_parquet",
+        lambda **_kwargs: ([parquet_path], 0.01),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.staged_object_inventory",
+        lambda _paths: [{"identity": "file.parquet", "checksum": "abc", "byte_count": 1}],
+    )
+    monkeypatch.setattr("phlo_dlt.executor.dlt_execution_identity", lambda *args: ("exec-1", True))
+    monkeypatch.setattr("phlo_dlt.executor.dlt_observed_metrics", lambda _pipeline: {})
+    monkeypatch.setattr("phlo_dlt.executor.table_state", lambda *_args: next(states))
+    monkeypatch.setattr(
+        "phlo_dlt.executor.merge_to_table_store",
+        lambda **_kwargs: {"rows_inserted": 1, "rows_deleted": 0},
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.emit_observation",
+        lambda **kwargs: captured.append(kwargs),
+    )
+
+    ingester = DltIngester(
+        context=SimpleNamespace(
+            run_id="run-contradictory", tags={"phlo/project_id": "project-contradictory"}
+        ),
+        logger=get_logger("test_dlt_contradictory_readback"),
+        table_config=TableConfig(
+            table_name="entries",
+            table_schema=None,
+            validation_schema=None,
+            unique_key="name",
+            group_name="raw",
+        ),
+        table_store_resource=cast(Any, SimpleNamespace()),
+        dlt_source_func=lambda partition_date: object(),
+        validate=False,
+        add_metadata_columns=False,
+    )
+
+    result = ingester.run_ingestion(partition_key="2026-03-05")
+
+    assert result.status == "success"
+    output = next(resource for resource in captured[0]["resources"] if resource["role"] == "output")
+    assert output["metadata"]["outcome"] == "contradictory"
+    assert output["metadata"]["evidence_completeness"] == "incomplete"

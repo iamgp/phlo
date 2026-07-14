@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import dagster as dg
@@ -303,3 +305,60 @@ def test_wap_auto_promotion_sensor_uses_updated_after_filter():
     assert filters.updated_after is not None
     assert filters.created_after is None
     context.update_cursor.assert_called_once()
+
+
+def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch, tmp_path):
+    """A passing Dagster check supplies the real quality evidence identity."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-promote"
+    branch = _wap_branch_name(run_id)
+    write_wap_report(
+        run_id,
+        status="branch_created",
+        branch=branch,
+        project_id="project-promote",
+        attempt=1,
+    )
+
+    check_record = SimpleNamespace(
+        storage_id=42,
+        event_log_entry=SimpleNamespace(
+            asset_check_evaluation=SimpleNamespace(passed=True),
+        ),
+    )
+    instance = MagicMock()
+    instance.get_runs.return_value = [
+        SimpleNamespace(
+            run_id=run_id,
+            tags={
+                "phlo/wap_branch": branch,
+                "phlo/project_id": "project-promote",
+                "phlo/attempt": "1",
+            },
+        )
+    ]
+    instance.get_records_for_run.return_value = SimpleNamespace(records=[check_record])
+    catalog = MagicMock()
+    catalog.get_branch_hash.side_effect = ["source-before", "target-before", "target-after"]
+    catalog.merge_branch.return_value = True
+    catalog.delete_branch.return_value = True
+    context = MagicMock()
+    context.instance = instance
+    context.cursor = None
+    context.evaluation_time = datetime.now(timezone.utc)
+
+    observations: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors.emit_observation",
+        lambda **kwargs: observations.append(kwargs),
+    )
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+
+    wap_auto_promotion_sensor._raw_fn(context)
+
+    catalog.merge_branch.assert_called_once_with(source=branch, target="main")
+    promotion = next(
+        item for item in observations if item["catalog_change"]["operation"] == "promotion"
+    )
+    assert promotion["catalog_change"]["quality_decision_id"] == "dagster-quality:42"
+    assert promotion["catalog_change"]["merge_outcome"] == "promoted"

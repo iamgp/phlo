@@ -5,13 +5,28 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, TypedDict
 
-RUN_EVIDENCE_SCHEMA_VERSION = 2
+RUN_EVIDENCE_SCHEMA_VERSION = 3
 
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _positive_attempt(value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError("attempt must be a positive integer")
+    return value
+
+
+class StagedObject(TypedDict, total=False):
+    """Redacted staged-object inventory item; it never contains row values."""
+
+    identity: str
+    checksum: str
+    byte_count: int
+    record_count: int | None
 
 
 class EvidenceCompleteness(StrEnum):
@@ -46,6 +61,9 @@ class PipelineRun:
     failure_summary: str | None = None
     evidence_completeness: EvidenceCompleteness = EvidenceCompleteness.INCOMPLETE
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+
 
 @dataclass(frozen=True, slots=True)
 class RunEvent:
@@ -62,6 +80,9 @@ class RunEvent:
     observed_at: datetime = field(default_factory=_now)
     sequence: int | None = None
     attempt: int = 1
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +103,9 @@ class RunStage:
     metrics: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+
 
 @dataclass(frozen=True, slots=True)
 class RunResource:
@@ -101,10 +125,21 @@ class RunResource:
     watermark: str | None = None
     record_count: int | None = None
     byte_count: int | None = None
-    staged_objects: list[str] = field(default_factory=list)
+    staged_objects: list[str | StagedObject] = field(default_factory=list)
     snapshot_before: str | None = None
     snapshot_after: str | None = None
     attempt: int = 1
+    schema_hash_before: str | None = None
+    schema_hash_after: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        for item in self.staged_objects:
+            if isinstance(item, str):
+                continue
+            if not isinstance(item, dict) or not isinstance(item.get("identity"), str):
+                raise ValueError("staged_objects entries require a stable identity")
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +155,10 @@ class RunLineageEdge:
     origin: str = "observed"
     derivation: str = "exact"
     confidence: float | None = None
+    attempt: int = 1
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +180,9 @@ class RunQualityResult:
     metadata: dict[str, Any] = field(default_factory=dict)
     attempt: int = 1
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+
 
 @dataclass(frozen=True, slots=True)
 class RunCatalogChange:
@@ -161,6 +203,10 @@ class RunCatalogChange:
     snapshot_after: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     attempt: int = 1
+    quality_decision_id: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,3 +225,6 @@ class RunArtifact:
     legal_hold: bool = False
     status: EvidenceCompleteness = EvidenceCompleteness.COMPLETE
     attempt: int = 1
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attempt", _positive_attempt(self.attempt))

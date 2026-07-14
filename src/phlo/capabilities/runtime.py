@@ -17,6 +17,8 @@ class RuntimeRouting:
     ref: str | None = None
     partition_key: str | None = None
     run_id: str | None = None
+    project_id: str | None = None
+    attempt: int = 1
     resources: dict[str, Any] = field(default_factory=dict)
     feature_flags: dict[str, str] = field(default_factory=dict)
     capability_overrides: dict[str, str] = field(default_factory=dict)
@@ -108,6 +110,10 @@ def routing_from_context(context: RuntimeContext) -> RuntimeRouting:
         ref=ref,
         partition_key=getattr(context, "partition_key", None),
         run_id=getattr(context, "run_id", None),
+        project_id=tags.get("phlo/project_id"),
+        attempt=(
+            int(tags.get("phlo/attempt", "1")) if tags.get("phlo/attempt", "1").isdigit() else 1
+        ),
         resources=resources,
         feature_flags=feature_flags,
         capability_overrides=capability_overrides,

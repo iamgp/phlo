@@ -431,6 +431,20 @@ class DataMigrationEvent(HookEvent):
 
 
 @dataclass(kw_only=True)
+class RunEvidenceObservationEvent(HookEvent):
+    """Provider-neutral observation emitted after an authoritative result."""
+
+    observation_type: str
+    status: str
+    run_status: str | None = None
+    stage_id: str | None = None
+    resources: list[dict[str, Any]] = field(default_factory=list)
+    catalog_change: dict[str, Any] | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+
+
+@dataclass(kw_only=True)
 class LogEvent(HookEvent):
     """Event emitted for structured log records."""
 

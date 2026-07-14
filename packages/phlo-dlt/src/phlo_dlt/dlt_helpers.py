@@ -404,6 +404,10 @@ def stage_to_parquet(
     )
 
     load_info: LoadInfo = pipeline.run(dlt_source, loader_file_format="parquet")
+    try:
+        setattr(pipeline, "_phlo_last_load_info", load_info)
+    except Exception:
+        pass
     if load_info is None:
         logger.error(
             "dlt_stage_to_parquet_missing_load_info",
@@ -421,6 +425,14 @@ def stage_to_parquet(
     parquet_paths: list[Path] = []
     completed_job_count = 0
     for load_package in load_info.load_packages:
+        failed_jobs = load_package.jobs.get("failed_jobs", [])
+        if failed_jobs:
+            logger.error(
+                "dlt_stage_to_parquet_failed_jobs",
+                pipeline_name=getattr(pipeline, "pipeline_name", ""),
+                failed_job_count=len(failed_jobs),
+            )
+            raise RuntimeError("DLT pipeline reported failed loader jobs")
         completed_jobs = load_package.jobs["completed_jobs"]
         completed_job_count += len(completed_jobs)
         for job in completed_jobs:

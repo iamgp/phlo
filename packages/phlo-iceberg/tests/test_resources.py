@@ -33,6 +33,25 @@ class TestResourcesUnitTests:
         mock_get_catalog.assert_called_once_with(ref="dev")
         assert catalog == mock_catalog
 
+    @patch("phlo_iceberg.resource.table_state")
+    @patch("phlo_iceberg.resource.get_catalog")
+    def test_iceberg_resource_implements_neutral_table_state_observer(
+        self, mock_get_catalog, mock_table_state
+    ):
+        mock_table_state.return_value = {
+            "state": "present",
+            "snapshot_id": "snapshot-1",
+            "schema_hash": "schema-1",
+            "metadata": {"snapshot": "observed"},
+        }
+        observed = IcebergResource(ref="dev").observe_table_state(
+            table_name="raw.entries", override_ref="feature"
+        )
+        mock_get_catalog.assert_called_once_with(ref="feature")
+        assert observed.state == "present"
+        assert observed.revision == "snapshot-1"
+        assert observed.schema_hash == "schema-1"
+
     @patch("phlo_iceberg.resource.ensure_table")
     def test_iceberg_resource_ensure_table_calls_underlying_function(self, mock_ensure_table):
         """Test that IcebergResource.ensure_table calls underlying function."""

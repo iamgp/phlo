@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -425,6 +426,15 @@ def evaluate_reconciliation(
         ):
             missing.append(f"{requirement.family}:status:{requirement.required_status}")
         states = {row.get("status") for row in rows}
+        for row in rows:
+            metadata = row.get("metadata", {})
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except (TypeError, ValueError):
+                    metadata = {}
+            if isinstance(metadata, dict) and metadata.get("evidence_completeness") == "incomplete":
+                missing.append(f"{requirement.family}:incomplete")
         if "redacted" in states:
             record_states.append(EvidenceCompleteness.REDACTED)
         elif "expired" in states:
