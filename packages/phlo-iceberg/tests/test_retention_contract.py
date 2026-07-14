@@ -1,14 +1,172 @@
 """Focused contract tests for snapshot planning and orphan discovery."""
 
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from pyarrow.fs import FileType
 
+import phlo_iceberg.resource as resource_module
 from phlo_iceberg.resource import (
     SAFE_MIN_RETENTION_HOURS,
     IcebergResource,
     _maintenance_plan_token,
 )
+
+
+class _FakeDataFile:
+    def __init__(self, path: str, size: int) -> None:
+        self.file_path = path
+        self.file_size_in_bytes = size
+
+
+class _FakeManifest:
+    def __init__(self, path: str, files: list[_FakeDataFile]) -> None:
+        self.manifest_path = path
+        self._entries = [SimpleNamespace(data_file=data_file) for data_file in files]
+
+    def fetch_manifest_entry(self, io: object) -> list[SimpleNamespace]:
+        return self._entries
+
+
+class _FakeSnapshot:
+    def __init__(
+        self, snapshot_id: int, timestamp: datetime, manifests: list[_FakeManifest]
+    ) -> None:
+        self.snapshot_id = snapshot_id
+        self.timestamp_ms = int(timestamp.timestamp() * 1000)
+        self.summary = SimpleNamespace(
+            operation=SimpleNamespace(value="append"), additional_properties={}
+        )
+        self._manifests = manifests
+
+    def manifests(self, io: object) -> list[_FakeManifest]:
+        return self._manifests
+
+
+class _FakeFilesystem:
+    def __init__(self, files: list[SimpleNamespace]) -> None:
+        self.files = files
+
+    def get_file_info(self, selector: object) -> list[SimpleNamespace]:
+        return self.files
+
+
+class _FakeFileIO:
+    properties: dict[str, str] = {}
+
+    def __init__(self, files: list[SimpleNamespace]) -> None:
+        self.filesystem = _FakeFilesystem(files)
+
+    def parse_location(self, location: str, properties: dict[str, str]) -> tuple[str, str, str]:
+        without_scheme = location.removeprefix("s3://")
+        bucket, _, path = without_scheme.partition("/")
+        return "s3", bucket, path
+
+    def fs_by_scheme(self, scheme: str, netloc: str) -> _FakeFilesystem:
+        return self.filesystem
+
+
+class _FakeTable:
+    def __init__(
+        self,
+        snapshots: list[_FakeSnapshot],
+        io: _FakeFileIO,
+        refs: dict[str, int],
+    ) -> None:
+        self._snapshots = snapshots
+        self.io = io
+        self._refs = refs
+
+    def snapshots(self) -> list[_FakeSnapshot]:
+        return self._snapshots
+
+    def current_snapshot(self) -> _FakeSnapshot:
+        return self._snapshots[-1]
+
+    def refs(self) -> dict[str, SimpleNamespace]:
+        return {
+            name: SimpleNamespace(snapshot_id=snapshot_id)
+            for name, snapshot_id in self._refs.items()
+        }
+
+    def location(self) -> str:
+        return "s3://bucket/warehouse/raw/events"
+
+
+class _FakeCatalog:
+    def __init__(self, table: _FakeTable) -> None:
+        self.table = table
+
+    def load_table(self, table_name: str) -> _FakeTable:
+        assert table_name == "raw.events"
+        return self.table
+
+
+def _real_planner_resource(monkeypatch) -> tuple[IcebergResource, _FakeTable]:
+    now = datetime.now(UTC)
+    shared = _FakeDataFile("s3://bucket/warehouse/raw/events/data/shared.parquet", 20)
+    candidate_one = _FakeDataFile("s3://bucket/warehouse/raw/events/data/candidate-one.parquet", 10)
+    candidate_three = _FakeDataFile(
+        "s3://bucket/warehouse/raw/events/data/candidate-three.parquet", 30
+    )
+    snapshots: list[_FakeSnapshot] = []
+    for snapshot_id in range(1, 9):
+        files = [shared]
+        if snapshot_id == 1:
+            files.append(candidate_one)
+        if snapshot_id == 3:
+            files.append(candidate_three)
+        snapshots.append(
+            _FakeSnapshot(
+                snapshot_id,
+                (
+                    now - timedelta(days=20)
+                    if snapshot_id in {1, 2}
+                    else now - timedelta(days=8 - snapshot_id)
+                ),
+                [_FakeManifest(f"s3://bucket/metadata/{snapshot_id}.avro", files)],
+            )
+        )
+    storage_files = [
+        SimpleNamespace(
+            type=FileType.File,
+            path="bucket/warehouse/raw/events/data/shared.parquet",
+            size=20,
+            mtime=now - timedelta(days=20),
+        ),
+        SimpleNamespace(
+            type=FileType.File,
+            path="bucket/warehouse/raw/events/data/orphan-old.parquet",
+            size=70,
+            mtime=now - timedelta(days=10),
+        ),
+        SimpleNamespace(
+            type=FileType.File,
+            path="bucket/warehouse/raw/events/data/orphan-recent.parquet",
+            size=90,
+            mtime=now - timedelta(days=1),
+        ),
+    ]
+    table = _FakeTable(snapshots, _FakeFileIO(storage_files), {"release-tag": 2})
+    catalog = _FakeCatalog(table)
+    monkeypatch.setattr(
+        IcebergResource,
+        "get_catalog",
+        lambda self, override_ref=None: catalog,
+    )
+    monkeypatch.setattr(
+        resource_module,
+        "get_table_stats",
+        lambda **_: {
+            "current_snapshot_id": 8,
+            "snapshot_count": 8,
+            "file_count": 3,
+            "total_size_bytes": 110,
+        },
+    )
+    return IcebergResource(ref="main"), table
 
 
 def _plan(
@@ -46,6 +204,69 @@ def _plan(
     }
     result["plan_token"] = _maintenance_plan_token(result)
     return result
+
+
+def test_real_snapshot_planner_protects_defaults_refs_and_executes_no_deletion(
+    monkeypatch,
+) -> None:
+    resource, _ = _real_planner_resource(monkeypatch)
+
+    planned = resource.expire_snapshots(
+        table_name="raw.events",
+        catalog="iceberg",
+        dry_run=True,
+        max_affected_objects=1,
+        max_affected_bytes=10,
+    )
+
+    plan = planned["planned"]
+    assert planned["status"] == "planned"
+    assert plan["retain_last"] == 5
+    assert [candidate["snapshot_id"] for candidate in plan["candidate_snapshots"]] == [1]
+    assert plan["protected_snapshot_ids"] == [2, 4, 5, 6, 7, 8]
+    assert 3 in plan["retained_snapshot_ids"]
+    assert 3 not in plan["protected_snapshot_ids"]
+    assert plan["table_snapshot_refs"] == {"release-tag": 2}
+    assert plan["affected_objects"] == 1
+    assert plan["affected_bytes"] == 10
+    assert plan["affected_objects_scope"] == "candidate_snapshots_only"
+
+    refused = resource.expire_snapshots(
+        table_name="raw.events",
+        catalog="iceberg",
+        dry_run=False,
+        expected_snapshot_id=planned["before_revision"],
+        confirmation_token=planned["plan_token"],
+        max_affected_objects=1,
+        max_affected_bytes=10,
+    )
+
+    assert refused["status"] == "blocked"
+    assert refused["accepted"] is False
+    assert refused["executed"] is False
+    assert refused["failure"]["code"] == "bounded_execution_unsupported"
+    assert refused["planned"]["trino_boundary"] == "not_invoked"
+
+
+def test_real_orphan_planner_normalizes_paths_and_counts_old_candidates(monkeypatch) -> None:
+    resource, _ = _real_planner_resource(monkeypatch)
+
+    result = resource.cleanup_orphan_files(
+        table_name="raw.events",
+        catalog="iceberg",
+        dry_run=True,
+    )
+
+    plan = result["planned"]
+    assert result["status"] == "planned"
+    assert plan["scan_status"] == "available"
+    assert [candidate["path"] for candidate in plan["candidate_files"]] == [
+        "bucket/warehouse/raw/events/data/orphan-old.parquet"
+    ]
+    assert plan["affected_objects"] == 1
+    assert plan["affected_bytes"] == 70
+    assert plan["protected_snapshot_ids"] == [2, 8]
+    assert "shared.parquet" not in str(plan["candidate_files"])
 
 
 def test_dry_run_is_provider_free_and_reports_snapshot_age(monkeypatch) -> None:

@@ -30,8 +30,9 @@ Catalog Operations:
     - resolve_namespaces(): Expand "all" or return specific namespace
 
 Integration Requirements:
-    Requires phlo-iceberg package for catalog operations.
-    Functions lazily load dependencies for optional integration support.
+    Requires a registered ``table_store:iceberg`` provider implementing the
+    neutral maintenance discovery contract. Functions resolve that capability
+    at runtime without importing a concrete provider package.
 
 Example:
     Configuration and telemetry::

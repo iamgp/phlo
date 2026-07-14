@@ -35,7 +35,9 @@ Configuration:
     - ref: Nessie branch reference
 
 Integration Requirements:
-    Requires phlo-iceberg package for table operations.
+    Requires a registered ``table_store:iceberg`` provider implementing the
+    neutral maintenance discovery and retention contracts. Dagster does not
+    import a concrete provider package.
 
 Example:
     Including maintenance in definitions::
