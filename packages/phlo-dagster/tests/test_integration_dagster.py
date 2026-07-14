@@ -174,6 +174,42 @@ def test_dagster_runtime_builds_routing_without_recursion():
     assert runtime.routing.resources["table_store"] == "iceberg"
 
 
+@pytest.mark.parametrize("raw_attempt", ["0", "garbage"])
+def test_dagster_runtime_rejects_invalid_attempt_without_aliasing_to_one(raw_attempt: str):
+    """Malformed retry tags fail closed instead of becoming attempt one."""
+    from phlo_dagster.adapter import DagsterRuntime
+
+    context = SimpleNamespace(
+        tags={"phlo/project_id": "project", "phlo/attempt": raw_attempt},
+        run=SimpleNamespace(
+            run_id="run", tags={"phlo/project_id": "project", "phlo/attempt": raw_attempt}
+        ),
+        has_partition_key=False,
+        log=SimpleNamespace(),
+        resources=SimpleNamespace(),
+    )
+
+    routing = DagsterRuntime(context=cast(AssetExecutionContext, context)).routing
+
+    assert routing.attempt is None
+    assert routing.attempt_error == "invalid_attempt"
+
+
+def test_dagster_runtime_preserves_valid_retry_attempt():
+    """A valid retry tag stays bound to its authoritative attempt."""
+    from phlo_dagster.adapter import DagsterRuntime
+
+    context = SimpleNamespace(
+        tags={"phlo/project_id": "project", "phlo/attempt": "2"},
+        run=SimpleNamespace(run_id="run", tags={"phlo/project_id": "project", "phlo/attempt": "2"}),
+        has_partition_key=False,
+        log=SimpleNamespace(),
+        resources=SimpleNamespace(),
+    )
+
+    assert DagsterRuntime(context=cast(AssetExecutionContext, context)).routing.attempt == 2
+
+
 def test_materialize_result_failure_status_fails_step():
     """Failure statuses from capability assets must fail Dagster runs."""
     from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec

@@ -70,6 +70,7 @@ from phlo.capabilities import (
 )
 from phlo.capabilities.interfaces import MaintenanceExecutor
 from phlo.capabilities.interfaces import TableStoreSupport
+from phlo.capabilities.interfaces import TableStateObservation
 from phlo.logging import get_logger
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.settings import get_settings
@@ -83,6 +84,7 @@ from phlo_iceberg.tables import (
     overwrite_table,
     rollback_table_to_snapshot,
 )
+from phlo_iceberg.evidence import emit_mutation, table_state, unavailable_table_state
 
 logger = get_logger(__name__)
 
@@ -268,6 +270,23 @@ def _serialize_compaction_result(result: MaintenanceOperationResult) -> dict[str
     return payload
 
 
+def _safe_table_state(
+    resource: "IcebergResource", branch: str, table_name: str, *, phase: str
+) -> dict[str, Any]:
+    """Read metadata without allowing evidence failure to change provider control flow."""
+    try:
+        return table_state(resource.get_catalog(override_ref=branch), table_name)
+    except Exception as exc:  # noqa: BLE001 - metadata is observational, not the write boundary
+        logger.warning(
+            "iceberg_evidence_table_state_unavailable",
+            table_name=table_name,
+            ref=branch,
+            phase=phase,
+            error_type=type(exc).__name__,
+        )
+        return unavailable_table_state(phase=phase, error_type=type(exc).__name__)
+
+
 @dataclass
 class IcebergResource:
     """Resource wrapper for Iceberg REST catalog operations.
@@ -350,6 +369,18 @@ class IcebergResource:
     def get_table_stats(self, *, table_name: str, ref: str) -> dict[str, Any]:
         """Return normalized table statistics through the provider boundary."""
         return get_table_stats(table_name=table_name, ref=ref)
+
+    def observe_table_state(
+        self, *, table_name: str, override_ref: str | None = None
+    ) -> TableStateObservation:
+        """Expose Iceberg readback through the provider-neutral observer contract."""
+        observed = table_state(self.get_catalog(override_ref=override_ref), table_name)
+        return TableStateObservation(
+            state=observed["state"],
+            revision=observed.get("snapshot_id"),
+            schema_hash=observed.get("schema_hash"),
+            metadata=observed.get("metadata", {}),
+        )
 
     def schema_from_validation_schema(
         self, validation_schema: type[DataFrameModel] | type[Any]
@@ -434,7 +465,12 @@ class IcebergResource:
         )
 
     def append_parquet(
-        self, table_name: str, data_path: str, override_ref: str | None = None
+        self,
+        table_name: str,
+        data_path: str,
+        override_ref: str | None = None,
+        *,
+        evidence_context: dict[str, Any] | None = None,
     ) -> dict[str, int]:
         """Append Parquet data into an Iceberg table.
 
@@ -472,6 +508,7 @@ class IcebergResource:
 
         """
         branch = override_ref or self.ref
+        before = _safe_table_state(self, branch, table_name, phase="before")
         logger.info(
             "iceberg_resource_append_requested",
             table_name=table_name,
@@ -489,7 +526,29 @@ class IcebergResource:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
+            emit_mutation(
+                context=evidence_context,
+                table_name=table_name,
+                ref=branch,
+                operation="append",
+                status="failed",
+                before=before,
+                after=unavailable_table_state(phase="provider_exception"),
+                error=str(exc),
+                extra_metadata={"outcome": "unknown"},
+            )
             raise
+        after = _safe_table_state(self, branch, table_name, phase="after")
+        emit_mutation(
+            context=evidence_context,
+            table_name=table_name,
+            ref=branch,
+            operation="append",
+            status="success",
+            before=before,
+            after=after,
+            metrics=result,
+        )
         logger.info(
             "iceberg_resource_append_completed",
             table_name=table_name,
@@ -506,6 +565,8 @@ class IcebergResource:
         data_path: str,
         unique_key: str,
         override_ref: str | None = None,
+        *,
+        evidence_context: dict[str, Any] | None = None,
     ) -> dict[str, int]:
         """Merge (upsert) Parquet data into an Iceberg table using a unique key.
 
@@ -544,6 +605,7 @@ class IcebergResource:
 
         """
         branch = override_ref or self.ref
+        before = _safe_table_state(self, branch, table_name, phase="before")
         logger.info(
             "iceberg_resource_merge_requested",
             table_name=table_name,
@@ -568,7 +630,29 @@ class IcebergResource:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
+            emit_mutation(
+                context=evidence_context,
+                table_name=table_name,
+                ref=branch,
+                operation="merge",
+                status="failed",
+                before=before,
+                after=unavailable_table_state(phase="provider_exception"),
+                error=str(exc),
+                extra_metadata={"outcome": "unknown"},
+            )
             raise
+        after = _safe_table_state(self, branch, table_name, phase="after")
+        emit_mutation(
+            context=evidence_context,
+            table_name=table_name,
+            ref=branch,
+            operation="merge",
+            status="success",
+            before=before,
+            after=after,
+            metrics=result,
+        )
         logger.info(
             "iceberg_resource_merge_completed",
             table_name=table_name,
@@ -581,7 +665,12 @@ class IcebergResource:
         return result
 
     def overwrite_parquet(
-        self, *, table_name: str, data_path: str, override_ref: str | None = None
+        self,
+        *,
+        table_name: str,
+        data_path: str,
+        override_ref: str | None = None,
+        evidence_context: dict[str, Any] | None = None,
     ) -> dict[str, int]:
         """Overwrite an Iceberg table with staged Parquet data.
 
@@ -613,6 +702,7 @@ class IcebergResource:
 
         """
         branch = override_ref or self.ref
+        before = _safe_table_state(self, branch, table_name, phase="before")
         logger.info(
             "iceberg_resource_overwrite_requested",
             table_name=table_name,
@@ -630,7 +720,29 @@ class IcebergResource:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
+            emit_mutation(
+                context=evidence_context,
+                table_name=table_name,
+                ref=branch,
+                operation="overwrite",
+                status="failed",
+                before=before,
+                after=unavailable_table_state(phase="provider_exception"),
+                error=str(exc),
+                extra_metadata={"outcome": "unknown"},
+            )
             raise
+        after = _safe_table_state(self, branch, table_name, phase="after")
+        emit_mutation(
+            context=evidence_context,
+            table_name=table_name,
+            ref=branch,
+            operation="overwrite",
+            status="success",
+            before=before,
+            after=after,
+            metrics=result,
+        )
         logger.info(
             "iceberg_resource_overwrite_completed",
             table_name=table_name,
@@ -642,7 +754,12 @@ class IcebergResource:
         return result
 
     def delete_rows(
-        self, *, table_name: str, predicate: str, override_ref: str | None = None
+        self,
+        *,
+        table_name: str,
+        predicate: str,
+        override_ref: str | None = None,
+        evidence_context: dict[str, Any] | None = None,
     ) -> dict[str, int]:
         """Delete rows matching a predicate expression.
 
@@ -681,6 +798,7 @@ class IcebergResource:
 
         """
         branch = override_ref or self.ref
+        before = _safe_table_state(self, branch, table_name, phase="before")
         logger.info(
             "iceberg_resource_delete_rows_requested",
             table_name=table_name,
@@ -698,7 +816,29 @@ class IcebergResource:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
+            emit_mutation(
+                context=evidence_context,
+                table_name=table_name,
+                ref=branch,
+                operation="delete",
+                status="failed",
+                before=before,
+                after=unavailable_table_state(phase="provider_exception"),
+                error=str(exc),
+                extra_metadata={"outcome": "unknown"},
+            )
             raise
+        after = _safe_table_state(self, branch, table_name, phase="after")
+        emit_mutation(
+            context=evidence_context,
+            table_name=table_name,
+            ref=branch,
+            operation="delete",
+            status="success",
+            before=before,
+            after=after,
+            metrics=result,
+        )
         logger.info(
             "iceberg_resource_delete_rows_completed",
             table_name=table_name,
@@ -1649,7 +1789,13 @@ class IcebergResource:
         """
         return list_table_snapshots(table_name=table_name, limit=limit, ref=self.ref)
 
-    def rollback_to_snapshot(self, *, table_name: str, snapshot_id: int | str) -> dict:
+    def rollback_to_snapshot(
+        self,
+        *,
+        table_name: str,
+        snapshot_id: int | str,
+        evidence_context: dict[str, Any] | None = None,
+    ) -> dict:
         """Roll back a table to a previous snapshot.
 
         Restores the table to a specific point in time using the snapshot ID.
@@ -1689,6 +1835,8 @@ class IcebergResource:
             table_name=table_name,
             snapshot_id=snapshot_id,
         )
+        branch = self.ref
+        before = _safe_table_state(self, branch, table_name, phase="before")
         try:
             result = rollback_table_to_snapshot(
                 table_name=table_name, snapshot_id=int(snapshot_id), ref=self.ref
@@ -1701,7 +1849,33 @@ class IcebergResource:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
+            emit_mutation(
+                context=evidence_context,
+                table_name=table_name,
+                ref=branch,
+                operation="rollback",
+                status="failed",
+                before=before,
+                after=unavailable_table_state(phase="provider_exception"),
+                error=str(exc),
+                extra_metadata={
+                    "rollback_target_snapshot_id": str(snapshot_id),
+                    "outcome": "unknown",
+                },
+            )
             raise
+        after = _safe_table_state(self, branch, table_name, phase="after")
+        emit_mutation(
+            context=evidence_context,
+            table_name=table_name,
+            ref=branch,
+            operation="rollback",
+            status="success",
+            before=before,
+            after=after,
+            metrics=result,
+            extra_metadata={"rollback_target_snapshot_id": str(snapshot_id)},
+        )
         logger.info(
             "iceberg_resource_rollback_completed",
             table_name=table_name,

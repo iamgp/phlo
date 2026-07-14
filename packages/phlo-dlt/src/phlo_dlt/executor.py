@@ -68,13 +68,24 @@ from phlo.hooks import (
     TelemetryEventContext,
     TelemetryEventEmitter,
 )
+from phlo._attempt import normalize_attempt
+from phlo.run_evidence import emit_lifecycle_safely, emit_observation
+from phlo.run_evidence.redaction import safe_error_summary
 from phlo.capabilities.interfaces import TableStore
+from phlo.capabilities.runtime import routing_from_context
 
 from phlo_dlt.dlt_helpers import (
     inject_metadata_columns,
     merge_to_table_store,
     setup_dlt_pipeline,
     stage_to_parquet,
+)
+from phlo_dlt.evidence import (
+    dlt_execution_identity,
+    dlt_observed_metrics,
+    normalize_source_identity,
+    staged_object_inventory,
+    table_state,
 )
 from phlo_dlt.pandera_checks import (
     PanderaContractValidationError,
@@ -217,9 +228,20 @@ class DltIngester(BaseIngester):
 
         """
         parameters = parameters or {}
+        routing = routing_from_context(self.context)
         branch_name = parameters.get("branch_name", "main")
         target_branch_name = parameters.get("target_branch_name", branch_name)
-        run_id = parameters.get("run_id", "unknown")
+        run_id = parameters.get("run_id") or routing.run_id or "unknown"
+        project_id = parameters.get("project_id") or routing.project_id
+        project_error = getattr(routing, "project_error", None)
+        if project_error:
+            project_id = None
+        raw_attempt = parameters.get("attempt", routing.attempt)
+        try:
+            attempt = normalize_attempt(raw_attempt)
+        except ValueError:
+            attempt = None
+        correlation_attempt = attempt if attempt is not None else 1
 
         pipeline_name = f"{self.table_config.table_name}_{partition_key.replace('-', '_')}"
         group_name = self.table_config.group_name
@@ -231,11 +253,14 @@ class DltIngester(BaseIngester):
                 table_name=self.table_config.full_table_name,
                 group_name=group_name,
                 partition_key=partition_key,
+                project_id=project_id,
                 run_id=run_id,
                 branch_name=branch_name,
                 tags={"group": group_name, "source": "dlt"},
                 correlation=HookCorrelation(
                     run_id=run_id,
+                    project_id=project_id,
+                    attempt=correlation_attempt,
                     asset_key=f"dlt_{self.table_config.table_name}",
                     partition_key=partition_key,
                     job_name=getattr(self.context, "job_name", None),
@@ -251,6 +276,8 @@ class DltIngester(BaseIngester):
                 },
                 correlation=HookCorrelation(
                     run_id=run_id,
+                    project_id=project_id,
+                    attempt=correlation_attempt,
                     asset_key=f"dlt_{self.table_config.table_name}",
                     partition_key=partition_key,
                     job_name=getattr(self.context, "job_name", None),
@@ -260,14 +287,52 @@ class DltIngester(BaseIngester):
 
         log_event(self.logger, "info", "starting_ingestion", partition_key=partition_key)
         start_time = time.time()
-        emitter.emit_start()
+        evidence_resources: list[dict[str, Any]] = []
+        source_identity: str | None = None
+        if attempt is not None:
+            emit_lifecycle_safely(emitter, "emit_start")
 
         try:
             dlt_source = self.dlt_source_func(partition_date=partition_key)
+            source_identity = normalize_source_identity(
+                dlt_source, parameters.get("source_identity")
+            )
 
             if dlt_source is None:
                 log_event(self.logger, "info", "ingestion_no_data", partition_key=partition_key)
-                emitter.emit_end(status="no_data", metrics={"rows_loaded": 0})
+                if attempt is not None:
+                    emit_lifecycle_safely(
+                        emitter, "emit_end", status="no_data", metrics={"rows_loaded": 0}
+                    )
+                if run_id != "unknown":
+                    emit_observation(
+                        project_id=project_id,
+                        run_id=run_id,
+                        attempt=attempt,
+                        correlation_error=project_error,
+                        observation_type="ingest",
+                        status="no_data",
+                        producer="phlo-dlt",
+                        resources=[
+                            {
+                                "resource_kind": "external_source",
+                                "role": "input",
+                                "normalized_identity": source_identity,
+                                "ref_name": branch_name,
+                                "metadata": {
+                                    "partition": {"status": "observed", "value": partition_key},
+                                    "watermark": {"status": "unavailable"},
+                                    "records_read": {"status": "observed", "value": 0},
+                                },
+                            }
+                        ],
+                        metrics={"records_read": 0},
+                        identity_parts=(
+                            self.table_config.full_table_name,
+                            partition_key,
+                            "no_data",
+                        ),
+                    )
                 return IngestionResult(
                     status="no_data",
                     rows_inserted=0,
@@ -314,6 +379,60 @@ class DltIngester(BaseIngester):
                         context=shim,
                     )
 
+            # Inventory after Phlo metadata mutation, immediately before
+            # validation/write, so evidence describes the loaded artifacts.
+            staged_objects = staged_object_inventory(parquet_paths)
+            known_record_counts = [item.get("record_count") for item in staged_objects]
+            staged_record_count = (
+                sum(value for value in known_record_counts if isinstance(value, int))
+                if staged_objects and all(isinstance(value, int) for value in known_record_counts)
+                else None
+            )
+            staged_byte_count = sum(
+                item["byte_count"]
+                for item in staged_objects
+                if isinstance(item.get("byte_count"), int)
+            )
+            execution_identity, execution_identity_observed = dlt_execution_identity(
+                pipeline, dlt_source, parameters, staged_objects
+            )
+            dlt_metrics = dlt_observed_metrics(pipeline)
+            before_state = table_state(
+                self.table_store, self.table_config.full_table_name, branch_name
+            )
+            evidence_resources = [
+                {
+                    "resource_kind": "external_source",
+                    "role": "input",
+                    "normalized_identity": source_identity,
+                    "ref_name": branch_name,
+                    "record_count": dlt_metrics.get("records_read"),
+                    "byte_count": dlt_metrics.get("bytes_read"),
+                    "metadata": {
+                        "partition": {"status": "observed", "value": partition_key},
+                        "watermark": {"status": "unavailable"},
+                        "source_metrics": {
+                            "status": "observed" if dlt_metrics else "unavailable",
+                            **dlt_metrics,
+                        },
+                    },
+                },
+                {
+                    "resource_kind": "staged_object",
+                    "role": "staged",
+                    "ref_name": branch_name,
+                    "staged_objects": staged_objects,
+                    "record_count": staged_record_count,
+                    "byte_count": staged_byte_count,
+                    "metadata": {
+                        "inventory": {"status": "observed"},
+                        "record_count": {
+                            "status": "observed" if staged_record_count is not None else "partial"
+                        },
+                    },
+                },
+            ]
+
             evaluation_metadata: dict[str, Any] | None = None
             if self.validate and self.validation_schema is not None:
                 evaluation = evaluate_pandera_contract_parquet_files(
@@ -327,6 +446,25 @@ class DltIngester(BaseIngester):
                         parquet_paths=tuple(parquet_paths),
                     )
 
+            output_resource: dict[str, Any] = {
+                "resource_kind": "iceberg_table",
+                "role": "output",
+                "table_name": self.table_config.full_table_name,
+                "ref_name": branch_name,
+                "schema_hash": before_state["schema_hash"],
+                "schema_hash_before": before_state["schema_hash"],
+                "schema_hash_after": None,
+                "snapshot_before": before_state["snapshot_id"],
+                "snapshot_after": None,
+                "metadata": {
+                    "before": before_state["metadata"],
+                    "after": {"state": "unavailable"},
+                    "outcome": "unknown",
+                    "evidence_completeness": "incomplete",
+                },
+            }
+            evidence_resources.append(output_resource)
+
             merge_metrics = merge_to_table_store(
                 context=shim,
                 table_store=self.table_store,
@@ -335,6 +473,30 @@ class DltIngester(BaseIngester):
                 branch_name=branch_name,
                 merge_strategy=self.merge_strategy,
                 merge_config=self.merge_config,
+            )
+
+            after_state = table_state(
+                self.table_store, self.table_config.full_table_name, branch_name
+            )
+            contradictory_readback = after_state["state"] == "absent"
+            output_resource.update(
+                schema_hash=after_state["schema_hash"],
+                schema_hash_after=after_state["schema_hash"],
+                snapshot_after=after_state["snapshot_id"],
+                record_count=merge_metrics.get("rows_inserted"),
+                metadata={
+                    "before": before_state["metadata"],
+                    "after": after_state["metadata"],
+                    "state": after_state["state"],
+                    "outcome": "contradictory" if contradictory_readback else "success",
+                    "evidence_completeness": (
+                        "incomplete"
+                        if before_state["state"] == "unavailable"
+                        or after_state["state"] == "unavailable"
+                        or contradictory_readback
+                        else "complete"
+                    ),
+                },
             )
 
             total_elapsed = time.time() - start_time
@@ -346,16 +508,38 @@ class DltIngester(BaseIngester):
                 total_elapsed_seconds=total_elapsed,
             )
 
-            emitter.emit_end(
-                status="success",
-                metrics={
-                    "rows_inserted": merge_metrics["rows_inserted"],
-                    "rows_deleted": merge_metrics.get("rows_deleted", 0),
-                    "dlt_elapsed_seconds": dlt_elapsed,
-                    "total_elapsed_seconds": total_elapsed,
-                    "target_branch_name": target_branch_name,
-                },
-            )
+            if attempt is not None:
+                emit_lifecycle_safely(
+                    emitter,
+                    "emit_end",
+                    status="success",
+                    metrics={
+                        "rows_inserted": merge_metrics["rows_inserted"],
+                        "rows_deleted": merge_metrics.get("rows_deleted", 0),
+                        "dlt_elapsed_seconds": dlt_elapsed,
+                        "total_elapsed_seconds": total_elapsed,
+                        "target_branch_name": target_branch_name,
+                    },
+                )
+            if run_id != "unknown":
+                emit_observation(
+                    project_id=project_id,
+                    run_id=run_id,
+                    attempt=attempt,
+                    correlation_error=project_error,
+                    observation_type="ingest",
+                    status="success",
+                    producer="phlo-dlt",
+                    resources=evidence_resources,
+                    metrics={**merge_metrics, **dlt_metrics, "dlt_elapsed_seconds": dlt_elapsed},
+                    event_id=parameters.get("evidence_event_id"),
+                    identity_parts=(
+                        self.table_config.full_table_name,
+                        partition_key,
+                        execution_identity,
+                        tuple(item.get("checksum") for item in staged_objects),
+                    ),
+                )
 
             return IngestionResult(
                 status="success",
@@ -368,20 +552,48 @@ class DltIngester(BaseIngester):
                     "pandera_evaluation": evaluation_metadata,
                     "total_elapsed_seconds": total_elapsed,
                     "target_branch_name": target_branch_name,
+                    "evidence_execution_id": execution_identity,
+                    "evidence_execution_id_observed": execution_identity_observed,
                 },
             )
 
         except Exception as exc:
             total_elapsed = time.time() - start_time
-            emitter.emit_end(
-                status="failure",
-                metrics={"total_elapsed_seconds": total_elapsed},
-                error=str(exc),
-            )
-            telemetry.emit_log(
-                name="ingestion.failure",
-                level="error",
-                payload={"error": str(exc), "elapsed_seconds": total_elapsed},
-            )
+            safe_error = safe_error_summary(exc)
+            if attempt is not None:
+                emit_lifecycle_safely(
+                    emitter,
+                    "emit_end",
+                    status="failure",
+                    metrics={"total_elapsed_seconds": total_elapsed},
+                    error=safe_error,
+                )
+            if run_id != "unknown":
+                emit_observation(
+                    project_id=project_id,
+                    run_id=run_id,
+                    attempt=attempt,
+                    correlation_error=project_error,
+                    observation_type="ingest",
+                    status="failed",
+                    producer="phlo-dlt",
+                    resources=evidence_resources,
+                    error=safe_error,
+                    event_id=parameters.get("evidence_event_id"),
+                    identity_parts=(
+                        self.table_config.full_table_name,
+                        partition_key,
+                        locals().get("execution_identity"),
+                        "failed",
+                    ),
+                )
+            if attempt is not None:
+                emit_lifecycle_safely(
+                    telemetry,
+                    "emit_log",
+                    name="ingestion.failure",
+                    level="error",
+                    payload={"error": safe_error, "elapsed_seconds": total_elapsed},
+                )
             # Re-raise so the orchestrator knows it failed
             raise

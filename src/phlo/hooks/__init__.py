@@ -88,6 +88,7 @@ __all__ = [
     "ServiceLifecycleEvent",
     "TelemetryEvent",
     "TransformEvent",
+    "RunEvidenceObservationEvent",
     "LogEvent",
     "get_hook_bus",
 ]
@@ -126,6 +127,7 @@ _EVENT_EXPORTS = {
     "ServiceLifecycleEvent",
     "TelemetryEvent",
     "TransformEvent",
+    "RunEvidenceObservationEvent",
     "LogEvent",
 }
 

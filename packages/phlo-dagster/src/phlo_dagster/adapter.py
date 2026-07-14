@@ -50,11 +50,14 @@ from typing import Any, Iterable, Mapping
 
 import dagster as dg
 
+from phlo._correlation import resolve_project_identity
 from phlo.capabilities.runtime import (
     RuntimeContext,
     RuntimeRouting,
+    attempt_from_tags,
     capability_overrides_from_tags,
 )
+from phlo.config import get_settings
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
@@ -244,6 +247,8 @@ class DagsterRuntime(RuntimeContext):
             if key.startswith("feature/")
         }
         capability_overrides = capability_overrides_from_tags(tags)
+        attempt, attempt_error = attempt_from_tags(tags)
+        project = resolve_project_identity(tags, get_settings().phlo_project)
         for capability_type, provider_name in self.asset_capability_overrides.items():
             capability_overrides.setdefault(capability_type, provider_name)
         return RuntimeRouting(
@@ -251,6 +256,10 @@ class DagsterRuntime(RuntimeContext):
             ref=tags.get("phlo/ref") or tags.get("ref") or tags.get("branch"),
             partition_key=self.partition_key,
             run_id=self.run_id,
+            project_id=project.project_id,
+            project_error=project.error,
+            attempt=attempt,
+            attempt_error=attempt_error,
             resources=self.resources,
             feature_flags=feature_flags,
             capability_overrides=capability_overrides,

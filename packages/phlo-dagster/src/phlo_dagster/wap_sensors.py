@@ -47,6 +47,7 @@ Example:
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -54,9 +55,14 @@ from typing import Any
 
 import dagster as dg
 
+from phlo._correlation import ProjectIdentity, resolve_project_identity
 from phlo.capabilities.interfaces import VersionedCatalog
 from phlo.capabilities.resolver import resolve_capability
+from phlo._attempt import attempt_from_tags
+from phlo.hooks import HookCorrelation, QualityResultEvent, get_hook_bus
 from phlo.logging import get_logger
+from phlo.config import get_settings
+from phlo.run_evidence import default_run_evidence_store, emit_observation
 
 logger = get_logger(__name__)
 
@@ -73,6 +79,12 @@ DEFAULT_PROMOTION_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_PROMOTION_INTERVAL_
 def _report_path(run_id: str) -> Path:
     root = Path(os.getenv("PHLO_PROJECT_PATH", "."))
     return root / ".phlo" / "wap-reports" / f"{run_id}.json"
+
+
+def _report_snapshot_path(run_id: str, checksum: str) -> Path:
+    root = Path(os.getenv("PHLO_PROJECT_PATH", ".")) / ".phlo" / "wap-reports" / "evidence"
+    run_key = hashlib.sha256(run_id.encode("utf-8")).hexdigest()[:24]
+    return root / f"{run_key}.{checksum}.json"
 
 
 def _branch_hash(catalog: VersionedCatalog, branch: str) -> str | None:
@@ -105,7 +117,13 @@ def write_wap_report(run_id: str, **updates: Any) -> None:
     )
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        serialized = json.dumps(payload, indent=2, sort_keys=True)
+        path.write_text(serialized, encoding="utf-8")
+        raw = serialized.encode("utf-8")
+        snapshot_path = _report_snapshot_path(run_id, hashlib.sha256(raw).hexdigest())
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        if not snapshot_path.exists():
+            snapshot_path.write_bytes(raw)
     except OSError:
         logger.warning("wap_report_write_failed", path=str(path), run_id=run_id, exc_info=True)
 
@@ -149,6 +167,257 @@ def _wap_branch_name(run_id: str) -> str:
 
     """
     return f"{WAP_BRANCH_PREFIX}run-{run_id}"
+
+
+def _project_identity_for_run(run: Any) -> ProjectIdentity:
+    """Resolve run tags against the configured single-project identity."""
+    return resolve_project_identity(
+        getattr(run, "tags", {}) or {},
+        get_settings().phlo_project,
+    )
+
+
+def _project_id_for_run(run: Any) -> str | None:
+    return _project_identity_for_run(run).project_id
+
+
+def _attempt_for_run(run: Any) -> int | None:
+    """Return a positive attempt or None so missing correlation is observable."""
+    attempt, _error = attempt_from_tags(getattr(run, "tags", {}) or {})
+    return attempt
+
+
+def _read_wap_report(run_id: str) -> dict[str, Any] | None:
+    try:
+        return json.loads(_report_path(run_id).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+
+def _quality_check_records(instance: Any, run_id: str) -> list[dict[str, Any]] | None:
+    """Return check outcomes with only their durable event identities."""
+    try:
+        check_records = instance.get_records_for_run(
+            run_id,
+            of_type=dg.DagsterEventType.ASSET_CHECK_EVALUATION,
+        )
+    except Exception:
+        return None
+    checks: list[dict[str, Any]] = []
+    for record in getattr(check_records, "records", ()):
+        entry = getattr(record, "event_log_entry", None)
+        evaluation = getattr(entry, "asset_check_evaluation", None)
+        if evaluation is None:
+            continue
+        storage_id = getattr(record, "storage_id", None) or getattr(entry, "storage_id", None)
+        checks.append(
+            {
+                "event_id": f"dagster-quality:{storage_id}" if storage_id is not None else None,
+                "passed": bool(getattr(evaluation, "passed", False)),
+            }
+        )
+    return checks
+
+
+def _persist_aggregate_quality_decision(
+    *, project_id: str, run_id: str, attempt: int, checks: list[dict[str, Any]]
+) -> str | None:
+    """Persist and return the durable aggregate quality-result identity."""
+    if not checks or any(not check.get("event_id") for check in checks):
+        return None
+    passed = all(check["passed"] for check in checks)
+    event_id = (
+        "wap-quality-"
+        + hashlib.sha256(
+            json.dumps(
+                {"run_id": run_id, "attempt": attempt, "checks": checks},
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()[:32]
+    )
+    event = QualityResultEvent(
+        event_type="quality.result",
+        event_id=event_id,
+        producer="phlo-dagster-nessie",
+        asset_key="__pipeline__",
+        check_name="wap.aggregate",
+        passed=passed,
+        severity=None if passed else "error",
+        check_type="aggregate",
+        metadata={
+            "decision": "passed" if passed else "rejected",
+            "failed_check_ids": [
+                check["event_id"] for check in checks if not check["passed"] and check["event_id"]
+            ],
+            "checks": checks,
+        },
+        correlation=HookCorrelation(
+            project_id=project_id,
+            run_id=run_id,
+            attempt=attempt,
+        ),
+    )
+    try:
+        get_hook_bus().emit(event)
+        results = default_run_evidence_store().list_quality_results(
+            project_id, run_id, attempt=attempt
+        )
+    except Exception:
+        logger.warning(
+            "wap_aggregate_quality_evidence_persist_failed", run_id=run_id, exc_info=True
+        )
+        return None
+    for result in results:
+        metadata = result.get("metadata") or {}
+        if (
+            result.get("check_id") == "wap.aggregate"
+            and bool(result.get("passed")) == passed
+            and metadata.get("checks") == checks
+        ):
+            return str(result["quality_result_id"])
+    return None
+
+
+def _quality_evidence(
+    run_id: str,
+    instance: Any | None = None,
+    *,
+    project_id: str | None = None,
+    attempt: int | None = None,
+) -> tuple[str | None, dict[str, Any]]:
+    """Read report evidence and bind promotion to a durable aggregate decision."""
+    path = _report_path(run_id)
+    try:
+        raw = path.read_bytes()
+        report = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None, {"quality_evidence": {"status": "unavailable"}}
+    if report.get("run_id") != run_id:
+        return None, {"quality_evidence": {"status": "unavailable"}}
+    quality_id = None
+    checks = _quality_check_records(instance, run_id) if instance is not None else None
+    failed_check_ids = [
+        check["event_id"] for check in checks or [] if not check["passed"] and check["event_id"]
+    ]
+    if checks is not None and project_id and attempt is not None:
+        aggregate_id = _persist_aggregate_quality_decision(
+            project_id=project_id, run_id=run_id, attempt=attempt, checks=checks
+        )
+        if aggregate_id is not None:
+            quality_id = aggregate_id
+    checksum = hashlib.sha256(raw).hexdigest()
+    snapshot_path = _report_snapshot_path(run_id, checksum)
+    evidence_path = snapshot_path if snapshot_path.exists() else path
+    return quality_id, {
+        "quality_evidence": {
+            "uri": str(evidence_path),
+            "checksum": checksum,
+            "status": "observed" if quality_id else "unavailable",
+            "identifier_source": (
+                "durable_aggregate_quality_result"
+                if quality_id and checks is not None and project_id and attempt is not None
+                else None
+            ),
+            "decision_scope": "aggregate" if checks is not None else "unavailable",
+            "decision": (
+                "rejected"
+                if failed_check_ids
+                else "passed"
+                if checks is not None
+                else "unavailable"
+            ),
+            "failed_check_ids": failed_check_ids,
+        }
+    }
+
+
+def _record_uncorrelated_gap(run_id: str, *, branch: str, missing: list[str], reason: str) -> None:
+    """Persist cleanup evidence without letting it masquerade as pipeline evidence."""
+    write_wap_report(
+        run_id,
+        status="incomplete",
+        branch=branch,
+        observation_scope="uncorrelated_maintenance",
+        evidence_completeness="incomplete",
+        missing_evidence=missing,
+        maintenance_observation={"operation": "cleanup", "reason": reason},
+    )
+    logger.warning(
+        "wap_uncorrelated_maintenance_evidence_gap",
+        run_id=run_id,
+        branch_name=branch,
+        missing_evidence=missing,
+    )
+
+
+def _normalized_dagster_status(run: Any) -> str | None:
+    raw_status = getattr(run, "status", None)
+    value = getattr(raw_status, "value", raw_status)
+    normalized = str(value).rsplit(".", 1)[-1].lower() if value is not None else ""
+    return {
+        "success": "success",
+        "failure": "failed",
+        "failed": "failed",
+        "canceled": "cancelled",
+        "cancelled": "cancelled",
+        "skipped": "skipped",
+    }.get(normalized)
+
+
+def _emit_wap_observation(
+    *,
+    run: Any,
+    status: str,
+    run_status: str | None = None,
+    operation: str,
+    catalog_ref: str,
+    source_hash: str | None = None,
+    target_hash: str | None = None,
+    merge_outcome: str | None = None,
+    quality_decision_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    project_id = _project_id_for_run(run)
+    project_identity = _project_identity_for_run(run)
+    attempt = _attempt_for_run(run)
+    run_id = getattr(run, "run_id", None)
+    if not run_id:
+        return
+    if not project_id or attempt is None:
+        _record_uncorrelated_gap(
+            run_id,
+            branch=catalog_ref,
+            missing=[
+                field
+                for field, value in (
+                    (project_identity.error or "project_id", project_id),
+                    ("attempt", attempt),
+                )
+                if not value
+            ],
+            reason="missing_run_correlation",
+        )
+        return
+    emit_observation(
+        project_id=project_id,
+        run_id=run_id,
+        attempt=attempt,
+        observation_type="publish",
+        status=status,
+        run_status=run_status,
+        producer="phlo-dagster-nessie",
+        catalog_change={
+            "operation": operation,
+            "catalog_ref": catalog_ref,
+            "source_hash": source_hash,
+            "target_hash": target_hash,
+            "merge_outcome": merge_outcome,
+            "quality_decision_id": quality_decision_id,
+            "metadata": metadata or {},
+        },
+        identity_parts=(operation, catalog_ref, source_hash, target_hash, merge_outcome),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +483,8 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
 
         branch_name = _wap_branch_name(run.run_id)
 
+        target_hash_before = _branch_hash(catalog, "main")
+
         branch_hash = catalog.create_branch(branch_name, from_ref="main")
         if branch_hash is None:
             write_wap_report(
@@ -221,6 +492,15 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
                 status="branch_creation_failed",
                 branch=branch_name,
                 target_branch="main",
+            )
+            _emit_wap_observation(
+                run=run,
+                status="failed",
+                operation="branch_create",
+                catalog_ref=branch_name,
+                source_hash=target_hash_before,
+                merge_outcome="failed",
+                metadata={"target_ref": "main", "branch_hash": {"status": "unavailable"}},
             )
             logger.warning(
                 "wap_branch_creation_skipped",
@@ -236,7 +516,19 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
             branch=branch_name,
             branch_hash=str(branch_hash),
             target_branch="main",
-            target_hash_before=_branch_hash(catalog, "main"),
+            target_hash_before=target_hash_before,
+            project_id=_project_id_for_run(run),
+            attempt=_attempt_for_run(run),
+        )
+        _emit_wap_observation(
+            run=run,
+            status="success",
+            operation="branch_create",
+            catalog_ref=branch_name,
+            source_hash=target_hash_before,
+            target_hash=str(branch_hash),
+            merge_outcome="created",
+            metadata={"source_ref": "main", "commit": {"status": "unavailable"}},
         )
         branches_created += 1
         logger.info(
@@ -320,6 +612,12 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             continue
 
         if not _all_checks_passed(instance, run.run_id):
+            quality_decision_id, quality_metadata = _quality_evidence(
+                run.run_id,
+                instance,
+                project_id=_project_id_for_run(run),
+                attempt=_attempt_for_run(run),
+            )
             write_wap_report(
                 run.run_id,
                 status="promotion_blocked",
@@ -329,12 +627,55 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 target_hash_before=_branch_hash(catalog, "main"),
                 failure_reason="asset_checks_failed",
             )
+            _emit_wap_observation(
+                run=run,
+                status="rejected",
+                run_status="success",
+                operation="promotion",
+                catalog_ref="main",
+                source_hash=_branch_hash(catalog, branch_name),
+                target_hash=_branch_hash(catalog, "main"),
+                merge_outcome="rejected_quality",
+                quality_decision_id=quality_decision_id,
+                metadata={
+                    **quality_metadata,
+                    "changed_content_keys": {"status": "unavailable"},
+                },
+            )
             blocked += 1
             logger.info(
                 "wap_promotion_blocked_quality",
                 run_id=run.run_id,
                 branch_name=branch_name,
             )
+            continue
+
+        quality_decision_id, quality_metadata = _quality_evidence(
+            run.run_id,
+            instance,
+            project_id=_project_id_for_run(run),
+            attempt=_attempt_for_run(run),
+        )
+        if quality_decision_id is None:
+            write_wap_report(
+                run.run_id,
+                status="promotion_blocked",
+                branch=branch_name,
+                target_branch="main",
+                failure_reason="quality_evidence_unavailable",
+            )
+            _emit_wap_observation(
+                run=run,
+                status="incomplete",
+                run_status="success",
+                operation="promotion",
+                catalog_ref="main",
+                source_hash=_branch_hash(catalog, branch_name),
+                target_hash=_branch_hash(catalog, "main"),
+                merge_outcome="skipped_quality_evidence_unavailable",
+                metadata={**quality_metadata, "changed_content_keys": {"status": "unavailable"}},
+            )
+            blocked += 1
             continue
 
         source_hash = _branch_hash(catalog, branch_name)
@@ -349,6 +690,27 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 target_branch="main",
                 target_hash_before=target_hash_before,
                 failure_reason="merge_branch_returned_false",
+            )
+            quality_decision_id, quality_metadata = _quality_evidence(
+                run.run_id,
+                instance,
+                project_id=_project_id_for_run(run),
+                attempt=_attempt_for_run(run),
+            )
+            _emit_wap_observation(
+                run=run,
+                status="failed",
+                run_status="success",
+                operation="promotion",
+                catalog_ref="main",
+                source_hash=source_hash,
+                target_hash=target_hash_before,
+                merge_outcome="failed",
+                quality_decision_id=quality_decision_id,
+                metadata={
+                    **quality_metadata,
+                    "changed_content_keys": {"status": "unavailable"},
+                },
             )
             logger.error(
                 "wap_promotion_merge_failed",
@@ -369,6 +731,38 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             target_hash_before=target_hash_before,
             target_hash_after=target_hash_after,
             source_deleted=source_deleted,
+        )
+        quality_decision_id, quality_metadata = _quality_evidence(
+            run.run_id,
+            instance,
+            project_id=_project_id_for_run(run),
+            attempt=_attempt_for_run(run),
+        )
+        _emit_wap_observation(
+            run=run,
+            status="success",
+            run_status="success",
+            operation="promotion",
+            catalog_ref="main",
+            source_hash=source_hash,
+            target_hash=target_hash_after,
+            merge_outcome="promoted",
+            quality_decision_id=quality_decision_id,
+            metadata={
+                **quality_metadata,
+                "changed_content_keys": {"status": "unavailable"},
+                "commit": {"status": "unavailable"},
+            },
+        )
+        _emit_wap_observation(
+            run=run,
+            status="success" if source_deleted else "incomplete",
+            run_status="success",
+            operation="cleanup",
+            catalog_ref=branch_name,
+            source_hash=source_hash,
+            merge_outcome="deleted" if source_deleted else "failed",
+            metadata={"target_ref": "main"},
         )
         promoted += 1
         logger.info(
@@ -468,6 +862,73 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
                 "wap_branch_cleaned_up",
                 branch_name=branch.name,
                 created_at=branch.created_at.isoformat() if branch.created_at else None,
+            )
+            run_id = branch.name.removeprefix(WAP_BRANCH_PREFIX + "run-")
+            report = _read_wap_report(run_id)
+            if report and (
+                report.get("run_id") != run_id or report.get("branch") not in (None, branch.name)
+            ):
+                report = None
+            dagster_run = None
+            run_status = None
+            get_run_by_id = getattr(context.instance, "get_run_by_id", None)
+            if callable(get_run_by_id):
+                dagster_run = get_run_by_id(run_id)
+                if dagster_run is not None:
+                    run_status = _normalized_dagster_status(dagster_run)
+            report_status = report.get("run_status") if report else None
+            if report_status in {"success", "failed", "error", "cancelled", "canceled", "skipped"}:
+                run_status = report_status
+            elif report and report.get("status") == "promoted":
+                run_status = "success"
+            if run_status is None:
+                _record_uncorrelated_gap(
+                    run_id,
+                    branch=branch.name,
+                    missing=["run_status"],
+                    reason="cleanup_authoritative_status_missing",
+                )
+                continue
+
+            tags = dict(getattr(dagster_run, "tags", {}) or {}) if dagster_run else {}
+            report_project = report.get("project_id") if report else None
+            tagged_project = tags.get("phlo/project_id")
+            if report_project and tagged_project and report_project != tagged_project:
+                _record_uncorrelated_gap(
+                    run_id,
+                    branch=branch.name,
+                    missing=["project_id"],
+                    reason="cleanup_project_conflict",
+                )
+                continue
+            if report_project and not tagged_project:
+                tags["phlo/project_id"] = report_project
+            if "phlo/attempt" not in tags and report:
+                tags["phlo/attempt"] = str(report.get("attempt", ""))
+            cleanup_run = type("CleanupRun", (), {"run_id": run_id, "tags": tags})()
+            project_id = _project_id_for_run(cleanup_run)
+            attempt = _attempt_for_run(cleanup_run)
+            if not project_id or attempt is None:
+                _record_uncorrelated_gap(
+                    run_id,
+                    branch=branch.name,
+                    missing=[
+                        field
+                        for field, value in (("project_id", project_id), ("attempt", attempt))
+                        if not value
+                    ],
+                    reason="cleanup_report_missing_correlation",
+                )
+                continue
+            _emit_wap_observation(
+                run=cleanup_run,
+                status="success",
+                run_status=run_status,
+                operation="cleanup",
+                catalog_ref=branch.name,
+                source_hash=branch.hash,
+                merge_outcome="deleted",
+                metadata={"retention_hours": DEFAULT_RETENTION_HOURS},
             )
         else:
             logger.warning(

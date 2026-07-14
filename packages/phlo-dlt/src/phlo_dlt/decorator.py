@@ -74,7 +74,7 @@ from phlo.capabilities import (
     resolve_capability,
 )
 from phlo.contracts import Consumer, SLA, normalize_consumers, serialize_consumers, serialize_sla
-from phlo.capabilities.runtime import RuntimeContext
+from phlo.capabilities.runtime import RuntimeContext, routing_from_context
 from phlo.exceptions import PhloConfigError
 from phlo.logging import log_event
 from phlo_dlt.pandera_checks import (
@@ -605,7 +605,10 @@ def phlo_ingestion(
                 runtime,
                 strict_validation=strict_validation,
             )
-            run_id = runtime.run_id or "unknown"
+            routing = routing_from_context(runtime)
+            run_id = routing.run_id or "unknown"
+            project_id = routing.project_id
+            attempt = routing.attempt
             logger = runtime.logger
 
             log_event(logger, "info", "starting_ingestion", partition_date=partition_date)
@@ -651,6 +654,8 @@ def phlo_ingestion(
                         "branch_name": write_branch_name,
                         "target_branch_name": branch_name,
                         "run_id": run_id,
+                        "project_id": project_id,
+                        "attempt": attempt,
                     },
                 )
 

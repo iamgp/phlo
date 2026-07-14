@@ -23,6 +23,27 @@ class TableStoreSupport:
         return transform in self.partition_transforms
 
 
+@dataclass(frozen=True, slots=True)
+class TableStateObservation:
+    """Provider-neutral table readback returned by an optional observer."""
+
+    state: str
+    revision: str | None = None
+    schema_hash: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@runtime_checkable
+class TableStateObserver(Protocol):
+    """Optional capability for authoritative table-state readback."""
+
+    def observe_table_state(
+        self, *, table_name: str, override_ref: str | None = None
+    ) -> TableStateObservation | dict[str, Any]:
+        """Return present, absent, or unavailable normalized table state."""
+        ...
+
+
 @runtime_checkable
 class TableStore(Protocol):
     """Protocol for table-store providers used by ingestion components.

@@ -3,18 +3,26 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import dagster as dg
+import pytest
 
 from phlo_dagster.wap_sensors import (
     _all_checks_passed,
+    _quality_evidence,
+    _project_identity_for_run,
     _wap_branch_name,
     wap_auto_promotion_sensor,
     wap_branch_creation_sensor,
     wap_branch_cleanup_sensor,
     write_wap_report,
 )
+from phlo.hooks import HookBus
+from phlo.run_evidence import SQLiteRunEvidenceStore
+from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 
 
 # ---------------------------------------------------------------------------
@@ -303,3 +311,273 @@ def test_wap_auto_promotion_sensor_uses_updated_after_filter():
     assert filters.updated_after is not None
     assert filters.created_after is None
     context.update_cursor.assert_called_once()
+
+
+def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch, tmp_path):
+    """A passing run promotion references its durable aggregate quality result."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-promote"
+    branch = _wap_branch_name(run_id)
+    write_wap_report(
+        run_id,
+        status="branch_created",
+        branch=branch,
+        project_id="project-promote",
+        attempt=1,
+    )
+
+    check_record = SimpleNamespace(
+        storage_id=42,
+        event_log_entry=SimpleNamespace(
+            asset_check_evaluation=SimpleNamespace(passed=True),
+        ),
+    )
+    instance = MagicMock()
+    instance.get_runs.return_value = [
+        SimpleNamespace(
+            run_id=run_id,
+            tags={
+                "phlo/wap_branch": branch,
+                "phlo/project_id": "project-promote",
+                "phlo/attempt": "1",
+            },
+        )
+    ]
+    instance.get_records_for_run.return_value = SimpleNamespace(records=[check_record])
+    catalog = MagicMock()
+    catalog.get_branch_hash.side_effect = ["source-before", "target-before", "target-after"]
+    catalog.merge_branch.return_value = True
+    catalog.delete_branch.return_value = True
+    context = MagicMock()
+    context.instance = instance
+    context.cursor = None
+    context.evaluation_time = datetime.now(timezone.utc)
+
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo_dagster.wap_sensors.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
+    monkeypatch.setattr("phlo.run_evidence.emit.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+
+    wap_auto_promotion_sensor._raw_fn(context)
+
+    catalog.merge_branch.assert_called_once_with(source=branch, target="main")
+    quality_rows = store.list_quality_results("project-promote", run_id, attempt=1)
+    quality_id = next(row["quality_result_id"] for row in quality_rows)
+    assert quality_id in {row["quality_result_id"] for row in quality_rows}
+    assert quality_rows[0]["check_id"] == "wap.aggregate"
+    assert any(
+        row["merge_outcome"] == "promoted" and row["quality_decision_id"] == quality_id
+        for row in store.list_catalog_changes("project-promote", run_id, attempt=1)
+    )
+    run = store.get_run("project-promote", run_id)
+    assert run is not None
+    assert run["status"] == "success"
+    assert run["finished_at"] is not None
+
+
+def test_wap_quality_evidence_ignores_forged_report_ids_when_checks_unavailable(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-forged-quality"
+    write_wap_report(
+        run_id,
+        status="branch_created",
+        quality_result_id="not-a-quality-decision",
+        quality_decision_id="also-forged",
+        artifact_id="not-a-quality-decision",
+    )
+    instance = MagicMock()
+    instance.get_records_for_run.side_effect = RuntimeError("event log unavailable")
+
+    quality_id, metadata = _quality_evidence(
+        run_id, instance, project_id="project-quality", attempt=1
+    )
+
+    assert quality_id is None
+    assert metadata["quality_evidence"]["status"] == "unavailable"
+    assert metadata["quality_evidence"]["identifier_source"] is None
+
+
+def test_wap_merge_failure_preserves_successful_dagster_run_status(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-merge-failure"
+    branch = _wap_branch_name(run_id)
+    write_wap_report(run_id, status="branch_created", branch=branch)
+    run = SimpleNamespace(
+        run_id=run_id,
+        tags={
+            "phlo/wap_branch": branch,
+            "phlo/project_id": "project-merge-failure",
+            "phlo/attempt": "1",
+        },
+    )
+    check_record = SimpleNamespace(
+        storage_id=91,
+        event_log_entry=SimpleNamespace(
+            asset_check_evaluation=SimpleNamespace(passed=True),
+        ),
+    )
+    instance = MagicMock()
+    instance.get_runs.return_value = [run]
+    instance.get_records_for_run.return_value = SimpleNamespace(records=[check_record])
+    catalog = MagicMock()
+    catalog.get_branch_hash.side_effect = ["source-before", "target-before"]
+    catalog.merge_branch.return_value = False
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo_dagster.wap_sensors.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
+    monkeypatch.setattr("phlo.run_evidence.emit.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    context = MagicMock(instance=instance, cursor=None, evaluation_time=datetime.now(timezone.utc))
+
+    wap_auto_promotion_sensor._raw_fn(context)
+
+    run_row = store.get_run("project-merge-failure", run_id)
+    assert run_row is not None
+    assert run_row["status"] == "success"
+    assert run_row["finished_at"] is not None
+    assert (
+        store.list_catalog_changes("project-merge-failure", run_id, attempt=1)[0]["merge_outcome"]
+        == "failed"
+    )
+
+
+@pytest.mark.parametrize(
+    ("tags", "configured", "expected_project", "expected_error"),
+    [
+        ({}, "configured-project", "configured-project", None),
+        (
+            {"phlo/project_id": "configured-project"},
+            "configured-project",
+            "configured-project",
+            None,
+        ),
+        ({"phlo/project_id": "tag-project"}, "configured-project", None, "project_conflict"),
+        ({}, None, None, "project_missing"),
+    ],
+)
+def test_wap_project_identity_requires_authoritative_agreement(
+    monkeypatch, tags, configured, expected_project, expected_error
+):
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors.get_settings",
+        lambda: SimpleNamespace(phlo_project=configured),
+    )
+    run = SimpleNamespace(run_id="run-project", tags=tags)
+
+    identity = _project_identity_for_run(run)
+
+    assert identity.project_id == expected_project
+    assert identity.error == expected_error
+
+
+def test_wap_cleanup_uses_authoritative_terminated_run_status(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    branch_name = _wap_branch_name("run-cleanup")
+    branch = SimpleNamespace(
+        name=branch_name,
+        created_at=datetime.now(timezone.utc) - timedelta(hours=25),
+        hash="branch-hash",
+    )
+    dagster_run = SimpleNamespace(
+        run_id="run-cleanup",
+        status=dg.DagsterRunStatus.SUCCESS,
+        tags={"phlo/project_id": "project-cleanup", "phlo/attempt": "2"},
+    )
+    instance = MagicMock()
+    instance.get_run_by_id.return_value = dagster_run
+    catalog = MagicMock()
+    catalog.list_branches.return_value = [branch]
+    catalog.delete_branch.return_value = True
+    observations: list[dict[str, object]] = []
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._emit_wap_observation",
+        lambda **kwargs: observations.append(kwargs),
+    )
+    context = MagicMock(instance=instance)
+
+    wap_branch_cleanup_sensor._raw_fn(context)
+
+    assert observations[0]["run_status"] == "success"
+    assert observations[0]["run"].tags["phlo/project_id"] == "project-cleanup"
+
+
+def test_wap_cleanup_records_uncorrelated_gap_without_authoritative_status(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    branch_name = _wap_branch_name("run-cleanup-unknown")
+    branch = SimpleNamespace(
+        name=branch_name,
+        created_at=datetime.now(timezone.utc) - timedelta(hours=25),
+        hash="branch-hash",
+    )
+    instance = MagicMock()
+    instance.get_run_by_id.return_value = None
+    catalog = MagicMock()
+    catalog.list_branches.return_value = [branch]
+    catalog.delete_branch.return_value = True
+    gaps: list[dict[str, object]] = []
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._record_uncorrelated_gap",
+        lambda *args, **kwargs: gaps.append(kwargs),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._emit_wap_observation",
+        lambda **kwargs: pytest.fail("unknown cleanup must not emit correlated evidence"),
+    )
+    context = MagicMock(instance=instance)
+
+    wap_branch_cleanup_sensor._raw_fn(context)
+
+    assert gaps[0]["missing"] == ["run_status"]
+    assert gaps[0]["reason"] == "cleanup_authoritative_status_missing"
+
+
+@pytest.mark.parametrize(
+    ("passed", "expected_passed", "expected_failed"),
+    [([True, False], 0, ["dagster-quality:2"]), ([True, True], 1, [])],
+)
+def test_quality_evidence_uses_decision_correct_aggregate(
+    monkeypatch, tmp_path, passed, expected_passed, expected_failed
+):
+    """Mixed and all-pass checks bind to the aggregate decision, never a first check."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-quality-aggregate"
+    write_wap_report(run_id, status="branch_created")
+    records = [
+        SimpleNamespace(
+            storage_id=index,
+            event_log_entry=SimpleNamespace(
+                asset_check_evaluation=SimpleNamespace(passed=check_passed)
+            ),
+        )
+        for index, check_passed in enumerate(passed, start=1)
+    ]
+    instance = SimpleNamespace(
+        get_records_for_run=lambda *_args, **_kwargs: SimpleNamespace(records=records)
+    )
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo_dagster.wap_sensors.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
+
+    quality_id, metadata = _quality_evidence(
+        run_id,
+        instance,
+        project_id="project-quality",
+        attempt=2,
+    )
+
+    result = store.list_quality_results("project-quality", run_id, attempt=2)[0]
+    assert quality_id == result["quality_result_id"]
+    assert result["check_id"] == "wap.aggregate"
+    assert result["passed"] == expected_passed
+    assert metadata["quality_evidence"]["failed_check_ids"] == expected_failed

@@ -50,25 +50,9 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from phlo._attempt import normalize_attempt
+
 EVENT_VERSION = "1.0"
-
-
-def normalize_attempt(value: Any) -> int:
-    """Return a positive integer attempt, accepting numeric strings at boundaries."""
-    if isinstance(value, bool):
-        raise ValueError("attempt must be a positive integer")
-    if isinstance(value, int):
-        attempt = value
-    elif isinstance(value, str) and value.strip():
-        try:
-            attempt = int(value)
-        except ValueError as exc:
-            raise ValueError("attempt must be a positive integer") from exc
-    else:
-        raise ValueError("attempt must be a positive integer")
-    if attempt <= 0:
-        raise ValueError("attempt must be a positive integer")
-    return attempt
 
 
 def _utc_now() -> datetime:
@@ -428,6 +412,20 @@ class DataMigrationEvent(HookEvent):
     rows_written: int
     chunk_index: int | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
+class RunEvidenceObservationEvent(HookEvent):
+    """Provider-neutral observation emitted after an authoritative result."""
+
+    observation_type: str
+    status: str
+    run_status: str | None = None
+    stage_id: str | None = None
+    resources: list[dict[str, Any]] = field(default_factory=list)
+    catalog_change: dict[str, Any] | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
 
 @dataclass(kw_only=True)

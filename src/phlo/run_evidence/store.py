@@ -23,6 +23,7 @@ from phlo.run_evidence.models import (
     RunQualityResult,
     RunResource,
     RunStage,
+    _positive_attempt,
 )
 from phlo.run_evidence.reconciliation import (
     DEFAULT_CLOCK_SKEW,
@@ -57,6 +58,18 @@ def _parse_timestamp(value: Any) -> datetime | None:
     return None
 
 
+def _canonical_timestamp(value: Any) -> str | None:
+    """Return one UTC ISO-8601 representation for every SQL timestamp value."""
+    if value is None:
+        return None
+    parsed = _parse_timestamp(value)
+    if parsed is None:
+        return str(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).isoformat()
+
+
 def _json(value: Any) -> str:
     return canonical_json(value)
 
@@ -64,6 +77,57 @@ def _json(value: Any) -> str:
 def _text(value: str | None) -> str | None:
     redacted = redact_payload(value)
     return redacted if isinstance(redacted, str) or redacted is None else str(redacted)
+
+
+def _resource_checksum_payload(resource: RunResource) -> dict[str, Any]:
+    payload = {key: value for key, value in asdict(resource).items() if key != "resource_id"}
+    for key in ("schema_hash_before", "schema_hash_after", "metadata"):
+        if payload.get(key) in (None, {}):
+            payload.pop(key, None)
+    return payload
+
+
+def _lineage_checksum_payload(edge: RunLineageEdge) -> dict[str, Any]:
+    payload = {key: value for key, value in asdict(edge).items() if key != "lineage_edge_id"}
+    if edge.attempt == 1:
+        payload.pop("attempt", None)
+    return payload
+
+
+def _catalog_checksum_payload(change: RunCatalogChange) -> dict[str, Any]:
+    payload = {key: value for key, value in asdict(change).items() if key != "catalog_change_id"}
+    if change.quality_decision_id is None:
+        payload.pop("quality_decision_id", None)
+    return payload
+
+
+_JSON_ROW_FIELDS: dict[str, dict[str, type]] = {
+    "run_event": {"payload": dict},
+    "run_stage": {"metrics": dict},
+    "run_resource": {"staged_objects": list, "metadata": dict},
+    "run_lineage_edge": {"column_mapping": dict},
+    "run_catalog_change": {"metadata": dict},
+    "run_quality_result": {"metadata": dict},
+    "run_reconciliation_decision": {"missing_evidence": list},
+}
+_BOOLEAN_ROW_FIELDS = {
+    "run_quality_result": {"blocking", "passed"},
+    "run_artifact": {"legal_hold"},
+}
+_TIMESTAMP_ROW_FIELDS = {
+    "pipeline_run": {
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at",
+        "last_heartbeat_at",
+        "reconciled_at",
+    },
+    "run_event": {"observed_at", "created_at"},
+    "run_stage": {"started_at", "finished_at"},
+    "run_artifact": {"expires_at"},
+    "run_reconciliation_decision": {"heartbeat_at", "decided_at", "finished_at"},
+}
 
 
 class _SqlRunEvidenceStore:
@@ -127,6 +191,8 @@ class _SqlRunEvidenceStore:
         stage: RunStage | None = None,
         quality_result: RunQualityResult | None = None,
         lineage_edges: tuple[RunLineageEdge, ...] = (),
+        resources: tuple[RunResource, ...] = (),
+        catalog_change: RunCatalogChange | None = None,
     ) -> bool:
         """Append one event and optional derived records in one transaction."""
         self._validate_append_event_inputs(
@@ -135,6 +201,8 @@ class _SqlRunEvidenceStore:
             stage=stage,
             quality_result=quality_result,
             lineage_edges=lineage_edges,
+            resources=resources,
+            catalog_change=catalog_change,
         )
         with self._transaction() as (_, cursor):
             existing = self._event_identity(cursor, event)
@@ -171,6 +239,10 @@ class _SqlRunEvidenceStore:
                     self._insert_quality(cursor, quality_result)
                 for edge in lineage_edges:
                     self._insert_lineage(cursor, edge)
+                for resource in resources:
+                    self._insert_resource(cursor, resource)
+                if catalog_change is not None:
+                    self._insert_catalog_change(cursor, catalog_change)
             return inserted
 
     def _validate_append_event_inputs(
@@ -181,6 +253,8 @@ class _SqlRunEvidenceStore:
         stage: RunStage | None,
         quality_result: RunQualityResult | None,
         lineage_edges: tuple[RunLineageEdge, ...],
+        resources: tuple[RunResource, ...],
+        catalog_change: RunCatalogChange | None,
     ) -> None:
         """Reject cross-boundary bundles before a placeholder parent can be created."""
         self._require_id("project_id", event.project_id)
@@ -231,7 +305,20 @@ class _SqlRunEvidenceStore:
         if len(stage_ids) > 1:
             raise ValueError("optional evidence has conflicting stage identities")
         for edge in lineage_edges:
-            validate_object("lineage_edge", edge, object_id=edge.lineage_edge_id)
+            validate_object(
+                "lineage_edge", edge, object_id=edge.lineage_edge_id, attempt=edge.attempt
+            )
+        for resource in resources:
+            validate_object(
+                "resource", resource, object_id=resource.resource_id, attempt=resource.attempt
+            )
+        if catalog_change is not None:
+            validate_object(
+                "catalog_change",
+                catalog_change,
+                object_id=catalog_change.catalog_change_id,
+                attempt=catalog_change.attempt,
+            )
 
     def _event_identity(self, cursor: Any, event: RunEvent) -> tuple[Any, ...] | None:
         cursor.execute(
@@ -356,7 +443,9 @@ class _SqlRunEvidenceStore:
             )
             existing_before = cursor.fetchone()
             existing_before_row = (
-                self._row_dict(cursor, existing_before) if existing_before is not None else None
+                self._row_dict(cursor, existing_before, table="pipeline_run")
+                if existing_before is not None
+                else None
             )
             provider_absent = observation.lookup_outcome is RunLookupOutcome.ABSENT
             if provider_absent:
@@ -412,19 +501,23 @@ class _SqlRunEvidenceStore:
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
                 (observation.project_id, observation.run_id),
             )
-            run_row = self._row_dict(cursor, cursor.fetchone())
+            run_row = self._row_dict(cursor, cursor.fetchone(), table="pipeline_run")
             cursor.execute(
                 f"SELECT * FROM {self._table('run_event')} "
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
                 (observation.project_id, observation.run_id),
             )
-            event_rows = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            event_rows = [
+                self._row_dict(cursor, row, table="run_event") for row in cursor.fetchall()
+            ]
             cursor.execute(
                 f"SELECT * FROM {self._table('run_stage')} "
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
                 (observation.project_id, observation.run_id),
             )
-            stage_rows = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            stage_rows = [
+                self._row_dict(cursor, row, table="run_stage") for row in cursor.fetchall()
+            ]
             record_rows: dict[str, list[dict[str, Any]]] = {}
             for family, table in (
                 ("resource", "run_resource"),
@@ -438,7 +531,9 @@ class _SqlRunEvidenceStore:
                     f"AND attempt = {self.placeholder}",
                     (observation.project_id, observation.run_id, observation.attempt),
                 )
-                record_rows[family] = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+                record_rows[family] = [
+                    self._row_dict(cursor, row, table=table) for row in cursor.fetchall()
+                ]
             decision = evaluate_reconciliation(
                 observation=observation,
                 profile=profile,
@@ -528,7 +623,10 @@ class _SqlRunEvidenceStore:
                 "ORDER BY decided_at, id",
                 (project_id, run_id),
             )
-            return [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            return [
+                self._row_dict(cursor, row, table="run_reconciliation_decision")
+                for row in cursor.fetchall()
+            ]
 
     def get_run(self, project_id: str, run_id: str) -> dict[str, Any] | None:
         with self._transaction() as (_, cursor):
@@ -540,7 +638,7 @@ class _SqlRunEvidenceStore:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return self._row_dict(cursor, row)
+            return self._row_dict(cursor, row, table="pipeline_run")
 
     def list_events(self, project_id: str, run_id: str) -> list[dict[str, Any]]:
         with self._transaction() as (_, cursor):
@@ -550,7 +648,7 @@ class _SqlRunEvidenceStore:
                 "ORDER BY observed_at, id",
                 (project_id, run_id),
             )
-            return [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            return [self._row_dict(cursor, row, table="run_event") for row in cursor.fetchall()]
 
     def count_events(self, project_id: str, run_id: str) -> int:
         with self._transaction() as (_, cursor):
@@ -560,6 +658,48 @@ class _SqlRunEvidenceStore:
                 (project_id, run_id),
             )
             return int(cursor.fetchone()[0])
+
+    def list_resources(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> list[dict[str, Any]]:
+        return self._list_attempt_records("run_resource", project_id, run_id, attempt=attempt)
+
+    def list_catalog_changes(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> list[dict[str, Any]]:
+        return self._list_attempt_records("run_catalog_change", project_id, run_id, attempt=attempt)
+
+    def list_quality_results(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> list[dict[str, Any]]:
+        return self._list_attempt_records("run_quality_result", project_id, run_id, attempt=attempt)
+
+    def list_artifacts(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> list[dict[str, Any]]:
+        return self._list_attempt_records("run_artifact", project_id, run_id, attempt=attempt)
+
+    def list_lineage_edges(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> list[dict[str, Any]]:
+        return self._list_attempt_records("run_lineage_edge", project_id, run_id, attempt=attempt)
+
+    def _list_attempt_records(
+        self, table: str, project_id: str, run_id: str, *, attempt: int | None
+    ) -> list[dict[str, Any]]:
+        if attempt is not None:
+            attempt = _positive_attempt(attempt)
+        where = f"project_id = {self.placeholder} AND run_id = {self.placeholder}"
+        params: tuple[Any, ...] = (project_id, run_id)
+        if attempt is not None:
+            where += f" AND attempt = {self.placeholder}"
+            params += (attempt,)
+        with self._transaction() as (_, cursor):
+            cursor.execute(
+                f"SELECT * FROM {self._table(table)} WHERE {where} ORDER BY record_checksum",
+                params,
+            )
+            return [self._row_dict(cursor, row, table=table) for row in cursor.fetchall()]
 
     def _upsert_run(self, cursor: Any, run: PipelineRun) -> None:
         cursor.execute(
@@ -797,7 +937,7 @@ class _SqlRunEvidenceStore:
                 raise IdempotencyConflict(
                     f"reconciliation decision {decision.project_id}/{decision.decision_id} conflicted"
                 )
-            existing_row = self._row_dict(cursor, existing)
+            existing_row = self._row_dict(cursor, existing, table="run_reconciliation_decision")
             if existing_row["record_checksum"] != record_checksum:
                 raise IdempotencyConflict(
                     f"reconciliation decision {decision.project_id}/{decision.decision_id} conflicted"
@@ -968,19 +1108,24 @@ class _SqlRunEvidenceStore:
             )
         p = self.placeholder
         cursor.execute(
-            f"UPDATE {self._table('run_stage')} SET status = CASE "
-            f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"UPDATE {self._table('run_stage')} SET started_at = CASE "
+            f"WHEN started_at IS NOT NULL THEN started_at "
+            f"WHEN {p} IN ('running', 'started', 'start') THEN {p} "
+            f"ELSE started_at END, status = CASE "
+            f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN status ELSE {p} END, "
             f"finished_at = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN COALESCE(finished_at, {p}) ELSE COALESCE({p}, finished_at) END, "
             f"metrics = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN metrics ELSE {p} END, error = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
             f"THEN COALESCE(error, {p}) ELSE COALESCE({p}, error) END "
             f"WHERE project_id = {p} AND run_id = {p} AND stage_id = {p}",
             (
+                stage.status,
+                _timestamp(stage.started_at),
                 stage.status,
                 _timestamp(stage.finished_at),
                 _timestamp(stage.finished_at),
@@ -995,9 +1140,7 @@ class _SqlRunEvidenceStore:
 
     def _insert_resource(self, cursor: Any, resource: RunResource) -> None:
         self._require_id("resource_id", resource.resource_id)
-        record_checksum = payload_checksum(
-            {key: value for key, value in asdict(resource).items() if key != "resource_id"}
-        )
+        record_checksum = payload_checksum(_resource_checksum_payload(resource))
         values = (
             resource.resource_id,
             resource.project_id,
@@ -1011,19 +1154,23 @@ class _SqlRunEvidenceStore:
             _text(resource.catalog),
             _text(resource.ref_name),
             _text(resource.schema_hash),
+            _text(resource.schema_hash_before),
+            _text(resource.schema_hash_after),
             _text(resource.watermark),
             resource.record_count,
             resource.byte_count,
             _json(resource.staged_objects),
             _text(resource.snapshot_before),
             _text(resource.snapshot_after),
+            _json(resource.metadata),
             record_checksum,
         )
         cursor.execute(
             f"INSERT INTO {self._table('run_resource')} "
             "(resource_id, project_id, run_id, attempt, resource_kind, role, normalized_identity, uri, "
-            "table_name, catalog, ref_name, schema_hash, watermark, record_count, byte_count, "
-            "staged_objects, snapshot_before, snapshot_after, record_checksum) VALUES ("
+            "table_name, catalog, ref_name, schema_hash, schema_hash_before, schema_hash_after, "
+            "watermark, record_count, byte_count, staged_objects, snapshot_before, snapshot_after, "
+            "metadata, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
             + ") ON CONFLICT (project_id, run_id, resource_id) DO NOTHING",
             values,
@@ -1041,13 +1188,12 @@ class _SqlRunEvidenceStore:
 
     def _insert_lineage(self, cursor: Any, edge: RunLineageEdge) -> None:
         self._require_id("lineage_edge_id", edge.lineage_edge_id)
-        record_checksum = payload_checksum(
-            {key: value for key, value in asdict(edge).items() if key != "lineage_edge_id"}
-        )
+        record_checksum = payload_checksum(_lineage_checksum_payload(edge))
         values = (
             edge.lineage_edge_id,
             edge.project_id,
             edge.run_id,
+            edge.attempt,
             _text(edge.source),
             _text(edge.target),
             _json(edge.column_mapping),
@@ -1058,7 +1204,7 @@ class _SqlRunEvidenceStore:
         )
         cursor.execute(
             f"INSERT INTO {self._table('run_lineage_edge')} "
-            "(lineage_edge_id, project_id, run_id, source, target, column_mapping, origin, "
+            "(lineage_edge_id, project_id, run_id, attempt, source, target, column_mapping, origin, "
             "derivation, confidence, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
             + ") ON CONFLICT (project_id, run_id, lineage_edge_id) DO NOTHING",
@@ -1126,9 +1272,7 @@ class _SqlRunEvidenceStore:
 
     def _insert_catalog_change(self, cursor: Any, change: RunCatalogChange) -> None:
         self._require_id("catalog_change_id", change.catalog_change_id)
-        record_checksum = payload_checksum(
-            {key: value for key, value in asdict(change).items() if key != "catalog_change_id"}
-        )
+        record_checksum = payload_checksum(_catalog_checksum_payload(change))
         values = (
             change.catalog_change_id,
             change.project_id,
@@ -1144,6 +1288,7 @@ class _SqlRunEvidenceStore:
             _text(change.merge_outcome),
             _text(change.snapshot_before),
             _text(change.snapshot_after),
+            _text(change.quality_decision_id),
             _json(change.metadata),
             record_checksum,
         )
@@ -1151,7 +1296,7 @@ class _SqlRunEvidenceStore:
             f"INSERT INTO {self._table('run_catalog_change')} "
             "(catalog_change_id, project_id, run_id, attempt, catalog_ref, content_key, operation, "
             "source_hash, target_hash, commit_hash, commit_message, merge_outcome, snapshot_before, "
-            "snapshot_after, metadata, record_checksum) VALUES ("
+            "snapshot_after, quality_decision_id, metadata, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
             + ") ON CONFLICT (project_id, run_id, catalog_change_id) DO NOTHING",
             values,
@@ -1207,11 +1352,34 @@ class _SqlRunEvidenceStore:
             )
 
     @staticmethod
-    def _row_dict(cursor: Any, row: Any) -> dict[str, Any]:
+    def _row_dict(cursor: Any, row: Any, *, table: str | None = None) -> dict[str, Any]:
         if hasattr(row, "keys"):
-            return dict(row)
-        columns = [description[0] for description in cursor.description]
-        return dict(zip(columns, row, strict=True))
+            result = dict(row)
+        else:
+            columns = [description[0] for description in cursor.description]
+            result = dict(zip(columns, row, strict=True))
+        if table is None:
+            return result
+        for field, expected_type in _JSON_ROW_FIELDS.get(table, {}).items():
+            value = result.get(field)
+            if isinstance(value, (bytes, bytearray)):
+                value = value.decode("utf-8")
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    value = None
+            if value is None:
+                value = [] if expected_type is list else {}
+            if not isinstance(value, expected_type):
+                raise ValueError(f"{table}.{field} must be a {expected_type.__name__}")
+            result[field] = value
+        for field in _BOOLEAN_ROW_FIELDS.get(table, set()):
+            if result.get(field) is not None:
+                result[field] = bool(result[field])
+        for field in _TIMESTAMP_ROW_FIELDS.get(table, set()):
+            result[field] = _canonical_timestamp(result.get(field))
+        return result
 
     @staticmethod
     def _require_id(name: str, value: str) -> None:
@@ -1266,8 +1434,8 @@ class SQLiteRunEvidenceStore(_SqlRunEvidenceStore):
         del connection
 
     def _initialize_schema(self) -> None:
-        sql_path = Path(__file__).parent.parent / "sql" / "002_create_run_evidence.sql"
-        sql = sql_path.read_text(encoding="utf-8")
+        sql_root = Path(__file__).parent.parent / "sql"
+        sql = (sql_root / "002_create_run_evidence.sql").read_text(encoding="utf-8")
         replacements = {
             "CREATE SCHEMA IF NOT EXISTS phlo;": "",
             "phlo.": "",
@@ -1288,6 +1456,18 @@ class SQLiteRunEvidenceStore(_SqlRunEvidenceStore):
         )
         self._connection.executescript(sql)
         self._migrate_sqlite_reconciliation_schema()
+        migration = (sql_root / "004_run_evidence_instrumentation_sqlite.sql").read_text(
+            encoding="utf-8"
+        )
+        for statement in migration.split(";"):
+            statement = statement.strip()
+            if not statement:
+                continue
+            try:
+                self._connection.execute(statement)
+            except sqlite3.OperationalError as exc:
+                if "duplicate column name" not in str(exc).lower():
+                    raise
         self._connection.commit()
 
     def _migrate_sqlite_reconciliation_schema(self) -> None:
@@ -1476,15 +1656,20 @@ class PostgresRunEvidenceStore(_SqlRunEvidenceStore):
         return psycopg2.connect(self.dsn)
 
     def _initialize_schema(self) -> None:
-        sql_path = Path(__file__).parent.parent / "sql" / "002_create_run_evidence.sql"
+        sql_root = Path(__file__).parent.parent / "sql"
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(sql_path.read_text(encoding="utf-8"))
+                cursor.execute(
+                    (sql_root / "002_create_run_evidence.sql").read_text(encoding="utf-8")
+                )
                 cursor.execute(
                     (
                         Path(__file__).parent.parent / "sql" / "003_reconcile_run_evidence.sql"
                     ).read_text(encoding="utf-8")
+                )
+                cursor.execute(
+                    (sql_root / "004_run_evidence_instrumentation.sql").read_text(encoding="utf-8")
                 )
             connection.commit()
         except Exception:
