@@ -195,6 +195,33 @@ def _compaction_failure(
     }
 
 
+def _retention_metadata_failure_result(
+    *,
+    operation: str,
+    table_name: str,
+    ref: str,
+    dry_run: bool,
+    exc: Exception,
+    code: str,
+    operation_id: str | None,
+) -> dict[str, object]:
+    """Return metadata failure evidence with one authoritative retry classification."""
+    failure = _compaction_failure(exc, code=code)
+    retry_safe = failure.get("retryable") is True
+    return MaintenanceOperationResult(
+        operation=operation,
+        table_name=table_name,
+        ref=ref,
+        dry_run=dry_run,
+        status=MaintenanceOperationState.FAILED,
+        accepted=False,
+        executed=False,
+        failure=failure,
+        operation_id=operation_id,
+        retry_safe=retry_safe,
+    ).to_dict()
+
+
 def _blocked_compaction_result(
     *,
     table_name: str,
@@ -1119,10 +1146,13 @@ class IcebergResource:
             "table_snapshot_ref_evidence": "available" if refs_available else "unavailable",
             "nessie_ref_evidence": "unavailable",
             "affected_objects": len(candidates),
+            "affected_objects_scope": "candidate_snapshots_only",
             "affected_bytes": affected_bytes,
-            "bytes_scope": "unreferenced_data_files_only",
+            "affected_bytes_scope": (
+                "observed_unreferenced_data_files_only; evidence_not_deletion_ceiling"
+            ),
             "limits_scope": (
-                "candidate_snapshots_and_unreferenced_data_files; provider_metadata_not_counted"
+                "candidate_snapshot_count_only; provider_metadata_and_data_files_excluded"
             ),
             "limits_enforced": False,
             "deletion_surface": "provider_threshold_not_bound",
@@ -1394,7 +1424,7 @@ class IcebergResource:
         catalog: str | None = None,
         dry_run: bool = True,
         retention_hours: int = SAFE_MIN_RETENTION_HOURS,
-        retain_last: int = 1,
+        retain_last: int = 5,
         minimum_retention_hours: int = SAFE_MIN_RETENTION_HOURS,
         expected_snapshot_id: int | str | None = None,
         confirmation_token: str | None = None,
@@ -1440,18 +1470,15 @@ class IcebergResource:
                 max_affected_bytes=max_affected_bytes,
             )
         except Exception as exc:
-            return MaintenanceOperationResult(
+            return _retention_metadata_failure_result(
                 operation="expire_snapshots",
                 table_name=table_name,
                 ref=branch,
                 dry_run=dry_run,
-                status=MaintenanceOperationState.FAILED,
-                accepted=False,
-                executed=False,
-                failure=_compaction_failure(exc, code="table_metadata_unavailable"),
+                exc=exc,
+                code="table_metadata_unavailable",
                 operation_id=operation_id,
-                retry_safe=True,
-            ).to_dict()
+            )
         plan = cast(dict[str, Any], plan)
         if dry_run:
             return MaintenanceOperationResult(
@@ -1536,19 +1563,31 @@ class IcebergResource:
                 max_affected_bytes=max_affected_bytes,
             )
         except Exception as exc:
-            return MaintenanceOperationResult(
+            return _retention_metadata_failure_result(
                 operation="cleanup_orphan_files",
                 table_name=table_name,
                 ref=branch,
                 dry_run=dry_run,
-                status=MaintenanceOperationState.FAILED,
-                accepted=False,
-                executed=False,
-                failure=_compaction_failure(exc, code="orphan_scan_unavailable"),
+                exc=exc,
+                code="orphan_scan_unavailable",
+                operation_id=operation_id,
+            )
+        plan = cast(dict[str, Any], plan)
+        if plan.get("scan_status") == "unavailable":
+            return self._retention_blocked(
+                operation="cleanup_orphan_files",
+                table_name=table_name,
+                ref=branch,
+                dry_run=dry_run,
+                plan={**plan, "trino_boundary": "not_invoked"},
+                code="orphan_scan_unavailable",
+                message=(
+                    "The orphan discovery scan is unavailable; no complete candidate set "
+                    "is available for this operation."
+                ),
                 operation_id=operation_id,
                 retry_safe=True,
-            ).to_dict()
-        plan = cast(dict[str, Any], plan)
+            )
         if dry_run:
             return MaintenanceOperationResult(
                 operation="cleanup_orphan_files",

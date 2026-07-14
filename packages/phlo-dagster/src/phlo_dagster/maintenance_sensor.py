@@ -26,7 +26,7 @@ Configuration File Format:
         expire:
           snapshot_count_gt: 20
           older_than_days: 7
-          retain_last: 1
+          retain_last: 5
         optimize:
           avg_file_size_mb_lt: 64.0
       - namespace: curated
@@ -368,7 +368,7 @@ def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
                                     policy.expire.older_than_days if policy.expire else 7
                                 ),
                                 "snapshot_retain_last": (
-                                    policy.expire.retain_last if policy.expire else 1
+                                    policy.expire.retain_last if policy.expire else 5
                                 ),
                                 "table_allowlist": expire_tables,
                             }

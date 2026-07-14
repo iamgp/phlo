@@ -157,6 +157,22 @@ def test_orphan_plan_reports_partial_age_or_size_evidence(monkeypatch) -> None:
     assert result["planned"]["candidate_files"][0]["path"].endswith("orphan.parquet")
 
 
+def test_orphan_plan_blocks_when_candidate_scan_is_unavailable(monkeypatch) -> None:
+    resource = IcebergResource(ref="main")
+    plan = _plan("cleanup_orphan_files")
+    plan["scan_status"] = "unavailable"
+    plan["unavailable_fields"] = ["candidate_listing: OSError"]
+    plan["plan_token"] = _maintenance_plan_token(plan)
+    monkeypatch.setattr(resource, "_orphan_retention_metadata", lambda **_: (plan, object()))
+
+    result = resource.cleanup_orphan_files(table_name="raw.events", catalog="iceberg", dry_run=True)
+
+    assert result["status"] == "blocked"
+    assert result["accepted"] is False
+    assert result["failure"]["code"] == "orphan_scan_unavailable"
+    assert result["planned"]["scan_status"] == "unavailable"
+
+
 def test_orphan_execute_is_blocked_and_non_retryable(monkeypatch) -> None:
     resource = IcebergResource(ref="main")
     plan = _plan("cleanup_orphan_files")
@@ -181,6 +197,58 @@ def test_orphan_execute_is_blocked_and_non_retryable(monkeypatch) -> None:
     assert result["failure"]["retryable"] is False
     assert result["retry_safe"] is False
     assert result["planned"]["trino_boundary"] == "not_invoked"
+
+
+@pytest.mark.parametrize(
+    ("error", "retryable"),
+    [
+        (TimeoutError("metadata timeout"), True),
+        (ValueError("invalid table metadata"), False),
+    ],
+)
+@pytest.mark.parametrize("operation", ["expire_snapshots", "cleanup_orphan_files"])
+def test_metadata_failure_has_one_retry_classification(
+    monkeypatch, error: Exception, retryable: bool, operation: str
+) -> None:
+    resource = IcebergResource(ref="main")
+    method_name = (
+        "_retention_metadata" if operation == "expire_snapshots" else "_orphan_retention_metadata"
+    )
+
+    def raise_error(**_: object) -> tuple[dict[str, object], object]:
+        raise error
+
+    monkeypatch.setattr(resource, method_name, raise_error)
+    result = getattr(resource, operation)(table_name="raw.events", catalog="iceberg", dry_run=True)
+
+    assert result["status"] == "failed"
+    assert result["failure"]["retryable"] is retryable
+    assert result["retry_safe"] is retryable
+
+
+def test_snapshot_plan_counts_only_exact_candidate_snapshots(monkeypatch) -> None:
+    resource = IcebergResource(ref="main")
+    plan = _plan(candidates=[39, 38])
+    plan.update(
+        {
+            "affected_objects": 2,
+            "affected_objects_scope": "candidate_snapshots_only",
+            "affected_bytes_scope": (
+                "observed_unreferenced_data_files_only; evidence_not_deletion_ceiling"
+            ),
+            "limits_scope": (
+                "candidate_snapshot_count_only; provider_metadata_and_data_files_excluded"
+            ),
+        }
+    )
+    plan["plan_token"] = _maintenance_plan_token(plan)
+    monkeypatch.setattr(resource, "_retention_metadata", lambda **_: (plan, object()))
+
+    result = resource.expire_snapshots(table_name="raw.events", catalog="iceberg", dry_run=True)
+
+    assert result["planned"]["affected_objects"] == len(result["planned"]["candidate_snapshots"])
+    assert result["planned"]["affected_objects_scope"] == "candidate_snapshots_only"
+    assert "deletion_ceiling" in result["planned"]["affected_bytes_scope"]
 
 
 def test_orphan_race_discovers_extra_candidate_and_submits_nothing(monkeypatch) -> None:

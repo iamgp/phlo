@@ -857,7 +857,7 @@ def delete_table(table_name: str, ref: str = "main") -> None:
 def expire_snapshots(
     table_name: str,
     older_than_days: int | None = None,
-    retain_last: int = 1,
+    retain_last: int = 5,
     ref: str = "main",
     *,
     older_than_hours: int | None = None,

@@ -1,18 +1,18 @@
 """Iceberg table maintenance jobs and schedules for Dagster.
 
 This module provides scheduled and on-demand maintenance operations for
-Apache Iceberg tables through Dagster jobs and ops. It handles snapshot
-expiration, orphan file cleanup, and table statistics collection.
+Apache Iceberg tables through Dagster jobs and ops. It handles retention
+planning, explicit execution refusal, and table statistics collection.
 
 Maintenance Operations:
-    - expire_table_snapshots: Remove old snapshots based on retention policy
+    - expire_table_snapshots: Plan snapshot expiry; v1 destructive execution is refused
     - cleanup_orphan_files: Discover unreferenced files; v1 destructive execution is refused
     - collect_table_stats: Gather table metadata for monitoring and policy evaluation
 
 Jobs Provided:
     - iceberg_maintenance_job: Runs all maintenance operations
-    - expire_snapshots_job: Snapshot expiration only
-    - orphan_cleanup_job: Orphan file cleanup only
+    - expire_snapshots_job: Snapshot-expiry planning only
+    - orphan_cleanup_job: Orphan-file discovery only
     - table_stats_job: Statistics collection only
 
 Schedule:
@@ -141,14 +141,14 @@ def expire_table_snapshots(
     context: dg.OpExecutionContext,
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
-    """Expire old snapshots from all tables in the specified namespace.
+    """Plan snapshot expiry, refusing destructive execution on the v1 boundary.
 
     Args:
         context: Dagster operation execution context.
         config: Maintenance configuration.
 
     Returns:
-        Summary dict with tables_processed, total_snapshots_deleted, errors.
+        Summary dict with processed tables, snapshot candidates, zero deletions, and errors.
 
     Raises:
         No explicit exceptions raised. Logs warnings on table failures.
@@ -508,12 +508,12 @@ def collect_table_stats(
 
 @dg.job(
     description=(
-        "Run all Iceberg table maintenance operations: snapshot expiration, "
-        "orphan file cleanup, and table statistics collection"
+        "Plan Iceberg snapshot expiry and orphan cleanup without submitting deletion, "
+        "then collect table statistics"
     ),
 )
 def iceberg_maintenance_job():
-    """Job that runs all maintenance operations: snapshot expiration, orphan file cleanup.
+    """Plan retention operations without deletion, then collect table statistics.
 
     Args:
         None
@@ -531,10 +531,10 @@ def iceberg_maintenance_job():
 
 
 @dg.job(
-    description="Expire old snapshots from Iceberg tables",
+    description="Plan Iceberg snapshot expiry; destructive execution is refused",
 )
 def expire_snapshots_job():
-    """Job that only expires snapshots.
+    """Job that only plans snapshot expiry and refuses deletion.
 
     Args:
         None
@@ -550,10 +550,10 @@ def expire_snapshots_job():
 
 
 @dg.job(
-    description="Cleanup orphan files from Iceberg tables",
+    description="Discover Iceberg orphan files; destructive execution is refused",
 )
 def orphan_cleanup_job():
-    """Job that only cleans up orphan files.
+    """Job that only discovers orphan files and refuses deletion.
 
     Args:
         None

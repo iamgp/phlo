@@ -27,7 +27,7 @@ Configuration:
             expire:
               snapshot_count_gt: 20
               older_than_days: 7
-              retain_last: 1
+              retain_last: 5
             optimize:
               avg_file_size_mb_lt: 64.0
 
@@ -64,7 +64,7 @@ class ExpireSnapshotsPolicy:
 
     snapshot_count_gt: int = 20
     older_than_days: int = 7
-    retain_last: int = 1
+    retain_last: int = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,7 +142,7 @@ def load_policies(path: str | Path) -> list[NamespacePolicy]:
             expire:
               snapshot_count_gt: 20
               older_than_days: 7
-              retain_last: 1
+              retain_last: 5
             optimize:
               avg_file_size_mb_lt: 64.0
           - namespace: curated

@@ -108,7 +108,7 @@ class MaintenanceConfig(dg.Config):
     # Expire snapshots older than this many days (must be positive)
     snapshot_retention_days: Annotated[int, Field(gt=0)] = 7
     # Always retain at least this many snapshots
-    snapshot_retain_last: Annotated[int, Field(ge=1)] = 1
+    snapshot_retain_last: Annotated[int, Field(ge=1)] = 5
     # Only remove orphan files older than this many days (cannot be less than 7)
     orphan_retention_days: Annotated[int, Field(ge=7)] = 7
     # Deprecated compatibility flag; dry_run is authoritative.

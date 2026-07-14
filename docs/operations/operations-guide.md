@@ -308,14 +308,16 @@ configured for the requested ref.
 **Automated maintenance**:
 
 ```python
-# Run the existing policy-driven Dagster maintenance job for selected tables.
-# Retention jobs plan by default; the v1 controller keeps destructive retention
-# execution blocked on the blessed Trino boundary until the provider can bind
-# its full deletion surface to the reviewed plan.
-from phlo_dagster.maintenance_sensor import optimize_tables_job
+# These Dagster jobs produce retention plans. Even with dry_run=False, the v1
+# provider refuses snapshot or orphan deletion because its threshold procedure
+# cannot bind the complete deletion surface to the reviewed plan.
+from phlo_dagster.iceberg_maintenance import (
+    expire_snapshots_job,
+    orphan_cleanup_job,
+)
 ```
 
-The job returns structured per-table operation evidence and emits the existing
+The operations behind these jobs return structured per-table evidence and emit the existing
 maintenance telemetry. Dry-run planning uses Iceberg metadata and the configured
 object-store listing, so it does not need a Trino executor. Snapshot expiry keeps
 the seven-day floor, current-snapshot fence, and table snapshot-reference evidence
@@ -327,9 +329,9 @@ Orphan discovery is supported in dry-run mode; destructive orphan cleanup is an
 explicit `bounded_execution_unsupported` result because Trino's threshold-only
 `remove_orphan_files` procedure could delete a larger or newer candidate set
 than the reviewed plan. No orphan deletion is submitted, and the unsupported
-result is not retry-safe. These limits are why the v1 controller makes no claim
-of atomic cancellation, durable deduplication, or rollback after partial file
-deletion.
+result is not retry-safe. The reviewed counts describe snapshot or orphan
+candidates only; they are not a ceiling on the provider's threshold-based
+deletion surface.
 
 ### Dagster Performance
 
