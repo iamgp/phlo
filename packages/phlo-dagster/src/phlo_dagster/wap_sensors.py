@@ -57,8 +57,10 @@ import dagster as dg
 
 from phlo.capabilities.interfaces import VersionedCatalog
 from phlo.capabilities.resolver import resolve_capability
+from phlo._attempt import attempt_from_tags
+from phlo.hooks import HookCorrelation, QualityResultEvent, get_hook_bus
 from phlo.logging import get_logger
-from phlo.run_evidence import emit_observation
+from phlo.run_evidence import default_run_evidence_store, emit_observation
 
 logger = get_logger(__name__)
 
@@ -173,12 +175,8 @@ def _project_id_for_run(run: Any) -> str | None:
 
 def _attempt_for_run(run: Any) -> int | None:
     """Return a positive attempt or None so missing correlation is observable."""
-    raw_attempt = (getattr(run, "tags", {}) or {}).get("phlo/attempt", "1")
-    try:
-        attempt = int(raw_attempt)
-    except (TypeError, ValueError):
-        return None
-    return attempt if attempt > 0 else None
+    attempt, _error = attempt_from_tags(getattr(run, "tags", {}) or {})
+    return attempt
 
 
 def _read_wap_report(run_id: str) -> dict[str, Any] | None:
@@ -188,10 +186,92 @@ def _read_wap_report(run_id: str) -> dict[str, Any] | None:
         return None
 
 
+def _quality_check_records(instance: Any, run_id: str) -> list[dict[str, Any]] | None:
+    """Return check outcomes with only their durable event identities."""
+    try:
+        check_records = instance.get_records_for_run(
+            run_id,
+            of_type=dg.DagsterEventType.ASSET_CHECK_EVALUATION,
+        )
+    except Exception:
+        return None
+    checks: list[dict[str, Any]] = []
+    for record in getattr(check_records, "records", ()):
+        entry = getattr(record, "event_log_entry", None)
+        evaluation = getattr(entry, "asset_check_evaluation", None)
+        if evaluation is None:
+            continue
+        storage_id = getattr(record, "storage_id", None) or getattr(entry, "storage_id", None)
+        checks.append(
+            {
+                "event_id": f"dagster-quality:{storage_id}" if storage_id is not None else None,
+                "passed": bool(getattr(evaluation, "passed", False)),
+            }
+        )
+    return checks
+
+
+def _persist_aggregate_quality_decision(
+    *, project_id: str, run_id: str, attempt: int, checks: list[dict[str, Any]]
+) -> str | None:
+    """Persist and return the durable aggregate quality-result identity."""
+    passed = all(check["passed"] for check in checks)
+    event_id = (
+        "wap-quality-"
+        + hashlib.sha256(
+            json.dumps(
+                {"run_id": run_id, "attempt": attempt, "checks": checks},
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()[:32]
+    )
+    event = QualityResultEvent(
+        event_type="quality.result",
+        event_id=event_id,
+        producer="phlo-dagster-nessie",
+        asset_key="__pipeline__",
+        check_name="wap.aggregate",
+        passed=passed,
+        severity=None if passed else "error",
+        check_type="aggregate",
+        metadata={
+            "decision": "passed" if passed else "rejected",
+            "failed_check_ids": [
+                check["event_id"] for check in checks if not check["passed"] and check["event_id"]
+            ],
+            "checks": checks,
+        },
+        correlation=HookCorrelation(
+            project_id=project_id,
+            run_id=run_id,
+            attempt=attempt,
+        ),
+    )
+    try:
+        get_hook_bus().emit(event)
+        results = default_run_evidence_store().list_quality_results(
+            project_id, run_id, attempt=attempt
+        )
+    except Exception:
+        logger.warning(
+            "wap_aggregate_quality_evidence_persist_failed", run_id=run_id, exc_info=True
+        )
+        return None
+    for result in results:
+        if result.get("check_id") == "wap.aggregate":
+            return str(result["quality_result_id"])
+    return None
+
+
 def _quality_evidence(
-    run_id: str, instance: Any | None = None
+    run_id: str,
+    instance: Any | None = None,
+    *,
+    project_id: str | None = None,
+    attempt: int | None = None,
 ) -> tuple[str | None, dict[str, Any]]:
-    """Read durable quality evidence from the report or Dagster event log."""
+    """Read report evidence and bind promotion to a durable aggregate decision."""
     path = _report_path(run_id)
     try:
         raw = path.read_bytes()
@@ -208,22 +288,16 @@ def _quality_evidence(
         ),
         None,
     )
-    if quality_id is None and instance is not None:
-        try:
-            check_records = instance.get_records_for_run(
-                run_id,
-                of_type=dg.DagsterEventType.ASSET_CHECK_EVALUATION,
-            )
-        except Exception:
-            check_records = None
-        for record in getattr(check_records, "records", ()) if check_records else ():
-            entry = getattr(record, "event_log_entry", None)
-            if getattr(entry, "asset_check_evaluation", None) is None:
-                continue
-            storage_id = getattr(record, "storage_id", None) or getattr(entry, "storage_id", None)
-            if storage_id is not None:
-                quality_id = f"dagster-quality:{storage_id}"
-                break
+    checks = _quality_check_records(instance, run_id) if instance is not None else None
+    failed_check_ids = [
+        check["event_id"] for check in checks or [] if not check["passed"] and check["event_id"]
+    ]
+    if checks is not None and project_id and attempt is not None:
+        aggregate_id = _persist_aggregate_quality_decision(
+            project_id=project_id, run_id=run_id, attempt=attempt, checks=checks
+        )
+        if aggregate_id is not None:
+            quality_id = aggregate_id
     checksum = hashlib.sha256(raw).hexdigest()
     snapshot_path = _report_snapshot_path(run_id, checksum)
     evidence_path = snapshot_path if snapshot_path.exists() else path
@@ -232,7 +306,22 @@ def _quality_evidence(
             "uri": str(evidence_path),
             "checksum": checksum,
             "status": "observed" if quality_id else "unavailable",
-            "identifier_source": "report_or_dagster_event_log" if quality_id else None,
+            "identifier_source": (
+                "durable_aggregate_quality_result"
+                if quality_id and checks is not None and project_id and attempt is not None
+                else "recorded_report_field"
+                if quality_id
+                else None
+            ),
+            "decision_scope": "aggregate" if checks is not None else "unavailable",
+            "decision": (
+                "rejected"
+                if failed_check_ids
+                else "passed"
+                if checks is not None
+                else "unavailable"
+            ),
+            "failed_check_ids": failed_check_ids,
         }
     }
 
@@ -499,7 +588,12 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             continue
 
         if not _all_checks_passed(instance, run.run_id):
-            quality_decision_id, quality_metadata = _quality_evidence(run.run_id, instance)
+            quality_decision_id, quality_metadata = _quality_evidence(
+                run.run_id,
+                instance,
+                project_id=_project_id_for_run(run),
+                attempt=_attempt_for_run(run),
+            )
             write_wap_report(
                 run.run_id,
                 status="promotion_blocked",
@@ -532,7 +626,12 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             )
             continue
 
-        quality_decision_id, quality_metadata = _quality_evidence(run.run_id, instance)
+        quality_decision_id, quality_metadata = _quality_evidence(
+            run.run_id,
+            instance,
+            project_id=_project_id_for_run(run),
+            attempt=_attempt_for_run(run),
+        )
         if quality_decision_id is None:
             write_wap_report(
                 run.run_id,
@@ -568,7 +667,12 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 target_hash_before=target_hash_before,
                 failure_reason="merge_branch_returned_false",
             )
-            quality_decision_id, quality_metadata = _quality_evidence(run.run_id, instance)
+            quality_decision_id, quality_metadata = _quality_evidence(
+                run.run_id,
+                instance,
+                project_id=_project_id_for_run(run),
+                attempt=_attempt_for_run(run),
+            )
             _emit_wap_observation(
                 run=run,
                 status="failed",
@@ -603,7 +707,12 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             target_hash_after=target_hash_after,
             source_deleted=source_deleted,
         )
-        quality_decision_id, quality_metadata = _quality_evidence(run.run_id, instance)
+        quality_decision_id, quality_metadata = _quality_evidence(
+            run.run_id,
+            instance,
+            project_id=_project_id_for_run(run),
+            attempt=_attempt_for_run(run),
+        )
         _emit_wap_observation(
             run=run,
             status="success",

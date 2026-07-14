@@ -85,6 +85,17 @@ class CoreRunEvidenceHookProvider:
 
         store = self._store or default_run_evidence_store()
         self._store = store
+        run_status = _run_status(event)
+        terminal_statuses = {
+            "success",
+            "failed",
+            "error",
+            "cancelled",
+            "canceled",
+            "skipped",
+            "no_data",
+            "abandoned",
+        }
         run = PipelineRun(
             project_id=project_id,
             run_id=run_id,
@@ -92,14 +103,10 @@ class CoreRunEvidenceHookProvider:
             provider_run_id=run_id,
             partition_key=event.correlation.partition_key,
             trace_id=event.correlation.trace_id,
-            status=_run_status(event),
+            status=run_status,
             attempt=event.correlation.attempt,
-            finished_at=(
-                event.timestamp
-                if _run_status(event)
-                in {"failed", "error", "cancelled", "canceled", "skipped", "no_data"}
-                else None
-            ),
+            started_at=event.timestamp if event.event_type == "run.start" else None,
+            finished_at=event.timestamp if run_status in terminal_statuses else None,
             failure_summary=getattr(event, "error", None),
         )
         stage = _stage_for_event(event, project_id=project_id, run_id=run_id)

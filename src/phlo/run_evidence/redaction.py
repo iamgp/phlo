@@ -68,3 +68,11 @@ def canonical_json(value: Any) -> str:
 def payload_checksum(value: Any) -> str:
     """Return a full SHA-256 checksum of the redacted canonical payload."""
     return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def safe_error_summary(error: BaseException | str) -> str:
+    """Return a bounded, stable error marker without retaining exception text."""
+    raw = str(error)
+    fingerprint = hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:16]
+    error_type = type(error).__name__[:32] if isinstance(error, BaseException) else "provider_error"
+    return f"{error_type}:fingerprint:{fingerprint}"

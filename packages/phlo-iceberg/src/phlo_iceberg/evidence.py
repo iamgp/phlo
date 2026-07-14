@@ -5,9 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from phlo.run_evidence import emit_observation
-from phlo.exceptions import redact_sensitive_text
 from phlo.logging import get_logger
-from phlo.run_evidence.redaction import payload_checksum
+from phlo.run_evidence.redaction import payload_checksum, safe_error_summary
 
 logger = get_logger(__name__)
 
@@ -70,13 +69,13 @@ def emit_mutation(
     before: dict[str, Any],
     after: dict[str, Any],
     metrics: dict[str, Any] | None = None,
-    error: str | None = None,
+    error: BaseException | str | None = None,
     extra_metadata: dict[str, Any] | None = None,
 ) -> None:
     if not context or not context.get("project_id") or not context.get("run_id"):
         return
     effective_status = status
-    effective_error = redact_sensitive_text(error) if error else None
+    effective_error = safe_error_summary(error) if error else None
     metadata = {"before": before, "after": after, **(extra_metadata or {})}
     if status == "success" and after.get("state") == "absent":
         metadata["outcome"] = "contradictory"

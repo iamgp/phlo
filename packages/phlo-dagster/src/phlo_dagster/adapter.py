@@ -53,6 +53,7 @@ import dagster as dg
 from phlo.capabilities.runtime import (
     RuntimeContext,
     RuntimeRouting,
+    attempt_from_tags,
     capability_overrides_from_tags,
 )
 from phlo.config import get_settings
@@ -255,6 +256,7 @@ class DagsterRuntime(RuntimeContext):
             if key.startswith("feature/")
         }
         capability_overrides = capability_overrides_from_tags(tags)
+        attempt, attempt_error = attempt_from_tags(tags)
         for capability_type, provider_name in self.asset_capability_overrides.items():
             capability_overrides.setdefault(capability_type, provider_name)
         return RuntimeRouting(
@@ -263,9 +265,8 @@ class DagsterRuntime(RuntimeContext):
             partition_key=self.partition_key,
             run_id=self.run_id,
             project_id=tags.get("phlo/project_id") or get_settings().phlo_project,
-            attempt=(
-                int(tags.get("phlo/attempt", "1")) if tags.get("phlo/attempt", "1").isdigit() else 1
-            ),
+            attempt=attempt,
+            attempt_error=attempt_error,
             resources=self.resources,
             feature_flags=feature_flags,
             capability_overrides=capability_overrides,

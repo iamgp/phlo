@@ -8,15 +8,20 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import dagster as dg
+import pytest
 
 from phlo_dagster.wap_sensors import (
     _all_checks_passed,
+    _quality_evidence,
     _wap_branch_name,
     wap_auto_promotion_sensor,
     wap_branch_creation_sensor,
     wap_branch_cleanup_sensor,
     write_wap_report,
 )
+from phlo.hooks import HookBus
+from phlo.run_evidence import SQLiteRunEvidenceStore
+from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +313,7 @@ def test_wap_auto_promotion_sensor_uses_updated_after_filter():
 
 
 def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch, tmp_path):
-    """A passing Dagster check supplies the real quality evidence identity."""
+    """A passing run promotion references its durable aggregate quality result."""
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     run_id = "run-promote"
     branch = _wap_branch_name(run_id)
@@ -347,6 +352,12 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     context.cursor = None
     context.evaluation_time = datetime.now(timezone.utc)
 
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo_dagster.wap_sensors.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
+
     observations: list[dict[str, object]] = []
     monkeypatch.setattr(
         "phlo_dagster.wap_sensors.emit_observation",
@@ -360,5 +371,52 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     promotion = next(
         item for item in observations if item["catalog_change"]["operation"] == "promotion"
     )
-    assert promotion["catalog_change"]["quality_decision_id"] == "dagster-quality:42"
+    quality_id = promotion["catalog_change"]["quality_decision_id"]
+    assert quality_id in {
+        row["quality_result_id"] for row in store.list_quality_results("project-promote", run_id)
+    }
+    assert store.list_quality_results("project-promote", run_id)[0]["check_id"] == "wap.aggregate"
     assert promotion["catalog_change"]["merge_outcome"] == "promoted"
+
+
+@pytest.mark.parametrize(
+    ("passed", "expected_passed", "expected_failed"),
+    [([True, False], 0, ["dagster-quality:2"]), ([True, True], 1, [])],
+)
+def test_quality_evidence_uses_decision_correct_aggregate(
+    monkeypatch, tmp_path, passed, expected_passed, expected_failed
+):
+    """Mixed and all-pass checks bind to the aggregate decision, never a first check."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-quality-aggregate"
+    write_wap_report(run_id, status="branch_created")
+    records = [
+        SimpleNamespace(
+            storage_id=index,
+            event_log_entry=SimpleNamespace(
+                asset_check_evaluation=SimpleNamespace(passed=check_passed)
+            ),
+        )
+        for index, check_passed in enumerate(passed, start=1)
+    ]
+    instance = SimpleNamespace(
+        get_records_for_run=lambda *_args, **_kwargs: SimpleNamespace(records=records)
+    )
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo_dagster.wap_sensors.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
+
+    quality_id, metadata = _quality_evidence(
+        run_id,
+        instance,
+        project_id="project-quality",
+        attempt=2,
+    )
+
+    result = store.list_quality_results("project-quality", run_id, attempt=2)[0]
+    assert quality_id == result["quality_result_id"]
+    assert result["check_id"] == "wap.aggregate"
+    assert result["passed"] == expected_passed
+    assert metadata["quality_evidence"]["failed_check_ids"] == expected_failed

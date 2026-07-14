@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from phlo._attempt import attempt_from_tags
 from phlo.capabilities.support import CapabilitySupport
 
 
@@ -18,7 +19,8 @@ class RuntimeRouting:
     partition_key: str | None = None
     run_id: str | None = None
     project_id: str | None = None
-    attempt: int = 1
+    attempt: int | None = 1
+    attempt_error: str | None = None
     resources: dict[str, Any] = field(default_factory=dict)
     feature_flags: dict[str, str] = field(default_factory=dict)
     capability_overrides: dict[str, str] = field(default_factory=dict)
@@ -105,15 +107,15 @@ def routing_from_context(context: RuntimeContext) -> RuntimeRouting:
     environment = tags.get("environment") or tags.get("env")
     ref = tags.get("phlo/ref") or tags.get("ref") or tags.get("branch")
 
+    attempt, attempt_error = attempt_from_tags(tags)
     return RuntimeRouting(
         environment=environment,
         ref=ref,
         partition_key=getattr(context, "partition_key", None),
         run_id=getattr(context, "run_id", None),
         project_id=tags.get("phlo/project_id"),
-        attempt=(
-            int(tags.get("phlo/attempt", "1")) if tags.get("phlo/attempt", "1").isdigit() else 1
-        ),
+        attempt=attempt,
+        attempt_error=attempt_error,
         resources=resources,
         feature_flags=feature_flags,
         capability_overrides=capability_overrides,

@@ -235,7 +235,9 @@ def test_provider_exception_records_unknown_output_without_claiming_no_write(
     )
     monkeypatch.setattr(
         "phlo_dlt.executor.merge_to_table_store",
-        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("provider committed? token=secret")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("provider committed? customer@example.com account=acct-123")
+        ),
     )
     monkeypatch.setattr(
         "phlo_dlt.executor.emit_observation",
@@ -266,7 +268,9 @@ def test_provider_exception_records_unknown_output_without_claiming_no_write(
     assert output["snapshot_after"] is None
     assert output["metadata"]["outcome"] == "unknown"
     assert output["metadata"]["evidence_completeness"] == "incomplete"
-    assert "secret" not in captured[0]["error"]
+    assert "customer@example.com" not in captured[0]["error"]
+    assert "acct-123" not in captured[0]["error"]
+    assert "fingerprint:" in captured[0]["error"]
 
 
 def test_successful_write_with_contradictory_readback_stays_successful(

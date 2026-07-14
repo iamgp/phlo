@@ -1431,6 +1431,31 @@ def test_wap_rejection_preserves_authoritative_success_status() -> None:
     assert run is not None and run["status"] == "success"
 
 
+def test_terminal_success_observation_uses_event_timestamp_without_fabricating_start() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    provider = CoreRunEvidenceHookProvider(store)
+    timestamp = datetime(2026, 7, 14, 12, 0, tzinfo=UTC)
+
+    provider._handle_event(
+        RunEvidenceObservationEvent(
+            event_type="run_evidence.observation",
+            event_id="successful-observation",
+            observation_type="ingest",
+            status="success",
+            run_status="success",
+            producer="phlo-dlt",
+            timestamp=timestamp,
+            correlation=HookCorrelation(project_id="project", run_id="run", attempt=2),
+        )
+    )
+
+    run = store.get_run("project", "run")
+    assert run is not None
+    assert run["status"] == "success"
+    assert run["finished_at"] == timestamp.isoformat()
+    assert run["started_at"] is None
+
+
 @pytest.mark.parametrize("sink_error", [RuntimeError("store unavailable"), TypeError("bad row")])
 def test_post_submit_observation_sink_failure_does_not_escape(
     monkeypatch: pytest.MonkeyPatch, sink_error: Exception

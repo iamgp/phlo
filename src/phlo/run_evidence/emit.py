@@ -62,7 +62,19 @@ def emit_observation(
 ) -> None:
     """Emit one stable, correlated observation after provider work completes."""
     try:
-        normalized_attempt = normalize_attempt(attempt)
+        try:
+            normalized_attempt = normalize_attempt(attempt)
+        except ValueError:
+            logger.error(
+                "run_evidence_observation_correlation_gap",
+                project_id=_safe_text(project_id),
+                run_id=_safe_text(run_id),
+                attempt=_safe_text(attempt),
+                producer=_safe_text(producer),
+                observation_type=_safe_text(observation_type),
+                missing_evidence=["attempt"],
+            )
+            return
         if not project_id or not run_id:
             logger.error(
                 "run_evidence_observation_correlation_gap",

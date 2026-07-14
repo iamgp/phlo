@@ -41,3 +41,27 @@ def test_mutation_evidence_sink_failure_is_contained(monkeypatch) -> None:
         before={"state": "present"},
         after={"state": "unavailable"},
     )
+
+
+def test_mutation_error_is_bounded_and_does_not_retain_provider_pii(monkeypatch) -> None:
+    captured: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        evidence,
+        "emit_observation",
+        lambda **kwargs: captured.append(kwargs),
+    )
+
+    evidence.emit_mutation(
+        context={"project_id": "project", "run_id": "run", "attempt": 1},
+        table_name="raw.events",
+        ref="main",
+        operation="append",
+        status="failed",
+        before={"state": "present"},
+        after={"state": "unavailable"},
+        error="customer@example.com account=acct-123",
+    )
+
+    assert "customer@example.com" not in captured[0]["error"]
+    assert "acct-123" not in captured[0]["error"]
+    assert "fingerprint:" in captured[0]["error"]

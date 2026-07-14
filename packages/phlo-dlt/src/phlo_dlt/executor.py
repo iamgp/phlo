@@ -68,8 +68,9 @@ from phlo.hooks import (
     TelemetryEventContext,
     TelemetryEventEmitter,
 )
-from phlo.exceptions import redact_sensitive_text
+from phlo._attempt import normalize_attempt
 from phlo.run_evidence import emit_lifecycle_safely, emit_observation
+from phlo.run_evidence.redaction import safe_error_summary
 from phlo.capabilities.interfaces import TableStore
 from phlo.capabilities.runtime import routing_from_context
 
@@ -232,7 +233,12 @@ class DltIngester(BaseIngester):
         target_branch_name = parameters.get("target_branch_name", branch_name)
         run_id = parameters.get("run_id") or routing.run_id or "unknown"
         project_id = parameters.get("project_id") or routing.project_id
-        attempt = parameters.get("attempt", routing.attempt)
+        raw_attempt = parameters.get("attempt", routing.attempt)
+        try:
+            attempt = normalize_attempt(raw_attempt)
+        except ValueError:
+            attempt = None
+        correlation_attempt = attempt if attempt is not None else 1
 
         pipeline_name = f"{self.table_config.table_name}_{partition_key.replace('-', '_')}"
         group_name = self.table_config.group_name
@@ -251,7 +257,7 @@ class DltIngester(BaseIngester):
                 correlation=HookCorrelation(
                     run_id=run_id,
                     project_id=project_id,
-                    attempt=attempt,
+                    attempt=correlation_attempt,
                     asset_key=f"dlt_{self.table_config.table_name}",
                     partition_key=partition_key,
                     job_name=getattr(self.context, "job_name", None),
@@ -268,7 +274,7 @@ class DltIngester(BaseIngester):
                 correlation=HookCorrelation(
                     run_id=run_id,
                     project_id=project_id,
-                    attempt=attempt,
+                    attempt=correlation_attempt,
                     asset_key=f"dlt_{self.table_config.table_name}",
                     partition_key=partition_key,
                     job_name=getattr(self.context, "job_name", None),
@@ -280,7 +286,8 @@ class DltIngester(BaseIngester):
         start_time = time.time()
         evidence_resources: list[dict[str, Any]] = []
         source_identity: str | None = None
-        emit_lifecycle_safely(emitter, "emit_start")
+        if attempt is not None:
+            emit_lifecycle_safely(emitter, "emit_start")
 
         try:
             dlt_source = self.dlt_source_func(partition_date=partition_key)
@@ -290,9 +297,10 @@ class DltIngester(BaseIngester):
 
             if dlt_source is None:
                 log_event(self.logger, "info", "ingestion_no_data", partition_key=partition_key)
-                emit_lifecycle_safely(
-                    emitter, "emit_end", status="no_data", metrics={"rows_loaded": 0}
-                )
+                if attempt is not None:
+                    emit_lifecycle_safely(
+                        emitter, "emit_end", status="no_data", metrics={"rows_loaded": 0}
+                    )
                 if project_id and run_id != "unknown":
                     emit_observation(
                         project_id=project_id,
@@ -496,18 +504,19 @@ class DltIngester(BaseIngester):
                 total_elapsed_seconds=total_elapsed,
             )
 
-            emit_lifecycle_safely(
-                emitter,
-                "emit_end",
-                status="success",
-                metrics={
-                    "rows_inserted": merge_metrics["rows_inserted"],
-                    "rows_deleted": merge_metrics.get("rows_deleted", 0),
-                    "dlt_elapsed_seconds": dlt_elapsed,
-                    "total_elapsed_seconds": total_elapsed,
-                    "target_branch_name": target_branch_name,
-                },
-            )
+            if attempt is not None:
+                emit_lifecycle_safely(
+                    emitter,
+                    "emit_end",
+                    status="success",
+                    metrics={
+                        "rows_inserted": merge_metrics["rows_inserted"],
+                        "rows_deleted": merge_metrics.get("rows_deleted", 0),
+                        "dlt_elapsed_seconds": dlt_elapsed,
+                        "total_elapsed_seconds": total_elapsed,
+                        "target_branch_name": target_branch_name,
+                    },
+                )
             if project_id and run_id != "unknown":
                 emit_observation(
                     project_id=project_id,
@@ -545,14 +554,15 @@ class DltIngester(BaseIngester):
 
         except Exception as exc:
             total_elapsed = time.time() - start_time
-            safe_error = redact_sensitive_text(str(exc))
-            emit_lifecycle_safely(
-                emitter,
-                "emit_end",
-                status="failure",
-                metrics={"total_elapsed_seconds": total_elapsed},
-                error=safe_error,
-            )
+            safe_error = safe_error_summary(exc)
+            if attempt is not None:
+                emit_lifecycle_safely(
+                    emitter,
+                    "emit_end",
+                    status="failure",
+                    metrics={"total_elapsed_seconds": total_elapsed},
+                    error=safe_error,
+                )
             if project_id and run_id != "unknown":
                 emit_observation(
                     project_id=project_id,
@@ -571,12 +581,13 @@ class DltIngester(BaseIngester):
                         "failed",
                     ),
                 )
-            emit_lifecycle_safely(
-                telemetry,
-                "emit_log",
-                name="ingestion.failure",
-                level="error",
-                payload={"error": safe_error, "elapsed_seconds": total_elapsed},
-            )
+            if attempt is not None:
+                emit_lifecycle_safely(
+                    telemetry,
+                    "emit_log",
+                    name="ingestion.failure",
+                    level="error",
+                    payload={"error": safe_error, "elapsed_seconds": total_elapsed},
+                )
             # Re-raise so the orchestrator knows it failed
             raise

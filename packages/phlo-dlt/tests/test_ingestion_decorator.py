@@ -15,6 +15,9 @@ from pandera.pandas import DataFrameModel, Field
 pytest.importorskip("pyiceberg")
 
 from phlo.contracts import Consumer, SLA
+from phlo.logging import get_logger
+from phlo.run_evidence import SQLiteRunEvidenceStore
+from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phlo_ingestion
 from phlo_dlt.dlt_helpers import get_branch_from_context, get_write_branch_from_context
 from pyiceberg.schema import Schema
@@ -100,6 +103,135 @@ def test_blessed_decorator_persists_runtime_correlation(monkeypatch, tmp_path) -
     assert captured[0]["project_id"] == "project-decorated"
     assert captured[0]["attempt"] == 2
     assert captured[0]["resources"]
+
+
+def test_blessed_decorator_persists_runtime_correlation_through_sqlite(
+    monkeypatch, tmp_path
+) -> None:
+    """The real Dagster runtime and hook provider persist correlated evidence."""
+
+    class _Schema:
+        __annotations__ = {"id": int}
+
+    states = iter(
+        [
+            {"state": "absent", "snapshot_id": None, "schema_hash": None, "metadata": {}},
+            {"state": "present", "snapshot_id": "after", "schema_hash": "schema", "metadata": {}},
+        ]
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.decorator._resolve_table_store_capability",
+        lambda _runtime: (SimpleNamespace(), "test-store"),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.setup_dlt_pipeline",
+        lambda **_kwargs: (SimpleNamespace(), tmp_path),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.stage_to_parquet",
+        lambda **_kwargs: ([tmp_path / "staged.parquet"], 0.01),
+    )
+    monkeypatch.setattr(
+        "phlo_dlt.executor.staged_object_inventory",
+        lambda _paths: [{"identity": "staged.parquet", "checksum": "abc", "byte_count": 1}],
+    )
+    monkeypatch.setattr("phlo_dlt.executor.dlt_execution_identity", lambda *args: ("exec-1", True))
+    monkeypatch.setattr("phlo_dlt.executor.dlt_observed_metrics", lambda _pipeline: {})
+    monkeypatch.setattr("phlo_dlt.executor.table_state", lambda *_args: next(states))
+    monkeypatch.setattr(
+        "phlo_dlt.executor.merge_to_table_store",
+        lambda **_kwargs: {"rows_inserted": 1, "rows_deleted": 0},
+    )
+
+    @phlo_ingestion(
+        table_name="events",
+        unique_key="id",
+        group="raw",
+        validation_schema=_Schema,
+        validate=False,
+        add_metadata_columns=False,
+    )
+    def events(partition_date: str):
+        return []
+
+    tags = {"phlo/project_id": "project-durable", "phlo/attempt": "2"}
+    from phlo_dagster.adapter import DagsterRuntime
+
+    runtime_context = SimpleNamespace(
+        tags=tags,
+        run=SimpleNamespace(run_id="run-durable", tags=tags),
+        has_partition_key=True,
+        partition_key="2026-07-14",
+        log=get_logger("test_durable_decorator"),
+        resources=SimpleNamespace(),
+    )
+    runtime = DagsterRuntime(context=runtime_context)
+    store = SQLiteRunEvidenceStore(":memory:")
+    from phlo.hooks import get_hook_bus
+
+    global_bus = get_hook_bus()
+    global_bus.clear()
+    global_bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    try:
+        list(get_ingestion_assets()[0].run.fn(runtime))
+    finally:
+        global_bus.clear()
+
+    run = store.get_run("project-durable", "run-durable")
+    assert run is not None and run["attempt"] == 2
+    assert store.list_resources("project-durable", "run-durable", attempt=2)
+    assert store.list_resources("project-durable", "run-durable", attempt=1) == []
+    assert store.count_events("project-durable", "run-durable") > 0
+
+
+@pytest.mark.parametrize("raw_attempt", ["0", "garbage"])
+def test_blessed_decorator_does_not_alias_invalid_attempt_to_one(raw_attempt: str, monkeypatch):
+    """Malformed retry tags produce a gap and no attempt-one evidence."""
+
+    class _Schema:
+        __annotations__ = {"id": int}
+
+    monkeypatch.setattr(
+        "phlo_dlt.decorator._resolve_table_store_capability",
+        lambda _runtime: (SimpleNamespace(), "test-store"),
+    )
+
+    @phlo_ingestion(
+        table_name="events",
+        unique_key="id",
+        group="raw",
+        validation_schema=_Schema,
+        validate=False,
+        add_metadata_columns=False,
+    )
+    def events(partition_date: str):
+        return None
+
+    from phlo.hooks import get_hook_bus
+    from phlo_dagster.adapter import DagsterRuntime
+
+    tags = {"phlo/project_id": "project-invalid", "phlo/attempt": raw_attempt}
+    runtime = DagsterRuntime(
+        context=SimpleNamespace(
+            tags=tags,
+            run=SimpleNamespace(run_id="run-invalid", tags=tags),
+            has_partition_key=True,
+            partition_key="2026-07-14",
+            log=get_logger("test_invalid_decorator"),
+            resources=SimpleNamespace(),
+        )
+    )
+    store = SQLiteRunEvidenceStore(":memory:")
+    global_bus = get_hook_bus()
+    global_bus.clear()
+    global_bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    try:
+        list(get_ingestion_assets()[0].run.fn(runtime))
+    finally:
+        global_bus.clear()
+
+    assert store.get_run("project-invalid", "run-invalid") is None
+    assert store.list_resources("project-invalid", "run-invalid", attempt=1) == []
 
 
 def test_dlt_ingestion_asset_has_provider_neutral_metadata() -> None:
