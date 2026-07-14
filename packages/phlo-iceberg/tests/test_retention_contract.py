@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from pyarrow.fs import FileType
 
+from phlo.capabilities import MaintenanceRetentionStore
 import phlo_iceberg.resource as resource_module
 from phlo_iceberg.resource import (
     SAFE_MIN_RETENTION_HOURS,
@@ -257,16 +258,22 @@ def test_real_orphan_planner_normalizes_paths_and_counts_old_candidates(monkeypa
         dry_run=True,
     )
 
-    plan = result["planned"]
     assert result["status"] == "planned"
-    assert plan["scan_status"] == "available"
-    assert [candidate["path"] for candidate in plan["candidate_files"]] == [
+    assert result["planned"]["scan_status"] == "available"
+    assert [candidate["path"] for candidate in result["planned"]["candidate_files"]] == [
         "bucket/warehouse/raw/events/data/orphan-old.parquet"
     ]
-    assert plan["affected_objects"] == 1
-    assert plan["affected_bytes"] == 70
-    assert plan["protected_snapshot_ids"] == [2, 8]
-    assert "shared.parquet" not in str(plan["candidate_files"])
+    assert result["planned"]["affected_objects"] == 1
+    assert result["planned"]["affected_bytes"] == 70
+    assert result["planned"]["protected_snapshot_ids"] == [2, 8]
+    assert "shared.parquet" not in str(result["planned"]["candidate_files"])
+
+
+def test_support_distinguishes_retention_planning_from_executable_vacuum() -> None:
+    resource = IcebergResource(ref="main")
+
+    assert resource.support.supports_vacuum is False
+    assert isinstance(resource, MaintenanceRetentionStore)
 
 
 def test_dry_run_is_provider_free_and_reports_snapshot_age(monkeypatch) -> None:

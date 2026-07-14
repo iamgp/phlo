@@ -310,7 +310,7 @@ class IcebergResource:
             partition_transforms=frozenset({"identity", "day", "hour", "month", "year"}),
             supports_snapshots=True,
             supports_compaction=True,
-            supports_vacuum=True,
+            supports_vacuum=False,
         )
 
     def get_catalog(self, override_ref: str | None = None) -> Catalog:
