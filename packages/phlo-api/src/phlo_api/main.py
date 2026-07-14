@@ -32,6 +32,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from phlo.logging import bind_context, clear_context, get_logger
+from phlo.capabilities.discovery import discover_capabilities
 from phlo_api.regulated_surface_adapter import get_adapter
 from phlo_api.security_manifest import install_manifest_enforcement
 from phlo.security.validation import require_regulated_validation
@@ -835,6 +836,9 @@ def get_contract(table_name: str) -> dict[str, Any]:
     return contract
 
 
+# Register the selected authentication and authorization providers before the
+# manifest is installed and regulated validation resolves their exact names.
+discover_capabilities()
 install_manifest_enforcement(app)
 get_adapter().install(app)
 require_regulated_validation(runtime=app)

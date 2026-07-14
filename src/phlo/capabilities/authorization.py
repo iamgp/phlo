@@ -212,15 +212,45 @@ class DefaultAuthorizationPolicyBackend:
 
 
 def register_default_capability_providers() -> None:
-    """Register the default authorization policy backend provider."""
+    """Register the default backend from the authoritative project policy file."""
+    from phlo.infrastructure.config import _default_project_root
+    from phlo.rbac.config import RBACConfigLoader
+    from phlo.security.mode import is_regulated
+
+    loader = RBACConfigLoader(_default_project_root() / ".phlo")
+    try:
+        policies = loader.load_policies().policies
+    except (FileNotFoundError, ValueError) as exc:
+        if is_regulated():
+            raise RuntimeError("Regulated authorization policies are unavailable") from exc
+        policies = ()
+
     register_capability(
         "authorization_policy_backend",
         AuthorizationPolicyBackendSpec(
             name="default",
-            provider=DefaultAuthorizationPolicyBackend(),
+            provider=DefaultAuthorizationPolicyBackend(
+                policies=[
+                    {
+                        "policy_id": policy.policy_id,
+                        "effect": policy.effect.value,
+                        "principal": {
+                            "roles": policy.principal_roles,
+                            "attributes": dict(policy.principal_attributes),
+                        },
+                        "action": policy.action,
+                        "resource": {
+                            "type": policy.resource_type,
+                            "id_pattern": policy.resource_id_pattern,
+                            "attributes": dict(policy.resource_attributes),
+                        },
+                    }
+                    for policy in policies
+                ]
+            ),
             metadata={
                 "policy_format": "rbac",
-                "default_policies": [],
+                "default_policies": [policy.policy_id for policy in policies],
             },
             support=CapabilitySupport(
                 supports_permissions=True,

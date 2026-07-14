@@ -48,7 +48,6 @@ from phlo.security import is_regulated
 from phlo.security.enforcement import enforce
 from phlo.security.service_identity import (
     PHLO_CORRELATION_HEADER,
-    PHLO_INITIATOR_HEADER,
     validate_service_token,
 )
 from phlo_dagster.authorization import resolve_graphql_operation
@@ -327,15 +326,11 @@ class DagsterGraphQLAuthorizationMiddleware:
                 if value.strip()
             }
             if service_id and service_id in allowed_services:
-                attributes = {"authentication_source": "service_token"}
-                initiator = headers.get(PHLO_INITIATOR_HEADER.lower())
-                if initiator:
-                    attributes["initiating_principal"] = initiator
                 return AuthPrincipal(
                     subject=f"service:{service_id}",
                     principal_type="service",
                     groups=(),
-                    attributes=attributes,
+                    attributes={"authentication_source": "service_token"},
                 )
             oidc_principal = self._oidc_validator.validate(token)
             if oidc_principal is not None:
@@ -430,35 +425,84 @@ class DagsterGraphQLAuthorizationMiddleware:
         field_name = self._get_mutation_field_name(info)
         operation_kind = self._operation_kind(info)
         spec = resolve_graphql_operation(operation_kind, field_name or "")
-        resource_id = self._graphql_resource_id(spec, field_name, kwargs)
         context = self._create_decision_context(info)
-        return enforce(
-            principal=principal,
-            action=spec.action,
-            resource=ResourceRef(
-                resource_type=spec.resource_type,
-                resource_id=resource_id,
-            ),
-            context=context,
-            request_id=context.request_id,
-            surface=self.surface_name,
-            correlation_id=context.request_id,
-        )
+        resource_ids = self._graphql_resource_ids(spec, field_name, kwargs)
+        if not resource_ids:
+            raise GraphQLError(
+                "GraphQL operation is missing its authoritative resource identity",
+                extensions={"code": "AUTHORIZATION_UNAVAILABLE"},
+            )
+        results = [
+            enforce(
+                principal=principal,
+                action=spec.action,
+                resource=ResourceRef(
+                    resource_type=spec.resource_type,
+                    resource_id=resource_id,
+                ),
+                context=context,
+                request_id=context.request_id,
+                surface=self.surface_name,
+                correlation_id=context.request_id,
+            )
+            for resource_id in resource_ids
+        ]
+        for result in results:
+            if not result.allowed:
+                return result
+        return results[-1]
 
-    def _graphql_resource_id(
+    def _graphql_resource_ids(
         self,
         spec: Any,
         field_name: str | None,
         kwargs: dict[str, Any],
-    ) -> str:
+    ) -> list[str]:
         """Build an identity from allow-listed leaf values in typed arguments.
 
         Dagster puts launch, reexecution, and selector values inside input
         objects, so checking only the top-level resolver kwargs would authorize
         every operation against the field name instead of its target.
         """
+        if field_name in {
+            "assetNodeAdditionalRequiredKeys",
+            "assetNodeDefinitionCollisions",
+            "assetNodes",
+            "assetsLatestInfo",
+            "assetsOrError",
+            "terminateRuns",
+            "wipeAssets",
+        }:
+            key = "runIds" if field_name == "terminateRuns" else "assetKey"
+            if field_name not in {"terminateRuns", "wipeAssets"}:
+                key = "assetKeys"
+            values = self._find_graphql_values(kwargs, key)
+            flattened = [item for value in values for item in self._flatten_bulk_value(value)]
+            return [
+                f"{('runId' if key == 'runIds' else 'assetKey')}="
+                f"{self._serialize_resource_value(value)}"
+                for value in flattened
+            ]
+        if field_name == "launchMultipleRuns":
+            targets = self._find_graphql_values(kwargs, "executionParamsList")
+            flattened_targets = [
+                item for value in targets for item in self._flatten_bulk_value(value)
+            ]
+            return [
+                self._graphql_resource_id_for_values(spec, field_name, target)
+                for target in flattened_targets
+            ]
+        return [self._graphql_resource_id_for_values(spec, field_name, kwargs)]
+
+    def _graphql_resource_id_for_values(
+        self,
+        spec: Any,
+        field_name: str | None,
+        kwargs: dict[str, Any],
+    ) -> str:
+        """Build one composite identity from one typed GraphQL target."""
         values = []
-        for key in spec.resource_keys:
+        for key in spec.keys_for_field(field_name or ""):
             found_values = self._find_graphql_values(kwargs, key)
             serialized_values = [self._serialize_resource_value(value) for value in found_values]
             distinct_values = list(dict.fromkeys(serialized_values))
@@ -491,6 +535,20 @@ class DagsterGraphQLAuthorizationMiddleware:
                 found.extend(self._find_graphql_values(nested, key))
             return found
         return []
+
+    @staticmethod
+    def _flatten_bulk_value(value: Any) -> list[Any]:
+        """Expand typed lists and Dagster's JSON-encoded list scalar."""
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            try:
+                decoded = json.loads(value)
+            except json.JSONDecodeError:
+                return [value]
+            if isinstance(decoded, list):
+                return decoded
+        return [value]
 
     @staticmethod
     def _serialize_resource_value(value: Any) -> str:

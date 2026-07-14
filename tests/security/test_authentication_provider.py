@@ -99,6 +99,10 @@ class TestStaticAuthenticationProvider:
 class TestServiceTokenAuthenticationProvider:
     """Tests for ServiceTokenAuthenticationProvider."""
 
+    def test_service_token_requires_explicit_subject(self):
+        with pytest.raises(ValueError, match="explicit subject"):
+            ServiceTokenAuthenticationProvider(service_tokens={"secret": {}})
+
     def test_authenticate_with_valid_service_token(self):
         """Test authentication succeeds with valid service token."""
         provider = ServiceTokenAuthenticationProvider(
@@ -426,7 +430,12 @@ class TestProxyAuthenticationProvider:
 class TestJWTAuthenticationProvider:
     """Tests for JWTAuthenticationProvider."""
 
-    def _create_jwt(self, payload: dict, secret: str = "test-secret-key-256-bits-long!!") -> str:
+    def _create_jwt(
+        self,
+        payload: dict,
+        secret: str = "test-secret-key-256-bits-long!!",
+        algorithm: str = "HS256",
+    ) -> str:
         """Create a test JWT token with proper encoding."""
         import base64
         import hashlib
@@ -435,7 +444,7 @@ class TestJWTAuthenticationProvider:
         def _b64url_encode(data: bytes) -> str:
             return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
-        header = {"alg": "HS256", "typ": "JWT"}
+        header = {"alg": algorithm, "typ": "JWT"}
         header_json = json.dumps(header, separators=(",", ":")).encode()
         payload_json = json.dumps(payload, separators=(",", ":")).encode()
 
@@ -447,6 +456,21 @@ class TestJWTAuthenticationProvider:
         signature_encoded = _b64url_encode(signature)
 
         return f"{header_encoded}.{payload_encoded}.{signature_encoded}"
+
+    def test_authenticate_rejects_algorithm_confusion(self):
+        provider = JWTAuthenticationProvider(secret="test-secret-key-256-bits-long!!")
+        now = int(time.time())
+        token = self._create_jwt(
+            {"sub": "user123", "iat": now - 60, "exp": now + 3600}, algorithm="RS256"
+        )
+
+        assert provider.validate_token(token) is None
+
+    def test_validate_claims_requires_subject(self):
+        provider = JWTAuthenticationProvider(secret="test-secret")
+        now = int(time.time())
+
+        assert provider._validate_claims({"iat": now - 60, "exp": now + 3600}) is False
 
     def test_authenticate_without_bearer_token(self):
         """Test authentication fails without bearer token."""

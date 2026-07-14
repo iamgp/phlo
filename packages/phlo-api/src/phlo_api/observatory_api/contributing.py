@@ -87,13 +87,13 @@ class UpstreamTableRef(BaseModel):
 class ContributingRowsQueryRequest(BaseModel):
     """Request payload for generating a contributing rows query."""
 
+    model_config = {"extra": "forbid"}
+
     downstream_asset_key: str
     upstream_asset_key: str
     row_data: dict[str, Any]
     limit: int | None = None
-    trino_url: str | None = None
     timeout_ms: int | None = None
-    catalog: str | None = None
 
 
 class ContributingRowsQueryResponse(BaseModel):
@@ -106,14 +106,14 @@ class ContributingRowsQueryResponse(BaseModel):
 class ContributingRowsPageRequest(BaseModel):
     """Request payload for paginated contributing rows."""
 
+    model_config = {"extra": "forbid"}
+
     downstream_asset_key: str
     upstream_asset_key: str
     row_data: dict[str, Any]
     page: int | None = None
     page_size: int | None = None
-    trino_url: str | None = None
     timeout_ms: int | None = None
-    catalog: str | None = None
 
 
 class ContributingRowsPageResponse(BaseModel):
@@ -477,7 +477,7 @@ async def get_contributing_rows_query(
 
     """
     try:
-        catalog = request.catalog or resolve_default_catalog()
+        catalog = resolve_default_catalog()
     except RuntimeError as exc:
         return {"error": str(exc)}
     if not _asset_pair_is_lineage_related(request.upstream_asset_key, request.downstream_asset_key):
@@ -487,7 +487,7 @@ async def get_contributing_rows_query(
 
     upstream = await resolve_iceberg_table(
         upstream_table_name,
-        trino_url=request.trino_url,
+        trino_url=None,
         timeout_ms=request.timeout_ms,
         catalog=catalog,
     )
@@ -536,7 +536,7 @@ async def get_contributing_rows_page(
 
     """
     try:
-        catalog = request.catalog or resolve_default_catalog()
+        catalog = resolve_default_catalog()
         default_ref = resolve_default_ref()
     except RuntimeError as exc:
         return {"error": str(exc)}
@@ -547,7 +547,7 @@ async def get_contributing_rows_page(
 
     upstream = await resolve_iceberg_table(
         upstream_table_name,
-        trino_url=request.trino_url,
+        trino_url=None,
         timeout_ms=request.timeout_ms,
         catalog=catalog,
     )
@@ -569,7 +569,7 @@ async def get_contributing_rows_page(
         return {"error": query_or_error}
 
     result = await _execute_trino_or_error(
-        query_or_error, catalog, default_ref, request.trino_url, request.timeout_ms
+        query_or_error, catalog, default_ref, None, request.timeout_ms
     )
     if "error" in result:
         return result

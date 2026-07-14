@@ -312,7 +312,9 @@ def validate_service_selection(
             result["ingress_optional"].append(
                 {"service": service, "reason": "Ingress protection required"}
             )
-            result["allowed"].append(service)
+            result["blocked"].append(
+                {"service": service, "reason": "Required ingress enforcement is not configured"}
+            )
         elif normalized in APPROVED_CLI_PACKAGES:
             result["allowed"].append(service)
         elif normalized not in APPROVED_SERVICES:

@@ -89,6 +89,20 @@ def test_inherited_dagster_http_routes_are_classified_by_method_and_path() -> No
     assert all(spec.action and spec.resource_type for spec in manifest.values())
 
 
+def test_inherited_websocket_routes_are_classified_or_rejected() -> None:
+    async def graphql(_scope, _receive, _send):  # noqa: ANN001
+        return None
+
+    async def future(_scope, _receive, _send):  # noqa: ANN001
+        return None
+
+    manifest = build_dagster_http_manifest([WebSocketRoute("/graphql", graphql)])
+    assert ("WEBSOCKET", "/graphql") in manifest
+
+    with pytest.raises(RuntimeError, match="Unclassified Dagster WebSocket route"):
+        build_dagster_http_manifest([WebSocketRoute("/future", future)])
+
+
 def test_server_info_is_minimal_public_readiness() -> None:
     server = object.__new__(PhloDagsterWebserver)
 

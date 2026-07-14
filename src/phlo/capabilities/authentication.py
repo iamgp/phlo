@@ -27,7 +27,6 @@ from phlo.capabilities.specs import AuthenticationProviderSpec
 from phlo.capabilities.support import CapabilitySupport
 from phlo.infrastructure.config import (
     get_authentication_config,
-    get_authentication_provider_config,
 )
 from phlo.logging import get_logger
 
@@ -498,6 +497,16 @@ class ServiceTokenAuthenticationProvider:
         service_tokens: dict[str, dict[str, Any]] | None = None,
     ):
         self._service_tokens = service_tokens or {}
+        for token, service_data in self._service_tokens.items():
+            if not isinstance(token, str) or not token.strip():
+                raise ValueError("Each service token configuration requires a non-empty token")
+            if not isinstance(service_data, dict):
+                raise ValueError(f"Service token {token!r} must map to an object")
+            subject = service_data.get("subject")
+            if not isinstance(subject, str) or not subject.strip():
+                raise ValueError(
+                    "Each service token configuration requires a non-empty explicit subject"
+                )
 
     def authenticate(self, request_context: RequestContext) -> AuthResult:
         """Authenticate using service token."""
@@ -533,7 +542,7 @@ class ServiceTokenAuthenticationProvider:
         if matched_key is not None:
             service_data = self._service_tokens[matched_key]
             principal = AuthPrincipal(
-                subject=service_data.get("subject", token),
+                subject=service_data["subject"],
                 principal_type="service",
                 issuer=service_data.get("issuer"),
                 email=service_data.get("email"),
@@ -676,6 +685,10 @@ class JWTAuthenticationProvider:
     def _verify_signature(self, header_b64: str, payload_b64: str, signature_b64: str) -> bool:
         """Verify JWT signature using HS256."""
         try:
+            header = self._decode_payload(header_b64)
+            if header.get("alg") != "HS256":
+                logger.warning("jwt_algorithm_rejected", algorithm=header.get("alg"))
+                return False
             message = f"{header_b64}.{payload_b64}".encode()
             expected = hmac.new(self._secret, message, hashlib.sha256).digest()
             padded_signature = signature_b64 + "=" * (-len(signature_b64) % 4)
@@ -693,6 +706,16 @@ class JWTAuthenticationProvider:
     def _validate_claims(self, claims: dict[str, Any]) -> bool:
         """Validate JWT claims including expiration."""
         now = time.time()
+
+        if not isinstance(claims.get("sub"), str) or not claims["sub"].strip():
+            logger.warning("jwt_subject_missing")
+            return False
+
+        from phlo.security.mode import is_regulated
+
+        if is_regulated() and (not self._issuer or not self._audience):
+            logger.warning("jwt_regulated_issuer_audience_missing")
+            return False
 
         exp = claims.get("exp", 0)
         if exp < now - self._leeway:
@@ -849,8 +872,20 @@ def _load_service_token_config() -> dict[str, dict[str, Any]]:
 
     tokens_json = os.environ.get("PHLO_AUTH_SERVICE_TOKENS")
     if tokens_json:
-        with suppress(json.JSONDecodeError):
+        try:
             service_tokens = json.loads(tokens_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("PHLO_AUTH_SERVICE_TOKENS must be valid JSON") from exc
+
+    if not isinstance(service_tokens, dict):
+        raise ValueError("PHLO_AUTH_SERVICE_TOKENS must be a JSON object")
+
+    for token, service_data in service_tokens.items():
+        if not isinstance(service_data, dict):
+            raise ValueError(f"Service token {token!r} must map to an object")
+        subject = service_data.get("subject")
+        if not isinstance(subject, str) or not subject.strip():
+            raise ValueError(f"Service token {token!r} requires a non-empty explicit subject")
 
     return service_tokens
 
@@ -917,7 +952,9 @@ def register_default_capability_providers() -> None:
     Authentication providers are security-sensitive and must be explicitly
     enabled via environment variables, not auto-registered on startup.
     """
-    selected_provider = get_authentication_provider_config()
+    from phlo.infrastructure.config import get_configured_authentication_provider_name
+
+    selected_provider = get_configured_authentication_provider_name()
 
     static_block = _authentication_subconfig("static")
     static_users, dev_mode = _load_static_config()

@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from phlo.capabilities.observability import register_default_capability_providers
+from phlo.capabilities.authentication import (
+    register_default_capability_providers as register_default_authentication_providers,
+)
+from phlo.capabilities.authorization import (
+    register_default_capability_providers as register_default_authorization_providers,
+)
+from phlo.capabilities.observability import (
+    register_default_capability_providers as register_default_observability_providers,
+)
 from phlo.capabilities.registry import (
     iter_provider_capabilities,
     register_capability,
@@ -18,7 +26,9 @@ logger = get_logger(__name__)
 def discover_capabilities() -> None:
     """Discover capability providers and register their specs."""
     logger.info("capability_discovery_started")
-    register_default_capability_providers()
+    register_default_authentication_providers()
+    register_default_authorization_providers()
+    register_default_observability_providers()
     discover_plugins(plugin_type="asset_provider", auto_register=True)
     discover_plugins(plugin_type="resource_provider", auto_register=True)
     discover_plugins(plugin_type="ingestion_provider", auto_register=True)

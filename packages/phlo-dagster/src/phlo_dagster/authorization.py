@@ -59,6 +59,11 @@ class GraphQLOperationSpec:
     resource_type: str
     resource_keys: tuple[str, ...] = ()
     require_resource: bool = False
+    field_resource_keys: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+    def keys_for_field(self, field: str) -> tuple[str, ...]:
+        """Return the authoritative resource arguments for one root field."""
+        return dict(self.field_resource_keys).get(field, self.resource_keys)
 
 
 _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
@@ -84,7 +89,21 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         ),
         ACTION_ASSET_READ,
         "asset",
-        ("assetKey",),
+        (),
+        field_resource_keys=(
+            ("assetCheckExecutions", ("assetKey",)),
+            ("assetConditionEvaluationForPartition", ("assetKey",)),
+            ("assetConditionEvaluationRecordsOrError", ("assetKey",)),
+            ("assetNodeAdditionalRequiredKeys", ("assetKeys",)),
+            ("assetNodeDefinitionCollisions", ("assetKeys",)),
+            ("assetNodeOrError", ("assetKey",)),
+            ("assetOrError", ("assetKey",)),
+            ("assetNodes", ("assetKeys",)),
+            ("assetsLatestInfo", ("assetKeys",)),
+            ("assetsOrError", ("assetKeys",)),
+            ("autoMaterializeAssetEvaluationsOrError", ("assetKey",)),
+            ("truePartitionsForAutomationConditionEvaluationNode", ("assetKey",)),
+        ),
     ),
     GraphQLOperationSpec(
         "query",
@@ -114,14 +133,19 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         ),
         ACTION_RUN_READ,
         "run",
-        (
-            "runId",
-            "runIds",
-            "pipelineName",
-            "repositoryName",
-            "repositoryLocationName",
-            "backfillId",
-            "logKey",
+        (),
+        field_resource_keys=(
+            ("capturedLogs", ("logKey",)),
+            ("capturedLogsMetadata", ("logKey",)),
+            ("logsForRun", ("runId",)),
+            ("pipelineRunOrError", ("runId",)),
+            ("runGroupOrError", ("runId",)),
+            ("runOrError", ("runId",)),
+            ("partitionBackfillOrError", ("backfillId",)),
+            ("partitionSetOrError", ("repositorySelector",)),
+            ("partitionSetsOrError", ("repositorySelector",)),
+            ("pipelineOrError", ("params",)),
+            ("executionPlanOrError", ("pipeline",)),
         ),
     ),
     GraphQLOperationSpec(
@@ -139,7 +163,16 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         ),
         ACTION_SERVICE_READ,
         "service",
-        ("repositoryName", "repositoryLocationName", "scheduleName", "sensorName"),
+        (),
+        field_resource_keys=(
+            ("instigationStateOrError", ("id",)),
+            ("instigationStatesOrError", ("repositoryID",)),
+            ("scheduleOrError", ("scheduleSelector",)),
+            ("schedulesOrError", ("repositorySelector",)),
+            ("sensorOrError", ("sensorSelector",)),
+            ("sensorsOrError", ("repositorySelector",)),
+            ("workspaceLocationEntryOrError", ("name",)),
+        ),
     ),
     GraphQLOperationSpec(
         "query",
@@ -152,7 +185,12 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         ),
         ACTION_CATALOG_READ,
         "catalog",
-        ("repositoryName", "repositoryLocationName"),
+        (),
+        field_resource_keys=(
+            ("repositoryOrError", ("repositorySelector",)),
+            ("repositoriesOrError", ("repositorySelector",)),
+            ("resourcesOrError", ("pipelineSelector",)),
+        ),
     ),
     GraphQLOperationSpec(
         "query",
@@ -173,6 +211,10 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         ),
         ACTION_ADMIN_READ,
         "admin",
+        field_resource_keys=(
+            ("isPipelineConfigValid", ("pipeline",)),
+            ("runConfigSchemaOrError", ("selector",)),
+        ),
     ),
     GraphQLOperationSpec(
         "mutation",
@@ -189,6 +231,10 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         "run",
         ("jobName", "repositoryName", "repositoryLocationName"),
         require_resource=True,
+        field_resource_keys=(
+            ("launchPartitionBackfill", ("repositorySelector",)),
+            ("reexecutePartitionBackfill", ("parentRunId",)),
+        ),
     ),
     GraphQLOperationSpec(
         "mutation",
@@ -211,6 +257,16 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
             "stepKey",
         ),
         require_resource=True,
+        field_resource_keys=(
+            ("cancelPartitionBackfill", ("backfillId",)),
+            ("terminateRuns", ("runIds",)),
+            ("terminateRun", ("runId",)),
+            ("deleteRun", ("runId",)),
+            ("deletePipelineRun", ("runId",)),
+            ("freeConcurrencySlots", ("runId", "stepKey")),
+            ("freeConcurrencySlotsForRun", ("runId",)),
+            ("terminatePipelineExecution", ("runId",)),
+        ),
     ),
     GraphQLOperationSpec(
         "mutation",
@@ -223,6 +279,11 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         "asset",
         ("assetKey", "partitionsDefName", "repositoryName", "repositoryLocationName"),
         require_resource=True,
+        field_resource_keys=(
+            ("wipeAssets", ("assetKey",)),
+            ("addDynamicPartition", ("partitionsDefName", "repositorySelector")),
+            ("deleteDynamicPartitions", ("partitionsDefName", "repositorySelector")),
+        ),
     ),
     GraphQLOperationSpec(
         "mutation",
@@ -334,10 +395,24 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
     ),
     GraphQLOperationSpec(
         "subscription",
-        ("capturedLogs", "locationStateChangeEvents", "pipelineRunLogs"),
+        ("capturedLogs",),
         ACTION_RUN_READ,
         "run",
-        ("runId",),
+        ("logKey",),
+    ),
+    GraphQLOperationSpec(
+        "subscription",
+        ("locationStateChangeEvents",),
+        ACTION_SERVICE_READ,
+        "service",
+    ),
+    GraphQLOperationSpec(
+        "subscription",
+        ("pipelineRunLogs",),
+        ACTION_RUN_READ,
+        "run",
+        (),
+        field_resource_keys=(("pipelineRunLogs", ("runId",)),),
     ),
     GraphQLOperationSpec("query", ("__schema", "__type"), ACTION_ADMIN_READ, "admin"),
 )
@@ -415,34 +490,33 @@ def validate_graphql_resource_bindings(schema: Any) -> None:
         root = roots.get(spec.operation)
         if root is None:
             continue
-        reachable: set[str] = set()
-        visited: set[int] = set()
-
-        def visit(graphql_type: Any) -> None:
-            while hasattr(graphql_type, "of_type"):
-                graphql_type = graphql_type.of_type
-            fields = getattr(graphql_type, "fields", None)
-            if not isinstance(fields, dict) or id(graphql_type) in visited:
-                return
-            visited.add(id(graphql_type))
-            for field_name, field in fields.items():
-                reachable.add(field_name)
-                visit(field.type)
-
         for field_name in spec.fields:
             field = root.fields.get(field_name)
             if field is None:
                 continue
+            reachable: set[str] = set()
+            visited: set[int] = set()
+
+            def visit(graphql_type: Any) -> None:
+                while hasattr(graphql_type, "of_type"):
+                    graphql_type = graphql_type.of_type
+                fields = getattr(graphql_type, "fields", None)
+                if not isinstance(fields, dict) or id(graphql_type) in visited:
+                    return
+                visited.add(id(graphql_type))
+                for nested_name, nested_field in fields.items():
+                    reachable.add(nested_name)
+                    visit(nested_field.type)
+
             for argument_name, argument in field.args.items():
                 reachable.add(argument_name)
                 visit(argument.type)
-
-        missing = sorted(set(spec.resource_keys) - reachable)
-        if missing:
-            raise RuntimeError(
-                f"Dagster resource registry uses arguments absent from {spec.operation} "
-                f"schema fields {spec.fields}: {missing}"
-            )
+            missing = sorted(set(spec.keys_for_field(field_name)) - reachable)
+            if missing:
+                raise RuntimeError(
+                    f"Dagster resource registry uses arguments absent from "
+                    f"{spec.operation}.{field_name}: {missing}"
+                )
 
 
 class DagsterRegulatedSurfaceAdapter:
@@ -465,7 +539,8 @@ class DagsterRegulatedSurfaceAdapter:
         seen: set[tuple[str, str]] = set()
         operations: list[SurfaceOperation] = []
 
-        for op_names, action, resource_type in self._OPERATION_MAPPINGS:
+        for spec in _GRAPHQL_OPERATION_SPECS:
+            op_names, action, resource_type = spec.fields, spec.action, spec.resource_type
             key = (action, resource_type)
             if key in seen:
                 continue
@@ -478,6 +553,9 @@ class DagsterRegulatedSurfaceAdapter:
                     resource_id_strategy="graphql_variables",
                     framework_metadata={
                         "graphql_operations": op_names,
+                        "resource_keys": sorted(
+                            {key for field in op_names for key in spec.keys_for_field(field)}
+                        ),
                         "surface": SURFACE_NAME,
                     },
                 )

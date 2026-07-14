@@ -73,7 +73,7 @@ def test_regulated_validation_rejects_conflicting_identity_provider_settings(mon
     result = _check_identity_provider()
 
     assert result.passed is False
-    assert "Conflicting regulated identity provider settings" in result.message
+    assert "Conflicting authentication settings" in result.message
 
 
 def test_regulated_validation_rejects_unregistered_provider(monkeypatch) -> None:
@@ -87,6 +87,32 @@ def test_regulated_validation_rejects_unregistered_provider(monkeypatch) -> None
 
     assert result.passed is False
     assert "not registered" in result.message
+
+
+def test_regulated_validation_rejects_service_token_without_subject(monkeypatch) -> None:
+    from phlo.security.validation import _check_identity_provider
+
+    monkeypatch.setenv("PHLO_AUTHENTICATION_PROVIDER", "service_token")
+    monkeypatch.setenv("PHLO_AUTH_SERVICE_TOKENS", '{"secret": {}}')
+
+    result = _check_identity_provider()
+
+    assert result.passed is False
+    assert "explicit subject" in result.message
+
+
+def test_regulated_validation_requires_jwt_issuer_and_audience(monkeypatch) -> None:
+    from phlo.security.validation import _check_identity_provider
+
+    monkeypatch.setenv("PHLO_AUTHENTICATION_PROVIDER", "jwt")
+    monkeypatch.setenv("PHLO_AUTH_JWT_SECRET", "secret")
+    monkeypatch.delenv("PHLO_AUTH_JWT_ISSUER", raising=False)
+    monkeypatch.delenv("PHLO_AUTH_JWT_AUDIENCE", raising=False)
+
+    result = _check_identity_provider()
+
+    assert result.passed is False
+    assert "PHLO_AUTH_JWT_ISSUER" in result.message
 
 
 def test_regulated_validation_rejects_unknown_authorization_backend(monkeypatch) -> None:
@@ -114,6 +140,23 @@ def test_regulated_validation_requires_registered_authorization_backend(monkeypa
 
     assert result.passed is True
     assert "opa" in result.message
+
+
+def test_regulated_validation_rejects_conflicting_authorization_backend(
+    monkeypatch, tmp_path
+) -> None:
+    from phlo.security.validation import _check_authorization_backend
+
+    (tmp_path / "phlo.yaml").write_text(
+        "services:\n  phlo-api:\n    authorization:\n      backend: default\n"
+    )
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv("PHLO_AUTHORIZATION_BACKEND", "opa")
+
+    result = _check_authorization_backend()
+
+    assert result.passed is False
+    assert "Conflicting authorization settings" in result.message
 
 
 def test_regulated_validation_inspects_selected_services(monkeypatch) -> None:

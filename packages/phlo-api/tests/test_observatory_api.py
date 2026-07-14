@@ -2745,6 +2745,33 @@ def test_observatory_contributing_rows_query_and_page(monkeypatch) -> None:
     }
 
 
+def test_contributing_rows_reject_client_provider_routing(monkeypatch) -> None:
+    called = False
+
+    async def forbidden_resolver(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        nonlocal called
+        called = True
+        raise AssertionError("client-controlled provider routing reached the resolver")
+
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.contributing.resolve_iceberg_table",
+        forbidden_resolver,
+    )
+    response = authenticated_client("analyst").post(
+        "/api/observatory/contributing-rows/query",
+        json={
+            "downstream_asset_key": "gold/fct_orders",
+            "upstream_asset_key": "silver/stg_orders",
+            "row_data": {"_phlo_row_id": "abc123"},
+            "catalog": "other_catalog",
+            "trino_url": "http://169.254.169.254/",
+        },
+    )
+
+    assert response.status_code == 422
+    assert called is False
+
+
 def test_observatory_branch_action_contract_skips_until_provider_write_contract_exists(
     monkeypatch, tmp_path
 ) -> None:

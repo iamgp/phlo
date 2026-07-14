@@ -14,7 +14,6 @@ from graphql import GraphQLError
 from phlo.security.adapters import EnforcementResult
 from phlo.security.service_identity import (
     PHLO_CORRELATION_HEADER,
-    PHLO_INITIATOR_HEADER,
     create_service_token,
 )
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
@@ -67,7 +66,6 @@ def test_extract_principal_from_service_token(monkeypatch):
     info = _build_info(
         {
             "Authorization": f"Bearer {token}",
-            PHLO_INITIATOR_HEADER: "alice@example.com",
         }
     )
 
@@ -77,7 +75,23 @@ def test_extract_principal_from_service_token(monkeypatch):
     assert principal.subject == "service:phlo-api"
     assert principal.principal_type == "service"
     assert principal.attributes["authentication_source"] == "service_token"
-    assert principal.attributes["initiating_principal"] == "alice@example.com"
+    assert "initiating_principal" not in principal.attributes
+
+
+def test_extract_principal_does_not_authorize_on_unsigned_initiator_header(monkeypatch):
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    service_token = create_service_token("phlo-api")
+    info = _build_info(
+        {
+            "Authorization": f"Bearer {service_token}",
+            "X-Phlo-Initiator": "admin@example.com",
+        }
+    )
+
+    principal = DagsterGraphQLAuthorizationMiddleware()._extract_principal(info)
+
+    assert principal is not None
+    assert "initiating_principal" not in principal.attributes
 
 
 def test_extract_principal_rejects_unsigned_or_invalid_bearer(monkeypatch):
@@ -412,6 +426,50 @@ def test_graphql_destructive_operation_requires_live_resource_argument(monkeypat
             ),
             {},
         )
+
+
+@patch("phlo_dagster.authorization_middleware.enforce")
+def test_bulk_graphql_targets_are_authorized_independently(mock_enforce, monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    service_token = create_service_token("phlo-api")
+    mock_enforce.return_value = EnforcementResult.allow()
+    middleware = DagsterGraphQLAuthorizationMiddleware()
+
+    result = middleware._authorize_field(
+        _build_info(
+            {"Authorization": f"Bearer {service_token}"},
+            field_name="terminateRuns",
+            operation_kind="mutation",
+        ),
+        {"runIds": ["run-1", "run-2"]},
+    )
+
+    assert result.allowed
+    resources = [call.kwargs["resource"].resource_id for call in mock_enforce.call_args_list]
+    assert resources == ["runId=run-1", "runId=run-2"]
+
+
+@patch("phlo_dagster.authorization_middleware.enforce")
+def test_bulk_graphql_denial_stops_before_handler(mock_enforce, monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    service_token = create_service_token("phlo-api")
+    mock_enforce.side_effect = [
+        EnforcementResult.allow(),
+        EnforcementResult.deny(reason_code="default_deny"),
+    ]
+    middleware = DagsterGraphQLAuthorizationMiddleware()
+
+    result = middleware._authorize_field(
+        _build_info(
+            {"Authorization": f"Bearer {service_token}"},
+            field_name="terminateRuns",
+            operation_kind="mutation",
+        ),
+        {"runIds": ["run-1", "run-2"]},
+    )
+
+    assert not result.allowed
+    assert mock_enforce.call_count == 2
 
 
 def test_map_operation_to_action_rejects_unclassified_fields() -> None:

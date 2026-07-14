@@ -92,6 +92,13 @@ def test_read_surfaces_use_their_specific_canonical_actions() -> None:
     )
 
 
+def test_authoring_writes_are_honestly_project_scoped() -> None:
+    for name in ("create_workflow", "validate_workflow", "validate_schema", "lint_project"):
+        spec = HTTP_ROUTE_MANIFEST[name]
+        assert spec.resource_type == "project"
+        assert spec.resource_keys == ()
+
+
 def test_path_resource_identity_includes_every_scoped_read_key() -> None:
     async def receive():
         return {"type": "http.request", "body": b"", "more_body": False}

@@ -129,8 +129,7 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
     *_specs(
         ("create_workflow", "validate_workflow", "validate_schema", "lint_project"),
         action=CanonicalAction.OBJECT_WRITE.value,
-        resource_type="object",
-        resource_keys=("workflow_path", "schema_path", "target"),
+        resource_type="project",
     ),
     *_specs(
         ("get_services",),

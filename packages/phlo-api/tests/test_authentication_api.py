@@ -44,7 +44,7 @@ authentication:
     assert get_authentication_provider() is provider
 
 
-def test_env_authentication_provider_overrides_phlo_yaml(monkeypatch, tmp_path: Path) -> None:
+def test_conflicting_env_authentication_provider_is_rejected(monkeypatch, tmp_path: Path) -> None:
     proxy_provider = _DummyAuthenticationProvider()
     static_provider = _DummyAuthenticationProvider()
     register_capability(
@@ -66,7 +66,8 @@ authentication:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     clear_config_cache()
 
-    assert get_authentication_provider() is static_provider
+    with pytest.raises(RuntimeError, match="Conflicting authentication settings"):
+        get_authentication_provider()
 
 
 def test_empty_env_authentication_provider_falls_back_to_phlo_yaml(

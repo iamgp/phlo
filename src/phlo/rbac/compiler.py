@@ -379,8 +379,6 @@ class TrinoCompiler(GovernanceCompiler):
         artifacts: list[BackendArtifact] = []
 
         for policy in rbac.policies.policies:
-            self._ensure_supported_policy_effect(policy)
-
             applicability = self.policy_applicability(policy.action, policy.resource_type)
             if applicability == "surface":
                 continue
@@ -389,6 +387,7 @@ class TrinoCompiler(GovernanceCompiler):
                     f"Trino cannot compile policy {policy.policy_id!r} for "
                     f"{policy.action}/{policy.resource_type}"
                 )
+            self._ensure_supported_policy_effect(policy)
 
             privileges = self.ACTION_MAPPING.get(policy.action, ())
 

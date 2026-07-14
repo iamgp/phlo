@@ -16,7 +16,6 @@ Core enforcement must NOT import FastAPI, Click, or Dagster/Starlette types.
 
 from __future__ import annotations
 
-import os
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -114,12 +113,9 @@ class EnforcementContext:
     def _init_authorization_backend(self) -> None:
         """Initialize the authorization backend."""
         from phlo.capabilities import resolve_capability
-        from phlo.infrastructure.config import get_api_authorization_config
+        from phlo.infrastructure.config import get_configured_authorization_backend_name
 
-        configured_name = os.environ.get("PHLO_AUTHORIZATION_BACKEND", "").strip()
-        if not configured_name:
-            config = get_api_authorization_config()
-            configured_name = config.backend.strip() if config and config.backend else ""
+        configured_name = get_configured_authorization_backend_name() or ""
 
         result = resolve_capability(
             "authorization_policy_backend",

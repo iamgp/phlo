@@ -289,6 +289,49 @@ def get_authentication_provider_config(project_root: Path | None = None) -> str 
     return normalized
 
 
+def get_configured_authentication_provider_name(project_root: Path | None = None) -> str | None:
+    """Return the one runtime authentication provider selection.
+
+    ``PHLO_AUTHENTICATION_METHOD`` is the legacy environment spelling, so it
+    remains supported only when it agrees with the canonical provider setting.
+    Rejecting disagreement here keeps startup validation and every runtime
+    resolver on one authoritative selection.
+    """
+    method = os.environ.get("PHLO_AUTHENTICATION_METHOD", "").strip()
+    provider = os.environ.get("PHLO_AUTHENTICATION_PROVIDER", "").strip()
+    configured = (get_authentication_provider_config(project_root) or "").strip()
+    selections = [
+        ("PHLO_AUTHENTICATION_METHOD", method),
+        ("PHLO_AUTHENTICATION_PROVIDER", provider),
+        ("phlo.yaml authentication.provider", configured),
+    ]
+    selected = [(source, value) for source, value in selections if value]
+    if selected and any(value.lower() != selected[0][1].lower() for _, value in selected[1:]):
+        raise ValueError(
+            "Conflicting authentication settings: provider selection must match across "
+            "environment and phlo.yaml"
+        )
+    return selected[0][1] if selected else None
+
+
+def get_configured_authorization_backend_name(project_root: Path | None = None) -> str | None:
+    """Return the one runtime authorization backend selection.
+
+    Environment and project configuration are separate inputs to startup, so
+    disagreement must fail rather than letting validation inspect one backend
+    while enforcement silently resolves another.
+    """
+    from_config = get_api_authorization_config(project_root)
+    configured = (from_config.backend if from_config and from_config.backend else "").strip()
+    from_env = os.environ.get("PHLO_AUTHORIZATION_BACKEND", "").strip()
+    if from_env and configured and from_env.lower() != configured.lower():
+        raise ValueError(
+            "Conflicting authorization settings: PHLO_AUTHORIZATION_BACKEND and "
+            "phlo.yaml authorization backend must match"
+        )
+    return from_env or configured or None
+
+
 def get_api_authorization_config(project_root: Path | None = None) -> ApiAuthorizationConfig | None:
     """Return validated phlo-api authorization settings from phlo.yaml.
 

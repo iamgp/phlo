@@ -70,8 +70,8 @@ def _classify_dagster_http_route(route: Any) -> DagsterHTTPRouteSpec:
         )
     if path == "/logs/{path:path}":
         return DagsterHTTPRouteSpec(
-            action=CanonicalAction.AUDIT_READ.value,
-            resource_type="audit",
+            action=CanonicalAction.RUN_READ.value,
+            resource_type="run",
             resource_keys=("path",),
         )
     if path in {"/notebook", "/dagit/notebook", "/dagit_info"}:
@@ -102,6 +102,13 @@ def build_dagster_http_manifest(routes: list[Any]) -> dict[tuple[str, str], Dags
     manifest: dict[tuple[str, str], DagsterHTTPRouteSpec] = {}
     for route in routes:
         if route.__class__.__name__ == "WebSocketRoute":
+            path = getattr(route, "path", None)
+            if path != "/graphql":
+                raise RuntimeError(f"Unclassified Dagster WebSocket route: {path!r}")
+            key = ("WEBSOCKET", path)
+            if key in manifest:
+                raise RuntimeError(f"Duplicate Dagster WebSocket route: {key!r}")
+            manifest[key] = _classify_dagster_http_route(route)
             continue
         methods = getattr(route, "methods", None)
         path = getattr(route, "path", None)

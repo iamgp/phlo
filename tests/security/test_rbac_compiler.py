@@ -315,6 +315,33 @@ def test_trino_does_not_compile_service_control_plane_grants() -> None:
     assert artifacts == []
 
 
+def test_trino_skips_control_plane_deny_for_surface_pdp() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"operator": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "deny_service_manage",
+                    "effect": "deny",
+                    "principal": {"roles": ["operator"]},
+                    "action": "service.manage",
+                    "resource": {"type": "service", "id_pattern": "dagster"},
+                }
+            ],
+        }
+    )
+
+    assert (
+        compiler.compile(
+            CanonicalRBAC.from_configs(roles, policies),
+            CompilerContext(environment="test", backend_name="trino"),
+        )
+        == []
+    )
+
+
 def test_trino_rejects_invalid_action_resource_pair() -> None:
     compiler = TrinoCompiler()
     roles = RolesConfig.from_dict({"version": 1, "roles": {"operator": {"inherits": []}}})

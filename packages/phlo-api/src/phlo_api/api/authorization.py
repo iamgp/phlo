@@ -55,7 +55,10 @@ from phlo.capabilities import (
 )
 from phlo.logging import get_logger
 from phlo.security import enforce, is_regulated
-from phlo.infrastructure.config import get_api_authorization_config
+from phlo.infrastructure.config import (
+    get_api_authorization_config,
+    get_configured_authorization_backend_name,
+)
 from phlo.security.service_identity import build_service_headers
 
 from phlo_api.api.authentication import get_request_principal
@@ -79,14 +82,11 @@ _AUTHORIZATION_MODE_REQUIRED = "required"
 
 
 def _configured_authorization_backend_name() -> str | None:
-    """Resolve the backend name from env first, then phlo.yaml."""
-    backend_name = os.environ.get(_AUTHORIZATION_BACKEND_ENV)
-    if backend_name is not None:
-        normalized = backend_name.strip()
-        return normalized or None
-
-    config = get_api_authorization_config()
-    return config.backend if config is not None else None
+    """Resolve the same backend name used by validation and core enforcement."""
+    try:
+        return get_configured_authorization_backend_name()
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
 
 
 def get_authorization_backend() -> AuthorizationPolicyBackend | None:
