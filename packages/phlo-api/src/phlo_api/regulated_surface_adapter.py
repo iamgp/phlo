@@ -11,7 +11,6 @@ from phlo.capabilities import (
     RegulatedSurfaceSpec,
     register_capability,
 )
-from phlo.rbac.models import CanonicalAction
 from phlo.security.adapters import SurfaceOperation
 
 SURFACE_NAME = "phlo-api"
@@ -30,117 +29,27 @@ class PhloAPIRegulatedSurfaceAdapter:
 
     def list_operations(self) -> list[SurfaceOperation]:
         """Return all regulated operations exposed by phlo-api."""
+        from phlo_api.security_manifest import HTTP_ROUTE_DECLARATIONS, validate_manifest
+
+        if self._installed_runtime is not None:
+            specs = validate_manifest(self._installed_runtime)
+        else:
+            specs = HTTP_ROUTE_DECLARATIONS
         return [
             SurfaceOperation(
-                action=CanonicalAction.DATASET_READ.value,
-                resource_type="dataset",
-                operation_name="dataset.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.DATASET_QUERY.value,
-                resource_type="dataset",
-                operation_name="dataset.query",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.DATASET_WRITE.value,
-                resource_type="dataset",
-                operation_name="dataset.write",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.DATASET_PUBLISH.value,
-                resource_type="dataset",
-                operation_name="dataset.publish",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.ASSET_READ.value,
-                resource_type="asset",
-                operation_name="asset.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.ASSET_EXECUTE.value,
-                resource_type="asset",
-                operation_name="asset.execute",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.ASSET_APPROVE.value,
-                resource_type="asset",
-                operation_name="asset.approve",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.SERVICE_READ.value,
-                resource_type="service",
-                operation_name="service.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.SERVICE_MANAGE.value,
-                resource_type="service",
-                operation_name="service.manage",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.ADMIN_READ.value,
-                resource_type="admin",
-                operation_name="admin.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.ADMIN_MANAGE.value,
-                resource_type="admin",
-                operation_name="admin.manage",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.SETTINGS_READ.value,
-                resource_type="settings",
-                operation_name="settings.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.SETTINGS_MANAGE.value,
-                resource_type="settings",
-                operation_name="settings.manage",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.CATALOG_READ.value,
-                resource_type="catalog",
-                operation_name="catalog.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.CATALOG_MANAGE.value,
-                resource_type="catalog",
-                operation_name="catalog.manage",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.PLATFORM_METADATA_READ.value,
-                resource_type="platform_metadata",
-                operation_name="platform_metadata.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.OBSERVABILITY_READ.value,
-                resource_type="observability",
-                operation_name="observability.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.MAINTENANCE_READ.value,
-                resource_type="maintenance",
-                operation_name="maintenance.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.RUN_READ.value,
-                resource_type="run",
-                operation_name="run.read",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.RUN_EXECUTE.value,
-                resource_type="run",
-                operation_name="run.execute",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.RUN_MANAGE.value,
-                resource_type="run",
-                operation_name="run.manage",
-            ),
-            SurfaceOperation(
-                action=CanonicalAction.AUDIT_READ.value,
-                resource_type="audit",
-                operation_name="audit.read",
-            ),
+                action=spec.action,
+                resource_type=spec.resource_type,
+                operation_name=f"http.{spec.operation_name}",
+                resource_id_strategy="path_query_body",
+                framework_metadata={
+                    "surface": SURFACE_NAME,
+                    "methods": spec.methods,
+                    "path": spec.path,
+                    "resource_keys": spec.resource_keys,
+                    "public": spec.public,
+                },
+            )
+            for spec in specs
         ]
 
     def is_active(self, runtime: Any) -> bool:
@@ -153,6 +62,9 @@ class PhloAPIRegulatedSurfaceAdapter:
         """Register phlo-api as a regulated surface and track the runtime."""
         if runtime is None:
             raise ValueError("phlo-api adapter requires a non-None FastAPI app as runtime")
+        from phlo_api.security_manifest import validate_manifest
+
+        validate_manifest(runtime)
         self._installed_runtime = runtime
         spec = RegulatedSurfaceSpec(
             name=SURFACE_NAME,

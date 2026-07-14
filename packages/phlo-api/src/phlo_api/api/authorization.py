@@ -44,6 +44,7 @@ from typing import Any, Callable, TypeVar
 from fastapi import HTTPException, Request
 
 from phlo.capabilities import (
+    AuthPrincipal,
     AuthorizationDecision,
     AuthorizationPolicyBackend,
     DecisionContext,
@@ -294,10 +295,10 @@ def _enforce_or_raise(
                 status_code=401,
                 detail={"error": "unauthorized", "reason": "authentication_required"},
             )
-        principal = Principal(
+        principal = AuthPrincipal(
             subject="anonymous",
             principal_type="user",
-            roles=(),
+            groups=(),
         )
     else:
         principal = auth_principal

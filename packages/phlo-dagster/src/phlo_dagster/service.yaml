@@ -137,6 +137,9 @@ env_vars:
   PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS:
     default: "5"
     description: Minimum interval between Dagster JWKS refresh attempts
+  PHLO_DAGSTER_OIDC_GROUPS_CLAIM:
+    default: "groups"
+    description: OIDC claim containing the allow-listed Dagster groups
   PHLO_DAGSTER_OIDC_REQUIRED:
     default: "false"
     description: Set true in regulated generation to require complete HTTPS OIDC/JWKS configuration at startup

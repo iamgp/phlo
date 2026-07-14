@@ -150,7 +150,7 @@ def test_trino_read_current_state_uses_compile_compatible_names() -> None:
     assert artifacts[0].metadata["resource_type"] == "dataset"
 
 
-def test_trino_compile_does_not_grant_to_inherited_roles() -> None:
+def test_trino_does_not_compile_control_plane_policies() -> None:
     compiler = TrinoCompiler()
     roles = RolesConfig.from_dict(
         {
@@ -171,7 +171,7 @@ def test_trino_compile_does_not_grant_to_inherited_roles() -> None:
                     "effect": "allow",
                     "principal": {"roles": ["admin"]},
                     "action": "admin.manage",
-                    "resource": {"type": "dataset", "id_pattern": "analytics.table"},
+                    "resource": {"type": "admin", "id_pattern": "dagster"},
                 }
             ],
         }
@@ -181,9 +181,7 @@ def test_trino_compile_does_not_grant_to_inherited_roles() -> None:
 
     artifacts = compiler.compile(rbac, context)
 
-    assert len(artifacts) == 1
-    assert artifacts[0].metadata["role"] == "admin"
-    assert artifacts[0].name == "admin_dataset_analytics.table"
+    assert artifacts == []
 
 
 def test_trino_compile_allows_catch_all_resource_pattern() -> None:
@@ -292,7 +290,7 @@ def test_trino_compile_rejects_wildcards_before_final_resource_segment() -> None
         compiler.compile(rbac, context)
 
 
-def test_trino_compile_uses_schema_grants_for_services() -> None:
+def test_trino_does_not_compile_service_control_plane_grants() -> None:
     compiler = TrinoCompiler()
     roles = RolesConfig.from_dict({"version": 1, "roles": {"operator": {"inherits": []}}})
     policies = PoliciesConfig.from_dict(
@@ -314,6 +312,27 @@ def test_trino_compile_uses_schema_grants_for_services() -> None:
 
     artifacts = compiler.compile(rbac, context)
 
-    assert len(artifacts) == 1
-    assert artifacts[0].statement == "GRANT ALL PRIVILEGES ON SCHEMA dagster TO ROLE operator"
-    assert artifacts[0].metadata["privilege"] == "ALL PRIVILEGES"
+    assert artifacts == []
+
+
+def test_trino_rejects_invalid_action_resource_pair() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"operator": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "invalid_asset_read",
+                    "effect": "allow",
+                    "principal": {"roles": ["operator"]},
+                    "action": "dataset.read",
+                    "resource": {"type": "asset", "id_pattern": "orders"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+
+    with pytest.raises(ValueError, match="cannot compile policy"):
+        compiler.compile(rbac, CompilerContext(environment="test", backend_name="trino"))

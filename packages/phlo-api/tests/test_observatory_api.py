@@ -2661,6 +2661,15 @@ def test_observatory_row_journey_endpoint_returns_provider_neutral_payload(monke
 
 
 def test_observatory_contributing_rows_query_and_page(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.lineage._resolve_lineage_sink",
+        lambda: type(
+            "LineageSink",
+            (),
+            {"get_asset_graph": lambda self: {"edges": {"silver/stg_orders": ["gold/fct_orders"]}}},
+        )(),
+    )
+
     async def fake_execute_trino_query(
         query: str,
         catalog: str | None = None,

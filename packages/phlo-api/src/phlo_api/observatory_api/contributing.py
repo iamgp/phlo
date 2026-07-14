@@ -53,6 +53,17 @@ Primitive = str | int | float | bool | None
 ContributingRowsMode = Literal["entity", "aggregate"]
 
 
+def _asset_pair_is_lineage_related(upstream_asset_key: str, downstream_asset_key: str) -> bool:
+    """Validate the requested pair against the authoritative lineage provider."""
+    try:
+        from phlo_api.observatory_api.lineage import _build_asset_graph, _resolve_lineage_sink
+
+        _assets, edges, _details = _build_asset_graph(_resolve_lineage_sink().get_asset_graph())
+    except Exception:
+        return False
+    return downstream_asset_key in edges.get(upstream_asset_key, ())
+
+
 class ResolveTableResult(BaseModel):
     """Resolved Iceberg table metadata for contributing-row queries."""
 
@@ -469,6 +480,8 @@ async def get_contributing_rows_query(
         catalog = request.catalog or resolve_default_catalog()
     except RuntimeError as exc:
         return {"error": str(exc)}
+    if not _asset_pair_is_lineage_related(request.upstream_asset_key, request.downstream_asset_key):
+        return {"error": "unrelated_asset_pair"}
     upstream_table_name = get_table_from_asset_key(request.upstream_asset_key)
     downstream_table_name = get_table_from_asset_key(request.downstream_asset_key)
 
@@ -527,6 +540,8 @@ async def get_contributing_rows_page(
         default_ref = resolve_default_ref()
     except RuntimeError as exc:
         return {"error": str(exc)}
+    if not _asset_pair_is_lineage_related(request.upstream_asset_key, request.downstream_asset_key):
+        return {"error": "unrelated_asset_pair"}
     upstream_table_name = get_table_from_asset_key(request.upstream_asset_key)
     downstream_table_name = get_table_from_asset_key(request.downstream_asset_key)
 

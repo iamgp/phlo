@@ -32,6 +32,7 @@ class CanonicalAction(StrEnum):
     DATASET_PUBLISH = "dataset.publish"
     ASSET_READ = "asset.read"
     ASSET_EXECUTE = "asset.execute"
+    ASSET_MANAGE = "asset.manage"
     ASSET_APPROVE = "asset.approve"
     SERVICE_READ = "service.read"
     SERVICE_MANAGE = "service.manage"
@@ -55,6 +56,8 @@ class CanonicalAction(StrEnum):
 class ResourceType(StrEnum):
     """Canonical resource types."""
 
+    PROJECT = "project"
+    PACKAGE = "package"
     DATASET = "dataset"
     ASSET = "asset"
     SERVICE = "service"

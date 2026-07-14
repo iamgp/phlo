@@ -69,6 +69,17 @@ def test_non_http_registry_is_complete_and_unique() -> None:
     )
 
 
+def test_regulated_surface_adapter_is_derived_from_http_manifest() -> None:
+    from phlo_api.regulated_surface_adapter import PhloAPIRegulatedSurfaceAdapter
+
+    manifest_pairs = {(spec.action, spec.resource_type) for spec in HTTP_ROUTE_MANIFEST.values()}
+    operations = PhloAPIRegulatedSurfaceAdapter().list_operations()
+    adapter_pairs = {(operation["action"], operation["resource_type"]) for operation in operations}
+
+    assert adapter_pairs == manifest_pairs
+    assert all(operation["operation_name"].startswith("http.") for operation in operations)
+
+
 def test_read_surfaces_use_their_specific_canonical_actions() -> None:
     assert HTTP_ROUTE_MANIFEST["check_connection"].action == "observability.read"
     assert HTTP_ROUTE_MANIFEST["get_observatory_preferences"].action == "settings.read"
@@ -362,6 +373,101 @@ def test_multi_table_query_is_rejected_before_handler(monkeypatch) -> None:
     assert backend.calls == []
 
 
+def test_branch_action_binds_action_id_branch_before_handler(monkeypatch) -> None:
+    auth, canonical = _principal("catalog-operator")
+    backend = _Backend(allowed=False)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.resolve_request_principal",
+        lambda _request, require_auth=True: canonical,
+    )
+    monkeypatch.setattr("phlo_api.security_manifest.get_authorization_backend", lambda: backend)
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.observatory._execute_branch_action",
+        lambda _request: pytest.fail("branch handler must not run after policy denial"),
+    )
+
+    response = TestClient(app).post(
+        "/api/observatory/branches/actions",
+        json={"action_id": "branch:delete:payments"},
+        headers={"Authorization": "Bearer catalog-operator"},
+    )
+
+    assert response.status_code == 403
+    assert backend.calls == [("catalog-operator", "catalog.manage", "branch_name=payments")]
+
+
+def test_branch_action_conflicting_body_identity_is_rejected(monkeypatch) -> None:
+    auth, canonical = _principal("catalog-operator")
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.resolve_request_principal",
+        lambda _request, require_auth=True: canonical,
+    )
+
+    response = TestClient(app).post(
+        "/api/observatory/branches/actions",
+        json={"action_id": "branch:delete:payments", "branch_name": "orders"},
+        headers={"Authorization": "Bearer catalog-operator"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"error": "ambiguous_resource"}
+
+
+def test_dataset_publish_requires_publish_action_and_dataset_identity(monkeypatch) -> None:
+    auth, canonical = _principal("dataset-editor")
+    backend = _Backend(allowed=False)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.resolve_request_principal",
+        lambda _request, require_auth=True: canonical,
+    )
+    monkeypatch.setattr("phlo_api.security_manifest.get_authorization_backend", lambda: backend)
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.observatory._execute_dataset_workflow_action",
+        lambda _request: pytest.fail("dataset mutation must not run after policy denial"),
+    )
+
+    response = TestClient(app).post(
+        "/api/observatory/actions",
+        json={"action_id": "dataset:orders:publish"},
+        headers={"Authorization": "Bearer dataset-editor"},
+    )
+
+    assert response.status_code == 403
+    assert backend.calls == [("dataset-editor", "dataset.publish", "dataset_id=orders")]
+
+
+@pytest.mark.parametrize(
+    ("path", "action", "resource_type"),
+    [
+        ("/api/observatory/runs?run_id=allowed", "run.read", "run"),
+        ("/api/observatory/branches?branch_name=allowed", "catalog.read", "catalog"),
+        ("/api/observatory/asset-graph?asset_key=allowed", "asset.read", "asset"),
+        ("/api/observatory/saved-queries?dataset_id=allowed", "dataset.read", "dataset"),
+        ("/api/services?name=allowed", "service.read", "service"),
+        ("/api/config?name=allowed", "platform_metadata.read", "platform_metadata"),
+    ],
+)
+def test_collection_query_keys_cannot_shrink_authorization_scope(
+    monkeypatch, path: str, action: str, resource_type: str
+) -> None:
+    auth, canonical = _principal("viewer")
+    backend = _Backend(allowed=False)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.resolve_request_principal",
+        lambda _request, require_auth=True: canonical,
+    )
+    monkeypatch.setattr("phlo_api.security_manifest.get_authorization_backend", lambda: backend)
+
+    response = TestClient(app).get(path, headers={"Authorization": "Bearer viewer"})
+
+    assert response.status_code == 403
+    assert backend.calls == [("viewer", action, "project")]
+
+
 def test_path_body_identity_mismatch_is_rejected_before_authorization() -> None:
     from phlo_api.security_manifest import OperationSpec, resolve_resource
 
@@ -394,7 +500,66 @@ def test_path_body_identity_mismatch_is_rejected_before_authorization() -> None:
         action="dataset.read",
         resource_type="dataset",
         resource_keys=("dataset_id",),
+        resource_sources=(("dataset_id", "path_body"),),
     )
 
     with pytest.raises(Exception, match="ambiguous_resource"):
         asyncio.run(resolve_resource(request, spec, {"dataset_id": "orders"}))
+
+
+def test_chunked_body_query_conflict_is_rejected_before_handler(monkeypatch) -> None:
+    auth, _canonical = _principal("chunked-user")
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    called = False
+    route = next(
+        route
+        for route in app.routes
+        if getattr(route, "name", None) == "post_observatory_schema_diff"
+    )
+    original_endpoint = route.endpoint
+
+    async def endpoint_not_called(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        nonlocal called
+        called = True
+        return {"unexpected": True}
+
+    route.endpoint = endpoint_not_called
+
+    messages: list[dict[str, object]] = []
+
+    async def receive():
+        if not hasattr(receive, "sent"):
+            receive.sent = 1
+            return {
+                "type": "http.request",
+                "body": b'{"asset_key":"',
+                "more_body": True,
+            }
+        return {
+            "type": "http.request",
+            "body": b"target" + b'"}',
+            "more_body": False,
+        }
+
+    async def send(message):
+        messages.append(message)
+
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/observatory/schemas/diff",
+        "raw_path": b"/api/observatory/schemas/diff",
+        "query_string": b"asset_key=allowed",
+        "headers": [(b"content-type", b"application/json")],
+        "server": ("testserver", 80),
+        "client": ("127.0.0.1", 1234),
+    }
+    try:
+        asyncio.run(app(scope, receive, send))
+    finally:
+        route.endpoint = original_endpoint
+
+    assert messages[0]["status"] == 400
+    assert called is False

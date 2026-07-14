@@ -414,39 +414,7 @@ class DagsterGraphQLAuthorizationMiddleware:
         Returns:
             EnforcementResult from core enforcement.
         """
-        from phlo.security.adapters import EnforcementResult
-
-        principal = self._extract_principal(info)
-        if principal is None:
-            if self.strict_mode:
-                return EnforcementResult.deny(
-                    reason_code="authentication_required",
-                    explanation="No valid authentication credentials provided",
-                )
-            return EnforcementResult.allow()
-
-        operation_name = self._get_operation_name(info) or "unknown"
-        mutation_field_name = self._get_mutation_field_name(info)
-        resource_type, resource_id = self._get_selection_resource(mutation_field_name)
-
-        action = self._map_operation_to_action(mutation_field_name)
-
-        resource = ResourceRef(
-            resource_type=resource_type,
-            resource_id=resource_id or f"dagster:{mutation_field_name or operation_name}",
-        )
-
-        decision_context = self._create_decision_context(info)
-
-        return enforce(
-            principal=principal,
-            action=action,
-            resource=resource,
-            context=decision_context,
-            request_id=decision_context.request_id,
-            surface=self.surface_name,
-            correlation_id=decision_context.request_id,
-        )
+        return self._authorize_field(info, kwargs)
 
     def _authorize_field(self, info: Any, kwargs: dict[str, Any]):
         """Authorize every root GraphQL query and mutation before resolution."""
@@ -501,6 +469,11 @@ class DagsterGraphQLAuthorizationMiddleware:
                 )
             if distinct_values:
                 values.append(f"{key}={distinct_values[0]}")
+        if not values and getattr(spec, "require_resource", False):
+            raise GraphQLError(
+                "GraphQL operation is missing its authoritative resource identity",
+                extensions={"code": "AUTHORIZATION_UNAVAILABLE"},
+            )
         return "|".join(values) if values else f"dagster:{field_name or 'operation'}"
 
     def _find_graphql_values(self, value: Any, key: str) -> list[Any]:

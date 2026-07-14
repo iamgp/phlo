@@ -9,7 +9,11 @@ import httpx
 import pytest
 from dagster_graphql.schema import create_schema
 from dagster_webserver.webserver import DagsterWebserver
+from phlo.capabilities import AuthPrincipal
+from phlo.security.adapters import EnforcementResult
 from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 from starlette.routing import WebSocketRoute
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -17,9 +21,11 @@ from starlette.websockets import WebSocketDisconnect
 from phlo_dagster.authorization import validate_graphql_schema
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.webserver import (
+    DagsterHTTPAuthenticationASGI,
     GRAPHQL_WS_INIT_TIMEOUT_ENV,
     GraphQLWebSocketAuthenticationASGI,
     PhloDagsterWebserver,
+    build_dagster_http_manifest,
 )
 from _oidc_test_helpers import (
     AUDIENCE,
@@ -67,6 +73,74 @@ def test_service_entrypoint_uses_secured_webserver_module() -> None:
 
     assert '"phlo_dagster.webserver"' in text
     assert '"dagster-webserver"' not in text.split("command:", 1)[1].split("ports:", 1)[0]
+
+
+def test_inherited_dagster_http_routes_are_classified_by_method_and_path() -> None:
+    server = object.__new__(PhloDagsterWebserver)
+    server._app_path_prefix = ""
+    routes = server.build_routes()
+
+    manifest = build_dagster_http_manifest(routes)
+
+    assert ("GET", "/server_info") in manifest
+    assert manifest[("GET", "/server_info")].public
+    assert manifest[("GET", "/download_debug/{run_id:str}")].resource_keys == ("run_id",)
+    assert manifest[("POST", "/report_asset_check/{asset_key:path}")].action == "asset.execute"
+    assert all(spec.action and spec.resource_type for spec in manifest.values())
+
+
+def test_server_info_is_minimal_public_readiness() -> None:
+    server = object.__new__(PhloDagsterWebserver)
+
+    response = asyncio.run(server.webserver_info_endpoint(None))
+
+    assert response.status_code == 200
+    assert response.body == b'{"status":"healthy"}'
+
+
+@pytest.mark.parametrize(
+    ("principal", "decision", "status_code"),
+    [
+        (None, None, 401),
+        (AuthPrincipal(subject="viewer", principal_type="user"), "deny", 403),
+        (AuthPrincipal(subject="operator", principal_type="user"), "allow", 200),
+    ],
+)
+def test_inherited_http_route_enforces_before_handler(
+    monkeypatch, principal, decision: str | None, status_code: int
+) -> None:
+    called = False
+
+    async def endpoint(_request):  # noqa: ANN001
+        nonlocal called
+        called = True
+        return JSONResponse({"ok": True})
+
+    downstream = Starlette(
+        routes=[
+            Route(
+                "/download_debug/{run_id:str}",
+                endpoint,
+                name="download_debug_file_endpoint",
+            )
+        ]
+    )
+    middleware = MagicMock()
+    middleware._extract_principal.return_value = principal
+    secured = DagsterHTTPAuthenticationASGI(downstream, middleware, downstream.routes)
+    if decision == "allow":
+        monkeypatch.setattr("phlo.security.enforce", lambda **_kwargs: EnforcementResult.allow())
+    elif decision == "deny":
+        monkeypatch.setattr(
+            "phlo.security.enforce",
+            lambda **_kwargs: EnforcementResult.deny(reason_code="default_deny"),
+        )
+
+    with TestClient(secured) as client:
+        response = client.get("/download_debug/run-42")
+
+    assert response.status_code == status_code
+    assert called is (status_code == 200)
 
 
 def test_ordinary_generated_dagster_service_keeps_oidc_optional(monkeypatch) -> None:
@@ -121,6 +195,32 @@ def test_dagster_cli_factory_instantiates_phlo_webserver(monkeypatch) -> None:
 
     assert dagster_app.DagsterWebserver is PhloDagsterWebserver
     assert result is marker
+
+
+def test_create_asgi_app_installs_inherited_http_and_graphql_wrappers(monkeypatch) -> None:
+    server = object.__new__(PhloDagsterWebserver)
+    downstream = Starlette(
+        routes=[
+            Route(
+                "/server_info",
+                lambda _request: JSONResponse({"status": "healthy"}),
+                name="server_info",
+            ),
+        ]
+    )
+    middleware = MagicMock()
+    monkeypatch.setattr(
+        DagsterWebserver,
+        "create_asgi_app",
+        lambda *_args, **_kwargs: downstream,
+    )
+    monkeypatch.setattr(server, "_get_graphql_authorization_middleware", lambda: middleware)
+
+    secured = server.create_asgi_app()
+
+    assert isinstance(secured, DagsterHTTPAuthenticationASGI)
+    assert isinstance(secured.app, GraphQLWebSocketAuthenticationASGI)
+    assert secured.app.app is downstream
 
 
 def test_graphql_ws_requires_authenticated_human(monkeypatch) -> None:

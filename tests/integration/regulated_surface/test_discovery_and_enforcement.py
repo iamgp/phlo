@@ -138,8 +138,8 @@ class TestEnforcementContext:
 class TestEnforceFunction:
     """Test the core enforce() function."""
 
-    def test_enforce_preserves_explicit_canonical_principal(self) -> None:
-        """A canonical Principal must not be sent through the AuthPrincipal bridge."""
+    def test_enforce_rejects_injected_canonical_principal(self) -> None:
+        """An externally constructed Principal cannot bypass group canonicalization."""
         context = EnforcementContext()
         canonical = Principal(
             subject="test-user",
@@ -149,7 +149,8 @@ class TestEnforceFunction:
         bridge = MagicMock()
         context._identity_bridge = bridge
 
-        assert context.canonicalize(canonical) is canonical
+        with pytest.raises(TypeError, match="AuthPrincipal"):
+            context.canonicalize(canonical)
         bridge.canonicalize.assert_not_called()
 
     def test_enforce_returns_error_when_no_backend(self) -> None:
@@ -412,20 +413,21 @@ class TestPhloAPIAdapterOperations:
     """Test phlo-api adapter operation declarations."""
 
     def test_phlo_api_adapter_declares_all_operations(self) -> None:
-        """phlo-api adapter declares all 22 canonical operations."""
+        """phlo-api adapter declares every manifest route exactly once."""
         from phlo_api.regulated_surface_adapter import get_adapter
+        from phlo_api.security_manifest import HTTP_ROUTE_MANIFEST
 
         adapter = get_adapter()
         ops = adapter.list_operations()
 
-        assert len(ops) == 22
+        assert len({op["operation_name"] for op in ops}) == len(HTTP_ROUTE_MANIFEST)
+        assert {op["operation_name"] for op in ops} == {
+            f"http.{name}" for name in HTTP_ROUTE_MANIFEST
+        }
         actions = {op["action"] for op in ops}
         assert "dataset.read" in actions
-        assert "dataset.write" in actions
-        assert "dataset.publish" in actions
         assert "asset.read" in actions
         assert "asset.execute" in actions
-        assert "asset.approve" in actions
         assert "service.read" in actions
         assert "service.manage" in actions
         assert "admin.read" in actions
@@ -438,7 +440,6 @@ class TestPhloAPIAdapterOperations:
         assert "observability.read" in actions
         assert "maintenance.read" in actions
         assert "run.read" in actions
-        assert "run.execute" in actions
         assert "run.manage" in actions
         assert "audit.read" in actions
         assert "dataset.query" in actions

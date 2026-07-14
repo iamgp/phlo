@@ -4899,7 +4899,7 @@ async def get_observatory_preferences(request: Request) -> Any:
 
 
 @router.put("/preferences")
-async def put_observatory_preferences(request: Request, payload: Any) -> Any:
+async def put_observatory_preferences(request: Request, payload: Any = Body(...)) -> Any:
     """Persist browser preferences from the canonical Observatory API."""
     from phlo_api.observatory_api.settings import (
         ObservatorySettingsPayload,
@@ -4988,20 +4988,25 @@ def get_observatory_search(
 @router.post("/actions", response_model=ObservatoryActionResult)
 def post_observatory_action(request: ObservatoryActionRequest) -> ObservatoryActionResult:
     """Execute a guarded Observatory action."""
-    resource_id, separator, action_name = request.action_id.rpartition(":")
+    dispatch_request = request
+    if request.action_id.startswith("service:"):
+        dispatch_request = request.model_copy(
+            update={"action_id": request.action_id.removeprefix("service:")}
+        )
+    resource_id, separator, action_name = dispatch_request.action_id.rpartition(":")
     services = _load_services()
     is_service_control_action = (
         bool(separator)
         and action_name in {"add", "start", "stop", "restart"}
         and any(service.id == resource_id for service in services)
     )
-    workflow_result = _execute_dataset_workflow_action(request)
+    workflow_result = _execute_dataset_workflow_action(dispatch_request)
     result = (
-        _execute_action(request)
+        _execute_action(dispatch_request)
         if is_service_control_action
         else workflow_result
         if workflow_result is not None
-        else execute_observatory_action(request, registry=_load_capability_registry())
+        else execute_observatory_action(dispatch_request, registry=_load_capability_registry())
     )
     recorded = record_action_result(_project_root(), result)
     _clear_read_model_cache()

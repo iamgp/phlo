@@ -223,10 +223,10 @@ def test_check_dataset_read_regulated_uses_anonymous_principal_when_auth_optiona
     check_dataset_read(request, "raw.orders", require_auth=False)
 
     principal = captured["principal"]
-    assert isinstance(principal, Principal)
+    assert isinstance(principal, AuthPrincipal)
     assert principal.subject == "anonymous"
     assert principal.principal_type == "user"
-    assert principal.roles == ()
+    assert principal.groups == ()
     assert captured["request_id"] == "corr-optional"
     assert captured["correlation_id"] == "corr-optional"
 

@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Awaitable, Callable
+from uuid import uuid4
 
 from dagster_webserver import app as dagster_app
 from dagster_webserver.cli import dagster_webserver
@@ -14,6 +16,7 @@ from dagster_webserver.graphql import GraphQLWS
 from dagster_webserver.webserver import DagsterWebserver
 from graphql import GraphQLError, parse
 from starlette.responses import JSONResponse
+from starlette.routing import Match
 
 from phlo_dagster.authorization import get_adapter, validate_graphql_schema
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
@@ -22,6 +25,220 @@ from phlo_dagster.oidc_identity import OIDC_REQUIRED_ENV
 GRAPHQL_WS_INIT_TIMEOUT_ENV = "PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS"
 _DEFAULT_GRAPHQL_WS_INIT_TIMEOUT = 10.0
 _MAX_GRAPHQL_WS_INIT_TIMEOUT = 60.0
+
+
+@dataclass(frozen=True)
+class DagsterHTTPRouteSpec:
+    """Canonical classification for one inherited Dagster HTTP entry point."""
+
+    action: str
+    resource_type: str
+    resource_keys: tuple[str, ...] = ()
+    public: bool = False
+    delegated_to_graphql: bool = False
+
+
+def _classify_dagster_http_route(route: Any) -> DagsterHTTPRouteSpec:
+    """Classify an actual Dagster route, failing startup on new surfaces."""
+    from phlo.rbac.models import CanonicalAction
+
+    name = getattr(route, "name", None)
+    path = getattr(route, "path", None)
+    if name in {"root_static", "_next_static", "vendor_static"}:
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.PLATFORM_METADATA_READ.value,
+            resource_type="platform_metadata",
+            public=True,
+        )
+    if path == "/server_info":
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.OBSERVABILITY_READ.value,
+            resource_type="observability",
+            public=True,
+        )
+    if path == "/graphql":
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.ADMIN_READ.value,
+            resource_type="admin",
+            delegated_to_graphql=True,
+        )
+    if path == "/download_debug/{run_id:str}":
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.RUN_READ.value,
+            resource_type="run",
+            resource_keys=("run_id",),
+        )
+    if path == "/logs/{path:path}":
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.AUDIT_READ.value,
+            resource_type="audit",
+            resource_keys=("path",),
+        )
+    if path in {"/notebook", "/dagit/notebook", "/dagit_info"}:
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.ADMIN_READ.value,
+            resource_type="admin",
+        )
+    if path in {
+        "/report_asset_materialization/{asset_key:path}",
+        "/report_asset_check/{asset_key:path}",
+        "/report_asset_observation/{asset_key:path}",
+    }:
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.ASSET_EXECUTE.value,
+            resource_type="asset",
+            resource_keys=("asset_key",),
+        )
+    if name == "index_html_endpoint":
+        return DagsterHTTPRouteSpec(
+            action=CanonicalAction.ADMIN_READ.value,
+            resource_type="admin",
+        )
+    raise RuntimeError(f"Unclassified Dagster HTTP route: {name!r} {path!r}")
+
+
+def build_dagster_http_manifest(routes: list[Any]) -> dict[tuple[str, str], DagsterHTTPRouteSpec]:
+    """Build and validate the inherited Dagster HTTP route manifest."""
+    manifest: dict[tuple[str, str], DagsterHTTPRouteSpec] = {}
+    for route in routes:
+        if route.__class__.__name__ == "WebSocketRoute":
+            continue
+        methods = getattr(route, "methods", None)
+        path = getattr(route, "path", None)
+        if not path:
+            continue
+        spec = _classify_dagster_http_route(route)
+        if not methods:
+            key = ("MOUNT", path)
+            if key in manifest:
+                raise RuntimeError(f"Duplicate Dagster HTTP route: {key!r}")
+            manifest[key] = spec
+            continue
+        for method in sorted(methods):
+            key = (method, path)
+            if key in manifest:
+                raise RuntimeError(f"Duplicate Dagster HTTP route: {key!r}")
+            manifest[key] = spec
+    return manifest
+
+
+class DagsterHTTPAuthenticationASGI:
+    """Authenticate and authorize inherited Dagster HTTP routes."""
+
+    def __init__(
+        self,
+        app: Callable[..., Awaitable[None]],
+        middleware: DagsterGraphQLAuthorizationMiddleware,
+        routes: list[Any],
+    ) -> None:
+        self.app = app
+        self.middleware = middleware
+        self.routes = routes
+        self.manifest = build_dagster_http_manifest(routes)
+
+    def _match(self, scope: dict[str, Any]) -> tuple[DagsterHTTPRouteSpec, dict[str, str]] | None:
+        method = scope.get("method", "")
+        for route in self.routes:
+            methods = getattr(route, "methods", None)
+            if methods and method not in methods:
+                continue
+            match, child_scope = route.matches(scope)
+            if match is Match.FULL:
+                path = getattr(route, "path", "")
+                key = (method, path) if methods else ("MOUNT", path)
+                spec = self.manifest.get(key)
+                if spec is None:
+                    raise RuntimeError(f"Unclassified Dagster HTTP route at runtime: {key!r}")
+                return spec, child_scope.get("path_params", {})
+        return None
+
+    def _principal(self, scope: dict[str, Any]) -> Any:
+        headers = {
+            key.decode().lower(): value.decode()
+            for key, value in scope.get("headers", [])
+            if isinstance(key, bytes) and isinstance(value, bytes)
+        }
+        client = scope.get("client")
+        client_host = client[0] if isinstance(client, (tuple, list)) and client else None
+        request = SimpleNamespace(
+            headers=headers,
+            scope=scope,
+            path=scope.get("path", "/"),
+            client=SimpleNamespace(host=client_host),
+        )
+        return self.middleware._extract_principal(
+            SimpleNamespace(context=SimpleNamespace(request=request))
+        )
+
+    async def __call__(self, scope: dict[str, Any], receive, send) -> None:  # noqa: ANN001
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        matched = self._match(scope)
+        if matched is None:
+            await self.app(scope, receive, send)
+            return
+        spec, path_params = matched
+        if spec.public:
+            await self.app(scope, receive, send)
+            return
+
+        principal = self._principal(scope)
+        request_id = next(
+            (
+                value.decode()
+                for key, value in scope.get("headers", [])
+                if key.lower() == b"x-request-id"
+            ),
+            str(uuid4()),
+        )
+        if principal is None:
+            response = JSONResponse(
+                {"error": "unauthorized", "reason": "authentication_required"},
+                status_code=401,
+                headers={"WWW-Authenticate": "Bearer", "X-Request-Id": request_id},
+            )
+            await response(scope, receive, send)
+            return
+
+        if not spec.delegated_to_graphql:
+            from phlo.capabilities import DecisionContext, ResourceRef
+            from phlo.security import enforce
+
+            resource_id = (
+                "|".join(
+                    f"{key}={path_params[key]}"
+                    for key in spec.resource_keys
+                    if path_params.get(key)
+                )
+                or "dagster"
+            )
+            result = enforce(
+                principal=principal,
+                action=spec.action,
+                resource=ResourceRef(resource_type=spec.resource_type, resource_id=resource_id),
+                context=DecisionContext(request_id=request_id),
+                request_id=request_id,
+                surface="dagster-webserver",
+                correlation_id=request_id,
+            )
+            if result.variant == "error":
+                response = JSONResponse(
+                    {"error": "service_unavailable", "reason": "authorization_unavailable"},
+                    status_code=503,
+                    headers={"X-Request-Id": request_id},
+                )
+                await response(scope, receive, send)
+                return
+            if not result.allowed:
+                response = JSONResponse(
+                    {"error": "forbidden", "reason": "access_denied"},
+                    status_code=403,
+                    headers={"X-Request-Id": request_id},
+                )
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
 
 
 class GraphQLWebSocketAuthenticationASGI:
@@ -166,13 +383,19 @@ class PhloDagsterWebserver(DagsterWebserver):
                 {"status": "unhealthy", "reason": "oidc_unready"},
                 status_code=503,
             )
-        return await super().webserver_info_endpoint(_request)
+        return JSONResponse({"status": "healthy"})
 
     def create_asgi_app(self, **kwargs: Any):  # noqa: ANN202
         app = super().create_asgi_app(**kwargs)
-        return GraphQLWebSocketAuthenticationASGI(
+        middleware = self._get_graphql_authorization_middleware()
+        graphql_app = GraphQLWebSocketAuthenticationASGI(
             app,
-            self._get_graphql_authorization_middleware(),
+            middleware,
+        )
+        return DagsterHTTPAuthenticationASGI(
+            graphql_app,
+            middleware,
+            app.routes,
         )
 
     def _get_graphql_authorization_middleware(self) -> DagsterGraphQLAuthorizationMiddleware:

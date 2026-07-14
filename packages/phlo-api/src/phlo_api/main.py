@@ -44,9 +44,6 @@ app = FastAPI(
     version="0.1.0",
 )
 
-get_adapter().install(app)
-require_regulated_validation(runtime=app)
-
 # Allow CORS for Observatory
 _cors_origins_raw = os.environ.get(
     "PHLO_API_CORS_ORIGINS",
@@ -839,6 +836,8 @@ def get_contract(table_name: str) -> dict[str, Any]:
 
 
 install_manifest_enforcement(app)
+get_adapter().install(app)
+require_regulated_validation(runtime=app)
 
 
 if __name__ == "__main__":

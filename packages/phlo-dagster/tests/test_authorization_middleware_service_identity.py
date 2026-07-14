@@ -11,12 +11,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from graphql import GraphQLError
 
+from phlo.security.adapters import EnforcementResult
 from phlo.security.service_identity import (
     PHLO_CORRELATION_HEADER,
     PHLO_INITIATOR_HEADER,
     create_service_token,
 )
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
+from phlo_dagster.authorization import resolve_graphql_operation
 from _oidc_test_helpers import (
     AUDIENCE,
     ISSUER,
@@ -232,7 +234,9 @@ def test_authorize_mutation_passes_correlation_id(mock_enforce, monkeypatch):
         {
             "Authorization": f"Bearer {token}",
             PHLO_CORRELATION_HEADER: "corr-456",
-        }
+        },
+        field_name="logTelemetry",
+        operation_kind="mutation",
     )
     mock_enforce.return_value = MagicMock(allowed=True, reason_code=None)
 
@@ -254,12 +258,12 @@ def test_authorize_mutation_uses_field_name_for_action_and_resource(mock_enforce
     )
     mock_enforce.return_value = MagicMock(allowed=True, reason_code=None)
 
-    DagsterGraphQLAuthorizationMiddleware()._authorize_mutation(info, {})
+    DagsterGraphQLAuthorizationMiddleware()._authorize_mutation(info, {"runId": "run-42"})
 
     kwargs = mock_enforce.call_args.kwargs
     assert kwargs["action"] == "run.manage"
     assert kwargs["resource"].resource_type == "run"
-    assert kwargs["resource"].resource_id == "dagster:terminateRun"
+    assert kwargs["resource"].resource_id == "runId=run-42"
 
 
 @patch("phlo_dagster.authorization_middleware.enforce")
@@ -275,10 +279,139 @@ def test_graphql_conflicting_same_key_values_fail_closed(mock_enforce, monkeypat
     with pytest.raises(GraphQLError, match="Ambiguous GraphQL resource identity"):
         DagsterGraphQLAuthorizationMiddleware()._authorize_field(
             info,
-            {"selector": {"runId": "run-a"}, "reexecution": {"runId": "run-b"}},
+            {
+                "executionParams": {
+                    "jobName": "job-a",
+                    "repositoryName": "repo",
+                    "repositoryLocationName": "loc",
+                },
+                "reexecutionParams": {
+                    "jobName": "job-b",
+                    "repositoryName": "repo",
+                    "repositoryLocationName": "loc",
+                },
+            },
         )
 
     mock_enforce.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("field", "action", "kwargs"),
+    [
+        (
+            "launchRun",
+            "run.execute",
+            {
+                "executionParams": {
+                    "jobName": "orders",
+                    "repositoryName": "repo",
+                    "repositoryLocationName": "loc",
+                }
+            },
+        ),
+        ("terminateRun", "run.manage", {"runId": "run-42"}),
+        ("deleteRun", "run.manage", {"runId": "run-42"}),
+        ("freeConcurrencySlots", "run.manage", {"runId": "run-42"}),
+        ("wipeAssets", "asset.manage", {"assetKey": {"path": ["orders"]}}),
+        ("logTelemetry", "admin.manage", {}),
+        ("setAutoMaterializePaused", "admin.manage", {}),
+        ("stopRunningSchedule", "run.manage", {"id": "schedule-1"}),
+    ],
+)
+@patch("phlo_dagster.authorization_middleware.enforce")
+def test_destructive_graphql_operations_use_least_privilege(
+    mock_enforce, monkeypatch, field: str, action: str, kwargs: dict[str, object]
+) -> None:
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    token = create_service_token("phlo-api")
+    info = _build_info(
+        {"Authorization": f"Bearer {token}"},
+        field_name=field,
+        operation_kind="mutation",
+    )
+
+    def decision(**call_kwargs):  # noqa: ANN001
+        return (
+            EnforcementResult.allow()
+            if call_kwargs["action"] == action
+            else EnforcementResult.deny(reason_code="default_deny")
+        )
+
+    mock_enforce.side_effect = decision
+    result = DagsterGraphQLAuthorizationMiddleware()._authorize_field(info, kwargs)
+
+    assert result.allowed
+    assert mock_enforce.call_args.kwargs["action"] == action
+
+
+def test_launch_permission_cannot_authorize_destructive_run_mutations(monkeypatch):
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    token = create_service_token("phlo-api")
+    middleware = DagsterGraphQLAuthorizationMiddleware()
+
+    with patch(
+        "phlo_dagster.authorization_middleware.enforce",
+        side_effect=lambda **kwargs: (
+            EnforcementResult.allow()
+            if kwargs["action"] == "run.execute"
+            else EnforcementResult.deny(reason_code="default_deny")
+        ),
+    ):
+        launch = middleware._authorize_field(
+            _build_info(
+                {"Authorization": f"Bearer {token}"},
+                field_name="launchRun",
+                operation_kind="mutation",
+            ),
+            {
+                "executionParams": {
+                    "jobName": "orders",
+                    "repositoryName": "repo",
+                    "repositoryLocationName": "loc",
+                }
+            },
+        )
+        terminate = middleware._authorize_field(
+            _build_info(
+                {"Authorization": f"Bearer {token}"},
+                field_name="terminateRun",
+                operation_kind="mutation",
+            ),
+            {"runId": "run-42"},
+        )
+
+    assert launch.allowed
+    assert not terminate.allowed
+
+
+def test_graphql_operation_registry_returns_exact_destructive_actions() -> None:
+    assert resolve_graphql_operation("mutation", "launchRun").action == "run.execute"
+    assert resolve_graphql_operation("mutation", "terminateRun").action == "run.manage"
+    assert resolve_graphql_operation("mutation", "deleteRun").action == "run.manage"
+    assert resolve_graphql_operation("mutation", "freeConcurrencySlots").action == "run.manage"
+    assert resolve_graphql_operation("mutation", "setAutoMaterializePaused").resource_keys == ()
+    assert resolve_graphql_operation("mutation", "stopRunningSchedule").resource_keys == (
+        "id",
+        "scheduleOriginId",
+        "scheduleSelectorId",
+    )
+
+
+def test_graphql_destructive_operation_requires_live_resource_argument(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    token = create_service_token("phlo-api")
+    middleware = DagsterGraphQLAuthorizationMiddleware()
+
+    with pytest.raises(Exception, match="authoritative resource"):
+        middleware._authorize_field(
+            _build_info(
+                {"Authorization": f"Bearer {token}"},
+                field_name="stopRunningSchedule",
+                operation_kind="mutation",
+            ),
+            {},
+        )
 
 
 def test_map_operation_to_action_rejects_unclassified_fields() -> None:

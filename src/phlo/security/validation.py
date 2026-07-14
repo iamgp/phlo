@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from contextlib import suppress
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from phlo.logging import get_logger
@@ -65,30 +66,31 @@ RegulatedModeValidationReport = RegulatedValidationReport  # deprecated alias
 
 def _check_authorization_backend() -> ValidationResult:
     """Validate that an authorization backend is configured."""
+    from phlo.capabilities import resolve_capability
     from phlo.infrastructure.config import get_api_authorization_config
 
     config = get_api_authorization_config()
-    backend = config.backend if config else None
-
-    if backend:
+    backend_name = os.environ.get("PHLO_AUTHORIZATION_BACKEND", "").strip()
+    if not backend_name and config and config.backend:
+        backend_name = config.backend.strip()
+    if not backend_name:
         return ValidationResult(
             name="authorization_backend_configured",
-            passed=True,
-            message=f"Authorization backend '{backend}' is configured",
+            passed=False,
+            message="No authorization backend name is configured",
         )
 
-    backend_env = os.environ.get("PHLO_AUTHORIZATION_BACKEND", "").strip()
-    if backend_env:
+    if resolve_capability("authorization_policy_backend", backend_name) is None:
         return ValidationResult(
             name="authorization_backend_configured",
-            passed=True,
-            message=f"Authorization backend '{backend_env}' is configured via environment",
+            passed=False,
+            message=f"Authorization backend {backend_name!r} is not registered",
         )
 
     return ValidationResult(
         name="authorization_backend_configured",
-        passed=False,
-        message="No authorization backend is configured. Set PHLO_AUTHORIZATION_BACKEND or configure in phlo.yaml",
+        passed=True,
+        message=f"Authorization backend {backend_name!r} is configured and registered",
     )
 
 
@@ -205,7 +207,8 @@ def _check_backend_coverage() -> ValidationResult:
             action_supported = False
             for compiler_class in COMPILER_REGISTRY.values():
                 compiler = compiler_class(backend=None)
-                if compiler.supports_action(policy.action):
+                applicability = compiler.policy_applicability(policy.action, policy.resource_type)
+                if applicability in {"trino", "surface"}:
                     action_supported = True
                     break
             if not action_supported:
@@ -236,29 +239,105 @@ def _check_identity_provider() -> ValidationResult:
     """Validate that an identity provider is configured."""
     auth_method = os.environ.get("PHLO_AUTHENTICATION_METHOD", "").strip()
     auth_provider = os.environ.get("PHLO_AUTHENTICATION_PROVIDER", "").strip()
+    from phlo.infrastructure.config import (
+        get_authentication_config,
+        get_authentication_provider_config,
+    )
 
-    if auth_method or auth_provider:
+    configured_name = (
+        auth_method or auth_provider or get_authentication_provider_config() or ""
+    ).lower()
+    supported = {"proxy", "jwt", "service_token"}
+    if configured_name not in supported:
         return ValidationResult(
             name="identity_provider_configured",
-            passed=True,
-            message=f"Identity provider configured ({auth_method or auth_provider})",
+            passed=False,
+            message=(
+                f"Unsupported regulated identity provider {configured_name or '<missing>'!r}; "
+                f"choose one of {sorted(supported)}"
+            ),
         )
 
-    from phlo.infrastructure.config import get_authentication_provider_config
-
-    provider = get_authentication_provider_config()
-    if provider:
+    block = get_authentication_config().get(configured_name, {})
+    block = block if isinstance(block, dict) else {}
+    secret_env = {
+        "proxy": "PHLO_AUTH_PROXY_SHARED_SECRET",
+        "jwt": "PHLO_AUTH_JWT_SECRET",
+        "service_token": "PHLO_AUTH_SERVICE_TOKENS",
+    }[configured_name]
+    config_key = {"proxy": "shared_secret", "jwt": "secret", "service_token": "tokens"}[
+        configured_name
+    ]
+    if not os.environ.get(secret_env, "").strip() and not block.get(config_key):
         return ValidationResult(
             name="identity_provider_configured",
-            passed=True,
-            message=f"Identity provider configured via config ({provider})",
+            passed=False,
+            message=f"Configured regulated provider {configured_name!r} is missing {secret_env}",
+        )
+
+    from phlo.capabilities import list_capabilities
+
+    if configured_name not in list_capabilities("authentication_provider"):
+        return ValidationResult(
+            name="identity_provider_configured",
+            passed=False,
+            message=(
+                f"Configured regulated provider {configured_name!r} is not registered; "
+                "enable its capability provider before regulated startup"
+            ),
         )
 
     return ValidationResult(
         name="identity_provider_configured",
-        passed=False,
-        message="No identity provider is configured. Set PHLO_AUTHENTICATION_METHOD or configure authentication in phlo.yaml",
+        passed=True,
+        message=f"Configured regulated identity provider: {configured_name}",
     )
+
+
+def _configured_service_names() -> list[str]:
+    """Return the selected service names from project config and environment."""
+    from phlo.infrastructure.config import load_project_config
+
+    configured: set[str] = set()
+    raw_enabled = os.environ.get("PHLO_ENABLED_SERVICES", "")
+    configured.update(name.strip() for name in raw_enabled.split(",") if name.strip())
+    project = load_project_config(Path.cwd())
+    services = project.get("services", {}) if isinstance(project, dict) else {}
+    if not isinstance(services, dict):
+        return sorted(configured)
+
+    enabled = services.get("enabled")
+    explicit_enabled = (
+        {name.strip() for name in enabled if isinstance(name, str) and name.strip()}
+        if isinstance(enabled, list)
+        else set()
+    )
+    disabled = services.get("disabled")
+    explicit_disabled = (
+        {name.strip() for name in disabled if isinstance(name, str) and name.strip()}
+        if isinstance(disabled, list)
+        else set()
+    )
+    named_services = {
+        name
+        for name, value in services.items()
+        if name not in {"enabled", "disabled"} and isinstance(value, dict)
+    }
+    configured.update(explicit_enabled or named_services)
+    configured.update(
+        name
+        for name, value in services.items()
+        if name not in {"enabled", "disabled"}
+        and isinstance(value, dict)
+        and value.get("enabled") is True
+    )
+    configured.difference_update(explicit_disabled)
+    configured.difference_update(
+        name
+        for name, value in services.items()
+        if isinstance(value, dict) and value.get("enabled") is False
+    )
+    return sorted(configured)
 
 
 def _check_phlo_api_adapter(runtime: Any) -> ValidationResult:
@@ -433,7 +512,7 @@ def run_regulated_validation(
 
     report.add_check(_check_registered_surfaces(runtime))
 
-    service_result = validate_service_selection([])
+    service_result = validate_service_selection(_configured_service_names())
     if service_result["blocked"]:
         blocked_msgs = [b["reason"] for b in service_result["blocked"]]
         report.add_check(

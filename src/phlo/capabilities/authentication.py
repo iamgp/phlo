@@ -747,12 +747,19 @@ def _load_static_config() -> tuple[dict[str, dict[str, Any]], bool]:
             or False
         )
 
+    from phlo.security.mode import is_regulated
+
+    regulated = is_regulated()
     if dev_mode:
         environment = os.environ.get("PHLO_ENVIRONMENT", "dev").lower()
-        if environment in ("production", "prod"):
+        if regulated or environment in ("production", "prod"):
             logger.error(
                 "auth_dev_mode_blocked",
-                reason="PHLO_AUTH_DEV_MODE is enabled but PHLO_ENVIRONMENT is production",
+                reason=(
+                    "PHLO_AUTH_DEV_MODE is disabled in regulated mode"
+                    if regulated
+                    else "PHLO_AUTH_DEV_MODE is enabled but PHLO_ENVIRONMENT is production"
+                ),
             )
             dev_mode = False
         else:

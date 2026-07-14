@@ -42,6 +42,7 @@ class OperationSpec:
     resource_type: str
     public: bool = False
     resource_keys: tuple[str, ...] = ()
+    resource_sources: tuple[tuple[str, str], ...] = ()
     methods: tuple[str, ...] = ()
     path: str | None = None
     endpoint: str | None = None
@@ -57,6 +58,7 @@ def _specs(
     action: str,
     resource_type: str,
     resource_keys: tuple[str, ...] = (),
+    resource_sources: tuple[tuple[str, str], ...] = (),
 ) -> tuple[OperationSpec, ...]:
     return tuple(
         OperationSpec(
@@ -65,6 +67,7 @@ def _specs(
             action=action,
             resource_type=resource_type,
             resource_keys=resource_keys,
+            resource_sources=resource_sources,
         )
         for name in names
     )
@@ -89,20 +92,39 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
             "redoc_html",
             "get_config",
             "get_plugins",
-            "get_plugins_by_type",
-            "get_plugin_info",
             "get_registry",
             "get_api_backends",
-            "get_api_backend_info",
             "get_contracts",
-            "get_contract",
             "list_templates",
             "list_workflows",
             "run_doctor",
         ),
         action=CanonicalAction.PLATFORM_METADATA_READ.value,
         resource_type="platform_metadata",
-        resource_keys=("name", "plugin_type", "table_name"),
+    ),
+    *_specs(
+        ("get_plugins_by_type",),
+        action=CanonicalAction.PLATFORM_METADATA_READ.value,
+        resource_type="platform_metadata",
+        resource_keys=("plugin_type",),
+    ),
+    *_specs(
+        ("get_plugin_info",),
+        action=CanonicalAction.PLATFORM_METADATA_READ.value,
+        resource_type="platform_metadata",
+        resource_keys=("plugin_type", "name"),
+    ),
+    *_specs(
+        ("get_api_backend_info",),
+        action=CanonicalAction.PLATFORM_METADATA_READ.value,
+        resource_type="platform_metadata",
+        resource_keys=("name",),
+    ),
+    *_specs(
+        ("get_contract",),
+        action=CanonicalAction.PLATFORM_METADATA_READ.value,
+        resource_type="platform_metadata",
+        resource_keys=("table_name",),
     ),
     *_specs(
         ("create_workflow", "validate_workflow", "validate_schema", "lint_project"),
@@ -111,7 +133,12 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_keys=("workflow_path", "schema_path", "target"),
     ),
     *_specs(
-        ("get_services", "get_service_info"),
+        ("get_services",),
+        action=CanonicalAction.SERVICE_READ.value,
+        resource_type="service",
+    ),
+    *_specs(
+        ("get_service_info",),
         action=CanonicalAction.SERVICE_READ.value,
         resource_type="service",
         resource_keys=("name",),
@@ -130,26 +157,42 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
             "get_dashboard_links",
             "get_logs_query_link",
             "get_metrics_query_link",
-            "get_run_trace_spans",
-            "get_trace_spans",
         ),
+        action=CanonicalAction.OBSERVABILITY_READ.value,
+        resource_type="observability",
+    ),
+    *_specs(
+        ("get_run_trace_spans",),
         action=CanonicalAction.OBSERVABILITY_READ.value,
         resource_type="observability",
         resource_keys=("run_id",),
     ),
     *_specs(
-        (
-            "query_logs",
-            "query_run_logs",
-            "stream_run_logs",
-            "query_asset_logs",
-            "get_log_labels",
-            "get_observatory_logs",
-            "get_observatory_log_facets",
-        ),
+        ("get_trace_spans",),
+        action=CanonicalAction.OBSERVABILITY_READ.value,
+        resource_type="observability",
+    ),
+    *_specs(
+        ("query_logs",),
         action=CanonicalAction.AUDIT_READ.value,
         resource_type="audit",
-        resource_keys=("run_id", "asset_key", "asset_key_path"),
+    ),
+    *_specs(
+        ("query_run_logs", "stream_run_logs"),
+        action=CanonicalAction.AUDIT_READ.value,
+        resource_type="audit",
+        resource_keys=("run_id",),
+    ),
+    *_specs(
+        ("query_asset_logs",),
+        action=CanonicalAction.AUDIT_READ.value,
+        resource_type="audit",
+        resource_keys=("asset_key",),
+    ),
+    *_specs(
+        ("get_log_labels", "get_observatory_logs", "get_observatory_log_facets"),
+        action=CanonicalAction.AUDIT_READ.value,
+        resource_type="audit",
     ),
     *_specs(
         ("check_connection",),
@@ -163,10 +206,7 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
             "get_observatory_surface_capabilities",
             "get_observatory_capability_inventory",
             "get_observatory_services",
-            "get_observatory_service_detail",
             "get_observatory_operations",
-            "get_observatory_operation_agent_context",
-            "get_observatory_operation_detail",
             "get_observatory_storage",
             "get_observatory_observability",
             "get_observatory_governance",
@@ -175,29 +215,52 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
             "get_observatory_search",
             "get_observatory_extensions",
             "get_observatory_extension_manifests",
-            "get_observatory_extension_asset",
-            "get_observatory_extension_detail",
             "get_observatory_workflow_wizard",
         ),
         action=CanonicalAction.ADMIN_READ.value,
         resource_type="admin",
-        resource_keys=("service_id", "operation_id", "name", "extension_id"),
     ),
     *_specs(
-        (
-            "get_observatory_preferences",
-            "get_observatory_settings",
-            "get_observatory_dataset_workflow_config",
-        ),
+        ("get_observatory_service_detail",),
+        action=CanonicalAction.ADMIN_READ.value,
+        resource_type="admin",
+        resource_keys=("service_id",),
+    ),
+    *_specs(
+        ("get_observatory_operation_agent_context", "get_observatory_operation_detail"),
+        action=CanonicalAction.ADMIN_READ.value,
+        resource_type="admin",
+        resource_keys=("operation_id",),
+    ),
+    *_specs(
+        ("get_observatory_extension_asset",),
+        action=CanonicalAction.ADMIN_READ.value,
+        resource_type="admin",
+        resource_keys=("name", "asset_path"),
+    ),
+    *_specs(
+        ("get_observatory_extension_detail",),
+        action=CanonicalAction.ADMIN_READ.value,
+        resource_type="admin",
+        resource_keys=("extension_id",),
+    ),
+    *_specs(
+        ("get_observatory_preferences", "get_observatory_settings"),
         action=CanonicalAction.SETTINGS_READ.value,
         resource_type="settings",
-        resource_keys=("name", "dataset_id"),
     ),
     *_specs(
-        (
-            "get_observatory_runs",
-            "get_observatory_run_status",
-        ),
+        ("get_observatory_dataset_workflow_config",),
+        action=CanonicalAction.SETTINGS_READ.value,
+        resource_type="settings",
+    ),
+    *_specs(
+        ("get_observatory_runs",),
+        action=CanonicalAction.RUN_READ.value,
+        resource_type="run",
+    ),
+    *_specs(
+        ("get_observatory_run_status",),
         action=CanonicalAction.RUN_READ.value,
         resource_type="run",
         resource_keys=("run_id",),
@@ -214,11 +277,12 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_type="asset",
     ),
     *_specs(
-        (
-            "get_observatory_asset_graph",
-            "get_observatory_asset_neighbors",
-            "get_observatory_asset_impact",
-        ),
+        ("get_observatory_asset_graph",),
+        action=CanonicalAction.ASSET_READ.value,
+        resource_type="asset",
+    ),
+    *_specs(
+        ("get_observatory_asset_neighbors", "get_observatory_asset_impact"),
         action=CanonicalAction.ASSET_READ.value,
         resource_type="asset",
         resource_keys=("asset_key",),
@@ -238,6 +302,7 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         action=CanonicalAction.ASSET_EXECUTE.value,
         resource_type="asset",
         resource_keys=("asset_id",),
+        resource_sources=(("asset_id", "path_body"),),
     ),
     *_specs(
         (
@@ -265,6 +330,7 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         action=CanonicalAction.ASSET_READ.value,
         resource_type="asset",
         resource_keys=("asset_key",),
+        resource_sources=(("asset_key", "body"),),
     ),
     *_specs(
         ("get_observatory_quality",),
@@ -305,12 +371,15 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         action=CanonicalAction.DATASET_QUERY.value,
         resource_type="dataset",
         resource_keys=("upstream_asset_key", "downstream_asset_key"),
+        resource_sources=(
+            ("upstream_asset_key", "body"),
+            ("downstream_asset_key", "body"),
+        ),
     ),
     *_specs(
         ("get_observatory_saved_queries",),
         action=CanonicalAction.DATASET_READ.value,
         resource_type="dataset",
-        resource_keys=("dataset_id", "table_id"),
     ),
     *_specs(
         ("post_observatory_saved_query",),
@@ -318,7 +387,12 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_type="project",
     ),
     *_specs(
-        ("get_observatory_branches", "get_observatory_branch_detail"),
+        ("get_observatory_branches",),
+        action=CanonicalAction.CATALOG_READ.value,
+        resource_type="catalog",
+    ),
+    *_specs(
+        ("get_observatory_branch_detail",),
         action=CanonicalAction.CATALOG_READ.value,
         resource_type="catalog",
         resource_keys=("branch_name",),
@@ -336,7 +410,12 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_keys=("name",),
     ),
     *_specs(
-        ("put_observatory_extension_settings", "put_observatory_preferences"),
+        ("put_observatory_preferences",),
+        action=CanonicalAction.SETTINGS_MANAGE.value,
+        resource_type="settings",
+    ),
+    *_specs(
+        ("put_observatory_extension_settings",),
         action=CanonicalAction.SETTINGS_MANAGE.value,
         resource_type="settings",
         resource_keys=("name",),
@@ -345,25 +424,37 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         ("put_observatory_dataset_workflow_config",),
         action=CanonicalAction.SETTINGS_MANAGE.value,
         resource_type="settings",
-        resource_keys=("dataset_id", "name"),
     ),
     *_specs(
-        ("post_observatory_workflow_wizard_proposal", "post_observatory_workflow_wizard_action"),
+        ("post_observatory_workflow_wizard_proposal",),
         action=CanonicalAction.OBJECT_WRITE.value,
         resource_type="object",
-        resource_keys=("proposal_id", "workflow_id", "target", "path"),
+    ),
+    *_specs(
+        ("post_observatory_workflow_wizard_action",),
+        action=CanonicalAction.OBJECT_WRITE.value,
+        resource_type="object",
+        resource_keys=("proposal_id", "action_id"),
+        resource_sources=(("proposal_id", "body"), ("action_id", "body")),
     ),
     *_specs(
         ("post_observatory_action",),
         action=CanonicalAction.SERVICE_MANAGE.value,
         resource_type="service",
         resource_keys=("service_id", "action_id", "name", "package"),
+        resource_sources=(
+            ("service_id", "body"),
+            ("action_id", "body"),
+            ("name", "body"),
+            ("package", "body"),
+        ),
     ),
     *_specs(
         ("post_observatory_package_install",),
-        action=CanonicalAction.SERVICE_MANAGE.value,
+        action=CanonicalAction.ADMIN_MANAGE.value,
         resource_type="package",
         resource_keys=("package_name",),
+        resource_sources=(("package_name", "body"),),
     ),
 )
 
@@ -474,17 +565,27 @@ async def _request_json(request: Request) -> Any:
     override = getattr(request.state, "_phlo_security_body_override", None)
     if override is not None:
         return override
-    content_length = request.headers.get("content-length")
-    if content_length and content_length.isdigit() and int(content_length) > 1_048_576:
-        raise HTTPException(status_code=413, detail={"error": "request_too_large"})
     if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() not in {
         "application/json",
         "application/graphql+json",
     }:
         return None
     try:
-        raw = await request.body()
+        content_length = request.headers.get("content-length")
+        if content_length and content_length.isdigit() and int(content_length) > 1_048_576:
+            raise HTTPException(status_code=413, detail={"error": "request_too_large"})
+        chunks: list[bytes] = []
+        size = 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > 1_048_576:
+                raise HTTPException(status_code=413, detail={"error": "request_too_large"})
+            chunks.append(chunk)
+        raw = b"".join(chunks)
+        request._body = raw
         return json.loads(raw) if raw else None
+    except HTTPException:
+        raise
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
 
@@ -494,54 +595,45 @@ async def resolve_resource(
     spec: OperationSpec,
     path_params: dict[str, str],
 ) -> ResourceRef:
-    scoped_values = {key: path_params[key] for key in spec.resource_keys if path_params.get(key)}
-    scoped_values.update(
-        {
-            key: request.query_params[key]
-            for key in spec.resource_keys
-            if request.query_params.get(key) and key not in scoped_values
-        }
-    )
-    resource_id = "|".join(
-        f"{key}={scoped_values[key]}" for key in spec.resource_keys if key in scoped_values
-    )
-    resource_id = resource_id or None
-    body = None
-    if resource_id is not None:
-        # Path/query identity is authoritative.  For small JSON requests only,
-        # reject a same-key body mismatch instead of silently authorizing one
-        # resource while the handler acts on another.
-        authoritative_keys = {key for key, value in path_params.items() if value}
-        authoritative_keys.update(
-            key for key in spec.resource_keys if request.query_params.get(key)
-        )
-        content_length = request.headers.get("content-length")
-        if (
-            authoritative_keys
-            and content_length
-            and content_length.isdigit()
-            and int(content_length) <= 65_536
-        ):
-            body = await _request_json(request)
-        if isinstance(body, dict):
-            for key in authoritative_keys:
-                candidate = body.get(key)
-                authoritative_value = path_params.get(key) or request.query_params.get(key)
-                if candidate is not None and str(candidate) != str(authoritative_value):
-                    raise HTTPException(status_code=400, detail={"error": "ambiguous_resource"})
-    else:
-        body = await _request_json(request)
-    if resource_id is None and body is not None:
-        resource_id = (
-            "|".join(
-                f"{key}={body[key]}"
-                for key in spec.resource_keys
-                if isinstance(body, dict)
-                and isinstance(body.get(key), (str, int))
-                and str(body[key])
-            )
-            or None
-        )
+    sources = dict(spec.resource_sources)
+    body_keys = {key for key in spec.resource_keys if sources.get(key) in {"body", "path_body"}}
+    body = await _request_json(request) if body_keys else None
+    if body is not None and not isinstance(body, dict):
+        body = None
+
+    values: list[str] = []
+    for key in spec.resource_keys:
+        source = sources.get(key, "path_query_body")
+        path_value = path_params.get(key)
+        query_value = request.query_params.get(key)
+        body_value = body.get(key) if isinstance(body, dict) else None
+        if source == "body":
+            if path_value is not None or query_value is not None:
+                raise HTTPException(status_code=400, detail={"error": "ambiguous_resource"})
+            selected = body_value
+        elif source == "path_body":
+            selected = path_value
+            if body_value is not None and str(body_value) != str(path_value):
+                raise HTTPException(status_code=400, detail={"error": "ambiguous_resource"})
+        elif source == "query":
+            selected = query_value
+        elif source == "path":
+            selected = path_value
+        else:
+            selected = path_value or query_value or body_value
+            authoritative = path_value or query_value
+            if (
+                authoritative is not None
+                and body_value is not None
+                and str(body_value) != str(authoritative)
+            ):
+                raise HTTPException(status_code=400, detail={"error": "ambiguous_resource"})
+        if selected is not None and str(selected):
+            values.append(f"{key}={selected}")
+
+    resource_id = "|".join(values) or None
+    if body_keys and not values:
+        raise HTTPException(status_code=400, detail={"error": "missing_resource"})
     return ResourceRef(
         resource_type=spec.resource_type,
         resource_id=resource_id or os.environ.get("PHLO_PROJECT_NAME", "project"),
@@ -625,7 +717,10 @@ async def enforce_http_operation(
 
 async def _specialize_operation(request: Request, spec: OperationSpec) -> OperationSpec:
     """Resolve the action/resource pair for payload-dispatched operations."""
-    if spec.operation_name != "post_observatory_action":
+    if spec.operation_name not in {
+        "post_observatory_action",
+        "post_observatory_branch_action",
+    }:
         return spec
     body = await _request_json(request)
     if not isinstance(body, dict):
@@ -640,21 +735,38 @@ async def _specialize_operation(request: Request, spec: OperationSpec) -> Operat
             raise HTTPException(status_code=400, detail={"error": "ambiguous_resource"})
         body[key] = value
 
+    if spec.operation_name == "post_observatory_branch_action":
+        parts = action_id.split(":", 2)
+        if len(parts) != 3 or parts[0] != "branch" or not parts[2].strip():
+            raise HTTPException(status_code=400, detail={"error": "invalid_action"})
+        bind_identity("branch_name", parts[2].strip())
+        request.state._phlo_security_body_override = body
+        return replace(
+            spec,
+            resource_keys=("branch_name",),
+            resource_sources=(("branch_name", "body"),),
+        )
+
     if action_id.startswith("dataset:"):
+        resource_id, separator, action_name = action_id.removeprefix("dataset:").rpartition(":")
+        if not separator or not resource_id or action_name not in {"publish", "retire"}:
+            raise HTTPException(status_code=400, detail={"error": "invalid_action"})
         action = (
             CanonicalAction.DATASET_PUBLISH.value
-            if action_id == "dataset:publish"
+            if action_name == "publish"
             else CanonicalAction.DATASET_WRITE.value
         )
         resource_type = "dataset"
-        keys = ("dataset_id", "table_id", "table_name")
-        if action_id != "dataset:publish":
-            resource_id, separator, _action_name = action_id.removeprefix("dataset:").rpartition(
-                ":"
-            )
-            if not separator or not resource_id:
-                raise HTTPException(status_code=400, detail={"error": "invalid_action"})
-            bind_identity("dataset_id", resource_id)
+        keys = ("dataset_id",)
+        bind_identity("dataset_id", resource_id)
+    elif action_id.startswith("candidate:"):
+        resource_id, separator, action_name = action_id.removeprefix("candidate:").rpartition(":")
+        if not separator or not resource_id or action_name not in {"claim", "promote", "reject"}:
+            raise HTTPException(status_code=400, detail={"error": "invalid_action"})
+        action = CanonicalAction.DATASET_WRITE.value
+        resource_type = "dataset"
+        keys = ("table_id",)
+        bind_identity("table_id", resource_id)
     elif action_id.startswith("asset:"):
         resource_id, separator, _action_name = action_id.removeprefix("asset:").rpartition(":")
         if not separator or not resource_id:
@@ -701,7 +813,13 @@ async def _specialize_operation(request: Request, spec: OperationSpec) -> Operat
             bind_identity("action_id", action_id)
 
     request.state._phlo_security_body_override = body
-    return replace(spec, action=action, resource_type=resource_type, resource_keys=keys)
+    return replace(
+        spec,
+        action=action,
+        resource_type=resource_type,
+        resource_keys=keys,
+        resource_sources=tuple((key, "body") for key in keys),
+    )
 
 
 async def _validate_request_payload(request: Request, spec: OperationSpec) -> None:

@@ -16,6 +16,7 @@ Core enforcement must NOT import FastAPI, Click, or Dagster/Starlette types.
 
 from __future__ import annotations
 
+import os
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -113,10 +114,23 @@ class EnforcementContext:
     def _init_authorization_backend(self) -> None:
         """Initialize the authorization backend."""
         from phlo.capabilities import resolve_capability
+        from phlo.infrastructure.config import get_api_authorization_config
 
-        result = resolve_capability("authorization_policy_backend")
+        configured_name = os.environ.get("PHLO_AUTHORIZATION_BACKEND", "").strip()
+        if not configured_name:
+            config = get_api_authorization_config()
+            configured_name = config.backend.strip() if config and config.backend else ""
+
+        result = resolve_capability(
+            "authorization_policy_backend",
+            configured_name or None,
+        )
         if result is None:
-            msg = "No authorization_policy_backend registered"
+            msg = (
+                "Configured authorization_policy_backend is missing or ambiguous"
+                if configured_name
+                else "No authorization_policy_backend is configured"
+            )
             raise RuntimeError(msg)
         self._authorization_backend = result.provider
 
@@ -154,16 +168,11 @@ class EnforcementContext:
         return self._audit_emitter
 
     def canonicalize(self, auth_principal: Any) -> Principal:
-        """Canonicalize an AuthPrincipal, preserving an existing Principal.
+        """Canonicalize only a validated AuthPrincipal via the identity bridge."""
+        from phlo.capabilities.interfaces import AuthPrincipal
 
-        Surface adapters may already have an explicitly canonical ``Principal``.
-        Passing that value through keeps the shared enforcement contract honest;
-        every other identity must cross the configured AuthPrincipal bridge.
-        """
-        from phlo.capabilities.interfaces import Principal
-
-        if isinstance(auth_principal, Principal):
-            return auth_principal
+        if not isinstance(auth_principal, AuthPrincipal):
+            raise TypeError("Core enforcement requires an AuthPrincipal")
         return self.identity_bridge.canonicalize(auth_principal)
 
 
