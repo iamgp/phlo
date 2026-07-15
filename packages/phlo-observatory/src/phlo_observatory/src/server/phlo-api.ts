@@ -10,6 +10,7 @@ const PHLO_API_URL = process.env.PHLO_API_URL || 'http://localhost:4000'
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 interface RequestOptions {
+  authorization?: string
   method?: HttpMethod
   params?: Record<string, string | number | boolean | undefined>
   body?: unknown
@@ -23,7 +24,13 @@ async function request<T>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = 'GET', params, body, timeoutMs = 30000 } = options
+  const {
+    authorization,
+    method = 'GET',
+    params,
+    body,
+    timeoutMs = 30000,
+  } = options
 
   const url = new URL(`${PHLO_API_URL}${endpoint}`)
   if (params) {
@@ -34,10 +41,14 @@ async function request<T>(
     }
   }
 
+  const headers = new Headers()
+  const hasHeaders = Boolean(authorization) || body !== undefined
+  if (authorization) headers.set('Authorization', authorization)
+  if (body !== undefined) headers.set('Content-Type', 'application/json')
+
   const response = await fetch(url.toString(), {
     method,
-    headers:
-      body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    headers: hasHeaders ? headers : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(timeoutMs),
   })
@@ -57,8 +68,9 @@ export async function apiGet<T>(
   endpoint: string,
   params?: Record<string, string | number | boolean | undefined>,
   timeoutMs = 30000,
+  authorization?: string,
 ): Promise<T> {
-  return request<T>(endpoint, { params, timeoutMs })
+  return request<T>(endpoint, { authorization, params, timeoutMs })
 }
 
 /**

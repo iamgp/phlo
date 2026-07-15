@@ -1,7 +1,72 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+type ServerFnBuilderMock = {
+  middleware: (middlewares: Array<RequestMiddleware>) => ServerFnBuilderMock
+  inputValidator: <TInputValidator>(
+    inputValidator: TInputValidator,
+  ) => ServerFnBuilderMock
+  handler: <THandler>(handler: THandler) => THandler
+}
+
+type RequestMiddleware = (options: {
+  next: (options?: { context?: Record<string, unknown> }) => unknown
+  request: Request
+}) => unknown
+
+type ServerFnOptions = {
+  data: unknown
+  headers?: HeadersInit
+}
+
 const apiGet = vi.fn()
 const apiPost = vi.fn()
+
+vi.mock('@tanstack/react-start', () => ({
+  createMiddleware: () => ({
+    server: <THandler>(handler: THandler): THandler => handler,
+  }),
+  createServerFn: () => {
+    const middlewares: Array<RequestMiddleware> = []
+    let validateInput = (input: unknown): unknown => input
+    const builder: ServerFnBuilderMock = {
+      middleware: (registered) => {
+        middlewares.push(...registered)
+        return builder
+      },
+      inputValidator: (validator) => {
+        validateInput = validator as (input: unknown) => unknown
+        return builder
+      },
+      handler: (handler) =>
+        ((options: ServerFnOptions) => {
+          const invokeHandler = handler as unknown as (context: {
+            context: Record<string, unknown>
+            data: unknown
+          }) => unknown
+          let context: Record<string, unknown> = {}
+          const invokeMiddleware = (index: number): unknown => {
+            if (index === middlewares.length) {
+              return invokeHandler({
+                context,
+                data: validateInput(options.data),
+              })
+            }
+            return middlewares[index]({
+              request: new Request('https://observatory.example.test', {
+                headers: options.headers,
+              }),
+              next: (nextOptions = {}) => {
+                context = { ...context, ...nextOptions.context }
+                return invokeMiddleware(index + 1)
+              },
+            })
+          }
+          return invokeMiddleware(0)
+        }) as unknown as typeof handler,
+    }
+    return builder
+  },
+}))
 
 vi.mock('@/server/phlo-api', () => ({
   apiGet,
@@ -50,6 +115,158 @@ describe('observatory dataset resources', () => {
       undefined,
       8000,
     )
+  })
+
+  it('forwards the signed-in operator bearer credential to the run report API', async () => {
+    apiGet.mockResolvedValue({
+      schema_version: 1,
+      project_id: 'finance',
+      run_id: 'daily-orders',
+      attempt: 2,
+      lifecycle: { run: null, events: [] },
+      stages: [],
+      inputs: [],
+      staging: [],
+      outputs: [],
+      lineage: [],
+      transformations: [],
+      quality: [],
+      iceberg_snapshots: [],
+      catalog_changes: [],
+      artifacts: [],
+      terminal_outcome: null,
+      gaps: [],
+    })
+
+    const { getObservatoryRunReport } = await import('./resources')
+    const result = await getObservatoryRunReport({
+      data: { projectId: 'finance', runId: 'daily-orders', attempt: '2' },
+      headers: {
+        authorization: 'Bearer operator-token',
+        'x-unrelated-header': 'must-not-reach-phlo-api',
+      },
+    })
+
+    expect(result).toMatchObject({
+      data: { attempt: 2 },
+      error: null,
+    })
+    expect(apiGet).toHaveBeenCalledWith(
+      '/api/observatory/projects/finance/runs/daily-orders/attempts/2/report',
+      undefined,
+      8000,
+      'Bearer operator-token',
+    )
+  })
+
+  it('does not forward non-Bearer or unrelated request headers', async () => {
+    apiGet.mockResolvedValue({
+      schema_version: 1,
+      project_id: 'finance',
+      run_id: 'daily-orders',
+      attempt: 2,
+      lifecycle: { run: null, events: [] },
+      stages: [],
+      inputs: [],
+      staging: [],
+      outputs: [],
+      lineage: [],
+      transformations: [],
+      quality: [],
+      iceberg_snapshots: [],
+      catalog_changes: [],
+      artifacts: [],
+      terminal_outcome: null,
+      gaps: [],
+    })
+
+    const { getObservatoryRunReport } = await import('./resources')
+    await getObservatoryRunReport({
+      data: { projectId: 'finance', runId: 'daily-orders', attempt: 2 },
+      headers: {
+        authorization: 'Basic should-not-forward',
+        'x-unrelated-header': 'must-not-reach-phlo-api',
+      },
+    })
+
+    expect(apiGet).toHaveBeenCalledWith(
+      '/api/observatory/projects/finance/runs/daily-orders/attempts/2/report',
+      undefined,
+      8000,
+      undefined,
+    )
+  })
+
+  it.each([401, 403])(
+    'classifies report %i failures without changing the API contract',
+    async (status) => {
+      apiGet.mockRejectedValue(new Error(`phlo-api error: ${status} Forbidden`))
+
+      const { getObservatoryRunReport } = await import('./resources')
+      const result = await getObservatoryRunReport({
+        data: { projectId: 'finance', runId: 'daily-orders', attempt: 2 },
+        headers: { authorization: 'Bearer operator-token' },
+      })
+
+      expect(result).toEqual({
+        data: null,
+        error:
+          'Access denied: this account cannot read the requested run report.',
+        errorCode: 'access_denied',
+      })
+    },
+  )
+
+  it.each([
+    null,
+    'finance/daily-orders/2',
+    [],
+    { attempt: 2, projectId: 1, runId: 'daily-orders' },
+    { attempt: 2, projectId: 'finance', runId: null },
+    { attempt: '1e2', projectId: 'finance', runId: 'daily-orders' },
+    {
+      attempt: Number.MAX_SAFE_INTEGER + 1,
+      projectId: 'finance',
+      runId: 'daily-orders',
+    },
+    {
+      attempt: '9007199254740992',
+      projectId: 'finance',
+      runId: 'daily-orders',
+    },
+    { attempt: 0, projectId: 'finance', runId: 'daily-orders' },
+    { attempt: -1, projectId: 'finance', runId: 'daily-orders' },
+  ])(
+    'rejects invalid run report input %o before calling the API',
+    async (data) => {
+      const { getObservatoryRunReport } = await import('./resources')
+      const result = await getObservatoryRunReport({ data })
+
+      expect(result).toEqual({
+        data: null,
+        error:
+          'Enter a project, run, and positive attempt number to open a report.',
+        errorCode: 'invalid_request',
+      })
+      expect(apiGet).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not expose unexpected upstream failure details', async () => {
+    apiGet.mockRejectedValue(
+      new Error('phlo-api error: 500 internal token=secret'),
+    )
+
+    const { getObservatoryRunReport } = await import('./resources')
+    const result = await getObservatoryRunReport({
+      data: { projectId: 'finance', runId: 'daily-orders', attempt: 2 },
+    })
+
+    expect(result).toEqual({
+      data: null,
+      error: 'The run report request failed. Please try again.',
+      errorCode: 'request_failed',
+    })
   })
 
   it('creates workflow proposals through the server API during SSR', async () => {
