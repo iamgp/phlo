@@ -38,6 +38,18 @@ from phlo.run_evidence.reconciliation import (
 )
 from phlo.run_evidence.redaction import canonical_json, payload_checksum, redact_payload
 
+_REPORT_ORDER_BY = {
+    "pipeline_run": "attempt",
+    "run_event": "sequence IS NULL, sequence, observed_at, event_id, producer",
+    "run_stage": "started_at IS NULL, started_at, stage_id",
+    "run_resource": "role, normalized_identity, resource_id",
+    "run_lineage_edge": "source, target, lineage_edge_id",
+    "run_quality_result": "check_id, quality_result_id",
+    "run_catalog_change": "catalog_ref, operation, catalog_change_id",
+    "run_artifact": "artifact_kind, artifact_id",
+    "run_reconciliation_decision": "decided_at, decision_id",
+}
+
 
 class IdempotencyConflict(ValueError):
     """A producer reused an event identity with different content."""
@@ -166,6 +178,28 @@ class _SqlRunEvidenceStore:
             finally:
                 cursor.close()
                 self._close_connection(connection)
+
+    @contextmanager
+    def _read_transaction(self) -> Iterator[tuple[Any, Any]]:
+        """Open one consistent read snapshot for a report projection."""
+        self._ensure_schema()
+        with self._lock:
+            connection = self._connect()
+            cursor = connection.cursor()
+            try:
+                if self.placeholder == "?":
+                    cursor.execute("BEGIN")
+                else:
+                    cursor.execute("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+                yield connection, cursor
+            finally:
+                try:
+                    connection.rollback()
+                finally:
+                    try:
+                        cursor.close()
+                    finally:
+                        self._close_connection(connection)
 
     def _ensure_schema(self) -> None:
         if self._initialized:
@@ -620,7 +654,7 @@ class _SqlRunEvidenceStore:
             cursor.execute(
                 f"SELECT * FROM {self._table('run_reconciliation_decision')} "
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
-                "ORDER BY decided_at, id",
+                f"ORDER BY {_REPORT_ORDER_BY['run_reconciliation_decision']}",
                 (project_id, run_id),
             )
             return [
@@ -628,27 +662,99 @@ class _SqlRunEvidenceStore:
                 for row in cursor.fetchall()
             ]
 
-    def get_run(self, project_id: str, run_id: str) -> dict[str, Any] | None:
+    def read_run_attempt(
+        self, project_id: str, run_id: str, attempt: int
+    ) -> dict[str, list[dict[str, Any]] | dict[str, Any] | None]:
+        """Read every report family from one transaction snapshot."""
+        attempt = _positive_attempt(attempt)
+        with self._read_transaction() as (_, cursor):
+            run = self._select_snapshot_rows(
+                cursor, "pipeline_run", project_id, run_id, attempt, "attempt"
+            )
+            result: dict[str, list[dict[str, Any]] | dict[str, Any] | None] = {
+                "run": run[0] if run else None
+            }
+            for family, table in (
+                ("events", "run_event"),
+                ("stages", "run_stage"),
+                ("resources", "run_resource"),
+                ("lineage", "run_lineage_edge"),
+                ("quality", "run_quality_result"),
+                ("catalog_changes", "run_catalog_change"),
+                ("artifacts", "run_artifact"),
+            ):
+                result[family] = self._select_snapshot_rows(
+                    cursor, table, project_id, run_id, attempt, _REPORT_ORDER_BY[table]
+                )
+            result["reconciliation"] = self._select_snapshot_rows(
+                cursor,
+                "run_reconciliation_decision",
+                project_id,
+                run_id,
+                attempt,
+                _REPORT_ORDER_BY["run_reconciliation_decision"],
+            )
+            return result
+
+    def _select_snapshot_rows(
+        self,
+        cursor: Any,
+        table: str,
+        project_id: str,
+        run_id: str,
+        attempt: int,
+        order_by: str,
+    ) -> list[dict[str, Any]]:
+        cursor.execute(
+            f"SELECT * FROM {self._table(table)} "
+            f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+            f"AND attempt = {self.placeholder} ORDER BY {order_by}",
+            (project_id, run_id, attempt),
+        )
+        return [self._row_dict(cursor, row, table=table) for row in cursor.fetchall()]
+
+    def get_run(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> dict[str, Any] | None:
         with self._transaction() as (_, cursor):
+            where = f"project_id = {self.placeholder} AND run_id = {self.placeholder}"
+            params: tuple[Any, ...] = (project_id, run_id)
+            if attempt is not None:
+                attempt = _positive_attempt(attempt)
+                where += f" AND attempt = {self.placeholder}"
+                params += (attempt,)
             cursor.execute(
-                f"SELECT * FROM {self._table('pipeline_run')} "
-                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
-                (project_id, run_id),
+                f"SELECT * FROM {self._table('pipeline_run')} WHERE {where}",
+                params,
             )
             row = cursor.fetchone()
             if row is None:
                 return None
             return self._row_dict(cursor, row, table="pipeline_run")
 
-    def list_events(self, project_id: str, run_id: str) -> list[dict[str, Any]]:
+    def list_events(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> list[dict[str, Any]]:
         with self._transaction() as (_, cursor):
+            where = f"project_id = {self.placeholder} AND run_id = {self.placeholder}"
+            params: tuple[Any, ...] = (project_id, run_id)
+            if attempt is not None:
+                attempt = _positive_attempt(attempt)
+                where += f" AND attempt = {self.placeholder}"
+                params += (attempt,)
             cursor.execute(
                 f"SELECT * FROM {self._table('run_event')} "
-                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
-                "ORDER BY observed_at, id",
-                (project_id, run_id),
+                f"WHERE {where} "
+                f"ORDER BY {_REPORT_ORDER_BY['run_event']}",
+                params,
             )
             return [self._row_dict(cursor, row, table="run_event") for row in cursor.fetchall()]
+
+    def list_stages(
+        self, project_id: str, run_id: str, *, attempt: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Return stages in deterministic execution order for one attempt."""
+        return self._list_attempt_records("run_stage", project_id, run_id, attempt=attempt)
 
     def count_events(self, project_id: str, run_id: str) -> int:
         with self._transaction() as (_, cursor):
@@ -685,7 +791,13 @@ class _SqlRunEvidenceStore:
         return self._list_attempt_records("run_lineage_edge", project_id, run_id, attempt=attempt)
 
     def _list_attempt_records(
-        self, table: str, project_id: str, run_id: str, *, attempt: int | None
+        self,
+        table: str,
+        project_id: str,
+        run_id: str,
+        *,
+        attempt: int | None,
+        order_by: str | None = None,
     ) -> list[dict[str, Any]]:
         if attempt is not None:
             attempt = _positive_attempt(attempt)
@@ -694,9 +806,10 @@ class _SqlRunEvidenceStore:
         if attempt is not None:
             where += f" AND attempt = {self.placeholder}"
             params += (attempt,)
+        order_by = order_by or _REPORT_ORDER_BY.get(table, "record_checksum")
         with self._transaction() as (_, cursor):
             cursor.execute(
-                f"SELECT * FROM {self._table(table)} WHERE {where} ORDER BY record_checksum",
+                f"SELECT * FROM {self._table(table)} WHERE {where} ORDER BY {order_by}",
                 params,
             )
             return [self._row_dict(cursor, row, table=table) for row in cursor.fetchall()]

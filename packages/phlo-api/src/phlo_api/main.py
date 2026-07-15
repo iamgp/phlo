@@ -70,6 +70,7 @@ _ROUTERS = [
     ("phlo_api.api.observability", "/api/observability"),
     ("phlo_api.observatory_api.loki", "/api/loki"),
     ("phlo_api.observatory_api.observatory", "/api/observatory"),
+    ("phlo_api.observatory_api.run_report", "/api/observatory"),
 ]
 
 _OBSERVATORY_ROUTERS_NO_PREFIX: list[str] = []

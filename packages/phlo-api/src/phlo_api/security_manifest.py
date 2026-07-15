@@ -265,6 +265,12 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_keys=("run_id",),
     ),
     *_specs(
+        ("get_observatory_run_report",),
+        action=CanonicalAction.RUN_READ.value,
+        resource_type="run",
+        resource_keys=("project_id", "run_id", "attempt"),
+    ),
+    *_specs(
         ("post_observatory_run_retry", "post_observatory_run_cancel"),
         action=CanonicalAction.RUN_MANAGE.value,
         resource_type="run",

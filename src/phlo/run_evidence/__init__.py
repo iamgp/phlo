@@ -29,6 +29,12 @@ from phlo.run_evidence.reconciliation import (
     RunReconciler,
     normalize_status,
 )
+from phlo.run_evidence.report import (
+    RunReport,
+    RunReportNotFound,
+    RunReportStore,
+    build_run_report,
+)
 from phlo.run_evidence.store import (
     IdempotencyConflict,
     PostgresRunEvidenceStore,
@@ -52,6 +58,10 @@ __all__ = [
     "RunObservation",
     "RunReconciler",
     "normalize_status",
+    "RunReportNotFound",
+    "RunReportStore",
+    "RunReport",
+    "build_run_report",
     "IdempotencyConflict",
     "PipelineRun",
     "PostgresRunEvidenceStore",

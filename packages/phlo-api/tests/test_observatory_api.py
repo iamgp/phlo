@@ -15,6 +15,7 @@ from phlo.capabilities.registry import CapabilityRegistry
 from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
 from security_test_support import authenticated_client
+from phlo.run_evidence import PipelineRun, RunEvent, RunStage, SQLiteRunEvidenceStore
 from phlo_api.observatory_api import observatory
 from phlo_api.observatory_api import observatory_services
 from phlo_api.observatory_api.observatory import (
@@ -61,6 +62,78 @@ _PROVIDER_URL_SETTING_NAMES = (
     "trinourl",
     "nessieurl",
 )
+
+
+def test_authenticated_run_report_isolated_by_attempt_and_path_identity(
+    monkeypatch, tmp_path
+) -> None:
+    database = tmp_path / "run-evidence.sqlite"
+    store = SQLiteRunEvidenceStore(database)
+    store.append_pipeline_run(PipelineRun(project_id="project", run_id="run", attempt=2))
+    for attempt in (1, 2):
+        store.append_stage(
+            RunStage(
+                project_id="project",
+                run_id="run",
+                stage_id=f"stage-{attempt}",
+                stage_type="ingest",
+                attempt=attempt,
+            )
+        )
+        store.append_event(
+            RunEvent(
+                project_id="project",
+                run_id="run",
+                event_id=f"event-{attempt}",
+                event_type="run.terminal",
+                producer="test",
+                payload={"status": "success"},
+                attempt=attempt,
+            )
+        )
+    monkeypatch.setenv("PHLO_RUN_EVIDENCE_SQLITE_PATH", str(database))
+
+    response = authenticated_client("viewer").get(
+        "/api/observatory/projects/project/runs/run/attempts/1/report"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["attempt"] == 1
+    assert [stage["stage_id"] for stage in response.json()["stages"]] == ["stage-1"]
+
+    assert (
+        TestClient(app)
+        .get("/api/observatory/projects/project/runs/run/attempts/1/report")
+        .status_code
+        == 401
+    )
+    for path in (
+        "/api/observatory/projects/other/runs/run/attempts/1/report",
+        "/api/observatory/projects/project/runs/other/attempts/1/report",
+        "/api/observatory/projects/project/runs/run/attempts/3/report",
+    ):
+        assert authenticated_client("viewer").get(path).status_code == 404
+
+    class _DenyBackend:
+        def explain_decision(self, *_args, **_kwargs):  # noqa: ANN002, ANN003
+            from phlo.capabilities.interfaces import AuthorizationDecision
+
+            return AuthorizationDecision(
+                allowed=False,
+                reason_code="default_deny",
+                policy_id=None,
+                explanation="denied by test",
+            )
+
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.get_authorization_backend", lambda: _DenyBackend()
+    )
+    assert (
+        authenticated_client("viewer")
+        .get("/api/observatory/projects/project/runs/run/attempts/1/report")
+        .status_code
+        == 403
+    )
 
 
 class _FakeOrchestratorOperations:

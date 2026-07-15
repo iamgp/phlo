@@ -86,6 +86,12 @@ def test_read_surfaces_use_their_specific_canonical_actions() -> None:
     assert HTTP_ROUTE_MANIFEST["get_observatory_settings"].action == "settings.read"
     assert HTTP_ROUTE_MANIFEST["get_observatory_dataset_workflow_config"].action == "settings.read"
     assert HTTP_ROUTE_MANIFEST["get_observatory_search"].action == "admin.read"
+    assert HTTP_ROUTE_MANIFEST["get_observatory_run_report"].action == "run.read"
+    assert HTTP_ROUTE_MANIFEST["get_observatory_run_report"].resource_keys == (
+        "project_id",
+        "run_id",
+        "attempt",
+    )
     assert HTTP_ROUTE_MANIFEST["get_observatory_row_journey"].resource_keys == (
         "table_id",
         "row_id",
