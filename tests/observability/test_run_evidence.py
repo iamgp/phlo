@@ -51,6 +51,7 @@ from phlo.run_evidence import (
 from phlo.run_evidence.emit import emit_observation
 from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 from phlo.run_evidence.redaction import canonical_json, payload_checksum
+from phlo.run_evidence.report import build_run_report
 from phlo.run_evidence.store import _catalog_checksum_payload, _resource_checksum_payload
 
 
@@ -96,6 +97,115 @@ def _make_sqlite_v2_store(path: Path) -> SQLiteRunEvidenceStore:
     store._connection.commit()
     store._initialized = True
     return store
+
+
+def test_run_report_is_attempt_scoped_and_marks_unproven_history_unavailable() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    store.append_pipeline_run(PipelineRun(project_id="project", run_id="run", attempt=2))
+    for attempt in (1, 2):
+        started = datetime(2026, 1, attempt, tzinfo=UTC)
+        store.append_stage(
+            RunStage(
+                project_id="project",
+                run_id="run",
+                stage_id=f"stage-{attempt}",
+                stage_type="transform",
+                attempt=attempt,
+                started_at=started,
+            )
+        )
+        store.append_resource(
+            RunResource(
+                project_id="project",
+                run_id="run",
+                resource_id=f"input-{attempt}",
+                role="input",
+                attempt=attempt,
+            )
+        )
+        store.append_event(
+            RunEvent(
+                project_id="project",
+                run_id="run",
+                event_id=f"terminal-{attempt}",
+                event_type="run.terminal",
+                producer="test",
+                payload={"status": "success", "attempt": attempt},
+                sequence=2,
+                attempt=attempt,
+            )
+        )
+
+    report = build_run_report(store, "project", "run", 1)
+
+    assert report.attempt == 1
+    assert [stage.stage_id for stage in report.stages] == ["stage-1"]
+    assert [event.event_id for event in report.lifecycle.events] == ["terminal-1"]
+    assert report.lifecycle.events[0].producer == "test"
+    assert [resource.resource_id for resource in report.inputs] == ["input-1"]
+    assert report.terminal_outcome is not None
+    assert report.terminal_outcome.status == "success"
+    assert any(gap.field == "historical_fields" for gap in report.gaps)
+
+
+def test_run_report_orders_cross_producer_events_and_redacts_legacy_locations() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    store.append_pipeline_run(
+        PipelineRun(
+            project_id="project",
+            run_id="run",
+            attempt=1,
+            failure_summary="password=secret",
+        )
+    )
+    observed_at = datetime(2026, 1, 1, tzinfo=UTC)
+    for producer in ("zeta", "alpha"):
+        store.append_event(
+            RunEvent(
+                project_id="project",
+                run_id="run",
+                event_id="shared",
+                event_type="stage.finished",
+                producer=producer,
+                payload={},
+                observed_at=observed_at,
+                sequence=1,
+                attempt=1,
+            )
+        )
+    store.append_resource(
+        RunResource(
+            project_id="project",
+            run_id="run",
+            resource_id="staged",
+            role="staged",
+            attempt=1,
+            uri="s3://access_token=secret/data",
+            staged_objects=[{"identity": "s3://client_secret=secret/staged", "checksum": "abc"}],
+        )
+    )
+    store.append_artifact(
+        RunArtifact(
+            project_id="project",
+            run_id="run",
+            artifact_id="report",
+            artifact_kind="report",
+            attempt=1,
+            uri="https://example.test/report?token=secret",
+        )
+    )
+
+    rows = store.read_run_attempt("project", "run", 1)
+    assert [event["producer"] for event in rows["events"]] == ["alpha", "zeta"]
+    report = build_run_report(store, "project", "run", 1)
+    assert [event.producer for event in report.lifecycle.events] == ["alpha", "zeta"]
+    assert report.lifecycle.run is not None
+    assert report.lifecycle.run.failure_summary == "password=<redacted>"
+    assert report.staging[0].staged_objects == (
+        {"identity": "s3://client_secret=<redacted>/staged", "checksum": "abc"},
+    )
+    assert report.staging[0].uri == "s3://access_token=<redacted>/data"
+    assert report.artifacts[0].uri == "https://example.test/report?token=<redacted>"
 
 
 def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
