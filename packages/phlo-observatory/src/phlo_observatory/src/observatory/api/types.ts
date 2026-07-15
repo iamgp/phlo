@@ -4,11 +4,7 @@ export type ObservatoryMetadata = Record<string, NonNullable<unknown>>
 type ObservatoryRecord = Record<string, NonNullable<unknown>>
 
 export type ObservatoryServiceStatus =
-  | 'running'
-  | 'stopped'
-  | 'unhealthy'
-  | 'starting'
-  | 'unknown'
+  'running' | 'stopped' | 'unhealthy' | 'starting' | 'unknown'
 
 interface ObservatoryHealth {
   state: ObservatoryHealthState
@@ -154,11 +150,7 @@ export interface ObservatoryDataset {
 }
 
 export type ObservatoryControlStatus =
-  | 'pass'
-  | 'fail'
-  | 'warning'
-  | 'unknown'
-  | 'not_applicable'
+  'pass' | 'fail' | 'warning' | 'unknown' | 'not_applicable'
 
 export interface ObservatoryControlEvidence {
   kind: string
@@ -422,12 +414,7 @@ export interface ObservatoryOperationDetail {
 }
 
 type ObservatoryRunStatus =
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'cancelled'
-  | 'unknown'
+  'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 
 export interface ObservatoryRun {
   id: string
@@ -440,6 +427,141 @@ export interface ObservatoryRun {
   checks: Array<ObservatoryResourceRef>
   logs: Array<ObservatoryResourceRef>
   metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryReportGap {
+  field: string
+  status: string
+  reason: string
+}
+
+export interface ObservatoryReportEvent {
+  event_id: string
+  producer: string
+  event_type: string
+  observed_at?: string | null
+  sequence?: number | null
+  payload_checksum?: string | null
+}
+
+export interface ObservatoryReportStage {
+  stage_id: string
+  stage_type: string
+  provider?: string | null
+  tool?: string | null
+  asset?: string | null
+  status: string
+  started_at?: string | null
+  finished_at?: string | null
+  error_fingerprint?: string | null
+}
+
+export interface ObservatoryReportResource {
+  resource_id: string
+  resource_kind: string
+  role: string
+  normalized_identity?: string | null
+  uri?: string | null
+  table_name?: string | null
+  catalog?: string | null
+  ref_name?: string | null
+  schema_hash?: string | null
+  record_count?: number | null
+  byte_count?: number | null
+  staged_objects: Array<Record<string, string | number | boolean | null>>
+  snapshot_before?: string | null
+  snapshot_after?: string | null
+}
+
+export interface ObservatoryReportLineage {
+  lineage_edge_id: string
+  source: string
+  target: string
+  origin: string
+  derivation: string
+}
+
+export interface ObservatoryReportQuality {
+  quality_result_id: string
+  check_id: string
+  asset?: string | null
+  stage_id?: string | null
+  severity?: string | null
+  blocking: boolean
+  passed: boolean
+  evaluated_count?: number | null
+  failed_count?: number | null
+  failure_artifact_id?: string | null
+}
+
+export interface ObservatoryReportCatalogChange {
+  catalog_change_id: string
+  catalog_ref?: string | null
+  content_key?: string | null
+  operation: string
+  source_hash?: string | null
+  target_hash?: string | null
+  commit_hash?: string | null
+  merge_outcome?: string | null
+  snapshot_before?: string | null
+  snapshot_after?: string | null
+  metadata: Record<string, string | number | boolean | null>
+}
+
+export interface ObservatoryReportArtifact {
+  artifact_id: string
+  artifact_kind: string
+  uri?: string | null
+  content_type?: string | null
+  checksum?: string | null
+  expires_at?: string | null
+  legal_hold: boolean
+  status: string
+}
+
+export interface ObservatoryReportRun {
+  project_id: string
+  run_id: string
+  pipeline_name?: string | null
+  provider_run_id?: string | null
+  attempt: number
+  status: string
+  started_at?: string | null
+  finished_at?: string | null
+  failure_summary?: string | null
+  evidence_completeness: string
+}
+
+export interface ObservatoryReportLifecycle {
+  run?: ObservatoryReportRun | null
+  events: Array<ObservatoryReportEvent>
+}
+
+export interface ObservatoryReportTerminalOutcome {
+  status: string
+  source: string
+  evidence_id: string
+  observed_at?: string | null
+}
+
+export interface ObservatoryRunReport {
+  schema_version: number
+  project_id: string
+  run_id: string
+  attempt: number
+  lifecycle: ObservatoryReportLifecycle
+  stages: Array<ObservatoryReportStage>
+  inputs: Array<ObservatoryReportResource>
+  staging: Array<ObservatoryReportResource>
+  outputs: Array<ObservatoryReportResource>
+  lineage: Array<ObservatoryReportLineage>
+  transformations: Array<ObservatoryReportStage>
+  quality: Array<ObservatoryReportQuality>
+  iceberg_snapshots: Array<ObservatoryReportResource>
+  catalog_changes: Array<ObservatoryReportCatalogChange>
+  artifacts: Array<ObservatoryReportArtifact>
+  terminal_outcome?: ObservatoryReportTerminalOutcome | null
+  gaps: Array<ObservatoryReportGap>
 }
 
 export interface ObservatoryAsset {

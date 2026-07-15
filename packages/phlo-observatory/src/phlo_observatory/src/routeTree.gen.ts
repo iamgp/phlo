@@ -38,6 +38,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsNewRouteImport } from './routes/workflows/new'
 import { Route as ExtensionsExtensionIdRouteImport } from './routes/extensions/$extensionId'
 import { Route as DatasetsDatasetIdRouteImport } from './routes/datasets.$datasetId'
+import { Route as RunsProjectIdRunIdAttemptsAttemptReportRouteImport } from './routes/runs.$projectId.$runId.attempts.$attempt.report'
 
 const WorkspaceRoute = WorkspaceRouteImport.update({
   id: '/workspace',
@@ -184,6 +185,12 @@ const DatasetsDatasetIdRoute = DatasetsDatasetIdRouteImport.update({
   path: '/$datasetId',
   getParentRoute: () => DatasetsRoute,
 } as any)
+const RunsProjectIdRunIdAttemptsAttemptReportRoute =
+  RunsProjectIdRunIdAttemptsAttemptReportRouteImport.update({
+    id: '/$projectId/$runId/attempts/$attempt/report',
+    path: '/$projectId/$runId/attempts/$attempt/report',
+    getParentRoute: () => RunsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -205,7 +212,7 @@ export interface FileRoutesByFullPath {
   '/queries': typeof QueriesRoute
   '/query-history': typeof QueryHistoryRoute
   '/recents': typeof RecentsRoute
-  '/runs': typeof RunsRoute
+  '/runs': typeof RunsRouteWithChildren
   '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
@@ -215,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
+  '/runs/$projectId/$runId/attempts/$attempt/report': typeof RunsProjectIdRunIdAttemptsAttemptReportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -236,7 +244,7 @@ export interface FileRoutesByTo {
   '/queries': typeof QueriesRoute
   '/query-history': typeof QueryHistoryRoute
   '/recents': typeof RecentsRoute
-  '/runs': typeof RunsRoute
+  '/runs': typeof RunsRouteWithChildren
   '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
@@ -246,6 +254,7 @@ export interface FileRoutesByTo {
   '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
+  '/runs/$projectId/$runId/attempts/$attempt/report': typeof RunsProjectIdRunIdAttemptsAttemptReportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -268,7 +277,7 @@ export interface FileRoutesById {
   '/queries': typeof QueriesRoute
   '/query-history': typeof QueryHistoryRoute
   '/recents': typeof RecentsRoute
-  '/runs': typeof RunsRoute
+  '/runs': typeof RunsRouteWithChildren
   '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
@@ -278,6 +287,7 @@ export interface FileRoutesById {
   '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
+  '/runs/$projectId/$runId/attempts/$attempt/report': typeof RunsProjectIdRunIdAttemptsAttemptReportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
+    | '/runs/$projectId/$runId/attempts/$attempt/report'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
+    | '/runs/$projectId/$runId/attempts/$attempt/report'
   id:
     | '__root__'
     | '/'
@@ -373,6 +385,7 @@ export interface FileRouteTypes {
     | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
+    | '/runs/$projectId/$runId/attempts/$attempt/report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -395,7 +408,7 @@ export interface RootRouteChildren {
   QueriesRoute: typeof QueriesRoute
   QueryHistoryRoute: typeof QueryHistoryRoute
   RecentsRoute: typeof RecentsRoute
-  RunsRoute: typeof RunsRoute
+  RunsRoute: typeof RunsRouteWithChildren
   SearchRoute: typeof SearchRoute
   ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
@@ -610,6 +623,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DatasetsDatasetIdRouteImport
       parentRoute: typeof DatasetsRoute
     }
+    '/runs/$projectId/$runId/attempts/$attempt/report': {
+      id: '/runs/$projectId/$runId/attempts/$attempt/report'
+      path: '/$projectId/$runId/attempts/$attempt/report'
+      fullPath: '/runs/$projectId/$runId/attempts/$attempt/report'
+      preLoaderRoute: typeof RunsProjectIdRunIdAttemptsAttemptReportRouteImport
+      parentRoute: typeof RunsRoute
+    }
   }
 }
 
@@ -637,6 +657,17 @@ const ExtensionsRouteWithChildren = ExtensionsRoute._addFileChildren(
   ExtensionsRouteChildren,
 )
 
+interface RunsRouteChildren {
+  RunsProjectIdRunIdAttemptsAttemptReportRoute: typeof RunsProjectIdRunIdAttemptsAttemptReportRoute
+}
+
+const RunsRouteChildren: RunsRouteChildren = {
+  RunsProjectIdRunIdAttemptsAttemptReportRoute:
+    RunsProjectIdRunIdAttemptsAttemptReportRoute,
+}
+
+const RunsRouteWithChildren = RunsRoute._addFileChildren(RunsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
@@ -657,7 +688,7 @@ const rootRouteChildren: RootRouteChildren = {
   QueriesRoute: QueriesRoute,
   QueryHistoryRoute: QueryHistoryRoute,
   RecentsRoute: RecentsRoute,
-  RunsRoute: RunsRoute,
+  RunsRoute: RunsRouteWithChildren,
   SearchRoute: SearchRoute,
   ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,

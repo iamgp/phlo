@@ -1,4 +1,4 @@
-import { createServerFn } from '@tanstack/react-start'
+import { createMiddleware, createServerFn } from '@tanstack/react-start'
 
 import type {
   ObservatoryActionResult,
@@ -28,6 +28,7 @@ import type {
   ObservatoryResourceResult,
   ObservatoryRowJourney,
   ObservatoryRun,
+  ObservatoryRunReport,
   ObservatoryRuntimeSettings,
   ObservatorySavedQuery,
   ObservatorySearchResult,
@@ -44,6 +45,21 @@ import type {
 import { apiGet, apiPost } from '@/server/phlo-api'
 
 const Observatory_API_PREFIX = '/api/observatory'
+
+function bearerAuthorization(value: string | null): string | undefined {
+  if (value === null) return undefined
+  return /^Bearer\s+\S+$/i.test(value) ? value : undefined
+}
+
+const observatoryReportAuthorization = createMiddleware({
+  type: 'request',
+}).server(({ next, request }) =>
+  next({
+    context: {
+      authorization: bearerAuthorization(request.headers.get('authorization')),
+    },
+  }),
+)
 
 declare global {
   interface Window {
@@ -360,6 +376,76 @@ export async function getObservatoryOperationDetailDirect({
 export function getObservatoryRunRecords() {
   return getRawCollection<ObservatoryRun>('runs')
 }
+
+export type ObservatoryRunReportErrorCode =
+  'access_denied' | 'not_found' | 'request_failed' | 'invalid_request'
+
+export type ObservatoryRunReportResult =
+  ObservatoryResourceResult<ObservatoryRunReport> & {
+    errorCode?: ObservatoryRunReportErrorCode
+  }
+
+export const getObservatoryRunReport = createServerFn()
+  .middleware([observatoryReportAuthorization])
+  .inputValidator(
+    (input: { projectId: string; runId: string; attempt: string | number }) =>
+      input,
+  )
+  .handler(
+    async ({
+      data: { projectId, runId, attempt: rawAttempt },
+      context,
+    }): Promise<ObservatoryRunReportResult> => {
+      const attempt =
+        typeof rawAttempt === 'number' ? rawAttempt : Number(rawAttempt)
+      if (
+        !projectId.trim() ||
+        !runId.trim() ||
+        !Number.isInteger(attempt) ||
+        attempt < 1
+      ) {
+        return {
+          data: null,
+          error:
+            'Enter a project, run, and positive attempt number to open a report.',
+          errorCode: 'invalid_request',
+        }
+      }
+
+      try {
+        const data = await apiGet<ObservatoryRunReport>(
+          `${Observatory_API_PREFIX}/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/attempts/${attempt}/report`,
+          undefined,
+          8000,
+          context.authorization,
+        )
+        return { data, error: null }
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Lakehouse API is unavailable'
+        const status = Number(message.match(/\b([45]\d{2})\b/)?.[1])
+        if (status === 401 || status === 403) {
+          return {
+            data: null,
+            error:
+              'Access denied: this account cannot read the requested run report.',
+            errorCode: 'access_denied',
+          }
+        }
+        if (status === 404) {
+          return {
+            data: null,
+            error:
+              'No report was found for the requested project, run, and attempt.',
+            errorCode: 'not_found',
+          }
+        }
+        return { data: null, error: message, errorCode: 'request_failed' }
+      }
+    },
+  )
 
 export function getObservatoryStorageItems() {
   return getRawCollection<ObservatorySurfaceItem>('storage')
