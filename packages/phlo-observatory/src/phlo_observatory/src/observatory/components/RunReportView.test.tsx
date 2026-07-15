@@ -3,8 +3,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { ObservatoryRunReport } from '@/observatory/api/types'
 import { RunReportView } from './RunReportView'
+import type { ObservatoryRunReport } from '@/observatory/api/types'
 
 const request = { projectId: 'finance', runId: 'daily-orders', attempt: '2' }
 
