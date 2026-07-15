@@ -87,7 +87,9 @@ function ReportContent({ report }: { report: ObservatoryRunReport }) {
     report.staging.length === 0 &&
     report.outputs.length === 0 &&
     report.lineage.length === 0 &&
+    report.transformations.length === 0 &&
     report.quality.length === 0 &&
+    report.iceberg_snapshots.length === 0 &&
     report.catalog_changes.length === 0 &&
     report.artifacts.length === 0 &&
     !report.terminal_outcome

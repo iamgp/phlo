@@ -95,6 +95,35 @@ describe('RunReportView', () => {
       screen.getByText('failure-artifact · report · available'),
     ).toBeTruthy()
   })
+
+  it.each([
+    [
+      'transformation-only evidence',
+      () => ({
+        ...emptyReport(),
+        transformations: [populatedReport().stages[0]],
+      }),
+      'Transformations',
+    ],
+    [
+      'Iceberg-only evidence',
+      () => ({
+        ...emptyReport(),
+        iceberg_snapshots: [resource('output', 'orders_gold')],
+      }),
+      'Iceberg snapshots',
+    ],
+  ])('renders %s instead of the empty state', (_, report, evidenceLabel) => {
+    render(
+      <RunReportView
+        request={request}
+        result={{ data: report(), error: null }}
+      />,
+    )
+
+    expect(screen.queryByText('No attempt-scoped evidence recorded')).toBeNull()
+    expect(screen.getByText(evidenceLabel)).toBeTruthy()
+  })
 })
 
 function emptyReport(): ObservatoryRunReport {

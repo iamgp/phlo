@@ -378,74 +378,100 @@ export function getObservatoryRunRecords() {
 }
 
 export type ObservatoryRunReportErrorCode =
-  'access_denied' | 'not_found' | 'request_failed' | 'invalid_request'
+  | 'access_denied'
+  | 'not_found'
+  | 'request_failed'
+  | 'invalid_request'
 
 export type ObservatoryRunReportResult =
   ObservatoryResourceResult<ObservatoryRunReport> & {
     errorCode?: ObservatoryRunReportErrorCode
   }
 
+type ObservatoryRunReportInput = {
+  attempt: number
+  projectId: string
+  runId: string
+}
+
+function parseObservatoryRunReportInput(
+  input: unknown,
+): ObservatoryRunReportInput | null {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null
+
+  const { attempt, projectId, runId } = input as Record<string, unknown>
+  if (
+    typeof projectId !== 'string' ||
+    !projectId.trim() ||
+    typeof runId !== 'string' ||
+    !runId.trim()
+  ) {
+    return null
+  }
+
+  const parsedAttempt =
+    typeof attempt === 'number'
+      ? attempt
+      : typeof attempt === 'string' && /^[1-9]\d*$/.test(attempt)
+        ? Number(attempt)
+        : Number.NaN
+  if (!Number.isSafeInteger(parsedAttempt) || parsedAttempt < 1) return null
+
+  return { attempt: parsedAttempt, projectId, runId }
+}
+
 export const getObservatoryRunReport = createServerFn()
   .middleware([observatoryReportAuthorization])
-  .inputValidator(
-    (input: { projectId: string; runId: string; attempt: string | number }) =>
-      input,
-  )
-  .handler(
-    async ({
-      data: { projectId, runId, attempt: rawAttempt },
-      context,
-    }): Promise<ObservatoryRunReportResult> => {
-      const attempt =
-        typeof rawAttempt === 'number' ? rawAttempt : Number(rawAttempt)
-      if (
-        !projectId.trim() ||
-        !runId.trim() ||
-        !Number.isInteger(attempt) ||
-        attempt < 1
-      ) {
+  .inputValidator(parseObservatoryRunReportInput)
+  .handler(async ({ data, context }): Promise<ObservatoryRunReportResult> => {
+    if (!data) {
+      return {
+        data: null,
+        error:
+          'Enter a project, run, and positive attempt number to open a report.',
+        errorCode: 'invalid_request',
+      }
+    }
+
+    const { attempt, projectId, runId } = data
+
+    try {
+      const data = await apiGet<ObservatoryRunReport>(
+        `${Observatory_API_PREFIX}/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/attempts/${attempt}/report`,
+        undefined,
+        8000,
+        context.authorization,
+      )
+      return { data, error: null }
+    } catch (error) {
+      const status = Number(
+        error instanceof Error
+          ? error.message.match(/^phlo-api error: (401|403|404)\b/)?.[1]
+          : undefined,
+      )
+      if (status === 401 || status === 403) {
         return {
           data: null,
           error:
-            'Enter a project, run, and positive attempt number to open a report.',
-          errorCode: 'invalid_request',
+            'Access denied: this account cannot read the requested run report.',
+          errorCode: 'access_denied',
         }
       }
-
-      try {
-        const data = await apiGet<ObservatoryRunReport>(
-          `${Observatory_API_PREFIX}/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/attempts/${attempt}/report`,
-          undefined,
-          8000,
-          context.authorization,
-        )
-        return { data, error: null }
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Lakehouse API is unavailable'
-        const status = Number(message.match(/\b([45]\d{2})\b/)?.[1])
-        if (status === 401 || status === 403) {
-          return {
-            data: null,
-            error:
-              'Access denied: this account cannot read the requested run report.',
-            errorCode: 'access_denied',
-          }
+      if (status === 404) {
+        return {
+          data: null,
+          error:
+            'No report was found for the requested project, run, and attempt.',
+          errorCode: 'not_found',
         }
-        if (status === 404) {
-          return {
-            data: null,
-            error:
-              'No report was found for the requested project, run, and attempt.',
-            errorCode: 'not_found',
-          }
-        }
-        return { data: null, error: message, errorCode: 'request_failed' }
       }
-    },
-  )
+      return {
+        data: null,
+        error: 'The run report request failed. Please try again.',
+        errorCode: 'request_failed',
+      }
+    }
+  })
 
 export function getObservatoryStorageItems() {
   return getRawCollection<ObservatorySurfaceItem>('storage')

@@ -27,12 +27,16 @@ vi.mock('@tanstack/react-start', () => ({
   }),
   createServerFn: () => {
     const middlewares: Array<RequestMiddleware> = []
+    let validateInput = (input: unknown): unknown => input
     const builder: ServerFnBuilderMock = {
       middleware: (registered) => {
         middlewares.push(...registered)
         return builder
       },
-      inputValidator: () => builder,
+      inputValidator: (validator) => {
+        validateInput = validator as (input: unknown) => unknown
+        return builder
+      },
       handler: (handler) =>
         ((options: ServerFnOptions) => {
           const invokeHandler = handler as unknown as (context: {
@@ -42,7 +46,10 @@ vi.mock('@tanstack/react-start', () => ({
           let context: Record<string, unknown> = {}
           const invokeMiddleware = (index: number): unknown => {
             if (index === middlewares.length) {
-              return invokeHandler({ context, data: options.data })
+              return invokeHandler({
+                context,
+                data: validateInput(options.data),
+              })
             }
             return middlewares[index]({
               request: new Request('https://observatory.example.test', {
@@ -209,6 +216,58 @@ describe('observatory dataset resources', () => {
       })
     },
   )
+
+  it.each([
+    null,
+    'finance/daily-orders/2',
+    [],
+    { attempt: 2, projectId: 1, runId: 'daily-orders' },
+    { attempt: 2, projectId: 'finance', runId: null },
+    { attempt: '1e2', projectId: 'finance', runId: 'daily-orders' },
+    {
+      attempt: Number.MAX_SAFE_INTEGER + 1,
+      projectId: 'finance',
+      runId: 'daily-orders',
+    },
+    {
+      attempt: '9007199254740992',
+      projectId: 'finance',
+      runId: 'daily-orders',
+    },
+    { attempt: 0, projectId: 'finance', runId: 'daily-orders' },
+    { attempt: -1, projectId: 'finance', runId: 'daily-orders' },
+  ])(
+    'rejects invalid run report input %o before calling the API',
+    async (data) => {
+      const { getObservatoryRunReport } = await import('./resources')
+      const result = await getObservatoryRunReport({ data })
+
+      expect(result).toEqual({
+        data: null,
+        error:
+          'Enter a project, run, and positive attempt number to open a report.',
+        errorCode: 'invalid_request',
+      })
+      expect(apiGet).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not expose unexpected upstream failure details', async () => {
+    apiGet.mockRejectedValue(
+      new Error('phlo-api error: 500 internal token=secret'),
+    )
+
+    const { getObservatoryRunReport } = await import('./resources')
+    const result = await getObservatoryRunReport({
+      data: { projectId: 'finance', runId: 'daily-orders', attempt: 2 },
+    })
+
+    expect(result).toEqual({
+      data: null,
+      error: 'The run report request failed. Please try again.',
+      errorCode: 'request_failed',
+    })
+  })
 
   it('creates workflow proposals through the server API during SSR', async () => {
     const proposal = workflowProposal()
