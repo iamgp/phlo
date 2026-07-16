@@ -287,6 +287,16 @@ def _safe_table_state(
         return unavailable_table_state(phase=phase, error_type=type(exc).__name__)
 
 
+def _retention_state_evidence(plan: dict[str, Any]) -> dict[str, object]:
+    """Extract table-state evidence without implying an exact expiry set."""
+    return {
+        "snapshot_id": plan.get("before_snapshot_id"),
+        "snapshot_count": plan.get("snapshot_count"),
+        "file_count": plan.get("file_count"),
+        "total_size_bytes": plan.get("total_size_bytes"),
+    }
+
+
 @dataclass
 class IcebergResource:
     """Resource wrapper for Iceberg REST catalog operations.
@@ -1299,9 +1309,10 @@ class IcebergResource:
             "unavailable_fields": [*unavailable_fields, "provider_version"],
             "max_affected_objects": max_affected_objects,
             "max_affected_bytes": max_affected_bytes,
-            "snapshot_guard": "fresh_table_metadata_only",
+            "snapshot_guard": "provider_preflight_non_atomic",
             "trino_boundary": "pending",
-            "execution_support": "unsupported_without_bound_deletion_set",
+            "execution_support": "guarded_non_atomic_threshold_execution",
+            "retain_last_guarantee": "provider_unsupported_not_enforced",
             "observed_at_ms": int(datetime.now(UTC).timestamp() * 1000),
         }
         plan["plan_token"] = _maintenance_plan_token(plan)
@@ -1468,12 +1479,9 @@ class IcebergResource:
         max_affected_objects: int | None,
         max_affected_bytes: int | None,
         operation_id: str | None,
+        executor: MaintenanceExecutor | None = None,
     ) -> dict[str, object]:
-        """Validate an execute request and return a blocked result.
-
-        The v1 provider boundary has no operation that can bind the complete
-        planned deletion surface, so this method deliberately never submits SQL.
-        """
+        """Revalidate a retention plan before a guarded provider submission."""
         plan = cast(dict[str, Any], plan)
         plan_token = str(plan["plan_token"])
 
@@ -1541,20 +1549,212 @@ class IcebergResource:
                 "concurrent_change_detected",
                 "The table changed after planning; obtain a fresh dry-run.",
             )
-        return self._retention_blocked(
-            operation=operation,
+        if operation != "expire_snapshots":
+            return self._retention_blocked(
+                operation=operation,
+                table_name=table_name,
+                ref=ref,
+                dry_run=False,
+                plan={**plan, "trino_boundary": "not_invoked"},
+                code="bounded_execution_unsupported",
+                message=(
+                    "The Trino retention procedure accepts only a threshold and cannot bind "
+                    "the provider deletion surface to this exact candidate and byte plan."
+                ),
+                operation_id=operation_id,
+                retry_safe=False,
+            )
+        if not plan.get("candidate_snapshots"):
+            return MaintenanceOperationResult(
+                operation=operation,
+                table_name=table_name,
+                ref=ref,
+                dry_run=False,
+                status=MaintenanceOperationState.NOOP,
+                accepted=True,
+                executed=False,
+                before_revision=expected,
+                planned={**plan, "trino_boundary": "not_invoked"},
+                evidence={"before": _retention_state_evidence(plan)},
+                operation_id=operation_id,
+                plan_token=plan_token,
+                retry_safe=True,
+            ).to_dict()
+        if executor is None:
+            return block(
+                "maintenance_executor_required",
+                "Snapshot expiry execute mode requires a ref-aware maintenance executor.",
+            )
+        return self._execute_snapshot_expiry(
+            table_name=table_name,
+            ref=ref,
+            plan=plan,
+            expected_snapshot_id=expected,
+            executor=executor,
+            operation_id=operation_id,
+        )
+
+    def _execute_snapshot_expiry(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        plan: dict[str, Any],
+        expected_snapshot_id: int,
+        executor: MaintenanceExecutor,
+        operation_id: str | None,
+    ) -> dict[str, object]:
+        """Submit threshold expiry and report its deliberately non-atomic evidence."""
+        before = _retention_state_evidence(plan)
+        try:
+            provider_result = executor.for_ref(ref).expire_snapshots_table(
+                table_name=table_name,
+                ref=ref,
+                expected_revision=expected_snapshot_id,
+                retention_hours=int(plan["retention_hours"]),
+                retain_last=int(plan["retain_last"]),
+                operation_id=operation_id,
+            )
+        except MaintenancePreconditionError as exc:
+            return self._retention_blocked(
+                operation="expire_snapshots",
+                table_name=table_name,
+                ref=ref,
+                dry_run=False,
+                plan={**plan, "trino_boundary": "not_invoked"},
+                code="provider_precondition_failed",
+                message=str(exc) or type(exc).__name__,
+                operation_id=operation_id,
+            )
+        except MaintenanceExecutionError as exc:
+            preflight_failed = exc.phase is MaintenanceExecutionPhase.PREFLIGHT
+            return MaintenanceOperationResult(
+                operation="expire_snapshots",
+                table_name=table_name,
+                ref=ref,
+                dry_run=False,
+                status=MaintenanceOperationState.FAILED,
+                accepted=not preflight_failed,
+                executed=not preflight_failed,
+                before_revision=expected_snapshot_id,
+                planned={
+                    **plan,
+                    "trino_boundary": "not_invoked" if preflight_failed else "submitted",
+                },
+                evidence={"before": before},
+                failure={
+                    **_compaction_failure(
+                        exc.cause,
+                        code=(
+                            "failed_before_submission"
+                            if preflight_failed
+                            else "outcome_unknown_after_submission"
+                        ),
+                        retryable=preflight_failed,
+                    ),
+                    "phase": exc.phase.value,
+                    "outcome": "not_submitted" if preflight_failed else "unknown",
+                },
+                operation_id=operation_id,
+                plan_token=str(plan["plan_token"]),
+                retry_safe=preflight_failed,
+            ).to_dict()
+        except Exception as exc:  # noqa: BLE001 - provider may have committed before the error surfaced
+            return MaintenanceOperationResult(
+                operation="expire_snapshots",
+                table_name=table_name,
+                ref=ref,
+                dry_run=False,
+                status=MaintenanceOperationState.FAILED,
+                accepted=True,
+                executed=True,
+                before_revision=expected_snapshot_id,
+                planned={**plan, "trino_boundary": "submitted"},
+                evidence={"before": before},
+                failure=_compaction_failure(
+                    exc,
+                    code="outcome_unknown_after_submission",
+                    retryable=False,
+                ),
+                operation_id=operation_id,
+                plan_token=str(plan["plan_token"]),
+                retry_safe=False,
+            ).to_dict()
+
+        try:
+            after_plan, _ = self._retention_metadata(
+                table_name=table_name,
+                ref=ref,
+                retention_hours=int(plan["retention_hours"]),
+                retain_last=int(plan["retain_last"]),
+                operation="expire_snapshots",
+                catalog=cast(str | None, plan.get("catalog")),
+                max_affected_objects=cast(int | None, plan.get("max_affected_objects")),
+                max_affected_bytes=cast(int | None, plan.get("max_affected_bytes")),
+            )
+        except Exception as exc:  # noqa: BLE001 - provider submission already returned
+            return MaintenanceOperationResult(
+                operation="expire_snapshots",
+                table_name=table_name,
+                ref=ref,
+                dry_run=False,
+                status=MaintenanceOperationState.FAILED,
+                accepted=True,
+                executed=True,
+                before_revision=expected_snapshot_id,
+                planned={**plan, "trino_boundary": "submitted"},
+                evidence={"before": before},
+                failure=_compaction_failure(
+                    exc,
+                    code="outcome_unknown_after_submission",
+                    retryable=False,
+                ),
+                operation_id=operation_id,
+                plan_token=str(plan["plan_token"]),
+                retry_safe=False,
+            ).to_dict()
+
+        after = _retention_state_evidence(after_plan)
+        return MaintenanceOperationResult(
+            operation="expire_snapshots",
             table_name=table_name,
             ref=ref,
             dry_run=False,
-            plan={**plan, "trino_boundary": "not_invoked"},
-            code="bounded_execution_unsupported",
-            message=(
-                "The Trino retention procedure accepts only a threshold and cannot bind "
-                "the provider deletion surface to this exact candidate and byte plan."
-            ),
+            status=MaintenanceOperationState.SUCCEEDED,
+            accepted=True,
+            executed=True,
+            before_revision=expected_snapshot_id,
+            after_revision=after_plan.get("before_snapshot_id"),
+            planned={
+                **plan,
+                "trino_boundary": "executed",
+                "execution_guarantee": "non_atomic_threshold_submission",
+                "retain_last_guarantee": "provider_unsupported_not_enforced",
+            },
+            affected={
+                "planned_candidate_snapshots": len(plan["candidate_snapshots"]),
+                "observed_snapshot_count_reduction": max(
+                    0,
+                    int(before.get("snapshot_count") or 0) - int(after.get("snapshot_count") or 0),
+                ),
+                "exact_deleted_snapshot_set": "unavailable",
+                "provider_deletion_surface": "threshold_not_bound_to_plan",
+            },
+            evidence={
+                "provider": {
+                    "catalog": provider_result.get("catalog"),
+                    "ref": provider_result.get("ref", ref),
+                    "sql": provider_result.get("sql"),
+                    "preflight": provider_result.get("preflight"),
+                    "retain_last": provider_result.get("retain_last"),
+                },
+                "before": before,
+                "after": after,
+            },
             operation_id=operation_id,
+            plan_token=str(plan["plan_token"]),
             retry_safe=False,
-        )
+        ).to_dict()
 
     def expire_snapshots(
         self,
@@ -1571,6 +1771,7 @@ class IcebergResource:
         max_affected_objects: int | None = None,
         max_affected_bytes: int | None = None,
         operation_id: str | None = None,
+        executor: MaintenanceExecutor | None = None,
     ) -> dict[str, object]:
         """Plan or execute guarded provider-neutral snapshot expiry."""
         branch = override_ref or self.ref
@@ -1651,6 +1852,7 @@ class IcebergResource:
             max_affected_objects=max_affected_objects,
             max_affected_bytes=max_affected_bytes,
             operation_id=operation_id,
+            executor=executor,
         )
 
     def cleanup_orphan_files(

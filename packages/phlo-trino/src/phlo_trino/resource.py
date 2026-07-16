@@ -285,6 +285,88 @@ class TrinoResource:
             "rows": rows,
         }
 
+    def expire_snapshots_table(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        expected_revision: str | int | None,
+        retention_hours: int,
+        retain_last: int,
+        operation_id: str | None = None,
+    ) -> dict[str, object]:
+        """Submit guarded, non-atomic Iceberg snapshot expiry through Trino.
+
+        The history read protects the selected catalog reference immediately
+        before submission, but Trino's threshold procedure cannot bind an exact
+        deletion set, serialize concurrent work on other Nessie references, or
+        enforce the caller's retain-last count.
+        """
+        parts = table_name.split(".")
+        if len(parts) != 2 or any(not _MAINTENANCE_IDENTIFIER.fullmatch(part) for part in parts):
+            raise MaintenancePreconditionError(
+                "Snapshot expiry table_name must be a namespace.table identifier containing only "
+                "letters, numbers, and underscores."
+            )
+        if retention_hours <= 0 or retain_last < 1:
+            raise MaintenancePreconditionError(
+                "Snapshot expiry requires positive retention_hours and retain_last."
+            )
+        requested_ref = ref or "main"
+        effective_ref = self._resolved_ref() or "main"
+        if effective_ref != requested_ref:
+            raise MaintenancePreconditionError(
+                f"Trino executor is configured for ref {effective_ref!r}, "
+                f"but snapshot expiry requested {requested_ref!r}"
+            )
+        history_relation = ".".join(
+            quote_identifier(part) for part in (*parts[:-1], f"{parts[-1]}$history")
+        )
+        try:
+            snapshot_rows = self.execute(
+                f"SELECT snapshot_id FROM {history_relation} "
+                "WHERE is_current_ancestor ORDER BY made_current_at DESC LIMIT 1"
+            )
+        except Exception as exc:  # noqa: BLE001 - no mutation was submitted
+            raise MaintenanceExecutionError(MaintenanceExecutionPhase.PREFLIGHT, exc) from exc
+        current_snapshot_id = int(snapshot_rows[0][0]) if snapshot_rows else None
+        if expected_revision != current_snapshot_id:
+            raise MaintenancePreconditionError(
+                "Iceberg snapshot changed before snapshot expiry: "
+                f"expected {expected_revision!r}, current {current_snapshot_id!r}"
+            )
+        relation = ".".join(quote_identifier(part) for part in parts)
+        sql = (
+            f"ALTER TABLE {relation} EXECUTE expire_snapshots("
+            f"retention_threshold => '{retention_hours}h')"
+        )
+        logger.info(
+            "trino_iceberg_snapshot_expiry_requested",
+            table_name=table_name,
+            ref=effective_ref,
+            catalog=self._resolved_catalog(),
+            retention_hours=retention_hours,
+            retain_last=retain_last,
+            operation_id=operation_id,
+        )
+        try:
+            rows = self.execute(sql)
+        except Exception as exc:  # noqa: BLE001 - DDL submission outcome is ambiguous
+            raise MaintenanceExecutionError(MaintenanceExecutionPhase.SUBMISSION, exc) from exc
+        return {
+            "table_name": table_name,
+            "ref": effective_ref,
+            "catalog": self._resolved_catalog(),
+            "sql": sql,
+            "preflight": {"snapshot_id": current_snapshot_id},
+            "retain_last": {
+                "requested": retain_last,
+                "enforced": False,
+                "reason": "trino_expire_snapshots_supports_retention_threshold_only",
+            },
+            "rows": rows,
+        }
+
     def read_dataframe(
         self,
         query: str | LogicalRelation,

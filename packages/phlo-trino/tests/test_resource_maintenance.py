@@ -81,6 +81,48 @@ def test_compaction_submission_failure_is_outcome_unknown() -> None:
     assert execute.call_count == 2
 
 
+def test_snapshot_expiry_checks_snapshot_and_submits_threshold_on_selected_ref() -> None:
+    resource, execute = _resource(ref="dev")
+
+    result = resource.expire_snapshots_table(
+        table_name="raw.events",
+        ref="dev",
+        expected_revision=41,
+        retention_hours=168,
+        retain_last=5,
+        operation_id="run-41",
+    )
+
+    assert result["ref"] == "dev"
+    assert result["catalog"] == "iceberg_dev"
+    assert result["preflight"] == {"snapshot_id": 41}
+    assert result["retain_last"] == {
+        "requested": 5,
+        "enforced": False,
+        "reason": "trino_expire_snapshots_supports_retention_threshold_only",
+    }
+    assert execute.call_args_list[1].args[0] == (
+        'ALTER TABLE "raw"."events" EXECUTE expire_snapshots(retention_threshold => \'168h\')'
+    )
+
+
+def test_snapshot_expiry_preflight_failure_never_submits() -> None:
+    resource, execute = _resource(ref="main")
+    execute.side_effect = RuntimeError("connection refused")
+
+    with pytest.raises(MaintenanceExecutionError) as raised:
+        resource.expire_snapshots_table(
+            table_name="raw.events",
+            ref="main",
+            expected_revision=41,
+            retention_hours=168,
+            retain_last=5,
+        )
+
+    assert raised.value.phase is MaintenanceExecutionPhase.PREFLIGHT
+    assert execute.call_count == 1
+
+
 def test_compaction_rejects_unsafe_identifier() -> None:
     resource = TrinoResource(ref="main")
 

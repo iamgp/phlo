@@ -315,6 +315,24 @@ class MaintenanceExecutor(Protocol):
         """Compact one table on the explicitly selected ref."""
         ...
 
+    def expire_snapshots_table(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        expected_revision: str | int | None,
+        retention_hours: int,
+        retain_last: int,
+        operation_id: str | None = None,
+    ) -> Any:
+        """Expire snapshots through the provider's selected reference.
+
+        The executor must preflight the supplied revision before submitting its
+        provider-specific statement. This is an optimistic, non-atomic guard;
+        it does not bind an exact deletion set or serialize other references.
+        """
+        ...
+
 
 @runtime_checkable
 class MaintenanceRetentionStore(Protocol):
@@ -334,6 +352,7 @@ class MaintenanceRetentionStore(Protocol):
         max_affected_objects: int | None = None,
         max_affected_bytes: int | None = None,
         operation_id: str | None = None,
+        executor: MaintenanceExecutor | None = None,
     ) -> dict[str, object]:
         """Plan or execute guarded snapshot expiration."""
         ...

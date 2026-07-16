@@ -8,6 +8,7 @@ import pytest
 from pyarrow.fs import FileType
 
 from phlo.capabilities import MaintenanceRetentionStore
+from phlo.capabilities import MaintenanceExecutionError, MaintenanceExecutionPhase
 import phlo_iceberg.resource as resource_module
 from phlo_iceberg.resource import (
     SAFE_MIN_RETENTION_HOURS,
@@ -207,7 +208,26 @@ def _plan(
     return result
 
 
-def test_real_snapshot_planner_protects_defaults_refs_and_executes_no_deletion(
+class _FakeSnapshotExpiryExecutor:
+    def __init__(self, result: dict[str, object] | Exception) -> None:
+        self.result = result
+        self.calls: list[dict[str, object]] = []
+
+    def for_ref(self, ref: str) -> "_FakeSnapshotExpiryExecutor":
+        assert ref == "main"
+        return self
+
+    def compact_table(self, **_: object) -> dict[str, object]:
+        raise AssertionError("snapshot expiry must not invoke compaction")
+
+    def expire_snapshots_table(self, **kwargs: object) -> dict[str, object]:
+        self.calls.append(kwargs)
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def test_real_snapshot_planner_requires_executor_for_execute(
     monkeypatch,
 ) -> None:
     resource, _ = _real_planner_resource(monkeypatch)
@@ -231,6 +251,7 @@ def test_real_snapshot_planner_protects_defaults_refs_and_executes_no_deletion(
     assert plan["affected_objects"] == 1
     assert plan["affected_bytes"] == 10
     assert plan["affected_objects_scope"] == "candidate_snapshots_only"
+    assert plan["retain_last_guarantee"] == "provider_unsupported_not_enforced"
 
     refused = resource.expire_snapshots(
         table_name="raw.events",
@@ -245,7 +266,7 @@ def test_real_snapshot_planner_protects_defaults_refs_and_executes_no_deletion(
     assert refused["status"] == "blocked"
     assert refused["accepted"] is False
     assert refused["executed"] is False
-    assert refused["failure"]["code"] == "bounded_execution_unsupported"
+    assert refused["failure"]["code"] == "maintenance_executor_required"
     assert refused["planned"]["trino_boundary"] == "not_invoked"
 
 
@@ -343,10 +364,133 @@ def test_snapshot_execute_blocks_when_provider_surface_exceeds_plan(monkeypatch)
     )
 
     assert result["status"] == "blocked"
-    assert result["failure"]["code"] == "bounded_execution_unsupported"
-    assert result["failure"]["retryable"] is False
-    assert result["retry_safe"] is False
+    assert result["failure"]["code"] == "maintenance_executor_required"
+    assert result["failure"]["retryable"] is True
+    assert result["retry_safe"] is True
     assert result["planned"]["trino_boundary"] == "not_invoked"
+
+
+def test_snapshot_execute_revalidates_plan_and_reports_non_atomic_evidence(monkeypatch) -> None:
+    resource = IcebergResource(ref="main")
+    before = _plan(candidates=[39])
+    before["snapshot_count"] = 8
+    before["file_count"] = 3
+    before["total_size_bytes"] = 110
+    before["plan_token"] = _maintenance_plan_token(before)
+    after = _plan()
+    after.update({"before_snapshot_id": 42, "snapshot_count": 7, "file_count": 2})
+    after["plan_token"] = _maintenance_plan_token(after)
+    plans = iter([before, dict(before), after])
+    monkeypatch.setattr(resource, "_retention_metadata", lambda **_: (next(plans), object()))
+    executor = _FakeSnapshotExpiryExecutor(
+        {
+            "catalog": "iceberg",
+            "ref": "main",
+            "sql": (
+                'ALTER TABLE "raw"."events" EXECUTE expire_snapshots(retention_threshold => \'168h\')'
+            ),
+            "preflight": {"snapshot_id": 41},
+            "retain_last": {
+                "requested": 5,
+                "enforced": False,
+                "reason": "trino_expire_snapshots_supports_retention_threshold_only",
+            },
+        }
+    )
+
+    planned = resource.expire_snapshots(table_name="raw.events", catalog="iceberg", dry_run=True)
+    result = resource.expire_snapshots(
+        table_name="raw.events",
+        catalog="iceberg",
+        dry_run=False,
+        expected_snapshot_id=41,
+        confirmation_token=planned["plan_token"],
+        max_affected_objects=10,
+        max_affected_bytes=1000,
+        executor=executor,
+    )
+
+    assert result["status"] == "succeeded"
+    assert executor.calls == [
+        {
+            "table_name": "raw.events",
+            "ref": "main",
+            "expected_revision": 41,
+            "retention_hours": 168,
+            "retain_last": 5,
+            "operation_id": None,
+        }
+    ]
+    assert result["planned"]["execution_guarantee"] == "non_atomic_threshold_submission"
+    assert result["planned"]["retain_last_guarantee"] == "provider_unsupported_not_enforced"
+    assert result["affected"]["exact_deleted_snapshot_set"] == "unavailable"
+    assert result["affected"]["observed_snapshot_count_reduction"] == 1
+    assert result["evidence"]["provider"]["preflight"] == {"snapshot_id": 41}
+    assert result["evidence"]["provider"]["retain_last"]["enforced"] is False
+    assert result["evidence"]["before"]["file_count"] == 3
+    assert result["evidence"]["after"]["file_count"] == 2
+
+
+def test_snapshot_execute_refuses_a_stale_plan_without_provider_submission(monkeypatch) -> None:
+    resource = IcebergResource(ref="main")
+    planned = _plan(candidates=[39])
+    planned["plan_token"] = _maintenance_plan_token(planned)
+    revalidated = dict(planned)
+    revalidated["before_snapshot_id"] = 42
+    revalidated["plan_token"] = _maintenance_plan_token(revalidated)
+    plans = iter([planned, revalidated])
+    monkeypatch.setattr(resource, "_retention_metadata", lambda **_: (next(plans), object()))
+    executor = _FakeSnapshotExpiryExecutor({})
+
+    dry_run = resource.expire_snapshots(table_name="raw.events", catalog="iceberg", dry_run=True)
+    result = resource.expire_snapshots(
+        table_name="raw.events",
+        catalog="iceberg",
+        dry_run=False,
+        expected_snapshot_id=41,
+        confirmation_token=dry_run["plan_token"],
+        max_affected_objects=10,
+        max_affected_bytes=1000,
+        executor=executor,
+    )
+
+    assert result["failure"]["code"] == "plan_token_invalid"
+    assert result["planned"]["before_snapshot_id"] == 42
+    assert result["planned"]["candidate_snapshots"]
+    assert executor.calls == []
+
+
+def test_snapshot_execute_retains_plan_on_preflight_and_submission_failures(monkeypatch) -> None:
+    resource = IcebergResource(ref="main")
+    plan = _plan(candidates=[39])
+    plan["plan_token"] = _maintenance_plan_token(plan)
+    monkeypatch.setattr(resource, "_retention_metadata", lambda **_: (plan, object()))
+
+    def execute_with(error: MaintenanceExecutionError) -> dict[str, object]:
+        return resource.expire_snapshots(
+            table_name="raw.events",
+            catalog="iceberg",
+            dry_run=False,
+            expected_snapshot_id=41,
+            confirmation_token=plan["plan_token"],
+            max_affected_objects=10,
+            max_affected_bytes=1000,
+            executor=_FakeSnapshotExpiryExecutor(error),
+        )
+
+    before_submit = execute_with(
+        MaintenanceExecutionError(MaintenanceExecutionPhase.PREFLIGHT, TimeoutError("timeout"))
+    )
+    after_submit = execute_with(
+        MaintenanceExecutionError(MaintenanceExecutionPhase.SUBMISSION, ConnectionError("reset"))
+    )
+
+    assert before_submit["failure"]["code"] == "failed_before_submission"
+    assert before_submit["executed"] is False
+    assert before_submit["planned"]["candidate_snapshots"]
+    assert after_submit["failure"]["code"] == "outcome_unknown_after_submission"
+    assert after_submit["executed"] is True
+    assert after_submit["planned"]["candidate_snapshots"]
 
 
 def test_retention_floor_cannot_be_weakened() -> None:

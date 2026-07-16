@@ -10,9 +10,9 @@ Configuration:
     - snapshot_retention_days: Age threshold for snapshot expiration
     - snapshot_retain_last: Minimum snapshots to preserve
     - orphan_retention_days: Age threshold for orphan file deletion
-    - dry_run: Plan-only mode; current retention execution is refused on the blessed provider boundary
-    - catalog, confirmation_token, confirmation_tokens: Plan-binding fields reserved for a future safe adapter
-    - max_affected_objects, max_affected_bytes: Finite limits validated against the plan before any future execution
+    - dry_run: Plan-only mode; snapshot execution requires an explicit plan token and executor
+    - catalog, confirmation_token, confirmation_tokens: Plan-binding fields for guarded snapshot expiry
+    - max_affected_objects, max_affected_bytes: Finite limits revalidated before provider submission
     - ref: Nessie branch reference (default: main)
     - table_allowlist: Optional restriction to specific tables
 
@@ -94,7 +94,7 @@ class MaintenanceConfig(dg.Config):
         snapshot_retention_days: Snapshot age threshold for expiration in days.
         snapshot_retain_last: Minimum number of snapshots to retain.
         orphan_retention_days: Orphan file age threshold for deletion in days.
-        dry_run: If ``True``, return a plan; current retention execution is refused on the blessed provider boundary.
+        dry_run: If ``True``, return a plan; snapshot execution is guarded and orphan cleanup is refused.
         catalog: Provider catalog used in plan evidence and future adapter validation.
         confirmation_token: Exact token returned by the dry-run plan.
         confirmation_tokens: Optional per-table confirmation tokens for multi-table execution.
@@ -227,6 +227,7 @@ def emit_maintenance_metrics(
     tables_processed: int,
     errors: int,
     snapshots_deleted: int | None = None,
+    total_candidate_snapshots: int | None = None,
     orphan_files: int | None = None,
     candidate_orphan_files: int | None = None,
     deleted_orphan_files: int | None = None,
@@ -242,6 +243,7 @@ def emit_maintenance_metrics(
         tables_processed: Number of tables processed.
         errors: Number of errors observed.
         snapshots_deleted: Optional number of deleted snapshots.
+        total_candidate_snapshots: Optional number of snapshot candidates planned.
         orphan_files: Optional number of orphan files processed.
         total_records: Optional total records affected.
         total_size_mb: Optional total data size affected in MB.

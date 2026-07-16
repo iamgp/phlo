@@ -2,16 +2,16 @@
 
 This module provides scheduled and on-demand maintenance operations for
 Apache Iceberg tables through Dagster jobs and ops. It handles retention
-planning, explicit execution refusal, and table statistics collection.
+planning, guarded snapshot-expiry execution, and table statistics collection.
 
 Maintenance Operations:
-    - expire_table_snapshots: Plan snapshot expiry; v1 destructive execution is refused
+    - expire_table_snapshots: Plan snapshot expiry and execute it with an explicit confirmation token
     - cleanup_orphan_files: Discover unreferenced files; v1 destructive execution is refused
     - collect_table_stats: Gather table metadata for monitoring and policy evaluation
 
 Jobs Provided:
     - iceberg_maintenance_job: Runs all maintenance operations
-    - expire_snapshots_job: Snapshot-expiry planning only
+    - expire_snapshots_job: Plan-first snapshot expiry
     - orphan_cleanup_job: Orphan-file discovery only
     - table_stats_job: Statistics collection only
 
@@ -19,8 +19,8 @@ Schedule:
     Default schedule runs full maintenance daily at 2 AM UTC (stopped by default).
 
 Safety Features:
-    - Planning mode by default; retention execution is refused on the blessed Trino boundary
-    - Explicit execution-refusal warnings in logs
+    - Planning mode by default; snapshot expiry requires a plan token and ref-aware executor
+    - Orphan cleanup remains planning-only
     - Table allowlist for targeted maintenance
     - Error collection and reporting without failing entire job
 
@@ -55,6 +55,7 @@ from typing import Any, cast
 import dagster as dg
 
 from phlo.capabilities import (
+    MaintenanceExecutor,
     MaintenanceRetentionStore,
     resolve_capability,
 )
@@ -84,6 +85,21 @@ def _load_maintenance_retention_store() -> MaintenanceRetentionStore:
             "Resolved table_store:iceberg does not implement the retention maintenance contract."
         )
     return store
+
+
+def _load_snapshot_expiry_executor() -> MaintenanceExecutor:
+    """Resolve the neutral ref-aware executor only for destructive expiry."""
+    resolution = resolve_capability("maintenance_executor")
+    if resolution is None:
+        raise RuntimeError(
+            "Snapshot expiry requires exactly one configured maintenance_executor capability."
+        )
+    executor = resolution.provider
+    if not isinstance(executor, MaintenanceExecutor):
+        raise RuntimeError(
+            "Resolved maintenance executor does not implement the snapshot-expiry contract."
+        )
+    return executor
 
 
 def _confirmation_token_for_table(config: MaintenanceConfig, table_name: str) -> str | None:
@@ -130,6 +146,8 @@ def _run_retention_resource_operation(
     if config.dry_run:
         return plan
     before_revision = cast(int | str | None, plan.get("before_revision"))
+    if operation == "expire_snapshots":
+        common["executor"] = _load_snapshot_expiry_executor()
     return method(
         **common,
         dry_run=False,
@@ -143,7 +161,7 @@ def expire_table_snapshots(
     context: dg.OpExecutionContext,
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
-    """Plan snapshot expiry, refusing destructive execution on the v1 boundary.
+    """Plan snapshot expiry and execute only with guarded, non-atomic evidence.
 
     Args:
         context: Dagster operation execution context.
@@ -516,7 +534,7 @@ def collect_table_stats(
     ),
 )
 def iceberg_maintenance_job():
-    """Plan retention operations without deletion, then collect table statistics.
+    """Plan retention operations, then collect table statistics.
 
     Args:
         None
@@ -534,10 +552,10 @@ def iceberg_maintenance_job():
 
 
 @dg.job(
-    description="Plan Iceberg snapshot expiry; destructive execution is refused",
+    description="Plan Iceberg snapshot expiry; execution requires an explicit plan token",
 )
 def expire_snapshots_job():
-    """Job that only plans snapshot expiry and refuses deletion.
+    """Job that plans snapshot expiry and accepts guarded execution requests.
 
     Args:
         None
