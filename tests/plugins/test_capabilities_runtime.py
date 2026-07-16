@@ -81,7 +81,44 @@ def test_maintenance_executor_protocol_is_provider_neutral() -> None:
                 "operation_id": operation_id,
             }
 
-    assert isinstance(DeltaLikeMaintenanceExecutor(), MaintenanceExecutor)
+        def expire_snapshots_table(
+            self,
+            *,
+            table_name: str,
+            ref: str,
+            expected_revision: str | int | None,
+            retention_hours: int,
+            retain_last: int,
+            operation_id: str | None = None,
+        ) -> dict[str, object]:
+            return {
+                "provider": "delta",
+                "table_name": table_name,
+                "ref": ref,
+                "expected_revision": expected_revision,
+                "retention_hours": retention_hours,
+                "retain_last": retain_last,
+                "operation_id": operation_id,
+            }
+
+    executor = DeltaLikeMaintenanceExecutor()
+    assert isinstance(executor, MaintenanceExecutor)
+    assert executor.expire_snapshots_table(
+        table_name="raw.events",
+        ref="main",
+        expected_revision=41,
+        retention_hours=168,
+        retain_last=5,
+        operation_id="op-1",
+    ) == {
+        "provider": "delta",
+        "table_name": "raw.events",
+        "ref": "main",
+        "expected_revision": 41,
+        "retention_hours": 168,
+        "retain_last": 5,
+        "operation_id": "op-1",
+    }
 
 
 def test_maintenance_operation_result_uses_neutral_revision_keys() -> None:
