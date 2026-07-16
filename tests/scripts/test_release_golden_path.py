@@ -73,6 +73,66 @@ def test_operator_install_uses_wheelhouse_and_not_editable_source(
     assert "." not in local_install
     assert local_install[-3:] == ["phlo", "phlo-dlt", "phlo-pandera"]
     assert "phlo[core-services]" in commands[-2]
+    assert all("--no-index" in install for install in commands if "phlo" in install)
+
+
+def test_project_install_uses_wheelhouse_and_not_editable_source(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = _config(tmp_path)
+    config.project_dir.mkdir()
+    commands: list[list[str]] = []
+    monkeypatch.setattr(release_golden_path, "run", lambda args, **_: commands.append(args))
+
+    release_golden_path.install_project_dependencies(config)
+
+    installs = [command for command in commands if command[0:3] == ["uv", "pip", "install"]]
+    assert len(installs) == 2
+    assert all("--no-index" in install for install in installs)
+    assert all("--find-links" in install for install in installs)
+    assert all("-e" not in install for install in installs)
+
+
+def test_dependency_wheel_targets_include_host_and_docker_linux() -> None:
+    targets = release_golden_path.dependency_wheel_targets()
+
+    assert targets
+    assert any("manylinux_2_17_x86_64" in target for target in targets)
+    assert any("3.12" in target and "cp312" in target for target in targets)
+
+
+def test_virtualenv_executables_use_windows_scripts_directory(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    operator_scripts = config.operator_env / "Scripts"
+    project_scripts = config.project_env / "Scripts"
+    operator_scripts.mkdir(parents=True)
+    project_scripts.mkdir(parents=True)
+    operator_python = operator_scripts / "python.exe"
+    operator_bin = operator_scripts / "phlo.exe"
+    project_python = project_scripts / "python.exe"
+    for executable in (operator_python, operator_bin, project_python):
+        executable.touch()
+
+    monkeypatch.setattr(release_golden_path.os, "name", "nt")
+
+    assert config.operator_python == operator_python
+    assert config.operator_bin == operator_bin
+    assert config.project_python == project_python
+
+
+def test_virtualenv_executables_use_unix_bin_directory(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    operator_bin = config.operator_env / "bin" / "phlo"
+    project_python = config.project_env / "bin" / "python"
+    operator_bin.parent.mkdir(parents=True)
+    project_python.parent.mkdir(parents=True)
+    operator_bin.touch()
+    project_python.touch()
+
+    monkeypatch.setattr(release_golden_path.os, "name", "posix")
+
+    assert config.operator_bin == operator_bin
+    assert config.project_python == project_python
 
 
 def test_existing_project_or_sibling_is_rejected_without_touching_it(
@@ -177,7 +237,9 @@ def test_align_project_name_binds_cli_lookup_to_owned_compose_project(tmp_path: 
     )
 
 
-def test_cleanup_only_tears_down_owned_compose_project(tmp_path: Path, monkeypatch) -> None:
+def test_cleanup_stops_cleans_container_files_and_tears_down_owned_compose_project(
+    tmp_path: Path, monkeypatch
+) -> None:
     config = _config(tmp_path)
     config.compose_file.parent.mkdir(parents=True)
     config.compose_file.write_text("services: {}\n", encoding="utf-8")
@@ -188,7 +250,20 @@ def test_cleanup_only_tears_down_owned_compose_project(tmp_path: Path, monkeypat
 
     assert errors == []
     assert commands == [
-        release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans")
+        release_golden_path.compose_command(config, "stop"),
+        release_golden_path.compose_command(
+            config,
+            "run",
+            "--rm",
+            "--no-deps",
+            "--user",
+            "root",
+            "dagster",
+            "rm",
+            "-rf",
+            "/app/.venv",
+        ),
+        release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans"),
     ]
     assert not config.project_dir.exists()
 
@@ -204,7 +279,11 @@ def test_cleanup_removes_owned_paths_when_compose_down_fails(tmp_path: Path, mon
     monkeypatch.setattr(
         release_golden_path,
         "run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("down failed")),
+        lambda args, **kwargs: (
+            (_ for _ in ()).throw(RuntimeError("down failed"))
+            if args[-3:] == ["down", "--volumes", "--remove-orphans"]
+            else None
+        ),
     )
 
     errors = release_golden_path.cleanup(
@@ -283,7 +362,7 @@ def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:
         "uv pip install --system --no-index --no-deps --reinstall --find-links"
     )
     dependency_install = dockerfile.index(
-        "uv pip install --system --prerelease explicit --find-links"
+        "uv pip install --system --no-index --prerelease explicit --find-links"
     )
     assert local_reinstall > dependency_install
     assert "- source: jvm.config" in trino_service
@@ -306,3 +385,4 @@ def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, m
 
     env_local = config.project_dir.joinpath(".phlo/.env.local").read_text()
     assert all(f"{name}=0\n" in env_local for name in release_golden_path.PORT_NAMES)
+    assert config.project_dir.joinpath(".phlo/wheelhouse/phlo.whl").read_text() == "wheel"

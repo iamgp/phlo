@@ -35,12 +35,44 @@ class RunConfig:
     partition: str = PARTITION
 
     @property
+    def operator_python(self) -> Path:
+        return venv_executable(self.operator_env, "python")
+
+    @property
     def operator_bin(self) -> Path:
-        return self.operator_env / "bin" / "phlo"
+        return venv_executable(self.operator_env, "phlo")
+
+    @property
+    def project_env(self) -> Path:
+        return self.project_dir / ".venv"
+
+    @property
+    def project_python(self) -> Path:
+        return venv_executable(self.project_env, "python")
 
     @property
     def compose_file(self) -> Path:
         return self.project_dir / ".phlo" / "docker-compose.yml"
+
+
+def venv_executable(environment: Path, executable: str) -> Path:
+    """Return a virtualenv executable path for the current platform."""
+    if os.name == "nt":
+        candidates = (
+            environment / "Scripts" / f"{executable}.exe",
+            environment / "Scripts" / executable,
+            environment / "bin" / executable,
+        )
+    else:
+        candidates = (
+            environment / "bin" / executable,
+            environment / "Scripts" / f"{executable}.exe",
+            environment / "Scripts" / executable,
+        )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
 
 
 def command(*parts: str) -> list[str]:
@@ -114,6 +146,88 @@ def build_wheelhouse(config: RunConfig) -> None:
         command("uv", "build", "--all-packages", "--wheel", "--out-dir", str(config.wheelhouse)),
         cwd=config.repo_root,
     )
+    with tempfile.NamedTemporaryFile(
+        prefix="phlo-wheelhouse-", suffix=".txt", delete=False
+    ) as handle:
+        requirements = Path(handle.name)
+    try:
+        run(
+            command(
+                "uv",
+                "export",
+                "--locked",
+                "--all-packages",
+                "--all-extras",
+                "--no-dev",
+                "--no-emit-workspace",
+                "--no-hashes",
+                "--format",
+                "requirements.txt",
+                "--output-file",
+                str(requirements),
+            ),
+            cwd=config.repo_root,
+        )
+        for target in dependency_wheel_targets():
+            run(
+                command(
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "download",
+                    "--disable-pip-version-check",
+                    "--only-binary=:all:",
+                    "--dest",
+                    str(config.wheelhouse),
+                    *target,
+                    "--requirement",
+                    str(requirements),
+                ),
+                cwd=config.repo_root,
+            )
+    finally:
+        requirements.unlink(missing_ok=True)
+
+
+def dependency_wheel_targets() -> tuple[tuple[str, ...], ...]:
+    """Return host and Docker Linux wheel targets for the built artifact set."""
+    if os.name == "nt":
+        host = (
+            "--platform",
+            "win_amd64",
+            "--python-version",
+            "3.11",
+            "--implementation",
+            "cp",
+            "--abi",
+            "cp311",
+        )
+    elif sys.platform == "darwin":
+        host = ("--python-version", "3.11", "--implementation", "cp", "--abi", "cp311")
+    else:
+        host = (
+            "--platform",
+            "manylinux_2_17_x86_64",
+            "--python-version",
+            "3.11",
+            "--implementation",
+            "cp",
+            "--abi",
+            "cp311",
+        )
+    docker = (
+        "--platform",
+        "manylinux_2_17_x86_64",
+        "--platform",
+        "manylinux_2_28_x86_64",
+        "--python-version",
+        "3.12",
+        "--implementation",
+        "cp",
+        "--abi",
+        "cp312",
+    )
+    return (host,) if host == docker else (host, docker)
 
 
 def install_operator(config: RunConfig) -> None:
@@ -124,7 +238,7 @@ def install_operator(config: RunConfig) -> None:
             "pip",
             "install",
             "--python",
-            str(config.operator_env / "bin" / "python"),
+            str(config.operator_python),
             "--no-index",
             "--no-deps",
             "--find-links",
@@ -139,7 +253,8 @@ def install_operator(config: RunConfig) -> None:
             "pip",
             "install",
             "--python",
-            str(config.operator_env / "bin" / "python"),
+            str(config.operator_python),
+            "--no-index",
             "--find-links",
             str(config.wheelhouse),
             "phlo[core-services]",
@@ -150,7 +265,7 @@ def install_operator(config: RunConfig) -> None:
     )
     force_local_install(
         config,
-        config.operator_env / "bin" / "python",
+        config.operator_python,
         "phlo",
         "phlo-dlt",
         "phlo-pandera",
@@ -183,15 +298,15 @@ def align_project_name(config: RunConfig) -> None:
 
 
 def install_project_dependencies(config: RunConfig) -> None:
-    project_env = config.project_dir / ".venv"
-    run(command("uv", "venv", str(project_env), "--python", "3.11"), cwd=config.project_dir)
+    run(command("uv", "venv", str(config.project_env), "--python", "3.11"), cwd=config.project_dir)
     run(
         command(
             "uv",
             "pip",
             "install",
             "--python",
-            str(project_env / "bin" / "python"),
+            str(config.project_python),
+            "--no-index",
             "--find-links",
             str(config.wheelhouse),
             "phlo-dlt",
@@ -201,7 +316,7 @@ def install_project_dependencies(config: RunConfig) -> None:
     )
     force_local_install(
         config,
-        project_env / "bin" / "python",
+        config.project_python,
         "phlo-dlt",
         "phlo-pandera",
     )
@@ -277,6 +392,28 @@ def cleanup(
 ) -> list[Exception]:
     errors: list[Exception] = []
     if config.compose_file.exists():
+        try:
+            run(compose_command(config, "stop"), cwd=config.project_dir)
+        except Exception as exc:
+            errors.append(exc)
+        try:
+            run(
+                compose_command(
+                    config,
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "--user",
+                    "root",
+                    "dagster",
+                    "rm",
+                    "-rf",
+                    "/app/.venv",
+                ),
+                cwd=config.project_dir,
+            )
+        except Exception as exc:
+            errors.append(exc)
         try:
             run(
                 compose_command(config, "down", "--volumes", "--remove-orphans"),
