@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import shutil
 import socket
@@ -284,6 +285,21 @@ def cleanup(
 ) -> list[Exception]:
     errors: list[Exception] = []
     if config.compose_file.exists():
+        with contextlib.suppress(Exception):
+            run(
+                compose_command(
+                    config,
+                    "exec",
+                    "--no-TTY",
+                    "--user",
+                    "root",
+                    "dagster",
+                    "rm",
+                    "-rf",
+                    "/app/.venv",
+                ),
+                cwd=config.project_dir,
+            )
         try:
             run(
                 compose_command(config, "down", "--volumes", "--remove-orphans"),

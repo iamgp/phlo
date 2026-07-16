@@ -133,7 +133,18 @@ def test_cleanup_only_targets_owned_compose_project(tmp_path: Path, monkeypatch)
 
     assert errors == []
     assert commands == [
-        release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans")
+        release_golden_path.compose_command(
+            config,
+            "exec",
+            "--no-TTY",
+            "--user",
+            "root",
+            "dagster",
+            "rm",
+            "-rf",
+            "/app/.venv",
+        ),
+        release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans"),
     ]
     assert not config.project_dir.exists()
 
