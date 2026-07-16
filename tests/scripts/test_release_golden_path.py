@@ -139,13 +139,13 @@ def test_cleanup_only_targets_owned_compose_project(tmp_path: Path, monkeypatch)
             "--no-TTY",
             "--user",
             "root",
-            "dagster",
+            service,
             "rm",
             "-rf",
             "/app/.venv",
-        ),
-        release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans"),
-    ]
+        )
+        for service in ("dagster", "dagster-daemon")
+    ] + [release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans")]
     assert not config.project_dir.exists()
 
 

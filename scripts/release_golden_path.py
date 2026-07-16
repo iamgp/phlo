@@ -285,21 +285,22 @@ def cleanup(
 ) -> list[Exception]:
     errors: list[Exception] = []
     if config.compose_file.exists():
-        with contextlib.suppress(Exception):
-            run(
-                compose_command(
-                    config,
-                    "exec",
-                    "--no-TTY",
-                    "--user",
-                    "root",
-                    "dagster",
-                    "rm",
-                    "-rf",
-                    "/app/.venv",
-                ),
-                cwd=config.project_dir,
-            )
+        for service in ("dagster", "dagster-daemon"):
+            with contextlib.suppress(Exception):
+                run(
+                    compose_command(
+                        config,
+                        "exec",
+                        "--no-TTY",
+                        "--user",
+                        "root",
+                        service,
+                        "rm",
+                        "-rf",
+                        "/app/.venv",
+                    ),
+                    cwd=config.project_dir,
+                )
         try:
             run(
                 compose_command(config, "down", "--volumes", "--remove-orphans"),
