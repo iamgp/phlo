@@ -66,19 +66,24 @@ def test_operator_install_uses_wheelhouse_and_not_editable_source(
     assert "phlo[core-services]" in commands[-2]
 
 
-def test_existing_project_dir_is_rejected_without_touching_it(tmp_path: Path, monkeypatch) -> None:
-    project = tmp_path / "project"
-    project.mkdir()
-    marker = project / "keep.txt"
-    marker.write_text("caller-owned\n", encoding="utf-8")
+def test_existing_project_or_sibling_is_rejected_without_touching_it(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(
         release_golden_path, "build_wheelhouse", lambda _: (_ for _ in ()).throw(AssertionError)
     )
+    for existing_name in ("project", "wheelhouse", "operator-env"):
+        case = tmp_path / existing_name
+        project = case / "project"
+        existing = project if existing_name == "project" else case / existing_name
+        existing.mkdir(parents=True)
+        marker = existing / "keep.txt"
+        marker.write_text("caller-owned\n", encoding="utf-8")
 
-    assert (
-        release_golden_path.main(["--repo-root", str(tmp_path), "--project-dir", str(project)]) == 2
-    )
-    assert marker.read_text(encoding="utf-8") == "caller-owned\n"
+        assert (
+            release_golden_path.main(["--repo-root", str(case), "--project-dir", str(project)]) == 2
+        )
+        assert marker.read_text(encoding="utf-8") == "caller-owned\n"
 
 
 def test_verify_rows_requires_a_positive_count(tmp_path: Path, monkeypatch) -> None:
@@ -124,12 +129,80 @@ def test_cleanup_only_targets_owned_compose_project(tmp_path: Path, monkeypatch)
     commands: list[list[str]] = []
     monkeypatch.setattr(release_golden_path, "run", lambda args, **_: commands.append(args))
 
-    release_golden_path.cleanup(config, owned_paths={config.project_dir})
+    errors = release_golden_path.cleanup(config, owned_paths={config.project_dir})
 
+    assert errors == []
     assert commands == [
         release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans")
     ]
     assert not config.project_dir.exists()
+
+
+def test_cleanup_removes_owned_paths_when_compose_down_fails(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    config.compose_file.parent.mkdir(parents=True)
+    config.compose_file.write_text("services: {}\n", encoding="utf-8")
+    wheelhouse = tmp_path / "wheelhouse"
+    operator_env = tmp_path / "operator-env"
+    wheelhouse.mkdir()
+    operator_env.mkdir()
+    monkeypatch.setattr(
+        release_golden_path,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("down failed")),
+    )
+
+    errors = release_golden_path.cleanup(
+        config,
+        owned_paths={config.project_dir, wheelhouse, operator_env},
+    )
+
+    assert [str(error) for error in errors] == ["down failed"]
+    assert not config.project_dir.exists()
+    assert not wheelhouse.exists()
+    assert not operator_env.exists()
+
+
+def test_runtime_error_returns_nonzero_without_masking_cleanup_failure(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    project = tmp_path / "project"
+
+    def fail_validation(config: release_golden_path.RunConfig) -> None:
+        config.project_dir.mkdir()
+        config.compose_file.parent.mkdir()
+        config.compose_file.write_text("services: {}\n", encoding="utf-8")
+        raise RuntimeError("validation failed")
+
+    monkeypatch.setattr(release_golden_path, "build_wheelhouse", fail_validation)
+    monkeypatch.setattr(
+        release_golden_path,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("down failed")),
+    )
+
+    result = release_golden_path.main(["--repo-root", str(tmp_path), "--project-dir", str(project)])
+
+    assert result == 1
+    assert not project.exists()
+    stderr = capsys.readouterr().err
+    assert "release golden path failed: validation failed" in stderr
+    assert "release golden path cleanup failed: down failed" in stderr
+
+
+def test_unexpected_exception_still_cleans_owned_paths(tmp_path: Path, monkeypatch) -> None:
+    project = tmp_path / "project"
+
+    def fail_unexpectedly(config: release_golden_path.RunConfig) -> None:
+        config.project_dir.mkdir()
+        raise ValueError("unexpected validation error")
+
+    monkeypatch.setattr(release_golden_path, "build_wheelhouse", fail_unexpectedly)
+
+    result = release_golden_path.main(["--repo-root", str(tmp_path), "--project-dir", str(project)])
+
+    assert result == 1
+    assert not project.exists()
 
 
 def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:

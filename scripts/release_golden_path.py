@@ -276,14 +276,32 @@ def verify_rows(config: RunConfig) -> None:
         raise RuntimeError(f"raw.events has no rows for partition {config.partition}")
 
 
-def cleanup(config: RunConfig, *, owned_paths: set[Path]) -> None:
+def cleanup(
+    config: RunConfig,
+    *,
+    owned_paths: set[Path],
+    temporary_root: Path | None = None,
+) -> list[Exception]:
+    errors: list[Exception] = []
     if config.compose_file.exists():
-        run(
-            compose_command(config, "down", "--volumes", "--remove-orphans"),
-            cwd=config.project_dir,
-        )
-    for path in sorted(owned_paths, key=lambda candidate: len(candidate.parts), reverse=True):
-        shutil.rmtree(path, ignore_errors=True)
+        try:
+            run(
+                compose_command(config, "down", "--volumes", "--remove-orphans"),
+                cwd=config.project_dir,
+            )
+        except Exception as exc:
+            errors.append(exc)
+    paths = set(owned_paths)
+    if temporary_root:
+        paths.add(temporary_root)
+    for path in sorted(paths, key=lambda candidate: len(candidate.parts), reverse=True):
+        try:
+            shutil.rmtree(path)
+        except FileNotFoundError:
+            pass
+        except Exception as exc:
+            errors.append(exc)
+    return errors
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -301,14 +319,21 @@ def main(argv: list[str] | None = None) -> int:
     temporary_root: Path | None = None
     if args.project_dir:
         project_dir = args.project_dir.resolve()
-        if project_dir.exists():
-            print(f"refusing to use existing project directory: {project_dir}", file=sys.stderr)
+        wheelhouse = project_dir.parent / "wheelhouse"
+        operator_env = project_dir.parent / "operator-env"
+        existing_paths = [path for path in (project_dir, wheelhouse, operator_env) if path.exists()]
+        if existing_paths:
+            print(
+                "refusing to use existing project artifacts: "
+                + ", ".join(str(path) for path in existing_paths),
+                file=sys.stderr,
+            )
             return 2
     else:
         temporary_root = Path(tempfile.mkdtemp(prefix=".phlo-release-golden-path-", dir=repo_root))
         project_dir = temporary_root / f"csv-batch-{os.getpid()}"
-    wheelhouse = project_dir.parent / "wheelhouse"
-    operator_env = project_dir.parent / "operator-env"
+        wheelhouse = project_dir.parent / "wheelhouse"
+        operator_env = project_dir.parent / "operator-env"
     owned_paths = {path for path in (project_dir, wheelhouse, operator_env) if not path.exists()}
     config = RunConfig(
         repo_root=repo_root,
@@ -319,6 +344,8 @@ def main(argv: list[str] | None = None) -> int:
         partition=args.partition,
     )
     project_dir.parent.mkdir(parents=True, exist_ok=True)
+    primary_error: Exception | None = None
+    cleanup_errors: list[Exception] = []
     try:
         build_wheelhouse(config)
         install_operator(config)
@@ -329,18 +356,26 @@ def main(argv: list[str] | None = None) -> int:
         start_stack(config)
         materialize_partition(config)
         verify_rows(config)
-        print("release golden path passed")
-        return 0
-    except (OSError, subprocess.CalledProcessError) as exc:
-        print(f"release golden path failed: {exc}", file=sys.stderr)
-        return 1
+    except Exception as exc:
+        primary_error = exc
     finally:
         if not args.keep_project:
-            cleanup(config, owned_paths=owned_paths)
-            if temporary_root:
-                shutil.rmtree(temporary_root, ignore_errors=True)
+            cleanup_errors = cleanup(
+                config,
+                owned_paths=owned_paths,
+                temporary_root=temporary_root,
+            )
         elif temporary_root:
             print(f"kept project at {project_dir}")
+
+    if primary_error:
+        print(f"release golden path failed: {primary_error}", file=sys.stderr)
+    for error in cleanup_errors:
+        print(f"release golden path cleanup failed: {error}", file=sys.stderr)
+    if primary_error or cleanup_errors:
+        return 1
+    print("release golden path passed")
+    return 0
 
 
 if __name__ == "__main__":
