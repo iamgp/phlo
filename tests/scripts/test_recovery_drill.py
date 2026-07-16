@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -16,14 +17,14 @@ SPEC.loader.exec_module(recovery_drill)
 
 
 def test_compose_uses_isolated_ports_and_supported_stack_images(tmp_path):
-    stack = recovery_drill.Stack("owned-drill", tmp_path / "source", 15432, 19000, 19120)
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
 
     compose = recovery_drill.compose_yaml(stack)
 
     assert "postgres:16-alpine" in compose
     assert "minio/minio:RELEASE.2025-09-07T16-13-09Z" in compose
     assert "ghcr.io/projectnessie/nessie:0.107.2" in compose
-    assert "127.0.0.1:15432:5432" in compose
+    assert "127.0.0.1::5432" in compose
     assert "nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse" in compose
     assert "nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/" in compose
     assert 'nessie.catalog.service.s3.default-options.path-style-access: "true"' in compose
@@ -108,15 +109,18 @@ def test_restored_evidence_requires_exact_resource_and_catalog_change():
 
     class Store:
         def get_run(self, *_):
-            return {"run_id": "fixture"}
+            return {"run_id": "fixture", "status": "success", "evidence_completeness": "complete"}
 
         def list_resources(self, *_):
             return [
                 {
                     "resource_id": "rows",
+                    "resource_kind": "iceberg_table",
+                    "role": "output",
                     "table_name": "recovery.rows",
                     "catalog": "iceberg",
                     "ref_name": "main",
+                    "record_count": 3,
                     "snapshot_after": "42",
                 }
             ]
@@ -127,6 +131,7 @@ def test_restored_evidence_requires_exact_resource_and_catalog_change():
                     "catalog_change_id": "main",
                     "content_key": "recovery.rows",
                     "catalog_ref": "main",
+                    "operation": "create_or_replace",
                     "snapshot_after": "42",
                 }
             ]
@@ -142,7 +147,9 @@ def test_restored_evidence_requires_exact_resource_and_catalog_change():
 
 
 def test_cleanup_uses_only_project_scoped_compose_down(tmp_path, monkeypatch):
-    stack = recovery_drill.Stack("owned-drill", tmp_path / "source", 1, 2, 3)
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
+    stack.directory.mkdir()
+    stack.compose_file.write_text("services: {}\n", encoding="utf-8")
     calls = []
     monkeypatch.setattr(recovery_drill, "run", lambda command, **_: calls.append(command))
 
@@ -180,3 +187,118 @@ def test_remove_owned_only_removes_matching_drill_directory(tmp_path):
 
     assert not owned.exists()
     assert foreign.exists()
+
+
+@pytest.mark.parametrize("error", [subprocess.TimeoutExpired(["docker"], 1), OSError("no docker")])
+def test_run_normalizes_process_start_failures(monkeypatch, error):
+    def fail(*_, **__):
+        raise error
+
+    monkeypatch.setattr(recovery_drill.subprocess, "run", fail)
+
+    with pytest.raises(recovery_drill.RecoveryDrillError):
+        recovery_drill.run(["docker"], timeout=1)
+
+
+def test_published_port_requires_loopback(monkeypatch, tmp_path):
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
+    monkeypatch.setattr(
+        recovery_drill,
+        "compose",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, stdout=b"127.0.0.1:45678\n"),
+    )
+    assert recovery_drill.published_port(stack, "postgres", 5432) == 45678
+    monkeypatch.setattr(
+        recovery_drill,
+        "compose",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, stdout=b"0.0.0.0:45678\n"),
+    )
+    with pytest.raises(recovery_drill.RecoveryDrillError, match="loopback"):
+        recovery_drill.published_port(stack, "postgres", 5432)
+
+
+def test_start_waits_for_postgres_before_other_health_checks(monkeypatch, tmp_path):
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
+    calls = []
+    monkeypatch.setattr(
+        recovery_drill,
+        "compose",
+        lambda _stack, *args, **_: (
+            calls.append(args) or subprocess.CompletedProcess([], 0, stdout=b"127.0.0.1:45678\n")
+        ),
+    )
+    monkeypatch.setattr(
+        recovery_drill, "wait_for", lambda *args, **_: calls.append(("http", args[0]))
+    )
+
+    recovery_drill.start(stack, with_nessie=True)
+
+    assert calls[0] == ("up", "-d", "postgres", "minio", "nessie")
+    assert calls[1] == ("exec", "-T", "postgres", "pg_isready", "-U", "phlo")
+
+
+def test_manifest_requires_regular_postgres_file_and_lake_directory(tmp_path):
+    fixture = {"project_id": "p", "table_name": "t", "snapshot_id": "s"}
+    (tmp_path / "postgres.sql").mkdir()
+    (tmp_path / "lake").write_text("not a directory", encoding="utf-8")
+    recovery_drill.write_manifest(tmp_path, fixture, "a" * 64)
+
+    with pytest.raises(recovery_drill.RecoveryDrillError, match="backup manifest"):
+        recovery_drill.read_manifest(tmp_path)
+
+
+def test_cleanup_all_aggregates_both_failures_and_preserves_diagnostics(tmp_path, monkeypatch):
+    stacks = tuple(recovery_drill.Stack(name, tmp_path / name) for name in ("source", "target"))
+    for stack in stacks:
+        stack.directory.mkdir()
+        stack.compose_file.write_text("services: {}\n", encoding="utf-8")
+    monkeypatch.setattr(
+        recovery_drill,
+        "compose",
+        lambda stack, *_args, **_kwargs: (_ for _ in ()).throw(
+            recovery_drill.RecoveryDrillError(f"cannot clean {stack.project}")
+        ),
+    )
+
+    error = recovery_drill.cleanup_all(stacks)
+
+    assert error is not None
+    assert "source" in str(error) and "target" in str(error)
+    assert stacks[0].directory.exists()
+
+
+def test_setup_failure_still_enters_owned_cleanup(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(
+        recovery_drill,
+        "prepare_helper",
+        lambda _: (_ for _ in ()).throw(recovery_drill.RecoveryDrillError("export failed")),
+    )
+    monkeypatch.setattr(recovery_drill, "cleanup_all", lambda stacks: calls.append(stacks) or None)
+
+    with pytest.raises(recovery_drill.RecoveryDrillError, match="export failed"):
+        recovery_drill.drill(tmp_path)
+
+    assert len(calls) == 1 and {stack.project.split("-")[-2] for stack in calls[0]} == {
+        "source",
+        "restore",
+    }
+    assert not list(tmp_path.glob("recovery-drill-*"))
+
+
+def test_main_emits_structured_failure_json(monkeypatch, capsys):
+    monkeypatch.setattr(
+        recovery_drill,
+        "drill",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            recovery_drill.RecoveryDrillError("failed safely")
+        ),
+    )
+    monkeypatch.setattr(sys, "argv", ["recovery_drill.py"])
+
+    assert recovery_drill.main() == 1
+    assert json.loads(capsys.readouterr().err) == {
+        "continuity_drill": True,
+        "error": "failed safely",
+        "outcome": "failed",
+    }

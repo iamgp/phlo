@@ -12,7 +12,6 @@ import hashlib
 import json
 import os
 import shutil
-import socket
 import subprocess
 import sys
 import time
@@ -39,9 +38,6 @@ class RecoveryDrillError(RuntimeError):
 class Stack:
     project: str
     directory: Path
-    postgres_port: int
-    minio_port: int
-    nessie_port: int
 
     @property
     def compose_file(self) -> Path:
@@ -51,7 +47,14 @@ class Stack:
 def run(
     command: list[str], *, input: bytes | None = None, timeout: int = 180
 ) -> subprocess.CompletedProcess[bytes]:
-    completed = subprocess.run(command, input=input, capture_output=True, timeout=timeout)
+    try:
+        completed = subprocess.run(command, input=input, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise RecoveryDrillError(
+            f"command timed out after {timeout}s: {' '.join(command)}"
+        ) from exc
+    except OSError as exc:
+        raise RecoveryDrillError(f"command could not start: {' '.join(command)}: {exc}") from exc
     if completed.returncode:
         detail = (
             completed.stderr.decode(errors="replace").strip()
@@ -63,12 +66,6 @@ def run(
     return completed
 
 
-def free_port() -> int:
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        return int(probe.getsockname()[1])
-
-
 def compose_yaml(stack: Stack) -> str:
     return f"""services:
   postgres:
@@ -77,7 +74,7 @@ def compose_yaml(stack: Stack) -> str:
       POSTGRES_USER: phlo
       POSTGRES_PASSWORD: phlo
       POSTGRES_DB: phlo
-    ports: [\"127.0.0.1:{stack.postgres_port}:5432\"]
+    ports: [\"127.0.0.1::5432\"]
     volumes: [postgres-data:/var/lib/postgresql/data]
     healthcheck:
       test: [\"CMD-SHELL\", \"pg_isready -U phlo\"]
@@ -90,7 +87,7 @@ def compose_yaml(stack: Stack) -> str:
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
-    ports: [\"127.0.0.1:{stack.minio_port}:9000\"]
+    ports: [\"127.0.0.1::9000\"]
     volumes: [minio-data:/data]
   nessie:
     image: {NESSIE_IMAGE}
@@ -108,7 +105,7 @@ def compose_yaml(stack: Stack) -> str:
       nessie.catalog.secrets.access-key.name: minio
       nessie.catalog.secrets.access-key.secret: minio123
     depends_on: [postgres, minio]
-    ports: [\"127.0.0.1:{stack.nessie_port}:19120\"]
+    ports: [\"127.0.0.1::19120\"]
 volumes:
   postgres-data: {{}}
   minio-data: {{}}
@@ -125,6 +122,21 @@ def compose(
     )
 
 
+def published_port(stack: Stack, service: str, container_port: int) -> int:
+    output = (
+        compose(stack, "port", service, str(container_port), timeout=30).stdout.decode().strip()
+    )
+    try:
+        host, port = output.rsplit(":", 1)
+        if host not in {"127.0.0.1", "[::1]"}:
+            raise ValueError("published address is not loopback")
+        return int(port)
+    except ValueError as exc:
+        raise RecoveryDrillError(
+            f"could not discover loopback port for {stack.project}/{service}"
+        ) from exc
+
+
 def wait_for(url: str, *, name: str, timeout: int = 120) -> None:
     deadline = time.monotonic() + timeout
     last_error = "not attempted"
@@ -139,15 +151,32 @@ def wait_for(url: str, *, name: str, timeout: int = 120) -> None:
     raise RecoveryDrillError(f"{name} did not become healthy within {timeout}s: {last_error}")
 
 
+def wait_for_postgres(stack: Stack, *, timeout: int = 120) -> None:
+    deadline = time.monotonic() + timeout
+    last_error = "not attempted"
+    while time.monotonic() < deadline:
+        try:
+            compose(stack, "exec", "-T", "postgres", "pg_isready", "-U", "phlo", timeout=10)
+            return
+        except RecoveryDrillError as exc:
+            last_error = str(exc)
+            time.sleep(2)
+    raise RecoveryDrillError(
+        f"{stack.project} Postgres did not become healthy within {timeout}s: {last_error}"
+    )
+
+
 def start(stack: Stack, *, with_nessie: bool) -> None:
     services = ["postgres", "minio"] + (["nessie"] if with_nessie else [])
     compose(stack, "up", "-d", *services, timeout=300)
+    wait_for_postgres(stack)
     wait_for(
-        f"http://127.0.0.1:{stack.minio_port}/minio/health/ready", name=f"{stack.project} MinIO"
+        f"http://127.0.0.1:{published_port(stack, 'minio', 9000)}/minio/health/ready",
+        name=f"{stack.project} MinIO",
     )
     if with_nessie:
         wait_for(
-            f"http://127.0.0.1:{stack.nessie_port}/api/v1/config",
+            f"http://127.0.0.1:{published_port(stack, 'nessie', 19120)}/api/v1/config",
             name=f"{stack.project} Nessie",
             timeout=180,
         )
@@ -282,7 +311,9 @@ def create_fixture(stack: Stack, token: str, helper_dir: Path) -> dict[str, Any]
     )
 
     project_id = f"recovery-drill-{token}"
-    store = PostgresRunEvidenceStore(f"postgresql://phlo:phlo@127.0.0.1:{stack.postgres_port}/phlo")
+    store = PostgresRunEvidenceStore(
+        f"postgresql://phlo:phlo@127.0.0.1:{published_port(stack, 'postgres', 5432)}/phlo"
+    )
     store.append_pipeline_run(
         PipelineRun(
             project_id=project_id,
@@ -338,27 +369,38 @@ def verify_fixture(
         raise RecoveryDrillError("restored Iceberg table does not contain the expected three rows")
     if object_checksum(stack, key) != expected_checksum:
         raise RecoveryDrillError("restored object checksum does not match the backup fixture")
-    store = PostgresRunEvidenceStore(f"postgresql://phlo:phlo@127.0.0.1:{stack.postgres_port}/phlo")
+    store = PostgresRunEvidenceStore(
+        f"postgresql://phlo:phlo@127.0.0.1:{published_port(stack, 'postgres', 5432)}/phlo"
+    )
     verify_evidence(store, fixture)
 
 
 def verify_evidence(store: Any, fixture: dict[str, Any]) -> None:
     project_id, run_id, snapshot_id = fixture["project_id"], "fixture", fixture["snapshot_id"]
-    if store.get_run(project_id, run_id) is None:
-        raise RecoveryDrillError("restored pipeline-run evidence is missing")
+    run_evidence = store.get_run(project_id, run_id)
+    if (
+        run_evidence is None
+        or run_evidence.get("status") != "success"
+        or run_evidence.get("evidence_completeness") != "complete"
+    ):
+        raise RecoveryDrillError("restored PipelineRun evidence does not match the fixture")
     resources = store.list_resources(project_id, run_id)
     changes = store.list_catalog_changes(project_id, run_id)
     expected_resource = {
         "resource_id": "rows",
+        "resource_kind": "iceberg_table",
+        "role": "output",
         "table_name": fixture["table_name"],
         "catalog": "iceberg",
         "ref_name": "main",
+        "record_count": 3,
         "snapshot_after": snapshot_id,
     }
     expected_change = {
         "catalog_change_id": "main",
         "content_key": fixture["table_name"],
         "catalog_ref": "main",
+        "operation": "create_or_replace",
         "snapshot_after": snapshot_id,
     }
     if not any(
@@ -388,9 +430,9 @@ def read_manifest(backup_dir: Path) -> dict[str, Any]:
         raise RecoveryDrillError("backup manifest is missing or corrupt") from exc
     fixture = payload.get("fixture") if isinstance(payload, dict) else None
     checksum = payload.get("probe_checksum") if isinstance(payload, dict) else None
-    required_files = (backup_dir / "postgres.sql", backup_dir / "lake")
     if (
-        not all(path.exists() for path in required_files)
+        not (backup_dir / "postgres.sql").is_file()
+        or not (backup_dir / "lake").is_dir()
         or not isinstance(fixture, dict)
         or not all(
             isinstance(fixture.get(key), str) and fixture[key]
@@ -404,11 +446,23 @@ def read_manifest(backup_dir: Path) -> dict[str, Any]:
     return payload
 
 
-def cleanup(stack: Stack) -> None:
+def cleanup(stack: Stack) -> RecoveryDrillError | None:
+    if not stack.compose_file.exists():
+        return None
     try:
         compose(stack, "down", "--volumes", "--remove-orphans", timeout=180)
     except RecoveryDrillError as exc:
-        print(f"cleanup warning for {stack.project}: {exc}", file=sys.stderr)
+        return exc
+    return None
+
+
+def cleanup_all(stacks: tuple[Stack, ...]) -> RecoveryDrillError | None:
+    failures = [f"{stack.project}: {error}" for stack in stacks if (error := cleanup(stack))]
+    if failures:
+        return RecoveryDrillError(
+            "cleanup failed; owned diagnostics preserved: " + "; ".join(failures)
+        )
+    return None
 
 
 def owned_directory(path: Path, token: str) -> None:
@@ -427,32 +481,30 @@ def drill(root: Path, *, keep_artifacts: bool = False) -> dict[str, float]:
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     run_dir = root / f"recovery-drill-{token}"
+    source = Stack(f"phlo-recovery-source-{token}", run_dir / "source")
+    target = Stack(f"phlo-recovery-restore-{token}", run_dir / "restore")
+    stacks = (target, source)
     owned_directory(run_dir, token)
-    source = Stack(
-        f"phlo-recovery-source-{token}", run_dir / "source", free_port(), free_port(), free_port()
-    )
-    target = Stack(
-        f"phlo-recovery-restore-{token}", run_dir / "restore", free_port(), free_port(), free_port()
-    )
-    for stack in (source, target):
-        owned_directory(stack.directory, token)
-        stack.compose_file.write_text(compose_yaml(stack), encoding="utf-8")
-    backup = run_dir / "backup"
-    backup.mkdir()
-    helper_dir = run_dir / "helper"
-    helper_dir.mkdir()
-    prepare_helper(helper_dir)
-    probe = backup / "probe.json"
-    probe.write_text(
-        json.dumps({"created_at": datetime.now(UTC).isoformat(), "token": token}), encoding="utf-8"
-    )
-    key = f"recovery-drill/{token}/probe.json"
-    checksum = hashlib.sha256(probe.read_bytes()).hexdigest()
-    started = time.monotonic()
     try:
+        for stack in (source, target):
+            owned_directory(stack.directory, token)
+            stack.compose_file.write_text(compose_yaml(stack), encoding="utf-8")
+        backup = run_dir / "backup"
+        backup.mkdir()
+        helper_dir = run_dir / "helper"
+        helper_dir.mkdir()
+        prepare_helper(helper_dir)
+        probe = backup / "probe.json"
+        probe.write_text(
+            json.dumps({"created_at": datetime.now(UTC).isoformat(), "token": token}),
+            encoding="utf-8",
+        )
+        key = f"recovery-drill/{token}/probe.json"
+        checksum = hashlib.sha256(probe.read_bytes()).hexdigest()
         start(source, with_nessie=True)
         prepare_bucket(source, probe, key)
         fixture = create_fixture(source, token, helper_dir)
+        backup_started = time.monotonic()
         dump = compose(
             source,
             "exec",
@@ -470,7 +522,7 @@ def drill(root: Path, *, keep_artifacts: bool = False) -> dict[str, float]:
         (backup / "postgres.sql").write_bytes(dump)
         mirror_bucket(source, backup)
         write_manifest(backup, fixture, checksum)
-        backup_seconds = time.monotonic() - started
+        backup_seconds = time.monotonic() - backup_started
         compose(source, "restart", "postgres", "minio", "nessie", timeout=180)
         start(source, with_nessie=True)
 
@@ -495,7 +547,7 @@ def drill(root: Path, *, keep_artifacts: bool = False) -> dict[str, float]:
         )
         compose(target, "up", "-d", "nessie", timeout=300)
         wait_for(
-            f"http://127.0.0.1:{target.nessie_port}/api/v1/config",
+            f"http://127.0.0.1:{published_port(target, 'nessie', 19120)}/api/v1/config",
             name=f"{target.project} Nessie",
             timeout=180,
         )
@@ -505,8 +557,9 @@ def drill(root: Path, *, keep_artifacts: bool = False) -> dict[str, float]:
             "restore_seconds": round(time.monotonic() - restore_started, 3),
         }
     finally:
-        cleanup(target)
-        cleanup(source)
+        cleanup_error = cleanup_all(stacks)
+        if cleanup_error is not None:
+            raise cleanup_error
         if not keep_artifacts:
             remove_owned(run_dir, token)
 
@@ -529,8 +582,14 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = drill(args.root, keep_artifacts=args.keep_artifacts)
-    except RecoveryDrillError as exc:
-        print(f"Recovery drill failed: {exc}", file=sys.stderr)
+    except Exception as exc:
+        print(
+            json.dumps(
+                {"outcome": "failed", "continuity_drill": True, "error": str(exc)},
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
         return 1
     print(json.dumps({"outcome": "verified", "continuity_drill": True, **result}, sort_keys=True))
     return 0
