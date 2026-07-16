@@ -13,6 +13,7 @@ class FakeMaintenanceRetentionStore:
 
     def __init__(self) -> None:
         self.expected_snapshot_id: int | str | None = None
+        self.executor: object | None = None
 
     def _plan(self) -> dict[str, object]:
         return {
@@ -54,6 +55,18 @@ class FakeMaintenanceRetentionStore:
                 "planned": plan,
             }
         self.expected_snapshot_id = kwargs.get("expected_snapshot_id")
+        self.executor = kwargs.get("executor")
+        if operation == "expire_snapshots" and self.executor is not None:
+            return {
+                "status": "succeeded",
+                "accepted": True,
+                "executed": True,
+                "before_revision": 41,
+                "after_revision": 42,
+                "plan_token": "fake-plan-token",
+                "planned": plan,
+                "affected": {"observed_snapshot_count_reduction": 1},
+            }
         return {
             "status": "blocked",
             "accepted": False,
@@ -68,6 +81,20 @@ class FakeMaintenanceRetentionStore:
             },
             "retry_safe": False,
         }
+
+
+class FakeSnapshotExpiryExecutor:
+    """Structural fake for the declared, neutral executor contract."""
+
+    def for_ref(self, ref: str):
+        assert ref == "main"
+        return self
+
+    def compact_table(self, **_: object) -> dict[str, object]:
+        return {}
+
+    def expire_snapshots_table(self, **_: object) -> dict[str, object]:
+        return {}
 
 
 def test_maintenance_source_does_not_import_concrete_provider_modules() -> None:
@@ -116,6 +143,11 @@ def test_orphan_execute_uses_plan_result_and_refuses_without_executor(monkeypatc
     monkeypatch.setattr(iceberg_maintenance, "resolve_capability", resolve)
     monkeypatch.setattr(iceberg_maintenance, "resolve_namespaces", lambda config: ["raw"])
     monkeypatch.setattr(iceberg_maintenance, "list_tables", lambda namespace, ref: ["raw.events"])
+    monkeypatch.setattr(
+        iceberg_maintenance,
+        "finish_maintenance_op",
+        MagicMock(return_value={"status": "success"}),
+    )
     config = MaintenanceConfig(
         namespace="raw",
         ref="main",
@@ -172,3 +204,33 @@ def test_snapshot_expiry_completion_telemetry_includes_candidate_count(monkeypat
 
     assert finish.call_args.kwargs["total_candidate_snapshots"] == 1
     assert result["total_candidate_snapshots"] == 1
+
+
+def test_snapshot_expiry_execute_resolves_and_passes_neutral_executor(monkeypatch) -> None:
+    store = FakeMaintenanceRetentionStore()
+    executor = FakeSnapshotExpiryExecutor()
+    resolutions: list[tuple[str, str | None]] = []
+
+    def resolve(capability_type: str, name: str | None = None):
+        resolutions.append((capability_type, name))
+        return MagicMock(provider=store if capability_type == "table_store" else executor)
+
+    monkeypatch.setattr(iceberg_maintenance, "resolve_capability", resolve)
+    monkeypatch.setattr(iceberg_maintenance, "resolve_namespaces", lambda config: ["raw"])
+    monkeypatch.setattr(iceberg_maintenance, "list_tables", lambda namespace, ref: ["raw.events"])
+    context = MagicMock(run_id="run-1", job_name="maintenance")
+
+    result = iceberg_maintenance.expire_table_snapshots.compute_fn.decorated_fn(
+        context,
+        MaintenanceConfig(
+            namespace="raw",
+            ref="main",
+            dry_run=False,
+            catalog="iceberg",
+            confirmation_token="fake-plan-token",
+        ),
+    )
+
+    assert resolutions == [("table_store", "iceberg"), ("maintenance_executor", None)]
+    assert store.executor is executor
+    assert result["total_snapshots_deleted"] == 0
