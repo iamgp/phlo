@@ -44,6 +44,15 @@ def test_compose_commands_are_project_scoped(tmp_path: Path) -> None:
     ]
 
 
+def test_project_names_are_unique() -> None:
+    first = release_golden_path.project_name()
+    second = release_golden_path.project_name()
+
+    assert first.startswith("phlo-qa001-")
+    assert second.startswith("phlo-qa001-")
+    assert first != second
+
+
 def test_operator_install_uses_wheelhouse_and_not_editable_source(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -252,10 +261,10 @@ def test_unexpected_exception_still_cleans_owned_paths(tmp_path: Path, monkeypat
 
 
 def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:
-    service = Path("packages/phlo-dagster/src/phlo_dagster/service.yaml").read_text()
-    daemon = Path("packages/phlo-dagster/src/phlo_dagster/dagster-daemon.yaml").read_text()
-    dockerfile = Path("packages/phlo-dagster/src/phlo_dagster/Dockerfile").read_text()
-    trino_service = Path("packages/phlo-trino/src/phlo_trino/service.yaml").read_text()
+    service = (REPO_ROOT / "packages/phlo-dagster/src/phlo_dagster/service.yaml").read_text()
+    daemon = (REPO_ROOT / "packages/phlo-dagster/src/phlo_dagster/dagster-daemon.yaml").read_text()
+    dockerfile = (REPO_ROOT / "packages/phlo-dagster/src/phlo_dagster/Dockerfile").read_text()
+    trino_service = (REPO_ROOT / "packages/phlo-trino/src/phlo_trino/service.yaml").read_text()
 
     assert "PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}" in service
     assert "PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}" in daemon
@@ -281,11 +290,19 @@ def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:
     assert "dest: trino/jvm.config" in trino_service
 
 
-def test_find_free_port_skips_reserved_ports(tmp_path: Path) -> None:
-    del tmp_path
-    reserved = {20000}
+def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    config.project_dir.mkdir()
+    config.project_dir.joinpath(".phlo").mkdir()
+    config.project_dir.joinpath(".phlo/.env.local").write_text("", encoding="utf-8")
+    config.wheelhouse.mkdir()
+    config.wheelhouse.joinpath("phlo.whl").write_text("wheel", encoding="utf-8")
+    config.repo_root.joinpath("pyproject.toml").write_text(
+        "[project]\nversion = '1.2.3'\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(release_golden_path, "run", lambda *args, **kwargs: None)
 
-    port = release_golden_path.find_free_port(start=20000, reserved=reserved)
+    release_golden_path.configure_non_dev_compose(config)
 
-    assert port != 20000
-    assert port in reserved
+    env_local = config.project_dir.joinpath(".phlo/.env.local").read_text()
+    assert all(f"{name}=0\n" in env_local for name in release_golden_path.PORT_NAMES)

@@ -6,15 +6,23 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
 import tomllib
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
 PARTITION = "2025-01-15"
+PORT_NAMES = (
+    "POSTGRES_PORT",
+    "MINIO_API_PORT",
+    "MINIO_CONSOLE_PORT",
+    "NESSIE_PORT",
+    "TRINO_PORT",
+    "DAGSTER_PORT",
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +63,11 @@ def compose_command(config: RunConfig, *parts: str) -> list[str]:
         str(config.project_dir / ".phlo" / ".env.local"),
         *parts,
     )
+
+
+def project_name() -> str:
+    """Return a globally unique Compose project name for one harness run."""
+    return f"phlo-qa001-{uuid.uuid4().hex}"
 
 
 def run(
@@ -194,22 +207,6 @@ def install_project_dependencies(config: RunConfig) -> None:
     )
 
 
-def find_free_port(*, start: int, reserved: set[int]) -> int:
-    """Return a host port that is free for the short-lived Compose stack."""
-    for port in range(start, start + 1000):
-        if port in reserved:
-            continue
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                sock.bind(("0.0.0.0", port))
-            except OSError:
-                continue
-        reserved.add(port)
-        return port
-    raise RuntimeError(f"no free host port found in {start}-{start + 999}")
-
-
 def configure_non_dev_compose(config: RunConfig) -> None:
     run(
         command(str(config.operator_bin), "services", "init", "--no-dev", "--force"),
@@ -219,22 +216,10 @@ def configure_non_dev_compose(config: RunConfig) -> None:
     shutil.copytree(config.wheelhouse, destination)
     with (config.repo_root / "pyproject.toml").open("rb") as stream:
         version = tomllib.load(stream)["project"]["version"]
-    reserved: set[int] = set()
-    ports = {
-        name: find_free_port(start=20000, reserved=reserved)
-        for name in (
-            "POSTGRES_PORT",
-            "MINIO_API_PORT",
-            "MINIO_CONSOLE_PORT",
-            "NESSIE_PORT",
-            "TRINO_PORT",
-            "DAGSTER_PORT",
-        )
-    }
     env_local = config.project_dir / ".phlo" / ".env.local"
     with env_local.open("a", encoding="utf-8") as stream:
         stream.write(f"\nPHLO_VERSION={version}\nPHLO_WHEELHOUSE=wheelhouse\n")
-        stream.writelines(f"{name}={port}\n" for name, port in ports.items())
+        stream.writelines(f"{name}=0\n" for name in PORT_NAMES)
 
 
 def start_stack(config: RunConfig) -> None:
@@ -348,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
         project_dir=project_dir,
         wheelhouse=wheelhouse,
         operator_env=operator_env,
-        project_name=f"phlo-qa001-{os.getpid()}",
+        project_name=project_name(),
         partition=args.partition,
     )
     project_dir.parent.mkdir(parents=True, exist_ok=True)
