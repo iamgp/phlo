@@ -10,6 +10,8 @@
 [![Python](https://img.shields.io/pypi/pyversions/phlo.svg)](https://pypi.org/project/phlo/)
 [![CI](https://github.com/phlohouse/phlo/actions/workflows/ci.yml/badge.svg)](https://github.com/phlohouse/phlo/actions/workflows/ci.yml)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#project-status)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/phlohouse/phlo)
+
 
 **The Pythonic lakehouse framework.** One Python project to define, run, validate, and inspect lakehouse pipelines.
 
