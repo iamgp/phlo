@@ -110,6 +110,52 @@ def test_verify_rows_requires_a_positive_count(tmp_path: Path, monkeypatch) -> N
             raise AssertionError(f"invalid raw.events result should fail: {output!r}")
 
 
+def test_start_stack_diagnoses_owned_compose_failure_in_order(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    commands: list[list[str]] = []
+    startup_error = release_golden_path.subprocess.CalledProcessError(1, ["docker", "compose"])
+
+    def fake_run(args, **kwargs):
+        commands.append(args)
+        if args[-3:] == ["up", "--detach", "--build"]:
+            raise startup_error
+        return release_golden_path.subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(release_golden_path, "run", fake_run)
+
+    try:
+        release_golden_path.start_stack(config)
+    except release_golden_path.subprocess.CalledProcessError as exc:
+        assert exc is startup_error
+    else:
+        raise AssertionError("startup failure should be re-raised")
+
+    assert commands == [
+        release_golden_path.compose_command(config, "up", "--detach", "--build"),
+        release_golden_path.compose_command(config, "ps"),
+        release_golden_path.compose_command(config, "logs", "--no-color", "--timestamps"),
+    ]
+
+
+def test_start_stack_diagnostics_do_not_mask_startup_failure(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    startup_error = release_golden_path.subprocess.CalledProcessError(1, ["docker", "compose"])
+
+    def fail_commands(args, **kwargs):
+        if args[-3:] == ["up", "--detach", "--build"]:
+            raise startup_error
+        raise RuntimeError("diagnostic failed")
+
+    monkeypatch.setattr(release_golden_path, "run", fail_commands)
+
+    try:
+        release_golden_path.start_stack(config)
+    except release_golden_path.subprocess.CalledProcessError as exc:
+        assert exc is startup_error
+    else:
+        raise AssertionError("startup failure should be re-raised")
+
+
 def test_align_project_name_binds_cli_lookup_to_owned_compose_project(tmp_path: Path) -> None:
     config = _config(tmp_path)
     config.project_dir.mkdir()

@@ -238,7 +238,15 @@ def configure_non_dev_compose(config: RunConfig) -> None:
 
 
 def start_stack(config: RunConfig) -> None:
-    run(compose_command(config, "up", "--detach", "--build"), cwd=config.project_dir)
+    try:
+        run(compose_command(config, "up", "--detach", "--build"), cwd=config.project_dir)
+    except subprocess.CalledProcessError:
+        for parts in (("ps",), ("logs", "--no-color", "--timestamps")):
+            try:
+                run(compose_command(config, *parts), cwd=config.project_dir)
+            except Exception as exc:
+                print(f"release golden path diagnostics failed: {exc}", file=sys.stderr)
+        raise
 
 
 def materialize_partition(config: RunConfig) -> None:
