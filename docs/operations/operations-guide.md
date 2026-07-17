@@ -308,9 +308,9 @@ configured for the requested ref.
 **Automated maintenance**:
 
 ```python
-# These Dagster jobs produce retention plans. Even with dry_run=False, the v1
-# provider refuses snapshot or orphan deletion because its threshold procedure
-# cannot bind the complete deletion surface to the reviewed plan.
+# These Dagster jobs produce retention plans. dry_run=True is plan-only; with
+# dry_run=False, snapshot expiry can submit threshold-based deletion after the
+# plan checks, while orphan cleanup remains planning-only.
 from phlo_dagster.iceberg_maintenance import (
     expire_snapshots_job,
     orphan_cleanup_job,
@@ -321,10 +321,13 @@ The operations behind these jobs return structured per-table evidence and emit t
 maintenance telemetry. Dry-run planning uses Iceberg metadata and the configured
 object-store listing, so it does not need a Trino executor. Snapshot expiry keeps
 the seven-day floor, current-snapshot fence, and table snapshot-reference evidence
-in its plan; Nessie-wide branch/tag evidence is unavailable to this capability,
-but the blessed Trino procedure still exposes only a threshold and cannot bind
-the full metadata/data deletion surface or every Nessie reference to the plan,
-so v1 does not submit that destructive operation.
+in its plan; Nessie-wide branch/tag evidence is unavailable to this capability.
+With `dry_run=False`, the ref-aware executor rechecks the current snapshot and
+submits Trino's threshold-only expiry procedure, so snapshots can be deleted.
+That procedure cannot bind the full metadata/data deletion surface or every Nessie
+reference to the plan, and it does not enforce `retain_last`; the exact deleted
+snapshot set is unavailable and submission is non-atomic. If submission fails,
+the outcome may be unknown and the table must be reconciled before retrying.
 Orphan discovery is supported in dry-run mode; destructive orphan cleanup is an
 explicit `bounded_execution_unsupported` result because Trino's threshold-only
 `remove_orphan_files` procedure could delete a larger or newer candidate set
