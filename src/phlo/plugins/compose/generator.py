@@ -231,6 +231,12 @@ class ComposeGenerator:
                 continue
             config[key] = value
 
+        if service.name in {"dagster", "dagster-daemon"}:
+            if os.name == "nt":
+                config.pop("user", None)
+            else:
+                config["user"] = f"{os.getuid()}:{os.getgid()}"
+
         # Dependencies
         if service.depends_on:
             depends_config: dict[str, dict[str, str]] = {}
