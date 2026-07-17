@@ -53,6 +53,40 @@ def test_project_names_are_unique() -> None:
     assert first != second
 
 
+def test_virtualenv_executables_use_windows_scripts_directory(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    operator_scripts = config.operator_env / "Scripts"
+    project_scripts = config.project_env / "Scripts"
+    operator_scripts.mkdir(parents=True)
+    project_scripts.mkdir(parents=True)
+    operator_python = operator_scripts / "python.exe"
+    operator_bin = operator_scripts / "phlo.exe"
+    project_python = project_scripts / "python.exe"
+    for executable in (operator_python, operator_bin, project_python):
+        executable.touch()
+
+    monkeypatch.setattr(release_golden_path.os, "name", "nt")
+
+    assert config.operator_python == operator_python
+    assert config.operator_bin == operator_bin
+    assert config.project_python == project_python
+
+
+def test_virtualenv_executables_use_unix_bin_directory(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    operator_bin = config.operator_env / "bin" / "phlo"
+    project_python = config.project_env / "bin" / "python"
+    operator_bin.parent.mkdir(parents=True)
+    project_python.parent.mkdir(parents=True)
+    operator_bin.touch()
+    project_python.touch()
+
+    monkeypatch.setattr(release_golden_path.os, "name", "posix")
+
+    assert config.operator_bin == operator_bin
+    assert config.project_python == project_python
+
+
 def test_operator_install_uses_wheelhouse_and_not_editable_source(
     tmp_path: Path, monkeypatch
 ) -> None:

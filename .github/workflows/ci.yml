@@ -312,6 +312,31 @@ jobs:
       - name: Run release artifact golden path
         run: python3 scripts/release_golden_path.py
 
+  windows-release-contract:
+    name: windows / release golden path contract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: "3.11"
+
+      - name: Install focused Python test dependency
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Run focused Python harness tests
+        shell: pwsh
+        run: python -m pytest tests/scripts/test_release_golden_path.py --tb=short
+
+      - name: Run PowerShell launcher contract tests
+        shell: pwsh
+        run: ./tests/scripts/test_release_golden_path.ps1
+
   python-package-tests:
     name: python / package tests (${{ matrix.group }})
     runs-on: ubuntu-latest
@@ -422,6 +447,7 @@ jobs:
       - python-core-tests
       - quickstart-smoke
       - release-golden-path
+      - windows-release-contract
       - python-package-tests
       - frontend
     steps:
@@ -433,6 +459,7 @@ jobs:
           PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
           QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
           RELEASE_GOLDEN_PATH: ${{ needs.release-golden-path.result }}
+          WINDOWS_RELEASE_CONTRACT: ${{ needs.windows-release-contract.result }}
           PYTHON_PACKAGE_TESTS: ${{ needs.python-package-tests.result }}
           FRONTEND: ${{ needs.frontend.result }}
         run: |
@@ -448,6 +475,7 @@ jobs:
             echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
             echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
             echo "| python / release golden path | ${RELEASE_GOLDEN_PATH} |"
+            echo "| windows / release golden path contract | ${WINDOWS_RELEASE_CONTRACT} |"
             echo "| python / package tests | ${PYTHON_PACKAGE_TESTS} |"
             echo "| frontend / observatory | ${FRONTEND} |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -458,6 +486,7 @@ jobs:
             "${PYTHON_CORE_TESTS}" \
             "${QUICKSTART_SMOKE}" \
             "${RELEASE_GOLDEN_PATH}" \
+            "${WINDOWS_RELEASE_CONTRACT}" \
             "${PYTHON_PACKAGE_TESTS}" \
             "${FRONTEND}"; do
             if [ "${result}" != "success" ]; then

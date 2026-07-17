@@ -95,6 +95,27 @@ Troubleshooting tips:
 - If file watching or installs feel slow, move the project from `/mnt/c/...` into the WSL filesystem.
 - If ports are busy on Windows, edit the `env:` ports in `phlo.yaml`, then rerun `phlo services init`.
 
+## Native Windows with Docker Desktop
+
+WSL is optional for the release artifact golden path. Install Python 3.11, [uv](https://docs.astral.sh/uv/getting-started/installation/), and Docker Desktop, switch Docker Desktop to Linux containers, then run the launcher from a native PowerShell prompt at the repository root:
+
+```powershell
+.\scripts\release_golden_path.ps1 `
+  -Partition 2025-01-15 `
+  -ProjectDir "$PWD\.phlo-release-golden-path"
+```
+
+The launcher finds Python 3.11 through `py -3.11` or `PATH`, then delegates to the existing artifact-backed `scripts/release_golden_path.py` harness. Use `-WhatIf` to print the exact command without starting Docker:
+
+```powershell
+.\scripts\release_golden_path.ps1 `
+  -Partition 2025-01-15 `
+  -ProjectDir "$PWD\.phlo-release-golden-path" `
+  -WhatIf
+```
+
+This lane requires Docker Desktop to be running with Linux containers; it does not configure Docker Desktop or require WSL.
+
 ## Quick Install
 
 ```bash
