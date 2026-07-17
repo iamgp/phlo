@@ -22,5 +22,12 @@ def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -
 def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:
     entrypoint = resources.files("phlo_dagster").joinpath("entrypoint.sh").read_text()
 
+    root_guard = 'if [ "$(id -u)" -eq 0 ]; then'
     assert "if [ -f /app/pyproject.toml ]; then" in entrypoint
     assert "uv pip install --system -e /app" in entrypoint
+    assert root_guard in entrypoint
+    assert entrypoint.index(root_guard) < entrypoint.index("uv pip install --system -e /app")
+    non_root_message = 'echo "Non-root mode: using mounted project directly"'
+    assert non_root_message in entrypoint
+    assert entrypoint.index("uv pip install --system -e /app") < entrypoint.index(non_root_message)
+    assert entrypoint.index("fi\n\n# Execute Dagster") > entrypoint.index(non_root_message)
