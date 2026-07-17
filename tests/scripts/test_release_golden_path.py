@@ -122,7 +122,7 @@ def test_align_project_name_binds_cli_lookup_to_owned_compose_project(tmp_path: 
     )
 
 
-def test_cleanup_stops_before_scoped_run_and_down(tmp_path: Path, monkeypatch) -> None:
+def test_cleanup_only_tears_down_owned_compose_project(tmp_path: Path, monkeypatch) -> None:
     config = _config(tmp_path)
     config.compose_file.parent.mkdir(parents=True)
     config.compose_file.write_text("services: {}\n", encoding="utf-8")
@@ -133,23 +133,8 @@ def test_cleanup_stops_before_scoped_run_and_down(tmp_path: Path, monkeypatch) -
 
     assert errors == []
     assert commands == [
-        release_golden_path.compose_command(
-            config,
-            "stop",
-        ),
-        release_golden_path.compose_command(
-            config,
-            "run",
-            "--rm",
-            "--no-deps",
-            "--user",
-            "root",
-            "dagster",
-            "rm",
-            "-rf",
-            "/app/.venv",
-        ),
-    ] + [release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans")]
+        release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans")
+    ]
     assert not config.project_dir.exists()
 
 
