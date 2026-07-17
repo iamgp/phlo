@@ -108,8 +108,9 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
 def test_compose_generator_sets_host_user_for_project_writing_services(
     monkeypatch: pytest.MonkeyPatch, tmp_path, service_name: str
 ) -> None:
-    monkeypatch.setattr(generator_module.os, "getuid", lambda: 1234)
-    monkeypatch.setattr(generator_module.os, "getgid", lambda: 2345)
+    monkeypatch.setattr(generator_module.os, "name", "posix")
+    monkeypatch.setattr(generator_module.os, "getuid", lambda: 1234, raising=False)
+    monkeypatch.setattr(generator_module.os, "getgid", lambda: 2345, raising=False)
 
     service = ServiceDefinition(
         name=service_name,
