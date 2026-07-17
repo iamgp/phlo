@@ -235,6 +235,13 @@ class ComposeGenerator:
         if service.name in {"dagster", "dagster-daemon"}:
             if platform.system() == "Linux":
                 config["user"] = f"{os.getuid()}:{os.getgid()}"
+                environment = config.setdefault("environment", {})
+                if isinstance(environment, dict):
+                    environment.setdefault("HOME", "/opt/dagster")
+                elif isinstance(environment, list) and not any(
+                    item.startswith("HOME=") for item in environment if isinstance(item, str)
+                ):
+                    environment.append("HOME=/opt/dagster")
             else:
                 config.pop("user", None)
 
