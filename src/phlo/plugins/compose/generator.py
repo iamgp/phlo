@@ -5,6 +5,7 @@ Generates docker-compose.yml and .env/.env.local files from service definitions.
 """
 
 import os
+import platform
 import shutil
 from pathlib import Path
 from typing import Any
@@ -232,10 +233,10 @@ class ComposeGenerator:
             config[key] = value
 
         if service.name in {"dagster", "dagster-daemon"}:
-            if os.name == "nt":
-                config.pop("user", None)
-            else:
+            if platform.system() == "Linux":
                 config["user"] = f"{os.getuid()}:{os.getgid()}"
+            else:
+                config.pop("user", None)
 
         # Dependencies
         if service.depends_on:
