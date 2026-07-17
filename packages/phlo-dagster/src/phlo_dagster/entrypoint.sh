@@ -4,6 +4,8 @@
 
 set -e
 
+if [ "$(id -u)" -eq 0 ]; then
+
 # If dev mode is enabled, sync dependencies from mounted pyproject.toml
 if [ "$PHLO_DEV_MODE" = "true" ] && [ -f /opt/phlo-dev/pyproject.toml ]; then
     echo "Dev mode: syncing dependencies from pyproject.toml..."
@@ -87,6 +89,10 @@ try:
 except ImportError:
     pass
 EOF
+
+else
+    echo "Non-root mode: using mounted project directly"
+fi
 
 # Execute Dagster from the mounted project root when available. User workflows
 # often read local files relative to the project (for example data/*.csv), while

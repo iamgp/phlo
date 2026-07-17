@@ -106,8 +106,8 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
 
 @pytest.mark.parametrize("service_name", ["dagster", "dagster-daemon"])
 @pytest.mark.parametrize(
-    ("host_platform", "expected_user"),
-    [("Linux", "1234:2345"), ("Darwin", None), ("Windows", None)],
+    ("host_platform", "expected_user", "expected_home"),
+    [("Linux", "1234:2345", "/opt/dagster"), ("Darwin", None, None), ("Windows", None, None)],
 )
 def test_compose_generator_sets_host_user_for_project_writing_services(
     monkeypatch: pytest.MonkeyPatch,
@@ -115,6 +115,7 @@ def test_compose_generator_sets_host_user_for_project_writing_services(
     service_name: str,
     host_platform: str,
     expected_user: str | None,
+    expected_home: str | None,
 ) -> None:
     monkeypatch.setattr(generator_module.platform, "system", lambda: host_platform)
     monkeypatch.setattr(generator_module.os, "getuid", lambda: 1234, raising=False)
@@ -144,7 +145,31 @@ def test_compose_generator_sets_host_user_for_project_writing_services(
     )
 
     assert data["services"][service_name].get("user") == expected_user
+    assert data["services"][service_name].get("environment", {}).get("HOME") == expected_home
     assert data["services"]["trino"]["user"] == "root"
+
+
+def test_compose_generator_adds_home_to_list_environment_on_linux(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setattr(generator_module.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(generator_module.os, "getuid", lambda: 1234, raising=False)
+    monkeypatch.setattr(generator_module.os, "getgid", lambda: 2345, raising=False)
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        compose={"environment": ["EXISTING=value"]},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    data = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+
+    assert data["services"]["dagster"]["environment"] == [
+        "EXISTING=value",
+        "HOME=/opt/dagster",
+    ]
 
 
 def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
