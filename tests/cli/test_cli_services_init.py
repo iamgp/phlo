@@ -10,6 +10,7 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path
 from phlo.cli.infrastructure.selection import select_services_to_install
+from phlo.plugins.compose import generator as generator_module
 from phlo.plugins.compose.env import generate_env, generate_env_local
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -101,6 +102,64 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
 
     assert "/opt/phlo-dev:rw" in compose
     assert "PHLO_DEV_MODE" in compose
+
+
+@pytest.mark.parametrize("service_name", ["dagster", "dagster-daemon"])
+def test_compose_generator_sets_host_user_for_project_writing_services(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, service_name: str
+) -> None:
+    monkeypatch.setattr(generator_module.os, "getuid", lambda: 1234)
+    monkeypatch.setattr(generator_module.os, "getgid", lambda: 2345)
+
+    service = ServiceDefinition(
+        name=service_name,
+        description=service_name,
+        category="orchestration",
+        default=True,
+        compose={"user": "root"},
+    )
+    unrelated = ServiceDefinition(
+        name="trino",
+        description="trino",
+        category="query",
+        default=True,
+        compose={"user": "root"},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    data = yaml.safe_load(
+        generator.generate_compose(
+            services=[service, unrelated],
+            output_dir=tmp_path,
+        )
+    )
+
+    assert data["services"][service_name]["user"] == "1234:2345"
+    assert data["services"]["trino"]["user"] == "root"
+
+
+def test_compose_generator_omits_project_writing_user_on_windows(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setattr(generator_module.os, "name", "nt")
+
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        compose={"user": "root"},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    data = yaml.safe_load(
+        generator.generate_compose(
+            services=[service],
+            output_dir=tmp_path,
+        )
+    )
+
+    assert "user" not in data["services"]["dagster"]
 
 
 def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
