@@ -62,3 +62,4 @@ finally {
 }
 
 Write-Output "PowerShell release golden-path contract checks passed"
+exit 0
