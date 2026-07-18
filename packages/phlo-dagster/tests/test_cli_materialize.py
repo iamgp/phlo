@@ -268,6 +268,7 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
                 "repository_location_name": kwargs["repository_location_name"],
                 "repository_name": kwargs["repository_name"],
                 "access_token": kwargs["access_token"],
+                "tags": kwargs["tags"],
             }
         )
         return type("Result", (), {"accepted": True, "message": "", "run_id": "run-1"})()
@@ -295,6 +296,7 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
         "repository_location_name": "phlo_dagster",
         "repository_name": "phlo_dagster",
         "access_token": "verified-user-token",
+        "tags": {"phlo/run_id": "request-42", "phlo/wap_branch": "pipeline-run-request-42"},
     }
     assert discovery_calls == [True]
 

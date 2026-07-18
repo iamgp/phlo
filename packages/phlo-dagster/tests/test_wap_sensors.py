@@ -17,7 +17,6 @@ from phlo_dagster.wap_sensors import (
     _project_identity_for_run,
     _wap_branch_name,
     wap_auto_promotion_sensor,
-    wap_branch_creation_sensor,
     wap_branch_cleanup_sensor,
     write_wap_report,
 )
@@ -36,7 +35,6 @@ def test_wap_branch_name():
 
 
 def test_wap_sensors_default_to_running() -> None:
-    assert wap_branch_creation_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_auto_promotion_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_branch_cleanup_sensor.default_status == dg.DefaultSensorStatus.RUNNING
 
@@ -266,35 +264,17 @@ class TestNessieResourceBranchOps:
 # ---------------------------------------------------------------------------
 
 
-def test_get_wap_definitions_returns_three_sensors():
-    """get_wap_definitions returns exactly the three WAP sensors."""
+def test_get_wap_definitions_only_registers_post_run_sensors():
+    """Ordinary runs cannot acquire a WAP branch after they have started."""
     from phlo_dagster.wap_sensors import get_wap_definitions
 
     defs = get_wap_definitions()
     sensors = list(defs.sensors or [])
     sensor_names = {s.name for s in sensors}
     assert sensor_names == {
-        "wap_branch_creation_sensor",
         "wap_auto_promotion_sensor",
         "wap_branch_cleanup_sensor",
     }
-
-
-def test_wap_branch_creation_sensor_uses_updated_after_filter():
-    """Branch creation sensor should scan by updated timestamp, not creation timestamp."""
-    instance = MagicMock()
-    instance.get_runs.return_value = []
-    context = MagicMock()
-    context.instance = instance
-    context.cursor = None
-
-    with patch("phlo_dagster.wap_sensors._load_versioned_catalog", return_value=MagicMock()):
-        wap_branch_creation_sensor._raw_fn(context)
-
-    filters = instance.get_runs.call_args.kwargs["filters"]
-    assert filters.updated_after is not None
-    assert filters.created_after is None
-    context.update_cursor.assert_called_once()
 
 
 def test_wap_auto_promotion_sensor_uses_updated_after_filter():

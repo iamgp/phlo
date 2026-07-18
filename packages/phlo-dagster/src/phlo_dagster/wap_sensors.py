@@ -11,8 +11,7 @@ WAP Phases:
     3. Publish: Successful runs are merged to main, branches cleaned up
 
 Sensor Components:
-    - wap_branch_creation_sensor: Creates isolated branches for new runs
-    - wap_auto_promotion_sensor: Promotes branches after successful audit
+    - wap_auto_promotion_sensor: Promotes explicitly prepared branches after successful audit
     - wap_branch_cleanup_sensor: Removes stale branches past retention
 
 Catalog Requirements:
@@ -76,9 +75,6 @@ WAP_BRANCH_PREFIX = "pipeline-"
 OWNED_WAP_BRANCH_PREFIX = "pipeline-run-"
 WAP_TAG_KEY = "phlo/wap_branch"
 DEFAULT_RETENTION_HOURS = 24
-DEFAULT_BRANCH_CREATION_INTERVAL_SECONDS = int(
-    os.getenv("PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS", "30")
-)
 DEFAULT_CLEANUP_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_CLEANUP_INTERVAL_SECONDS", "3600"))
 DEFAULT_PROMOTION_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_PROMOTION_INTERVAL_SECONDS", "60"))
 WAP_EVIDENCE_PROFILE = RequiredEvidenceProfile(
@@ -534,135 +530,7 @@ def _emit_wap_observation(
 
 
 # ---------------------------------------------------------------------------
-# Sensor 1: Branch creation
-# ---------------------------------------------------------------------------
-
-
-@dg.sensor(
-    name="wap_branch_creation_sensor",
-    description="Creates an isolated Nessie branch for each new pipeline run (WAP write phase)",
-    minimum_interval_seconds=DEFAULT_BRANCH_CREATION_INTERVAL_SECONDS,
-    default_status=dg.DefaultSensorStatus.RUNNING,
-)
-def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
-    """Create a pipeline-run-{run_id} branch when a new run starts.
-
-    Scans for STARTED runs that don't yet have a WAP branch tag, creates the
-    branch in the versioned catalog, and tags the run so downstream sensors can
-    track it.
-
-    Args:
-        context: Dagster sensor evaluation context.
-
-    Returns:
-        None
-
-    Raises:
-        No explicit exceptions raised. Logs warnings on failures.
-
-    """
-    instance = context.instance
-    catalog = _load_versioned_catalog()
-
-    evaluation_time = datetime.now(timezone.utc)
-    cursor_ts = None
-    if context.cursor:
-        try:
-            cursor_ts = datetime.fromisoformat(context.cursor)
-        except ValueError:
-            cursor_ts = None
-
-    cutoff = (
-        (cursor_ts - timedelta(minutes=5))
-        if cursor_ts
-        else (evaluation_time - timedelta(minutes=5))
-    )
-
-    started_runs = list(
-        instance.get_runs(
-            filters=dg.RunsFilter(
-                statuses=[dg.DagsterRunStatus.STARTED],
-                updated_after=cutoff,
-            )
-        )
-    )
-
-    branches_created = 0
-
-    for run in started_runs:
-        run_tags = run.tags or {}
-        if WAP_TAG_KEY in run_tags:
-            continue
-
-        branch_name = _wap_branch_name(run.run_id)
-
-        target_hash_before = _branch_hash(catalog, "main")
-
-        branch_hash = catalog.create_branch(branch_name, from_ref="main")
-        if branch_hash is None:
-            write_wap_report(
-                run.run_id,
-                status="branch_creation_failed",
-                branch=branch_name,
-                target_branch="main",
-            )
-            _emit_wap_observation(
-                run=run,
-                status="failed",
-                operation="branch_create",
-                catalog_ref=branch_name,
-                source_hash=target_hash_before,
-                merge_outcome="failed",
-                metadata={"target_ref": "main", "branch_hash": {"status": "unavailable"}},
-            )
-            logger.warning(
-                "wap_branch_creation_skipped",
-                run_id=run.run_id,
-                branch_name=branch_name,
-            )
-            continue
-
-        instance.add_run_tags(run.run_id, {WAP_TAG_KEY: branch_name})
-        write_wap_report(
-            run.run_id,
-            status="branch_created",
-            branch=branch_name,
-            branch_hash=str(branch_hash),
-            target_branch="main",
-            target_hash_before=target_hash_before,
-            project_id=_project_id_for_run(run),
-            attempt=_attempt_for_run(run),
-        )
-        _emit_wap_observation(
-            run=run,
-            status="success",
-            operation="branch_create",
-            catalog_ref=branch_name,
-            source_hash=target_hash_before,
-            target_hash=str(branch_hash),
-            merge_outcome="created",
-            metadata={"source_ref": "main", "commit": {"status": "unavailable"}},
-        )
-        branches_created += 1
-        logger.info(
-            "wap_branch_created",
-            run_id=run.run_id,
-            branch_name=branch_name,
-            branch_hash=branch_hash,
-        )
-
-    if branches_created:
-        logger.info(
-            "wap_branch_creation_sensor_completed",
-            branches_created=branches_created,
-            scanned_runs=len(started_runs),
-        )
-
-    context.update_cursor(evaluation_time.isoformat())
-
-
-# ---------------------------------------------------------------------------
-# Sensor 2: Auto-promotion (audit → publish)
+# Sensor 1: Auto-promotion (audit → publish)
 # ---------------------------------------------------------------------------
 
 
@@ -1160,11 +1028,10 @@ def get_wap_definitions() -> dg.Definitions:
     """
     logger.info(
         "dagster_wap_definitions_built",
-        sensor_count=3,
+        sensor_count=2,
     )
     return dg.Definitions(
         sensors=[
-            wap_branch_creation_sensor,
             wap_auto_promotion_sensor,
             wap_branch_cleanup_sensor,
         ],
