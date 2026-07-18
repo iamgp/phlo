@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+from phlo.capabilities.inventory import ObjectInventory
+
 
 @dataclass(frozen=True, slots=True)
 class TableStoreSupport:
@@ -389,6 +391,21 @@ class MaintenanceRetentionStore(Protocol):
         operation_id: str | None = None,
     ) -> dict[str, object]:
         """Plan or execute guarded orphan-file cleanup."""
+        ...
+
+
+@runtime_checkable
+class ObjectInventoryStore(Protocol):
+    """Provider-neutral evidence source for a complete owned-prefix scan."""
+
+    def inventory_owned_prefix(
+        self,
+        *,
+        location: str,
+        retention_cutoff: datetime,
+        page_size: int = 1_000,
+    ) -> ObjectInventory:
+        """Return a complete inventory or a failure result with no partial set."""
         ...
 
 

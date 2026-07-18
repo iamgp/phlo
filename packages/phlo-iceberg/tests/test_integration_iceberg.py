@@ -10,9 +10,11 @@ Per TEST_STRATEGY.md Level 2 (Functional):
 import socket
 import os
 import tempfile
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pandas as pd
 import pytest
@@ -578,3 +580,53 @@ class TestIcebergExports:
         from phlo_iceberg.resource import IcebergResource
 
         assert IcebergResource is not None
+
+
+def test_owned_minio_inventory_uses_multiple_continuation_pages_and_cleans_up():
+    """The actual S3-compatible API proves completion rather than PyArrow listing."""
+    from phlo_iceberg.resource import _s3_inventory_client, inventory_owned_s3_prefix
+    from phlo_iceberg.settings import get_settings
+
+    get_settings.cache_clear()
+    client = _s3_inventory_client()
+    try:
+        client.call_s3("list_buckets")
+    except Exception as exc:
+        pytest.skip(f"MinIO inventory test requires the configured owned service: {exc}")
+    prefix = f"warehouse/phlo-inventory-{uuid4().hex}/data"
+    keys = [f"{prefix}/{number:02}.parquet" for number in range(5)]
+    outside_key = f"warehouse/phlo-inventory-{uuid4().hex}/outside.parquet"
+    bucket = f"phlo-inventory-{uuid4().hex[:16]}"
+    try:
+        client.call_s3("create_bucket", Bucket=bucket)
+        for key in keys:
+            client.call_s3("put_object", Bucket=bucket, Key=key, Body=b"inventory-test")
+        client.call_s3("put_object", Bucket=bucket, Key=outside_key, Body=b"x")
+        first = inventory_owned_s3_prefix(
+            location=f"s3://{bucket}/{prefix}",
+            retention_cutoff=datetime(2026, 1, 1, tzinfo=UTC),
+            page_size=2,
+            client=client,
+        )
+        second = inventory_owned_s3_prefix(
+            location=f"s3://{bucket}/{prefix}",
+            retention_cutoff=datetime(2026, 1, 1, tzinfo=UTC),
+            page_size=2,
+            client=client,
+        )
+        assert first.complete is True
+        assert first.continuation_exhausted is True
+        assert first.page_count == 3
+        assert len(first.objects) == 5
+        assert first.digest == second.digest
+        assert all(item.identity.startswith(f"s3://{bucket}/{prefix}/") for item in first.objects)
+    finally:
+        for key in [*keys, outside_key]:
+            try:
+                client.call_s3("delete_object", Bucket=bucket, Key=key)
+            except Exception:
+                pass
+        try:
+            client.call_s3("delete_bucket", Bucket=bucket)
+        except Exception:
+            pass
