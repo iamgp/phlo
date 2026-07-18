@@ -429,6 +429,28 @@ def test_start_stack_diagnostics_do_not_mask_startup_failure(tmp_path: Path, mon
         raise AssertionError("startup failure should be re-raised")
 
 
+def test_runtime_diagnostics_emit_relevant_service_logs_and_do_not_mask_errors(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    config = _config(tmp_path)
+    commands: list[list[str]] = []
+
+    def fake_run(args, **_kwargs):
+        commands.append(args)
+        if args[-1] == "nessie":
+            raise RuntimeError("log collection unavailable")
+
+    monkeypatch.setattr(release_golden_path, "run", fake_run)
+
+    release_golden_path.emit_runtime_diagnostics(config)
+
+    assert commands == [
+        release_golden_path.compose_command(config, "logs", "--no-color", "--timestamps", service)
+        for service in release_golden_path.RUNTIME_DIAGNOSTIC_SERVICES
+    ]
+    assert "diagnostics failed for nessie: log collection unavailable" in capsys.readouterr().err
+
+
 def test_align_project_name_binds_cli_lookup_to_owned_compose_project(tmp_path: Path) -> None:
     config = _config(tmp_path)
     config.project_dir.mkdir()

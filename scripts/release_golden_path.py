@@ -35,6 +35,14 @@ PORT_NAMES = (
 WAP_RUN_TIMEOUT_SECONDS = 180
 WAP_PROMOTION_TIMEOUT_SECONDS = 180
 RUN_REPORT_TIMEOUT_SECONDS = 60
+RUNTIME_DIAGNOSTIC_SERVICES = (
+    "dagster",
+    "dagster-daemon",
+    "nessie",
+    "minio",
+    "trino",
+    "phlo-api",
+)
 
 
 @dataclass(frozen=True)
@@ -682,6 +690,21 @@ def verify_rows(config: RunConfig, table: str = "raw.events") -> None:
         raise RuntimeError(f"{table} has no rows for partition {config.partition}")
 
 
+def emit_runtime_diagnostics(config: RunConfig) -> None:
+    """Emit owned service logs before cleanup hides a post-start failure."""
+    for service in RUNTIME_DIAGNOSTIC_SERVICES:
+        try:
+            run(
+                compose_command(config, "logs", "--no-color", "--timestamps", service),
+                cwd=config.project_dir,
+            )
+        except Exception as exc:
+            print(
+                f"release golden path diagnostics failed for {service}: {exc}",
+                file=sys.stderr,
+            )
+
+
 def cleanup(
     config: RunConfig,
     *,
@@ -752,6 +775,7 @@ def main(argv: list[str] | None = None) -> int:
     project_dir.parent.mkdir(parents=True, exist_ok=True)
     primary_error: Exception | None = None
     cleanup_errors: list[Exception] = []
+    stack_started = False
     try:
         build_wheelhouse(config)
         install_operator(config)
@@ -763,6 +787,7 @@ def main(argv: list[str] | None = None) -> int:
         configure_non_dev_compose(config)
         write_report_policy_fixture(config)
         start_stack(config)
+        stack_started = True
         materialize_partition(config)
         verify_rows(config)
         materialize_transform(config)
@@ -773,6 +798,8 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         primary_error = exc
     finally:
+        if primary_error and stack_started:
+            emit_runtime_diagnostics(config)
         if not args.keep_project:
             cleanup_errors = cleanup(
                 config,
