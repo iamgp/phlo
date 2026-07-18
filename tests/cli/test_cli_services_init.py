@@ -130,6 +130,45 @@ def test_conditional_environment_supports_list_environment_and_user_overrides(tm
     }
 
 
+def test_conditional_environment_list_is_not_mutated_between_renders(tmp_path) -> None:
+    service = ServiceDefinition(
+        name="conditional",
+        description="conditional",
+        category="core",
+        default=True,
+        compose={
+            "environment": ["EXISTING=value"],
+            "conditional_environment": {
+                "ENABLE_CONDITIONAL": {"CONDITIONAL_VALUE": "enabled"},
+            },
+        },
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    enabled = yaml.safe_load(
+        generator.generate_compose(
+            [service], output_dir=tmp_path, env_values={"ENABLE_CONDITIONAL": "true"}
+        )
+    )
+    disabled = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+    enabled_again = yaml.safe_load(
+        generator.generate_compose(
+            [service], output_dir=tmp_path, env_values={"ENABLE_CONDITIONAL": "true"}
+        )
+    )
+
+    assert service.compose["environment"] == ["EXISTING=value"]
+    assert enabled["services"]["conditional"]["environment"] == [
+        "EXISTING=value",
+        "CONDITIONAL_VALUE=enabled",
+    ]
+    assert disabled["services"]["conditional"]["environment"] == ["EXISTING=value"]
+    assert enabled_again["services"]["conditional"]["environment"] == [
+        "EXISTING=value",
+        "CONDITIONAL_VALUE=enabled",
+    ]
+
+
 def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
     discovery = ServiceDiscovery()
     nessie = discovery.get_service("nessie")

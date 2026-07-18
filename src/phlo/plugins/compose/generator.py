@@ -264,7 +264,11 @@ class ComposeGenerator:
 
         for key in ("user", "container_name", "labels", "environment", "ports"):
             if compose.get(key):
-                config[key] = compose[key]
+                value = compose[key]
+                if key == "environment" and isinstance(value, (dict, list)):
+                    config[key] = value.copy()
+                else:
+                    config[key] = value
                 handled_compose_keys.add(key)
 
         if compose.get("volumes"):
