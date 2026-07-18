@@ -40,10 +40,12 @@ Example:
 
 from __future__ import annotations
 
+import asyncio
 import platform
 import subprocess
 import sys
 import time
+import uuid
 from collections import deque
 from typing import Optional
 
@@ -56,6 +58,8 @@ from phlo.cli.infrastructure.container_backend import (
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import command_failed_error, service_unavailable_error
 from phlo_dagster.containers import find_dagster_container
+from phlo_dagster.operations import launch_materialize
+from phlo_dagster.wap_launch import prepare_wap_launch
 from phlo.logging import get_logger
 
 
@@ -105,6 +109,18 @@ def wait_for_dagster_runtime(
 @click.argument("asset_name", required=False)
 @click.option("-p", "--partition", help="Partition date (YYYY-MM-DD)")
 @click.option("--select", help="Asset selector expression")
+@click.option("--wap", is_flag=True, help="Launch one asset through the WAP branch lifecycle")
+@click.option("--wap-run-id", help="Reuse this logical run identity for a WAP retry")
+@click.option("--job-name", help="Dagster job name required for a WAP launch")
+@click.option("--repository-location-name", help="Dagster repository location for a WAP launch")
+@click.option("--repository-name", help="Dagster repository name for a WAP launch")
+@click.option(
+    "--dagster-url",
+    envvar="DAGSTER_GRAPHQL_URL",
+    default="http://localhost:3000/graphql",
+    show_default=True,
+    help="Dagster GraphQL endpoint for a WAP launch",
+)
 @click.option(
     "--no-contract-refresh",
     is_flag=True,
@@ -115,6 +131,12 @@ def materialize(
     asset_name: str | None,
     partition: Optional[str],
     select: Optional[str],
+    wap: bool,
+    wap_run_id: str | None,
+    job_name: str | None,
+    repository_location_name: str | None,
+    repository_name: str | None,
+    dagster_url: str,
     no_contract_refresh: bool,
     dry_run: bool,
 ) -> None:
@@ -136,6 +158,49 @@ def materialize(
     """
     if not asset_name and not select:
         raise click.UsageError("Provide ASSET_NAME or --select.")
+    if wap:
+        if not asset_name or select:
+            raise click.UsageError(
+                "WAP materialization requires one ASSET_NAME and does not support --select."
+            )
+        if not job_name:
+            raise click.UsageError("WAP materialization requires --job-name.")
+
+        logical_run_id = wap_run_id or uuid.uuid4().hex
+        if dry_run:
+            click.echo(
+                "WAP dry run - would launch "
+                f"{asset_name} with logical run ID {logical_run_id} through {dagster_url}"
+            )
+            return
+
+        wap_launch = prepare_wap_launch(logical_run_id=logical_run_id)
+        try:
+            result = asyncio.run(
+                launch_materialize(
+                    dagster_url=dagster_url,
+                    asset_key_path=asset_name,
+                    job_name=job_name,
+                    repository_location_name=repository_location_name,
+                    repository_name=repository_name,
+                    partition_key=partition,
+                    idempotency_key=logical_run_id,
+                    tags=wap_launch.tags,
+                )
+            )
+        except Exception:
+            wap_launch.cleanup_if_created()
+            raise
+
+        if not result.accepted:
+            wap_launch.cleanup_if_created()
+            raise click.ClickException(result.message)
+
+        click.echo(
+            f"Launched WAP materialization for {asset_name} on {wap_launch.branch} "
+            f"(logical run {logical_run_id}, Dagster run {result.run_id})"
+        )
+        return
     effective_selection = select or asset_name or ""
 
     logger = get_logger("phlo.dagster.materialize", service="dagster")

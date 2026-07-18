@@ -6,7 +6,7 @@ import asyncio
 
 import httpx
 
-from phlo_dagster.operations import launch_materialize, list_partitions, terminate
+from phlo_dagster.operations import launch_materialize, launch_retry, list_partitions, terminate
 
 
 def test_launch_materialize_posts_asset_selection(monkeypatch) -> None:
@@ -46,6 +46,55 @@ def test_launch_materialize_posts_asset_selection(monkeypatch) -> None:
     selector = variables["executionParams"]["selector"]
     assert selector["pipelineName"] == "orders_job"
     assert selector["assetSelection"] == [{"path": ["silver", "orders"]}]
+
+
+def test_wap_materialize_tags_survive_retry(monkeypatch) -> None:
+    payloads: list[dict[str, object]] = []
+
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        payloads.append(json)
+        mutation = "launchPipelineExecution" if len(payloads) == 1 else "launchPipelineReexecution"
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "data": {
+                    mutation: {
+                        "__typename": "LaunchRunSuccess",
+                        "run": {"runId": "dagster-run", "status": "STARTED"},
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    tags = {"phlo/run_id": "request-42", "phlo/wap_branch": "pipeline-run-request-42"}
+
+    asyncio.run(
+        launch_materialize(
+            dagster_url="http://dagster.test/graphql",
+            asset_key_path="silver/orders",
+            job_name="orders_job",
+            idempotency_key="request-42",
+            tags=tags,
+        )
+    )
+    asyncio.run(
+        launch_retry(
+            dagster_url="http://dagster.test/graphql",
+            run_id="dagster-run",
+            strategy="FROM_FAILURE",
+            tags=tags,
+        )
+    )
+
+    launch_tags = payloads[0]["variables"]["executionParams"]["executionMetadata"]["tags"]  # type: ignore[index]
+    retry = payloads[1]["variables"]["reexecutionParams"]  # type: ignore[index]
+    launch_tag_map = {tag["key"]: tag["value"] for tag in launch_tags}
+    assert launch_tag_map["phlo/wap_branch"] == "pipeline-run-request-42"
+    assert launch_tag_map["phlo/idempotency_key"] == "request-42"
+    assert retry["useParentRunTags"] is True
+    assert {tag["key"]: tag["value"] for tag in retry["extraTags"]}["phlo/run_id"] == "request-42"
 
 
 def test_terminate_maps_dagster_error(monkeypatch) -> None:

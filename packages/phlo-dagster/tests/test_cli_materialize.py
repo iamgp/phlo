@@ -123,6 +123,41 @@ def test_materialize_can_disable_contract_refresh(mock_project, mock_container) 
     assert "PHLO_AUTO_REFRESH_CONTRACTS=0" in result.output
 
 
+def test_wap_materialize_uses_graphql_launch_and_cleans_a_rejected_new_branch(
+    monkeypatch,
+) -> None:
+    cleaned: list[bool] = []
+
+    class Launch:
+        logical_run_id = "request-42"
+        branch = "pipeline-run-request-42"
+        tags = {"phlo/run_id": logical_run_id, "phlo/wap_branch": branch}
+
+        def cleanup_if_created(self) -> None:
+            cleaned.append(True)
+
+    async def rejected_launch(**kwargs):
+        assert kwargs["asset_key_path"] == "dlt_orders"
+        assert kwargs["job_name"] == "__ASSET_JOB"
+        assert kwargs["idempotency_key"] == "request-42"
+        assert kwargs["tags"] == Launch.tags
+        return type(
+            "Result", (), {"accepted": False, "message": "Dagster rejected run", "run_id": None}
+        )()
+
+    monkeypatch.setattr("phlo_dagster.cli_materialize.prepare_wap_launch", lambda **_: Launch())
+    monkeypatch.setattr("phlo_dagster.cli_materialize.launch_materialize", rejected_launch)
+
+    result = CliRunner().invoke(
+        materialize,
+        ["dlt_orders", "--wap", "--wap-run-id", "request-42", "--job-name", "__ASSET_JOB"],
+    )
+
+    assert result.exit_code != 0
+    assert "Dagster rejected run" in result.output
+    assert cleaned == [True]
+
+
 @patch(
     "phlo_dagster.cli_materialize.find_dagster_container",
     side_effect=AssertionError("dry-run should not inspect Docker"),
