@@ -95,6 +95,22 @@ from phlo_dlt.pandera_checks import (
 from phlo_dlt.registry import TableConfig
 
 
+def _resource_identity(
+    *,
+    project_id: str | None,
+    resource_type: str,
+    resource_id: str,
+    attributes: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Build the provider's canonical, project-scoped report identity."""
+    return {
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "tenant": project_id,
+        "attributes": attributes or {},
+    }
+
+
 class DltIngester(BaseIngester):
     """DLT-specific implementation of the ingestion engine.
 
@@ -318,6 +334,18 @@ class DltIngester(BaseIngester):
                                 "resource_kind": "external_source",
                                 "role": "input",
                                 "normalized_identity": source_identity,
+                                "resource_identity": _resource_identity(
+                                    project_id=project_id,
+                                    resource_type=(
+                                        "external_source" if source_identity else "ingestion_asset"
+                                    ),
+                                    resource_id=source_identity
+                                    or self.table_config.full_table_name,
+                                    attributes={
+                                        "table_name": self.table_config.full_table_name,
+                                        "partition_key": partition_key,
+                                    },
+                                ),
                                 "ref_name": branch_name,
                                 "metadata": {
                                     "partition": {"status": "observed", "value": partition_key},
@@ -405,6 +433,15 @@ class DltIngester(BaseIngester):
                     "resource_kind": "external_source",
                     "role": "input",
                     "normalized_identity": source_identity,
+                    "resource_identity": _resource_identity(
+                        project_id=project_id,
+                        resource_type=("external_source" if source_identity else "ingestion_asset"),
+                        resource_id=source_identity or self.table_config.full_table_name,
+                        attributes={
+                            "table_name": self.table_config.full_table_name,
+                            "partition_key": partition_key,
+                        },
+                    ),
                     "ref_name": branch_name,
                     "record_count": dlt_metrics.get("records_read"),
                     "byte_count": dlt_metrics.get("bytes_read"),
@@ -420,6 +457,21 @@ class DltIngester(BaseIngester):
                 {
                     "resource_kind": "staged_object",
                     "role": "staged",
+                    "resource_identity": _resource_identity(
+                        project_id=project_id,
+                        resource_type="staged_object",
+                        resource_id=execution_identity
+                        or ",".join(
+                            str(item["identity"])
+                            for item in staged_objects
+                            if isinstance(item.get("identity"), str)
+                        )
+                        or self.table_config.full_table_name,
+                        attributes={
+                            "table_name": self.table_config.full_table_name,
+                            "partition_key": partition_key,
+                        },
+                    ),
                     "ref_name": branch_name,
                     "staged_objects": staged_objects,
                     "record_count": staged_record_count,
@@ -450,6 +502,12 @@ class DltIngester(BaseIngester):
                 "resource_kind": "iceberg_table",
                 "role": "output",
                 "table_name": self.table_config.full_table_name,
+                "resource_identity": _resource_identity(
+                    project_id=project_id,
+                    resource_type="iceberg_table",
+                    resource_id=self.table_config.full_table_name,
+                    attributes={"catalog_ref": branch_name},
+                ),
                 "ref_name": branch_name,
                 "schema_hash": before_state["schema_hash"],
                 "schema_hash_before": before_state["schema_hash"],
