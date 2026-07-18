@@ -200,6 +200,9 @@ def test_mixed_recovery_set_stops_before_restore_mutation(tmp_path, monkeypatch)
 def test_nessie_export_and_import_use_the_pinned_admin_tool(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(recovery_drill, "run", lambda command, **_: calls.append(command))
+    monkeypatch.setattr(recovery_drill.os, "name", "posix")
+    monkeypatch.setattr(recovery_drill.os, "getuid", lambda: 1001, raising=False)
+    monkeypatch.setattr(recovery_drill.os, "getgid", lambda: 118, raising=False)
     stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
 
     recovery_drill.export_nessie(stack, tmp_path)
@@ -209,6 +212,8 @@ def test_nessie_export_and_import_use_the_pinned_admin_tool(tmp_path, monkeypatc
         "docker",
         "run",
         "--rm",
+        "--user",
+        "1001:118",
         "--network",
         "owned-drill_default",
         "-v",

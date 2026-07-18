@@ -232,11 +232,13 @@ def object_checksum(stack: Stack, key: str) -> str:
 
 def nessie_admin(stack: Stack, backup_dir: Path, *args: str) -> None:
     """Export or import Nessie's repository without running a target server."""
+    host_user = ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
     run(
         [
             "docker",
             "run",
             "--rm",
+            *host_user,
             "--network",
             f"{stack.project}_default",
             "-v",
