@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -25,10 +26,15 @@ def test_compose_uses_isolated_ports_and_supported_stack_images(tmp_path):
     assert "minio/minio:RELEASE.2025-09-07T16-13-09Z" in compose
     assert "ghcr.io/projectnessie/nessie:0.107.2" in compose
     assert "127.0.0.1::5432" in compose
+    assert "condition: service_healthy" in compose
+    assert "jdbc:postgresql://postgres:5432/phlo?currentSchema=public" in compose
     assert "nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse" in compose
     assert "nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/" in compose
     assert 'nessie.catalog.service.s3.default-options.path-style-access: "true"' in compose
     assert recovery_drill.MC_IMAGE.startswith("minio/mc@sha256:")
+    assert recovery_drill.NESSIE_ADMIN_IMAGE.startswith(
+        "ghcr.io/projectnessie/nessie-server-admin@sha256:"
+    )
     assert ":latest" not in recovery_drill.MC_IMAGE
 
 
@@ -64,14 +70,36 @@ def test_helper_is_network_local_and_uses_locked_dependency_export(tmp_path, mon
 def test_manifest_round_trip_requires_fixture_and_checksum(tmp_path):
     fixture = {"project_id": "project", "table_name": "recovery.rows", "snapshot_id": "42"}
     (tmp_path / "postgres.sql").write_text("backup", encoding="utf-8")
+    (tmp_path / "nessie.zip").write_text("backup", encoding="utf-8")
     (tmp_path / "lake").mkdir()
+    (tmp_path / "lake" / "metadata.json").write_text("metadata", encoding="utf-8")
 
     recovery_drill.write_manifest(tmp_path, fixture, "a" * 64)
 
-    assert recovery_drill.read_manifest(tmp_path) == {
-        "fixture": fixture,
-        "probe_checksum": "a" * 64,
+    manifest = recovery_drill.read_manifest(tmp_path)
+    assert manifest["fixture"] == fixture
+    assert manifest["probe_checksum"] == "a" * 64
+    assert manifest["artifacts"] == {
+        "postgres.sql": {"sha256": recovery_drill.sha256_file(tmp_path / "postgres.sql")},
+        "nessie.zip": {"sha256": recovery_drill.sha256_file(tmp_path / "nessie.zip")},
+        "lake": {"sha256": recovery_drill.sha256_tree(tmp_path / "lake")},
     }
+
+
+def test_lake_tree_digest_is_stable_and_path_sensitive(tmp_path):
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    (first / "a").write_bytes(b"alpha")
+    (first / "b").write_bytes(b"beta")
+    (second / "b").write_bytes(b"beta")
+    (second / "a").write_bytes(b"alpha")
+
+    assert recovery_drill.sha256_tree(first) == recovery_drill.sha256_tree(second)
+
+    (second / "a").rename(second / "renamed")
+    assert recovery_drill.sha256_tree(first) != recovery_drill.sha256_tree(second)
 
 
 @pytest.mark.parametrize(
@@ -96,12 +124,146 @@ def test_manifest_rejects_missing_or_corrupt_verification_evidence(tmp_path, con
 
 
 def test_manifest_rejects_missing_backup_files(tmp_path):
+    (tmp_path / "postgres.sql").write_text("backup", encoding="utf-8")
+    (tmp_path / "nessie.zip").write_text("backup", encoding="utf-8")
+    (tmp_path / "lake").mkdir()
     recovery_drill.write_manifest(
         tmp_path, {"project_id": "p", "table_name": "t", "snapshot_id": "s"}, "a" * 64
     )
+    (tmp_path / "nessie.zip").unlink()
 
     with pytest.raises(recovery_drill.RecoveryDrillError, match="backup manifest"):
         recovery_drill.read_manifest(tmp_path)
+
+
+def write_backup_set(path, marker):
+    path.mkdir()
+    (path / "postgres.sql").write_text(f"postgres-{marker}", encoding="utf-8")
+    (path / "nessie.zip").write_text(f"nessie-{marker}", encoding="utf-8")
+    (path / "lake").mkdir()
+    (path / "lake" / "metadata.json").write_text(f"metadata-{marker}", encoding="utf-8")
+    recovery_drill.write_manifest(
+        path,
+        {"project_id": "p", "table_name": "t", "snapshot_id": marker},
+        "a" * 64,
+    )
+
+
+@pytest.mark.parametrize(
+    ("artifact", "path"),
+    [
+        ("postgres.sql", "postgres.sql"),
+        ("nessie.zip", "nessie.zip"),
+        ("lake", "lake/metadata.json"),
+    ],
+)
+def test_corrupt_recovery_set_stops_before_restore_mutation(tmp_path, monkeypatch, artifact, path):
+    backup = tmp_path / "backup"
+    write_backup_set(backup, "original")
+    (backup / path).write_text("corrupt", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(recovery_drill, "restore_bucket", lambda *_: calls.append("bucket"))
+    monkeypatch.setattr(
+        recovery_drill, "compose", lambda *_args, **_kwargs: calls.append("postgres")
+    )
+    monkeypatch.setattr(recovery_drill, "import_nessie", lambda *_: calls.append("nessie"))
+
+    with pytest.raises(recovery_drill.RecoveryDrillError, match=f"digest mismatch for {artifact}"):
+        recovery_drill.restore_recovery_set(
+            recovery_drill.Stack("owned-drill", tmp_path / "target"), backup
+        )
+
+    assert calls == []
+
+
+def test_mixed_recovery_set_stops_before_restore_mutation(tmp_path, monkeypatch):
+    original = tmp_path / "original"
+    replacement = tmp_path / "replacement"
+    write_backup_set(original, "original")
+    write_backup_set(replacement, "replacement")
+    shutil.copy2(original / "manifest.json", replacement / "manifest.json")
+    calls = []
+    monkeypatch.setattr(recovery_drill, "restore_bucket", lambda *_: calls.append("bucket"))
+    monkeypatch.setattr(
+        recovery_drill, "compose", lambda *_args, **_kwargs: calls.append("postgres")
+    )
+    monkeypatch.setattr(recovery_drill, "import_nessie", lambda *_: calls.append("nessie"))
+
+    with pytest.raises(recovery_drill.RecoveryDrillError, match="digest mismatch"):
+        recovery_drill.restore_recovery_set(
+            recovery_drill.Stack("owned-drill", tmp_path / "target"), replacement
+        )
+
+    assert calls == []
+
+
+def test_nessie_export_and_import_use_the_pinned_admin_tool(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(recovery_drill, "run", lambda command, **_: calls.append(command))
+    monkeypatch.setattr(recovery_drill.os, "name", "posix")
+    monkeypatch.setattr(recovery_drill.os, "getuid", lambda: 1001, raising=False)
+    monkeypatch.setattr(recovery_drill.os, "getgid", lambda: 118, raising=False)
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
+
+    recovery_drill.export_nessie(stack, tmp_path)
+    recovery_drill.import_nessie(stack, tmp_path)
+
+    common = [
+        "docker",
+        "run",
+        "--rm",
+        "--user",
+        "1001:118",
+        "--network",
+        "owned-drill_default",
+        "-v",
+        f"{tmp_path.resolve()}:/backup",
+        "-e",
+        "NESSIE_VERSION_STORE_TYPE=JDBC",
+        "-e",
+        "QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/phlo?currentSchema=public",
+        "-e",
+        "QUARKUS_DATASOURCE_USERNAME=phlo",
+        "-e",
+        "QUARKUS_DATASOURCE_PASSWORD=phlo",
+        recovery_drill.NESSIE_ADMIN_IMAGE,
+    ]
+    assert calls == [
+        [*common, "export", "--path", "/backup/nessie.zip"],
+        [*common, "import", "--erase-before-import", "--path", "/backup/nessie.zip"],
+    ]
+
+
+def test_minio_client_uses_host_owner_for_backup_mounts(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(recovery_drill, "run", lambda command, **_: calls.append(command))
+    monkeypatch.setattr(recovery_drill.os, "name", "posix")
+    monkeypatch.setattr(recovery_drill.os, "getuid", lambda: 1001, raising=False)
+    monkeypatch.setattr(recovery_drill.os, "getgid", lambda: 118, raising=False)
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
+
+    recovery_drill.mc(stack, "true", mounts=[(tmp_path, "/backup")])
+
+    assert calls == [
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            "1001:118",
+            "-e",
+            "HOME=/tmp",
+            "--network",
+            "owned-drill_default",
+            "-v",
+            f"{tmp_path.resolve()}:/backup",
+            "--entrypoint",
+            "/bin/sh",
+            recovery_drill.MC_IMAGE,
+            "-c",
+            "true",
+        ]
+    ]
 
 
 def test_restored_evidence_requires_exact_resource_and_catalog_change():
@@ -240,8 +402,11 @@ def test_start_waits_for_postgres_before_other_health_checks(monkeypatch, tmp_pa
 def test_manifest_requires_regular_postgres_file_and_lake_directory(tmp_path):
     fixture = {"project_id": "p", "table_name": "t", "snapshot_id": "s"}
     (tmp_path / "postgres.sql").mkdir()
+    (tmp_path / "nessie.zip").write_text("backup", encoding="utf-8")
     (tmp_path / "lake").write_text("not a directory", encoding="utf-8")
-    recovery_drill.write_manifest(tmp_path, fixture, "a" * 64)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"fixture": fixture, "probe_checksum": "a" * 64}), encoding="utf-8"
+    )
 
     with pytest.raises(recovery_drill.RecoveryDrillError, match="backup manifest"):
         recovery_drill.read_manifest(tmp_path)

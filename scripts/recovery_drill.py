@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import shutil
@@ -25,6 +26,7 @@ from uuid import uuid4
 POSTGRES_IMAGE = "postgres:16-alpine"
 MINIO_IMAGE = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
 NESSIE_IMAGE = "ghcr.io/projectnessie/nessie:0.107.2"
+NESSIE_ADMIN_IMAGE = "ghcr.io/projectnessie/nessie-server-admin@sha256:94e67d471380e6da17680e166e3111819058a64c6717c96beafd1f3df6ec5876"
 MC_IMAGE = "minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727"
 HELPER_IMAGE = "python@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93"
 OWNER_MARKER = ".phlo-recovery-drill-owner.json"
@@ -93,7 +95,7 @@ def compose_yaml(stack: Stack) -> str:
     image: {NESSIE_IMAGE}
     environment:
       NESSIE_VERSION_STORE_TYPE: JDBC
-      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/phlo
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/phlo?currentSchema=public
       QUARKUS_DATASOURCE_USERNAME: phlo
       QUARKUS_DATASOURCE_PASSWORD: phlo
       nessie.catalog.default-warehouse: warehouse
@@ -104,7 +106,11 @@ def compose_yaml(stack: Stack) -> str:
       nessie.catalog.service.s3.default-options.access-key: urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
       nessie.catalog.secrets.access-key.name: minio
       nessie.catalog.secrets.access-key.secret: minio123
-    depends_on: [postgres, minio]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
     ports: [\"127.0.0.1::19120\"]
 volumes:
   postgres-data: {{}}
@@ -185,7 +191,17 @@ def start(stack: Stack, *, with_nessie: bool) -> None:
 def mc(
     stack: Stack, command: str, *, mounts: list[tuple[Path, str]] = (), timeout: int = 180
 ) -> subprocess.CompletedProcess[bytes]:
-    args = ["docker", "run", "--rm", "--network", f"{stack.project}_default"]
+    host_user = ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
+    args = [
+        "docker",
+        "run",
+        "--rm",
+        *host_user,
+        "-e",
+        "HOME=/tmp",
+        "--network",
+        f"{stack.project}_default",
+    ]
     for source, target in mounts:
         args.extend(["-v", f"{source.resolve()}:{target}"])
     args.extend(["--entrypoint", "/bin/sh", MC_IMAGE, "-c", command])
@@ -222,6 +238,49 @@ def restore_bucket(target: Stack, backup_dir: Path) -> None:
 def object_checksum(stack: Stack, key: str) -> str:
     command = f"mc alias set target http://minio:9000 minio minio123 >/dev/null && mc cat target/lake/{key} | sha256sum"
     return mc(stack, command).stdout.decode().split()[0]
+
+
+def nessie_admin(stack: Stack, backup_dir: Path, *args: str) -> None:
+    """Export or import Nessie's repository without running a target server."""
+    host_user = ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
+    run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            *host_user,
+            "--network",
+            f"{stack.project}_default",
+            "-v",
+            f"{backup_dir.resolve()}:/backup",
+            "-e",
+            "NESSIE_VERSION_STORE_TYPE=JDBC",
+            "-e",
+            "QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/phlo?currentSchema=public",
+            "-e",
+            "QUARKUS_DATASOURCE_USERNAME=phlo",
+            "-e",
+            "QUARKUS_DATASOURCE_PASSWORD=phlo",
+            NESSIE_ADMIN_IMAGE,
+            *args,
+        ],
+        timeout=300,
+    )
+
+
+def export_nessie(stack: Stack, backup_dir: Path) -> None:
+    nessie_admin(stack, backup_dir, "export", "--path", "/backup/nessie.zip")
+
+
+def import_nessie(stack: Stack, backup_dir: Path) -> None:
+    nessie_admin(
+        stack,
+        backup_dir,
+        "import",
+        "--erase-before-import",
+        "--path",
+        "/backup/nessie.zip",
+    )
 
 
 def helper_source() -> str:
@@ -416,9 +475,42 @@ def verify_evidence(store: Any, fixture: dict[str, Any]) -> None:
         )
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def sha256_tree(root: Path) -> str:
+    digest = hashlib.sha256(b"phlo-recovery-tree-v1\0")
+    paths = sorted(root.rglob("*"), key=lambda path: path.relative_to(root).as_posix())
+    for path in paths:
+        if path.is_symlink():
+            raise RecoveryDrillError(f"backup lake contains unsupported entry: {path}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise RecoveryDrillError(f"backup lake contains unsupported entry: {path}")
+        relative = path.relative_to(root).as_posix().encode()
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(bytes.fromhex(sha256_file(path)))
+    return digest.hexdigest()
+
+
 def write_manifest(backup_dir: Path, fixture: dict[str, Any], checksum: str) -> None:
+    artifacts = {
+        "postgres.sql": {"sha256": sha256_file(backup_dir / "postgres.sql")},
+        "nessie.zip": {"sha256": sha256_file(backup_dir / "nessie.zip")},
+        "lake": {"sha256": sha256_tree(backup_dir / "lake")},
+    }
     (backup_dir / "manifest.json").write_text(
-        json.dumps({"fixture": fixture, "probe_checksum": checksum}, sort_keys=True),
+        json.dumps(
+            {"artifacts": artifacts, "fixture": fixture, "probe_checksum": checksum},
+            sort_keys=True,
+        ),
         encoding="utf-8",
     )
 
@@ -430,9 +522,12 @@ def read_manifest(backup_dir: Path) -> dict[str, Any]:
         raise RecoveryDrillError("backup manifest is missing or corrupt") from exc
     fixture = payload.get("fixture") if isinstance(payload, dict) else None
     checksum = payload.get("probe_checksum") if isinstance(payload, dict) else None
+    artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
     if (
         not (backup_dir / "postgres.sql").is_file()
+        or not (backup_dir / "nessie.zip").is_file()
         or not (backup_dir / "lake").is_dir()
+        or not isinstance(artifacts, dict)
         or not isinstance(fixture, dict)
         or not all(
             isinstance(fixture.get(key), str) and fixture[key]
@@ -443,7 +538,39 @@ def read_manifest(backup_dir: Path) -> dict[str, Any]:
         or any(character not in "0123456789abcdef" for character in checksum.lower())
     ):
         raise RecoveryDrillError("backup manifest is missing required verification evidence")
+    actual_digests = {
+        "postgres.sql": sha256_file(backup_dir / "postgres.sql"),
+        "nessie.zip": sha256_file(backup_dir / "nessie.zip"),
+        "lake": sha256_tree(backup_dir / "lake"),
+    }
+    for name, actual in actual_digests.items():
+        artifact = artifacts.get(name)
+        expected = artifact.get("sha256") if isinstance(artifact, dict) else None
+        if not isinstance(expected, str) or not hmac.compare_digest(expected, actual):
+            raise RecoveryDrillError(f"backup manifest digest mismatch for {name}")
     return payload
+
+
+def restore_recovery_set(target: Stack, backup_dir: Path) -> dict[str, Any]:
+    manifest = read_manifest(backup_dir)
+    restore_bucket(target, backup_dir)
+    compose(
+        target,
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-U",
+        "phlo",
+        "-d",
+        "phlo",
+        input=(backup_dir / "postgres.sql").read_bytes(),
+        timeout=300,
+    )
+    import_nessie(target, backup_dir)
+    return manifest
 
 
 def cleanup(stack: Stack) -> RecoveryDrillError | None:
@@ -520,6 +647,7 @@ def drill(root: Path, *, keep_artifacts: bool = False) -> dict[str, float]:
             timeout=300,
         ).stdout
         (backup / "postgres.sql").write_bytes(dump)
+        export_nessie(source, backup)
         mirror_bucket(source, backup)
         write_manifest(backup, fixture, checksum)
         backup_seconds = time.monotonic() - backup_started
@@ -528,23 +656,7 @@ def drill(root: Path, *, keep_artifacts: bool = False) -> dict[str, float]:
 
         restore_started = time.monotonic()
         start(target, with_nessie=False)
-        manifest = read_manifest(backup)
-        restore_bucket(target, backup)
-        compose(
-            target,
-            "exec",
-            "-T",
-            "postgres",
-            "psql",
-            "-v",
-            "ON_ERROR_STOP=1",
-            "-U",
-            "phlo",
-            "-d",
-            "phlo",
-            input=(backup / "postgres.sql").read_bytes(),
-            timeout=300,
-        )
+        manifest = restore_recovery_set(target, backup)
         compose(target, "up", "-d", "nessie", timeout=300)
         wait_for(
             f"http://127.0.0.1:{published_port(target, 'nessie', 19120)}/api/v1/config",

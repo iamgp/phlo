@@ -312,6 +312,56 @@ jobs:
       - name: Run release artifact golden path
         run: python3 scripts/release_golden_path.py
 
+  recovery-continuity-drill:
+    name: python / recovery continuity drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+
+      - name: Run owned backup and restore drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cairn-artifacts
+          uv run --locked python scripts/recovery_drill.py | tee cairn-artifacts/recovery-drill.json
+
+      - name: Summarize recovery evidence
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          report = Path("cairn-artifacts/recovery-drill.json")
+          print("### Recovery continuity drill")
+          if not report.is_file():
+              print("The drill produced no report; inspect the job log.")
+          else:
+              result = json.loads(report.read_text(encoding="utf-8"))
+              print(f"- Outcome: `{result.get('outcome', 'unknown')}`")
+              print(f"- Backup duration: `{result.get('backup_seconds', 'unavailable')}` seconds")
+              print(f"- Restore duration: `{result.get('restore_seconds', 'unavailable')}` seconds")
+              print("- Scope: owned PostgreSQL run evidence, Nessie/Iceberg catalog state, and object checksum.")
+              print("- This drill records observed durations; it does not assert an RPO or RTO.")
+          PY
+
+      - name: Upload recovery evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: recovery-continuity-drill
+          path: cairn-artifacts/recovery-drill.json
+          if-no-files-found: warn
+
   windows-release-contract:
     name: windows / release golden path contract
     runs-on: windows-latest
@@ -447,6 +497,7 @@ jobs:
       - python-core-tests
       - quickstart-smoke
       - release-golden-path
+      - recovery-continuity-drill
       - windows-release-contract
       - python-package-tests
       - frontend
@@ -459,6 +510,7 @@ jobs:
           PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
           QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
           RELEASE_GOLDEN_PATH: ${{ needs.release-golden-path.result }}
+          RECOVERY_CONTINUITY_DRILL: ${{ needs.recovery-continuity-drill.result }}
           WINDOWS_RELEASE_CONTRACT: ${{ needs.windows-release-contract.result }}
           PYTHON_PACKAGE_TESTS: ${{ needs.python-package-tests.result }}
           FRONTEND: ${{ needs.frontend.result }}
@@ -475,6 +527,7 @@ jobs:
             echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
             echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
             echo "| python / release golden path | ${RELEASE_GOLDEN_PATH} |"
+            echo "| python / recovery continuity drill | ${RECOVERY_CONTINUITY_DRILL} |"
             echo "| windows / release golden path contract | ${WINDOWS_RELEASE_CONTRACT} |"
             echo "| python / package tests | ${PYTHON_PACKAGE_TESTS} |"
             echo "| frontend / observatory | ${FRONTEND} |"
@@ -486,6 +539,7 @@ jobs:
             "${PYTHON_CORE_TESTS}" \
             "${QUICKSTART_SMOKE}" \
             "${RELEASE_GOLDEN_PATH}" \
+            "${RECOVERY_CONTINUITY_DRILL}" \
             "${WINDOWS_RELEASE_CONTRACT}" \
             "${PYTHON_PACKAGE_TESTS}" \
             "${FRONTEND}"; do
