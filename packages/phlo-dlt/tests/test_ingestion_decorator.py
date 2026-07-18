@@ -463,6 +463,25 @@ def test_get_write_branch_from_context_uses_target_branch_without_wap() -> None:
     assert get_write_branch_from_context(RuntimeStub(), strict_validation=True) == "feature/orders"
 
 
+def test_get_write_branch_from_context_ignores_blank_wap_like_dbt() -> None:
+    """A blank WAP tag should fall through to the same canonical ref used by dbt."""
+
+    class RuntimeStub:
+        run_id = "run-1"
+        partition_key = "2025-01-01"
+        tags = {"phlo/wap_branch": "  ", "phlo/ref": "feature_orders"}
+        resources = {}
+
+        @property
+        def logger(self) -> Any:
+            return object()
+
+        def get_resource(self, name: str) -> Any:
+            raise KeyError(name)
+
+    assert get_write_branch_from_context(RuntimeStub(), strict_validation=True) == "feature_orders"
+
+
 class TestSchemaAutoGeneration:
     """Test schema parameter handling."""
 

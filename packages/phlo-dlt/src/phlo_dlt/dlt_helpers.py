@@ -143,8 +143,8 @@ def get_write_branch_from_context(context: Any, *, strict_validation: bool) -> s
         tags = getattr(context, "tags", {}) or {}
         if isinstance(tags, Mapping):
             wap_branch = tags.get(WAP_TAG_KEY)
-            if isinstance(wap_branch, str) and wap_branch:
-                return wap_branch
+            if isinstance(wap_branch, str) and (normalized := wap_branch.strip()):
+                return normalized
     return get_branch_from_context(context)
 
 
