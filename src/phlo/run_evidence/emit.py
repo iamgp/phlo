@@ -56,6 +56,7 @@ def emit_observation(
     stage_id: str | None = None,
     resources: list[dict[str, Any]] | None = None,
     catalog_change: dict[str, Any] | None = None,
+    artifacts: list[dict[str, Any]] | None = None,
     metrics: dict[str, Any] | None = None,
     error: str | None = None,
     event_id: str | None = None,
@@ -110,6 +111,7 @@ def emit_observation(
             stage_id=stage_id,
             resources=resources or [],
             catalog_change=catalog_change,
+            artifacts=artifacts or [],
             metrics=metrics or {},
             error=error,
             correlation=HookCorrelation(

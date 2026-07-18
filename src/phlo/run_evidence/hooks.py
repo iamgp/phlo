@@ -398,9 +398,9 @@ def _artifacts_for_event(event: HookEvent, *, project_id: str, run_id: str) -> l
         values.setdefault("attempt", event.correlation.attempt)
         values["resource_ref"] = _resource_ref_from_mapping(
             values.get("resource_identity"), project_id
-        ) or ResourceRef(
-            resource_type="artifact", resource_id=values["artifact_id"], tenant=project_id
         )
+        if values["resource_ref"] is None:
+            raise ValueError("artifact requires canonical project-scoped resource_identity")
         allowed = {
             "project_id",
             "run_id",

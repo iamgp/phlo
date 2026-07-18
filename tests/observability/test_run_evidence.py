@@ -16,6 +16,7 @@ from uuid import uuid4
 import pytest
 
 from phlo.capabilities import ResourceRef
+from phlo.hooks import HookBus
 from phlo.hooks.emitters import (
     IngestionEventContext,
     IngestionEventEmitter,
@@ -1745,6 +1746,72 @@ def test_observation_rejects_catalog_change_without_canonical_producer_identity(
         )
 
     assert store.get_run("project", "run") is None
+
+
+@pytest.mark.parametrize(
+    "resource_identity",
+    [
+        None,
+        {"resource_type": "log", "resource_id": "run-log", "tenant": "other"},
+    ],
+)
+def test_observation_rejects_artifact_without_canonical_producer_identity(
+    resource_identity: dict[str, object] | None,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    artifact: dict[str, object] = {
+        "artifact_id": "run-log",
+        "artifact_kind": "log",
+    }
+    if resource_identity is not None:
+        artifact["resource_identity"] = resource_identity
+
+    with pytest.raises(ValueError, match="artifact requires canonical"):
+        CoreRunEvidenceHookProvider(store)._handle_event(
+            RunEvidenceObservationEvent(
+                event_type="run_evidence.observation",
+                observation_type="publish",
+                status="success",
+                artifacts=[artifact],
+                correlation=HookCorrelation(project_id="project", run_id="run"),
+            )
+        )
+
+    assert store.get_run("project", "run") is None
+
+
+def test_public_observation_boundary_persists_canonical_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo.run_evidence.emit.get_hook_bus", lambda: bus)
+
+    emit_observation(
+        project_id="project",
+        run_id="run",
+        observation_type="publish",
+        status="success",
+        producer="provider",
+        artifacts=[
+            {
+                "artifact_id": "run-log",
+                "artifact_kind": "log",
+                "resource_identity": {
+                    "resource_type": "log",
+                    "resource_id": "run-log",
+                    "tenant": "project",
+                    "attributes": {"classification": "internal"},
+                },
+            }
+        ],
+    )
+
+    report = build_run_report(store, "project", "run", 1)
+    assert report.artifacts[0].resource_identity == ReportResourceIdentity(
+        "project", "log", "run-log", "project", {"classification": "internal"}
+    )
 
 
 def test_observation_redacts_rows_and_credentials() -> None:
