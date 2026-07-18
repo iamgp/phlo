@@ -25,7 +25,11 @@ from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 logger = get_logger(__name__)
 
 
-_PRODUCTION_INTERNAL_SERVICES = frozenset({"postgres", "minio", "nessie", "trino", "dagster"})
+# These are implementation backends, rather than regulated user entry points.
+# Dagster remains reachable in the production profile because its webserver is a
+# regulated operator surface.  Keep this list deliberately small: applying it
+# to an entry point would silently remove its supported route.
+_PRODUCTION_INTERNAL_SERVICES = frozenset({"postgres", "minio", "nessie", "trino"})
 _PRODUCTION_CREDENTIAL_DEFAULTS = {
     "POSTGRES_USER": "phlo",
     "POSTGRES_PASSWORD": "phlo",

@@ -9,7 +9,10 @@ from __future__ import annotations
 import os
 from contextlib import suppress
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+import yaml
 
 from phlo.logging import get_logger
 from phlo.rbac.compiler import COMPILER_REGISTRY
@@ -23,6 +26,11 @@ logger = get_logger(__name__)
 REQUIRED_AUTHORIZATION_MODE = "required"
 PHLO_AUDIT_HMAC_KEY_ENV = "PHLO_AUDIT_HMAC_KEY"
 PHLO_SIGNATURE_HMAC_KEY_ENV = "PHLO_SIGNATURE_HMAC_KEY"
+
+# These services are v1 implementation backends. They are not supported as
+# direct user-facing entry points in a regulated deployment; the production
+# Compose profile must keep them off the host network and out of Traefik.
+INTERNAL_BACKEND_SERVICES = frozenset({"postgres", "minio", "nessie", "trino"})
 
 
 def _project_rbac_loader() -> RBACConfigLoader:
@@ -242,6 +250,95 @@ def _check_backend_coverage() -> ValidationResult:
         name="backend_sync_status",
         passed=True,
         message="Backend compilers are available and cover all configured actions",
+    )
+
+
+def _production_compose_path() -> Path:
+    """Return the generated Compose file for the configured project."""
+    from phlo.infrastructure.config import _default_project_root
+
+    return _default_project_root() / ".phlo" / "docker-compose.yml"
+
+
+def _has_public_traefik_route(config: dict[str, Any]) -> bool:
+    """Return whether a Compose service retains a Traefik route label."""
+    labels = config.get("labels", {})
+    if isinstance(labels, dict):
+        return any(str(key).startswith("traefik.") for key in labels)
+    if isinstance(labels, list):
+        return any(isinstance(label, str) and label.startswith("traefik.") for label in labels)
+    return False
+
+
+def _check_internal_backend_boundary() -> ValidationResult:
+    """Reject a regulated deployment whose generated backend services are public.
+
+    This validates the rendered deployment contract rather than trying to
+    infer it from service manifests. A production project can safely use these
+    backends over the internal Compose network, but a published host port,
+    Traefik route, or host network mode would bypass that v1 boundary.
+    """
+    compose_path = _production_compose_path()
+    if not compose_path.exists():
+        return ValidationResult(
+            name="internal_backend_boundary",
+            passed=False,
+            message=(
+                "Regulated mode requires a generated .phlo/docker-compose.yml; "
+                "render it with 'phlo services init --production'"
+            ),
+        )
+
+    try:
+        document = yaml.safe_load(compose_path.read_text()) or {}
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        return ValidationResult(
+            name="internal_backend_boundary",
+            passed=False,
+            message=f"Could not read generated Compose configuration: {exc}",
+        )
+
+    services = document.get("services") if isinstance(document, dict) else None
+    if not isinstance(services, dict):
+        return ValidationResult(
+            name="internal_backend_boundary",
+            passed=False,
+            message="Generated Compose configuration must contain a services mapping",
+        )
+
+    violations: list[str] = []
+    for service_name in sorted(INTERNAL_BACKEND_SERVICES):
+        config = services.get(service_name)
+        if config is None:
+            continue
+        if not isinstance(config, dict):
+            violations.append(f"{service_name} has an invalid service configuration")
+            continue
+        if config.get("ports"):
+            violations.append(f"{service_name} publishes host ports")
+        if config.get("network_mode") == "host":
+            violations.append(f"{service_name} uses host networking")
+        if _has_public_traefik_route(config):
+            violations.append(f"{service_name} has public Traefik labels")
+
+    if violations:
+        return ValidationResult(
+            name="internal_backend_boundary",
+            passed=False,
+            message=(
+                "Regulated backend boundary is not internal: "
+                f"{'; '.join(violations)}. Regenerate with 'phlo services init --production'."
+            ),
+        )
+
+    configured = sorted(name for name in INTERNAL_BACKEND_SERVICES if name in services)
+    return ValidationResult(
+        name="internal_backend_boundary",
+        passed=True,
+        message=(
+            "Generated regulated Compose keeps backend services internal"
+            + (f": {', '.join(configured)}" if configured else "")
+        ),
     )
 
 
@@ -516,6 +613,7 @@ def run_regulated_validation(
         _check_canonical_taxonomy(list(effective_actions), list(effective_resource_types))
     )
     report.add_check(_check_backend_coverage())
+    report.add_check(_check_internal_backend_boundary())
 
     report.add_check(_check_phlo_api_adapter(runtime))
 
