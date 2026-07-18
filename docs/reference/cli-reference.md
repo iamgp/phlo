@@ -1194,6 +1194,21 @@ for the structured failure details.
 --dry-run                # Show command without executing
 ```
 
+**Write-audit-publish (WAP) launch**:
+
+WAP creates or reuses a `pipeline-run-<logical-run-id>` catalog branch before
+asking Dagster to start exactly one asset. It requires the Dagster job and
+repository selector plus a verified user access token; set the repository and
+token values with the shown options or their `PHLO_DAGSTER_*` environment
+variables. If the launch response is ambiguous, Phlo retains a newly created
+branch so the caller can reconcile or retry with the same `--wap-run-id`.
+
+```bash
+phlo materialize dlt_events --wap --job-name __ASSET_JOB \
+  --repository-location-name phlo_dagster --repository-name phlo_dagster \
+  --access-token "$PHLO_DAGSTER_ACCESS_TOKEN"
+```
+
 **Selection Syntax**:
 
 ```bash

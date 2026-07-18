@@ -112,8 +112,21 @@ def wait_for_dagster_runtime(
 @click.option("--wap", is_flag=True, help="Launch one asset through the WAP branch lifecycle")
 @click.option("--wap-run-id", help="Reuse this logical run identity for a WAP retry")
 @click.option("--job-name", help="Dagster job name required for a WAP launch")
-@click.option("--repository-location-name", help="Dagster repository location for a WAP launch")
-@click.option("--repository-name", help="Dagster repository name for a WAP launch")
+@click.option(
+    "--repository-location-name",
+    envvar="PHLO_DAGSTER_REPOSITORY_LOCATION_NAME",
+    help="Dagster repository location for a WAP launch",
+)
+@click.option(
+    "--repository-name",
+    envvar="PHLO_DAGSTER_REPOSITORY_NAME",
+    help="Dagster repository name for a WAP launch",
+)
+@click.option(
+    "--access-token",
+    envvar="PHLO_DAGSTER_ACCESS_TOKEN",
+    help="Verified user access token for a WAP launch",
+)
 @click.option(
     "--dagster-url",
     envvar="DAGSTER_GRAPHQL_URL",
@@ -136,6 +149,7 @@ def materialize(
     job_name: str | None,
     repository_location_name: str | None,
     repository_name: str | None,
+    access_token: str | None,
     dagster_url: str,
     no_contract_refresh: bool,
     dry_run: bool,
@@ -165,6 +179,15 @@ def materialize(
             )
         if not job_name:
             raise click.UsageError("WAP materialization requires --job-name.")
+        if not repository_location_name or not repository_name:
+            raise click.UsageError(
+                "WAP materialization requires --repository-location-name and --repository-name "
+                "(or PHLO_DAGSTER_REPOSITORY_LOCATION_NAME and PHLO_DAGSTER_REPOSITORY_NAME)."
+            )
+        if not access_token:
+            raise click.UsageError(
+                "WAP materialization requires --access-token or PHLO_DAGSTER_ACCESS_TOKEN."
+            )
 
         logical_run_id = wap_run_id or uuid.uuid4().hex
         if dry_run:
@@ -183,13 +206,16 @@ def materialize(
                     job_name=job_name,
                     repository_location_name=repository_location_name,
                     repository_name=repository_name,
+                    access_token=access_token,
                     partition_key=partition,
                     idempotency_key=logical_run_id,
                     tags=wap_launch.tags,
                 )
             )
         except Exception:
-            wap_launch.cleanup_if_created()
+            # A timeout or transport failure can occur after Dagster accepts the
+            # mutation. Retain a branch we created so the run can be reconciled
+            # or retried with the same logical run ID.
             raise
 
         if not result.accepted:

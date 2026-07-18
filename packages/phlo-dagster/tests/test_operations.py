@@ -48,6 +48,50 @@ def test_launch_materialize_posts_asset_selection(monkeypatch) -> None:
     assert selector["assetSelection"] == [{"path": ["silver", "orders"]}]
 
 
+def test_launch_materialize_uses_the_explicit_user_access_token(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        captured["headers"] = headers
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "data": {
+                    "launchPipelineExecution": {
+                        "__typename": "LaunchRunSuccess",
+                        "run": {"runId": "run-1", "status": "STARTED"},
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    monkeypatch.setattr(
+        "phlo_dagster.operations.build_service_headers",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("must not impersonate phlo-api")
+        ),
+    )
+
+    result = asyncio.run(
+        launch_materialize(
+            dagster_url="http://dagster.test/graphql",
+            asset_key_path="silver/orders",
+            job_name="orders_job",
+            repository_location_name="phlo_dagster",
+            repository_name="phlo_dagster",
+            access_token="verified-user-token",
+        )
+    )
+
+    assert result.accepted is True
+    assert captured["headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer verified-user-token",
+    }
+
+
 def test_wap_materialize_tags_survive_retry(monkeypatch) -> None:
     payloads: list[dict[str, object]] = []
 

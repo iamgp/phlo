@@ -107,6 +107,7 @@ async def launch_materialize(
     run_config: dict[str, Any] | None = None,
     idempotency_key: str | None = None,
     tags: dict[str, str] | None = None,
+    access_token: str | None = None,
 ) -> DagsterOperationResult:
     execution_tags = {"phlo/operation": "materialize_asset", "phlo/asset_key": asset_key_path}
     if idempotency_key:
@@ -130,6 +131,7 @@ async def launch_materialize(
                 "executionMetadata": {"tags": _tags_for_execution(execution_tags)},
             }
         },
+        access_token=access_token,
     )
     return _launch_result(
         operation="materialize_asset",
@@ -268,12 +270,21 @@ async def list_partitions(*, dagster_url: str, asset_key_path: str) -> list[dict
     return [{"partition_key": key, "status": "UNKNOWN"} for key in keys]
 
 
-async def _graphql(url: str, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+async def _graphql(
+    url: str,
+    query: str,
+    variables: dict[str, Any],
+    *,
+    access_token: str | None = None,
+) -> dict[str, Any]:
     headers = {"Content-Type": "application/json"}
-    try:
-        headers.update(build_service_headers("phlo-api", initiator="observatory"))
-    except RuntimeError:
-        pass
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+    else:
+        try:
+            headers.update(build_service_headers("phlo-api", initiator="observatory"))
+        except RuntimeError:
+            pass
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             url, json={"query": query, "variables": variables}, headers=headers
