@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from graphql import GraphQLError
 
+from phlo.capabilities import AuthPrincipal
 from phlo.security.adapters import EnforcementResult
 from phlo.security.service_identity import (
     PHLO_CORRELATION_HEADER,
@@ -76,6 +77,17 @@ def test_extract_principal_from_service_token(monkeypatch):
     assert principal.principal_type == "service"
     assert principal.attributes["authentication_source"] == "service_token"
     assert "initiating_principal" not in principal.attributes
+
+
+def test_extract_principal_uses_authenticated_asgi_scope() -> None:
+    principal = AuthPrincipal(subject="service:phlo-api", principal_type="service")
+    info = _build_info({})
+    request = info.context.request
+    request.scope = {"phlo_authenticated_principal": principal}
+    del info.context.request
+    info.context._source = request
+
+    assert DagsterGraphQLAuthorizationMiddleware()._extract_principal(info) is principal
 
 
 def test_extract_principal_rejects_legacy_service_token_in_regulated_mode(monkeypatch):

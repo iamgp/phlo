@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import dagster as dg
 import pytest
@@ -17,7 +17,6 @@ from phlo_dagster.wap_sensors import (
     _project_identity_for_run,
     _wap_branch_name,
     wap_auto_promotion_sensor,
-    wap_branch_creation_sensor,
     wap_branch_cleanup_sensor,
     write_wap_report,
 )
@@ -36,7 +35,6 @@ def test_wap_branch_name():
 
 
 def test_wap_sensors_default_to_running() -> None:
-    assert wap_branch_creation_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_auto_promotion_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_branch_cleanup_sensor.default_status == dg.DefaultSensorStatus.RUNNING
 
@@ -266,35 +264,17 @@ class TestNessieResourceBranchOps:
 # ---------------------------------------------------------------------------
 
 
-def test_get_wap_definitions_returns_three_sensors():
-    """get_wap_definitions returns exactly the three WAP sensors."""
+def test_get_wap_definitions_only_registers_post_run_sensors():
+    """Ordinary runs cannot acquire a WAP branch after they have started."""
     from phlo_dagster.wap_sensors import get_wap_definitions
 
     defs = get_wap_definitions()
     sensors = list(defs.sensors or [])
     sensor_names = {s.name for s in sensors}
     assert sensor_names == {
-        "wap_branch_creation_sensor",
         "wap_auto_promotion_sensor",
         "wap_branch_cleanup_sensor",
     }
-
-
-def test_wap_branch_creation_sensor_uses_updated_after_filter():
-    """Branch creation sensor should scan by updated timestamp, not creation timestamp."""
-    instance = MagicMock()
-    instance.get_runs.return_value = []
-    context = MagicMock()
-    context.instance = instance
-    context.cursor = None
-
-    with patch("phlo_dagster.wap_sensors._load_versioned_catalog", return_value=MagicMock()):
-        wap_branch_creation_sensor._raw_fn(context)
-
-    filters = instance.get_runs.call_args.kwargs["filters"]
-    assert filters.updated_after is not None
-    assert filters.created_after is None
-    context.update_cursor.assert_called_once()
 
 
 def test_wap_auto_promotion_sensor_uses_updated_after_filter():
@@ -317,10 +297,11 @@ def test_wap_auto_promotion_sensor_uses_updated_after_filter():
 def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch, tmp_path):
     """A passing run promotion references its durable aggregate quality result."""
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
-    run_id = "run-promote"
-    branch = _wap_branch_name(run_id)
+    dagster_run_id = "run-promote"
+    logical_run_id = "logical-promote"
+    branch = _wap_branch_name(dagster_run_id)
     write_wap_report(
-        run_id,
+        dagster_run_id,
         status="branch_created",
         branch=branch,
         project_id="project-promote",
@@ -336,9 +317,10 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     instance = MagicMock()
     instance.get_runs.return_value = [
         SimpleNamespace(
-            run_id=run_id,
+            run_id=dagster_run_id,
             tags={
                 "phlo/wap_branch": branch,
+                "phlo/run_id": logical_run_id,
                 "phlo/project_id": "project-promote",
                 "phlo/attempt": "1",
             },
@@ -366,24 +348,32 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
         "phlo_dagster.wap_sensors._load_ref_query_catalog_manager",
         lambda: query_catalog_manager,
     )
+    reconciler = MagicMock()
+    reconciler_class = MagicMock(return_value=reconciler)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.RunReconciler", reconciler_class)
 
     wap_auto_promotion_sensor._raw_fn(context)
 
     catalog.merge_branch.assert_called_once_with(source=branch, target="main")
     query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch)
     catalog.delete_branch.assert_called_once_with(branch)
-    quality_rows = store.list_quality_results("project-promote", run_id, attempt=1)
+    quality_rows = store.list_quality_results("project-promote", logical_run_id, attempt=1)
     quality_id = next(row["quality_result_id"] for row in quality_rows)
     assert quality_id in {row["quality_result_id"] for row in quality_rows}
     assert quality_rows[0]["check_id"] == "wap.aggregate"
     assert any(
         row["merge_outcome"] == "promoted" and row["quality_decision_id"] == quality_id
-        for row in store.list_catalog_changes("project-promote", run_id, attempt=1)
+        for row in store.list_catalog_changes("project-promote", logical_run_id, attempt=1)
     )
-    run = store.get_run("project-promote", run_id)
+    run = store.get_run("project-promote", logical_run_id)
     assert run is not None
     assert run["status"] == "success"
     assert run["finished_at"] is not None
+    reconciler.reconcile.assert_called_once_with(
+        "project-promote",
+        dagster_run_id,
+        ANY,
+    )
 
 
 def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypatch, tmp_path):

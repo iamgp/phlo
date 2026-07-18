@@ -141,6 +141,29 @@ def test_api_profile_uses_the_shared_run_evidence_store() -> None:
     assert "depends_on:" not in service
 
 
+def test_api_image_accepts_direct_and_generated_build_contexts() -> None:
+    dockerfile = (
+        Path(__file__).resolve().parents[1] / "src" / "phlo_api" / "Dockerfile"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "if [ -f entrypoint.sh ]; then entrypoint=entrypoint.sh; else entrypoint=phlo-api/entrypoint.sh; fi"
+        in dockerfile
+    )
+    assert (
+        'install -m 0755 "$entrypoint" /opt/phlo-build-context/phlo-api-entrypoint.sh' in dockerfile
+    )
+    assert (
+        "COPY --from=phlo-build-context /opt/phlo-build-context/phlo-api-entrypoint.sh "
+        "/usr/local/bin/phlo-api-entrypoint.sh"
+    ) in dockerfile
+    wheelhouse_branch = dockerfile.index('if [ -n "$PHLO_WHEELHOUSE" ]; then')
+    version_branch = dockerfile.index('elif [ -n "$PHLO_VERSION" ]; then')
+    assert wheelhouse_branch < version_branch
+    assert '"$PHLO_REQUIREMENT" "$PHLO_API_REQUIREMENT"' in dockerfile
+    assert dockerfile.count("--no-index --no-deps --reinstall --find-links") == 2
+
+
 def test_non_dev_api_profile_compose_is_reachable_without_dev_mounts(tmp_path) -> None:
     api = ServiceDefinition.from_yaml(
         Path(__file__).resolve().parents[1] / "src" / "phlo_api" / "service.yaml"
@@ -163,6 +186,15 @@ def test_non_dev_api_profile_compose_is_reachable_without_dev_mounts(tmp_path) -
     service = compose["services"]["phlo-api"]
 
     assert service["profiles"] == ["api"]
+    assert service["build"] == {
+        "context": ".",
+        "dockerfile": "phlo-api/Dockerfile",
+        "args": {
+            "PHLO_VERSION": "${PHLO_VERSION:-}",
+            "PHLO_API_VERSION": "${PHLO_API_VERSION:-}",
+            "PHLO_WHEELHOUSE": "${PHLO_WHEELHOUSE:-}",
+        },
+    }
     assert service["ports"] == ["${PHLO_API_PORT:-4000}:4000"]
     assert service["environment"]["PHLO_RUN_EVIDENCE_DB_URL"].endswith(
         "@postgres:5432/${POSTGRES_DB:-phlo}"

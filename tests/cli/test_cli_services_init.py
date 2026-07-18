@@ -40,6 +40,153 @@ def test_production_credentials_allow_generated_passwords_and_safe_usernames() -
     )
 
 
+@pytest.mark.parametrize(
+    ("env_values", "expected_openid"),
+    (
+        ({}, {}),
+        (
+            {"MINIO_OIDC_CONFIG_URL": "https://identity.example/.well-known/openid-configuration"},
+            {
+                "MINIO_IDENTITY_OPENID_CONFIG_URL": "${MINIO_OIDC_CONFIG_URL}",
+                "MINIO_IDENTITY_OPENID_CLIENT_ID": "${MINIO_OIDC_CLIENT_ID:-}",
+                "MINIO_IDENTITY_OPENID_CLIENT_SECRET": "${MINIO_OIDC_CLIENT_SECRET:-}",
+                "MINIO_IDENTITY_OPENID_CLAIM_NAME": "${MINIO_OIDC_CLAIM_NAME:-policy}",
+                "MINIO_IDENTITY_OPENID_SCOPES": "${MINIO_OIDC_SCOPES:-openid}",
+            },
+        ),
+    ),
+)
+def test_minio_compose_only_includes_openid_settings_with_a_discovery_url(
+    tmp_path, env_values, expected_openid
+) -> None:
+    discovery = ServiceDiscovery()
+    minio = discovery.get_service("minio")
+
+    assert minio is not None
+    rendered = yaml.safe_load(
+        ComposeGenerator(discovery).generate_compose(
+            [minio], output_dir=tmp_path, env_values=env_values
+        )
+    )
+    environment = rendered["services"]["minio"]["environment"]
+
+    assert {
+        key: value for key, value in environment.items() if key.startswith("MINIO_IDENTITY_OPENID_")
+    } == expected_openid
+
+
+def test_conditional_environment_creates_an_absent_environment(tmp_path) -> None:
+    service = ServiceDefinition(
+        name="conditional",
+        description="conditional",
+        category="core",
+        default=True,
+        compose={
+            "conditional_environment": {
+                "ENABLE_CONDITIONAL": {"CONDITIONAL_VALUE": "enabled"},
+            }
+        },
+    )
+
+    data = yaml.safe_load(
+        ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery())).generate_compose(
+            [service], output_dir=tmp_path, env_values={"ENABLE_CONDITIONAL": "true"}
+        )
+    )
+
+    assert data["services"]["conditional"]["environment"] == {"CONDITIONAL_VALUE": "enabled"}
+
+
+def test_conditional_environment_supports_list_environment_and_user_overrides(tmp_path) -> None:
+    service = ServiceDefinition(
+        name="conditional",
+        description="conditional",
+        category="core",
+        default=True,
+        compose={
+            "environment": ["EXISTING=value"],
+            "conditional_environment": {
+                "ENABLE_CONDITIONAL": {
+                    "CONDITIONAL_VALUE": "enabled",
+                    "OVERRIDDEN_VALUE": "package",
+                },
+            },
+        },
+    )
+
+    data = yaml.safe_load(
+        ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery())).generate_compose(
+            [service],
+            output_dir=tmp_path,
+            env_values={"ENABLE_CONDITIONAL": "true"},
+            user_overrides={"conditional": {"environment": {"OVERRIDDEN_VALUE": "user"}}},
+        )
+    )
+
+    assert data["services"]["conditional"]["environment"] == {
+        "EXISTING": "value",
+        "CONDITIONAL_VALUE": "enabled",
+        "OVERRIDDEN_VALUE": "user",
+    }
+
+
+def test_conditional_environment_list_is_not_mutated_between_renders(tmp_path) -> None:
+    service = ServiceDefinition(
+        name="conditional",
+        description="conditional",
+        category="core",
+        default=True,
+        compose={
+            "environment": ["EXISTING=value"],
+            "conditional_environment": {
+                "ENABLE_CONDITIONAL": {"CONDITIONAL_VALUE": "enabled"},
+            },
+        },
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    enabled = yaml.safe_load(
+        generator.generate_compose(
+            [service], output_dir=tmp_path, env_values={"ENABLE_CONDITIONAL": "true"}
+        )
+    )
+    disabled = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+    enabled_again = yaml.safe_load(
+        generator.generate_compose(
+            [service], output_dir=tmp_path, env_values={"ENABLE_CONDITIONAL": "true"}
+        )
+    )
+
+    assert service.compose["environment"] == ["EXISTING=value"]
+    assert enabled["services"]["conditional"]["environment"] == [
+        "EXISTING=value",
+        "CONDITIONAL_VALUE=enabled",
+    ]
+    assert disabled["services"]["conditional"]["environment"] == ["EXISTING=value"]
+    assert enabled_again["services"]["conditional"]["environment"] == [
+        "EXISTING=value",
+        "CONDITIONAL_VALUE=enabled",
+    ]
+
+
+def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
+    discovery = ServiceDiscovery()
+    nessie = discovery.get_service("nessie")
+
+    assert nessie is not None
+    generator = ComposeGenerator(discovery)
+    rendered = yaml.safe_load(generator.generate_compose([nessie], output_dir=tmp_path))
+    environment = rendered["services"]["nessie"]["environment"]
+    env = generator.generate_env(
+        [nessie], env_overrides={"ICEBERG_WAREHOUSE_PATH": "s3://other-lake/warehouse"}
+    )
+
+    assert environment["nessie.catalog.warehouses.warehouse.location"] == (
+        "${ICEBERG_WAREHOUSE_PATH:-s3://lake/warehouse}"
+    )
+    assert "ICEBERG_WAREHOUSE_PATH=s3://other-lake/warehouse" in env
+
+
 def test_services_init_production_selects_the_secure_compose_profile(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

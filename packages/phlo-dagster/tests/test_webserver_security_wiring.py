@@ -63,12 +63,20 @@ def test_installed_dagster_schema_is_fully_classified() -> None:
     validate_graphql_schema(create_schema().graphql_schema)
 
 
-def test_shipped_webserver_builds_authorization_middleware() -> None:
+def test_shipped_webserver_discovers_project_capabilities_before_authorization(monkeypatch) -> None:
     server = object.__new__(PhloDagsterWebserver)
     server._graphene_schema = create_schema()
+    discovered = False
+
+    def discover() -> None:
+        nonlocal discovered
+        discovered = True
+
+    monkeypatch.setattr("phlo_dagster.webserver.discover_capabilities", discover)
 
     middleware = server.build_graphql_middleware()
 
+    assert discovered
     assert len(middleware) == 1
     assert isinstance(middleware[0], DagsterGraphQLAuthorizationMiddleware)
 
@@ -161,6 +169,25 @@ def test_inherited_http_route_enforces_before_handler(
 
     assert response.status_code == status_code
     assert called is (status_code == 200)
+
+
+def test_graphql_http_boundary_preserves_validated_principal_for_graphql_execution() -> None:
+    principal = AuthPrincipal(subject="service:phlo-api", principal_type="service")
+    middleware = MagicMock()
+    middleware._extract_principal.return_value = principal
+
+    async def endpoint(request):  # noqa: ANN001
+        propagated = request.scope.get("phlo_authenticated_principal")
+        return JSONResponse({"subject": propagated.subject if propagated else None})
+
+    downstream = Starlette(routes=[Route("/graphql", endpoint, methods=["POST"])])
+    secured = DagsterHTTPAuthenticationASGI(downstream, middleware, downstream.routes)
+
+    with TestClient(secured) as client:
+        response = client.post("/graphql")
+
+    assert response.status_code == 200
+    assert response.json() == {"subject": "service:phlo-api"}
 
 
 def test_dagster_log_keys_bind_http_authorization_to_the_run_before_handler(monkeypatch) -> None:

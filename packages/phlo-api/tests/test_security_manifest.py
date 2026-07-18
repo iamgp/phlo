@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
@@ -15,6 +16,7 @@ from phlo.security.adapters import EnforcementResult
 from phlo_api.main import app
 from phlo_api.security_manifest import (
     HTTP_ROUTE_MANIFEST,
+    _route_for_request,
     OperationSpec,
     resolve_resource,
     validate_manifest,
@@ -146,6 +148,54 @@ def test_unclassified_route_fails_mechanical_validation() -> None:
 
     with pytest.raises(RuntimeError, match="unclassified"):
         validate_manifest(candidate)
+
+
+def test_manifest_supports_fastapi_lazy_included_routers(monkeypatch) -> None:
+    from phlo_api import security_manifest
+
+    router = APIRouter()
+
+    @router.get("/runs/{run_id}", name="included_run")
+    def included_run(run_id: str) -> dict[str, str]:
+        return {"run_id": run_id}
+
+    included = SimpleNamespace(
+        original_router=router,
+        include_context=SimpleNamespace(prefix="/api"),
+    )
+    candidate = SimpleNamespace(routes=[included])
+    spec = OperationSpec(
+        operation_name="included_run",
+        surface="http",
+        action="run.read",
+        resource_type="run",
+    )
+    original_manifest = security_manifest.HTTP_ROUTE_MANIFEST
+    monkeypatch.setattr(security_manifest, "HTTP_ROUTE_MANIFEST", {"included_run": spec})
+    try:
+        resolved = validate_manifest(candidate)
+        request = Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/api/runs/run-1",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 1234),
+            }
+        )
+
+        assert {(method, route.path) for route in resolved for method in route.methods} == {
+            ("GET", "/api/runs/{run_id}")
+        }
+        assert _route_for_request(candidate, request) == (
+            resolved[0],
+            {"run_id": "run-1"},
+        )
+    finally:
+        monkeypatch.setattr(security_manifest, "HTTP_ROUTE_MANIFEST", original_manifest)
+        validate_manifest(app)
 
 
 def test_anonymous_protected_request_is_401_before_handler(monkeypatch, tmp_path) -> None:

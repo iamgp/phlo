@@ -190,11 +190,12 @@ def test_phlo_api_service_build_context_is_package_portable() -> None:
         service_defn = yaml.safe_load(f)
 
     assert service_defn["build"] == {
-        "context": "source",
-        "dockerfile": "Dockerfile",
+        "context": ".",
+        "dockerfile": "phlo-api/Dockerfile",
         "args": {
             "PHLO_VERSION": "${PHLO_VERSION:-}",
             "PHLO_API_VERSION": "${PHLO_API_VERSION:-}",
+            "PHLO_WHEELHOUSE": "${PHLO_WHEELHOUSE:-}",
         },
     }
     assert service_defn["env_vars"]["PHLO_VERSION"]["package"] == "phlo"

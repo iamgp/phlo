@@ -18,6 +18,7 @@ from graphql import GraphQLError, parse
 from starlette.responses import JSONResponse
 from starlette.routing import Match
 
+from phlo.capabilities.discovery import discover_capabilities
 from phlo_dagster.authorization import (
     extract_dagster_run_id_from_log_path,
     get_adapter,
@@ -212,6 +213,9 @@ class DagsterHTTPAuthenticationASGI:
             await response(scope, receive, send)
             return
 
+        authenticated_scope = dict(scope)
+        authenticated_scope["phlo_authenticated_principal"] = principal
+
         if not spec.delegated_to_graphql:
             from phlo.capabilities import DecisionContext, ResourceRef
             from phlo.security import enforce
@@ -261,7 +265,7 @@ class DagsterHTTPAuthenticationASGI:
                 )
                 await response(scope, receive, send)
                 return
-        await self.app(scope, receive, send)
+        await self.app(authenticated_scope, receive, send)
 
 
 class GraphQLWebSocketAuthenticationASGI:
@@ -389,6 +393,7 @@ class PhloDagsterWebserver(DagsterWebserver):
 
     def build_graphql_middleware(self) -> list:
         validate_graphql_schema(self._graphene_schema.graphql_schema)
+        discover_capabilities()
         get_adapter().install(self)
         middleware = self._get_graphql_authorization_middleware()
         if self._oidc_required() and not middleware._oidc_validator.configured:

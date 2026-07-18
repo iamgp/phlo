@@ -52,6 +52,7 @@ from typing import Optional
 
 import click
 
+from phlo.capabilities.discovery import discover_capabilities
 from phlo.cli.infrastructure.container_backend import (
     ContainerBackend,
     select_project_container_backend,
@@ -191,6 +192,7 @@ def materialize(
             )
             return
 
+        discover_capabilities()
         wap_launch = prepare_wap_launch(logical_run_id=logical_run_id)
         try:
             result = asyncio.run(

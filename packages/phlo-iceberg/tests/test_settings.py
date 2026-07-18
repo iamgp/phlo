@@ -38,6 +38,16 @@ def test_get_pyiceberg_catalog_config_preserves_resolvable_urls(monkeypatch) -> 
     assert config["s3.endpoint"] == "http://localhost:9000"
 
 
+def test_pyiceberg_uses_nessie_identifier_and_retains_physical_warehouse_path(monkeypatch) -> None:
+    monkeypatch.setenv("ICEBERG_WAREHOUSE_PATH", "s3://other-lake/physical-warehouse")
+
+    settings = IcebergSettings()
+    config = settings.get_pyiceberg_catalog_config(ref="main")
+
+    assert config["warehouse"] == "warehouse"
+    assert settings.iceberg_warehouse_path == "s3://other-lake/physical-warehouse"
+
+
 def test_iceberg_settings_accept_short_s3_env_alias(monkeypatch) -> None:
     monkeypatch.setenv("ICEBERG_S3_ENDPOINT", "http://localhost:10001")
     monkeypatch.setenv("ICEBERG_S3_ACCESS_KEY", "local-key")

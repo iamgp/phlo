@@ -483,6 +483,27 @@ def _all_manifest_names() -> list[str]:
     return list(HTTP_ROUTE_MANIFEST)
 
 
+def _http_routes(routes: Iterable[Any], prefix: str = "") -> list[tuple[str, str, Any, str]]:
+    """Flatten eager and lazy FastAPI router inclusions for boundary checks."""
+    resolved: list[tuple[str, str, Any, str]] = []
+    for route in routes:
+        included_router = getattr(route, "original_router", None)
+        include_context = getattr(route, "include_context", None)
+        include_prefix = getattr(include_context, "prefix", None)
+        if included_router is not None and isinstance(include_prefix, str):
+            resolved.extend(
+                _http_routes(getattr(included_router, "routes", ()), prefix + include_prefix)
+            )
+            continue
+
+        methods = getattr(route, "methods", None)
+        path = getattr(route, "path", None)
+        name = getattr(route, "name", None)
+        if methods and path and name:
+            resolved.append((name, prefix + path, route, prefix))
+    return resolved
+
+
 def validate_manifest(app: Any) -> tuple[OperationSpec, ...]:
     """Validate the complete HTTP route table and return resolved entries."""
     duplicate_names = [
@@ -493,16 +514,10 @@ def validate_manifest(app: Any) -> tuple[OperationSpec, ...]:
             f"Duplicate security manifest operations: {sorted(set(duplicate_names))}"
         )
 
-    actual_routes: list[tuple[str, str, Any]] = []
-    for route in app.routes:
-        methods = getattr(route, "methods", None)
-        path = getattr(route, "path", None)
-        name = getattr(route, "name", None)
-        if methods and path and name:
-            actual_routes.append((name, path, route))
+    actual_routes = _http_routes(app.routes)
 
     actual_name_counts: dict[str, int] = {}
-    for name, _path, _route in actual_routes:
+    for name, _path, _route, _prefix in actual_routes:
         actual_name_counts[name] = actual_name_counts.get(name, 0) + 1
     duplicate_route_names = sorted(name for name, count in actual_name_counts.items() if count > 1)
     if duplicate_route_names:
@@ -520,7 +535,7 @@ def validate_manifest(app: Any) -> tuple[OperationSpec, ...]:
     seen_routes: set[tuple[str, str]] = set()
     route_key_manifest: dict[tuple[str, str], OperationSpec] = {}
     resolved: list[OperationSpec] = []
-    for name, path, route in actual_routes:
+    for name, path, route, _prefix in actual_routes:
         spec = HTTP_ROUTE_MANIFEST[name]
         for method in sorted(route.methods):
             key = (method, path)
@@ -553,13 +568,19 @@ def validate_manifest(app: Any) -> tuple[OperationSpec, ...]:
 
 
 def _route_for_request(app: Any, request: Request) -> tuple[OperationSpec, dict[str, str]] | None:
-    for route in app.routes:
+    for _name, path, route, prefix in _http_routes(app.routes):
         methods = getattr(route, "methods", None)
         if not methods or request.method not in methods:
             continue
-        match, child_scope = route.matches(request.scope)
+        scope = request.scope
+        if prefix:
+            request_path = scope.get("path", "")
+            if not request_path.startswith(prefix):
+                continue
+            scope = {**scope, "path": request_path[len(prefix) :] or "/"}
+        match, child_scope = route.matches(scope)
         if match is Match.FULL:
-            spec = HTTP_ROUTE_KEY_MANIFEST.get((request.method, getattr(route, "path", "")))
+            spec = HTTP_ROUTE_KEY_MANIFEST.get((request.method, path))
             if spec is None:
                 return None
             return spec, child_scope.get("path_params", {})

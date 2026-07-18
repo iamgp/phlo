@@ -734,11 +734,16 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
     # Get user service overrides from config
     user_overrides = config.get("services", {})
     env_overrides = _get_env_overrides(config)
+    env_local_file = phlo_dir / ".env.local"
+    existing_env_local = parse_env_file(env_local_file)
 
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
     compose_content = composer.generate_compose(
-        services_to_install, phlo_dir, user_overrides=user_overrides
+        services_to_install,
+        phlo_dir,
+        user_overrides=user_overrides,
+        env_values={**os.environ, **env_overrides, **existing_env_local},
     )
 
     compose_file = phlo_dir / "docker-compose.yml"
@@ -749,8 +754,6 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
 
     # Regenerate .env + .env.local
     env_file = phlo_dir / ".env"
-    env_local_file = phlo_dir / ".env.local"
-    existing_env_local = parse_env_file(env_local_file)
     env_content = composer.generate_env(services_to_install, env_overrides=env_overrides)
     env_local_content = composer.generate_env_local(
         services_to_install,

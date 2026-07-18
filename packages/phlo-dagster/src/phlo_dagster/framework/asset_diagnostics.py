@@ -100,6 +100,14 @@ def _find_duplicate_definition_asset(
     origins_by_key: dict[str, list[str]] = defaultdict(list)
     for definition in definitions:
         for asset_def in list(definition.assets or []):
+            # Dagster stores AssetChecksDefinition instances alongside asset
+            # definitions when they are passed through the module collector.
+            # They subclass AssetsDefinition but have no asset keys, so reading
+            # their singular ``key`` property raises for their check set.
+            if isinstance(asset_def, dg.AssetChecksDefinition):
+                continue
+            if not isinstance(asset_def, dg.AssetsDefinition):
+                continue
             for key in _asset_definition_keys(asset_def):
                 origins_by_key[key].append(_origin_from_asset_definition(asset_def).describe())
 

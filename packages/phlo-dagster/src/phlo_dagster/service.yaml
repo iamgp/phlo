@@ -78,6 +78,7 @@ compose:
     WORKFLOWS_PATH: /app/workflows
     PHLO_WORKFLOWS_PATH: /app/workflows
     PHLO_PROJECT_PATH: /app
+    PHLO_PROJECT: ${PHLO_PROJECT:-}
     SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
     PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
     PHLO_DAGSTER_OIDC_ISSUER: ${PHLO_DAGSTER_OIDC_ISSUER:-}
@@ -90,6 +91,7 @@ compose:
     PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS: ${PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS:-5}
     PHLO_DAGSTER_OIDC_REQUIRED: ${PHLO_DAGSTER_OIDC_REQUIRED:-false}
     PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS: ${PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS:-10}
+    PHLO_SERVICE_SECRET: ${PHLO_SERVICE_SECRET:-}
     DISABLE_PANDERA_IMPORT_WARNING: "True"
   command:
     [
@@ -123,6 +125,9 @@ env_vars:
   PHLO_HOST_PLATFORM:
     default: ""
     description: Host platform for executor selection (Darwin/Linux)
+  PHLO_PROJECT:
+    default: ""
+    description: Project identity attached to run and WAP evidence
   PHLO_DAGSTER_OIDC_ISSUER:
     default: ""
     description: OIDC issuer URL accepted for Dagster human access
@@ -153,6 +158,9 @@ env_vars:
   PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS:
     default: "10"
     description: Seconds allowed for graphql-ws connection_init before the socket is closed (maximum 60)
+  PHLO_SERVICE_SECRET:
+    default: ""
+    description: Development-only HMAC secret for trusted local service calls
 
 hooks:
   post_start:

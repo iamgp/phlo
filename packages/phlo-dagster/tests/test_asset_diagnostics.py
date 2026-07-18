@@ -82,3 +82,24 @@ def test_duplicate_definition_assets_include_object_origins() -> None:
     assert "test_asset_diagnostics.py" in message
     assert "auto-discovery" in message
     assert "explicit Dagster Definitions" in message
+
+
+def test_asset_check_definition_does_not_break_asset_duplicate_diagnostics() -> None:
+    @dg.asset(key=["warehouse", "orders"])
+    def orders() -> int:
+        return 1
+
+    @dg.asset_check(asset=orders, blocking=True)
+    def orders_ready() -> dg.AssetCheckResult:
+        return dg.AssetCheckResult(passed=True)
+
+    merged = merge_definitions_with_duplicate_diagnostics(
+        dg.Definitions(assets=[orders]),
+        # The module collector passes checks via ``assets``. Dagster then
+        # exposes the AssetChecksDefinition in Definitions.assets as well.
+        dg.Definitions(assets=[orders_ready]),
+    )
+
+    assert merged.resolve_asset_graph().get_all_asset_keys() == {
+        dg.AssetKey(["warehouse", "orders"])
+    }
