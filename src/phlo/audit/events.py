@@ -34,6 +34,10 @@ logger = get_logger(__name__)
 AUDIT_SCHEMA_VERSION = "1.0"
 
 
+class AuditPersistenceError(RuntimeError):
+    """Raised when an operation requires durable audit persistence."""
+
+
 class AuditEventType(StrEnum):
     """Types of audit events."""
 
@@ -260,11 +264,12 @@ class AuditEventEmitter:
         """
         self._sinks.append(sink)
 
-    def emit(self, event: CanonicalAuditEvent) -> None:
+    def emit(self, event: CanonicalAuditEvent, *, require_durable: bool = False) -> None:
         """Emit an audit event to all configured sinks.
 
         Args:
             event: The audit event to emit.
+            require_durable: Require a durable sink to persist the event.
         """
         # Create a new event with the correct surface if not set
         if not event.surface:
@@ -282,9 +287,15 @@ class AuditEventEmitter:
             decision=event.decision,
         )
 
+        durable_sink_seen = False
+        durable_sink_succeeded = False
+        durable_error: Exception | None = None
         for sink in self._sinks:
+            is_durable = getattr(sink, "is_durable", False)
+            durable_sink_seen = durable_sink_seen or is_durable
             try:
                 sink.write(event)
+                durable_sink_succeeded = durable_sink_succeeded or is_durable
             except Exception as e:
                 logger.error(
                     "audit_sink_write_failed",
@@ -292,6 +303,13 @@ class AuditEventEmitter:
                     event_id=event.event_id,
                     error=str(e),
                 )
+                if require_durable and is_durable:
+                    durable_error = e
+
+        if require_durable and not durable_sink_seen:
+            raise AuditPersistenceError("no durable audit sink is configured")
+        if durable_error is not None and not durable_sink_succeeded:
+            raise AuditPersistenceError("durable audit persistence failed") from durable_error
 
     def emit_authorization(
         self,
@@ -313,6 +331,7 @@ class AuditEventEmitter:
         parent_correlation_id: str = "",
         source_ip: str | None = None,
         outcome: str = "",
+        require_durable: bool = False,
     ) -> None:
         """Emit an authorization audit event.
 
@@ -335,6 +354,7 @@ class AuditEventEmitter:
             parent_correlation_id: Parent correlation ID when this event is part of a chain.
             source_ip: Source IP address.
             outcome: Execution outcome.
+            require_durable: Require a durable sink to persist the event.
         """
         event = CanonicalAuditEvent.from_authorization_decision(
             surface=surface or self.surface,
@@ -355,7 +375,7 @@ class AuditEventEmitter:
             source_ip=source_ip,
             outcome=outcome,
         )
-        self.emit(event)
+        self.emit(event, require_durable=require_durable)
 
     def emit_mutation(
         self,
@@ -420,6 +440,8 @@ class AuditEventSink:
 
     Implementations must provide the write() method.
     """
+
+    is_durable = False
 
     def write(self, event: CanonicalAuditEvent) -> None:
         """Write an audit event to the sink.

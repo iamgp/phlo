@@ -67,6 +67,25 @@ def test_postgres_audit_store_rolls_back_failed_append() -> None:
     conn.commit.assert_not_called()
 
 
+def test_postgres_audit_store_appends_a_sealed_record() -> None:
+    conn = MagicMock()
+    cursor = MagicMock()
+    conn.cursor.return_value = cursor
+    store = PostgresAuditStore(conn)
+    conn.reset_mock()
+    cursor.reset_mock()
+
+    event = CanonicalAuditEvent(event_type="authorization", surface="phlo-api")
+    record = SealedAuditRecord.seal(event, sequence_number=1, previous_hash=GENESIS_HASH)
+
+    store.append(record)
+
+    assert "INSERT INTO compliance_audit_log" in cursor.execute.call_args.args[0]
+    conn.commit.assert_called_once()
+    conn.rollback.assert_not_called()
+    cursor.close.assert_called_once()
+
+
 def test_postgres_audit_store_verify_chain_detects_payload_tampering() -> None:
     conn = MagicMock()
     cursor = MagicMock()

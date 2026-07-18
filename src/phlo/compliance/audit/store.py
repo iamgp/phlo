@@ -22,6 +22,8 @@ class InMemoryAuditStore:
     Not suitable for production use.
     """
 
+    is_durable = False
+
     def __init__(self) -> None:
         self._records: dict[str, list[SealedAuditRecord]] = {}
         self._lock = threading.Lock()
@@ -115,6 +117,8 @@ class PostgresAuditStore:
     Uses the metadata Postgres database for storage.
     Table: compliance_audit_log (append-only).
     """
+
+    is_durable = True
 
     def __init__(self, connection) -> None:
         """Initialize the Postgres audit store.
