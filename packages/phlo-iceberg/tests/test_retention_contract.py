@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pyarrow.fs import FileType
 
-from phlo.capabilities import MaintenanceRetentionStore
+from phlo.capabilities import InventoryObject, MaintenanceRetentionStore, ObjectInventory
 from phlo.capabilities import MaintenanceExecutionError, MaintenanceExecutionPhase
 import phlo_iceberg.resource as resource_module
 from phlo_iceberg.resource import (
@@ -168,6 +168,28 @@ def _real_planner_resource(monkeypatch) -> tuple[IcebergResource, _FakeTable]:
             "total_size_bytes": 110,
         },
     )
+    cutoff = now - timedelta(days=7)
+    monkeypatch.setattr(
+        IcebergResource,
+        "inventory_owned_prefix",
+        lambda self, **_: ObjectInventory(
+            prefix="s3://bucket/warehouse/raw/events/data/",
+            retention_cutoff=cutoff,
+            objects=tuple(
+                InventoryObject(
+                    identity=f"s3://{file_info.path}",
+                    size_bytes=file_info.size,
+                    modified_at=file_info.mtime,
+                    checksum_or_version="test-version",
+                )
+                for file_info in storage_files
+            ),
+            page_count=2,
+            continuation_exhausted=True,
+            complete=True,
+            digest="complete-inventory",
+        ),
+    )
     return IcebergResource(ref="main"), table
 
 
@@ -282,12 +304,46 @@ def test_real_orphan_planner_normalizes_paths_and_counts_old_candidates(monkeypa
     assert result["status"] == "planned"
     assert result["planned"]["scan_status"] == "available"
     assert [candidate["path"] for candidate in result["planned"]["candidate_files"]] == [
-        "bucket/warehouse/raw/events/data/orphan-old.parquet"
+        "s3://bucket/warehouse/raw/events/data/orphan-old.parquet"
     ]
+    assert result["planned"]["inventory"] | {"retention_cutoff": None} == {
+        "prefix": "s3://bucket/warehouse/raw/events/data/",
+        "complete": True,
+        "page_count": 2,
+        "continuation_exhausted": True,
+        "digest": "complete-inventory",
+        "retention_cutoff": None,
+        "failure": None,
+    }
     assert result["planned"]["affected_objects"] == 1
     assert result["planned"]["affected_bytes"] == 70
     assert result["planned"]["protected_snapshot_ids"] == [2, 8]
     assert "shared.parquet" not in str(result["planned"]["candidate_files"])
+
+
+def test_orphan_planner_never_exposes_candidates_from_an_incomplete_inventory(monkeypatch) -> None:
+    resource, _ = _real_planner_resource(monkeypatch)
+    monkeypatch.setattr(
+        resource,
+        "inventory_owned_prefix",
+        lambda **_: ObjectInventory(
+            prefix="s3://bucket/warehouse/raw/events/data/",
+            retention_cutoff=datetime.now(UTC),
+            objects=(),
+            page_count=1,
+            continuation_exhausted=False,
+            complete=False,
+            digest=None,
+            failure="S3 pagination ended before completion.",
+        ),
+    )
+
+    result = resource.cleanup_orphan_files(table_name="raw.events", catalog="iceberg", dry_run=True)
+
+    assert result["status"] == "blocked"
+    assert result["accepted"] is False
+    assert result["planned"]["candidate_files"] == []
+    assert result["planned"]["inventory"]["complete"] is False
 
 
 def test_support_distinguishes_retention_planning_from_executable_vacuum() -> None:

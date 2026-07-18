@@ -61,11 +61,13 @@ from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
 from phlo.capabilities import (
+    InventoryObject,
     MaintenanceExecutionError,
     MaintenanceExecutionPhase,
     MaintenanceOperationResult,
     MaintenanceOperationState,
     MaintenancePreconditionError,
+    ObjectInventory,
     SAFE_MIN_RETENTION_HOURS,
 )
 from phlo.capabilities.interfaces import MaintenanceExecutor
@@ -173,6 +175,223 @@ def _list_storage_files(io: object, location: str) -> list[Any]:
     filesystem = fs_by_scheme(scheme, netloc)
     infos = filesystem.get_file_info(FileSelector(path, recursive=True, allow_not_found=False))
     return [info for info in infos if getattr(info, "type", None) is FileType.File]
+
+
+def _empty_inventory(
+    *,
+    prefix: str,
+    retention_cutoff: datetime,
+    page_count: int,
+    failure: str,
+) -> ObjectInventory:
+    """Return a fail-closed result without exposing a partial object set."""
+    return ObjectInventory(
+        prefix=prefix,
+        retention_cutoff=retention_cutoff,
+        objects=(),
+        page_count=page_count,
+        continuation_exhausted=False,
+        complete=False,
+        digest=None,
+        failure=failure,
+    )
+
+
+def _s3_location(location: str) -> tuple[str, str, str]:
+    """Return an S3 bucket, owned key prefix, and canonical URI."""
+    parsed = urlsplit(location)
+    if parsed.scheme not in {"s3", "s3a", "s3n"} or not parsed.netloc or not parsed.path.strip("/"):
+        raise ValueError("A complete object inventory requires a non-root S3 table prefix.")
+    prefix = parsed.path.strip("/") + "/"
+    return parsed.netloc, prefix, f"s3://{parsed.netloc}/{prefix}"
+
+
+def _s3_inventory_client() -> object:
+    """Create the configured S3-compatible client supplied by pyiceberg[s3fs]."""
+    import s3fs
+
+    settings = get_settings()
+    return s3fs.S3FileSystem(
+        key=settings.iceberg_s3_access_key,
+        secret=settings.iceberg_s3_secret_key,
+        client_kwargs={
+            "endpoint_url": settings.iceberg_s3_endpoint,
+            "region_name": settings.iceberg_s3_region,
+        },
+        config_kwargs={"s3": {"addressing_style": "path"}},
+    )
+
+
+def inventory_owned_s3_prefix(
+    *,
+    location: str,
+    retention_cutoff: datetime,
+    page_size: int = 1_000,
+    client: object | None = None,
+) -> ObjectInventory:
+    """Enumerate every object below an owned prefix through ``ListObjectsV2``.
+
+    PyArrow's recursive listing does not expose S3 continuation evidence, so it
+    cannot prove that an orphan scan is complete.  This uses the S3-compatible
+    client's public ListObjectsV2 operation instead and discards all partial
+    observations if pagination becomes ambiguous.
+    """
+    try:
+        bucket, prefix, canonical_prefix = _s3_location(location)
+    except ValueError as exc:
+        return _empty_inventory(
+            prefix=location,
+            retention_cutoff=retention_cutoff,
+            page_count=0,
+            failure=str(exc),
+        )
+    if not 1 <= page_size <= 1_000:
+        return _empty_inventory(
+            prefix=canonical_prefix,
+            retention_cutoff=retention_cutoff,
+            page_count=0,
+            failure="S3 inventory page_size must be between 1 and 1000.",
+        )
+
+    try:
+        active_client = client or _s3_inventory_client()
+        call_s3 = getattr(active_client, "call_s3")
+        if not callable(call_s3):
+            raise TypeError("Configured S3 client does not expose call_s3.")
+    except Exception as exc:  # noqa: BLE001 - no evidence is safer than a fallback listing
+        return _empty_inventory(
+            prefix=canonical_prefix,
+            retention_cutoff=retention_cutoff,
+            page_count=0,
+            failure=f"S3 inventory client unavailable: {type(exc).__name__}: {exc}",
+        )
+
+    token: str | None = None
+    seen_tokens: set[str] = set()
+    observed: dict[str, InventoryObject] = {}
+    page_count = 0
+    while True:
+        request: dict[str, object] = {"Bucket": bucket, "Prefix": prefix, "MaxKeys": page_size}
+        if token is not None:
+            request["ContinuationToken"] = token
+        try:
+            page = call_s3("list_objects_v2", **request)
+        except Exception as exc:  # noqa: BLE001 - a partial listing must never become a plan
+            return _empty_inventory(
+                prefix=canonical_prefix,
+                retention_cutoff=retention_cutoff,
+                page_count=page_count,
+                failure=f"S3 ListObjectsV2 failed: {type(exc).__name__}: {exc}",
+            )
+        if not isinstance(page, dict):
+            return _empty_inventory(
+                prefix=canonical_prefix,
+                retention_cutoff=retention_cutoff,
+                page_count=page_count + 1,
+                failure="S3 ListObjectsV2 returned a non-mapping page.",
+            )
+        page_count += 1
+        contents = page.get("Contents", [])
+        if not isinstance(contents, list):
+            return _empty_inventory(
+                prefix=canonical_prefix,
+                retention_cutoff=retention_cutoff,
+                page_count=page_count,
+                failure="S3 ListObjectsV2 returned non-list Contents.",
+            )
+        for item in contents:
+            if not isinstance(item, dict):
+                return _empty_inventory(
+                    prefix=canonical_prefix,
+                    retention_cutoff=retention_cutoff,
+                    page_count=page_count,
+                    failure="S3 ListObjectsV2 returned a malformed object entry.",
+                )
+            key = item.get("Key")
+            size = item.get("Size")
+            if not isinstance(key, str) or not key.startswith(prefix) or not isinstance(size, int):
+                return _empty_inventory(
+                    prefix=canonical_prefix,
+                    retention_cutoff=retention_cutoff,
+                    page_count=page_count,
+                    failure="S3 ListObjectsV2 returned an object outside the owned prefix or without size.",
+                )
+            modified = item.get("LastModified")
+            if modified is not None and not isinstance(modified, datetime):
+                return _empty_inventory(
+                    prefix=canonical_prefix,
+                    retention_cutoff=retention_cutoff,
+                    page_count=page_count,
+                    failure="S3 ListObjectsV2 returned an object with malformed LastModified.",
+                )
+            if isinstance(modified, datetime) and modified.tzinfo is None:
+                modified = modified.replace(tzinfo=UTC)
+            version = item.get("VersionId") or item.get("ETag")
+            if version is not None and not isinstance(version, str):
+                return _empty_inventory(
+                    prefix=canonical_prefix,
+                    retention_cutoff=retention_cutoff,
+                    page_count=page_count,
+                    failure="S3 ListObjectsV2 returned an object with malformed version evidence.",
+                )
+            observation = InventoryObject(
+                identity=f"s3://{bucket}/{key}",
+                size_bytes=size,
+                modified_at=modified,
+                checksum_or_version=version.strip('"') if version else None,
+            )
+            previous = observed.get(key)
+            if previous is not None:
+                return _empty_inventory(
+                    prefix=canonical_prefix,
+                    retention_cutoff=retention_cutoff,
+                    page_count=page_count,
+                    failure="S3 pagination repeated an object; traversal may have changed.",
+                )
+            observed[key] = observation
+
+        truncated = page.get("IsTruncated")
+        next_token = page.get("NextContinuationToken")
+        if truncated is True:
+            if not isinstance(next_token, str) or not next_token or next_token in seen_tokens:
+                return _empty_inventory(
+                    prefix=canonical_prefix,
+                    retention_cutoff=retention_cutoff,
+                    page_count=page_count,
+                    failure="S3 pagination ended or repeated a continuation token before completion.",
+                )
+            seen_tokens.add(next_token)
+            token = next_token
+            continue
+        if truncated is not False or next_token is not None:
+            return _empty_inventory(
+                prefix=canonical_prefix,
+                retention_cutoff=retention_cutoff,
+                page_count=page_count,
+                failure="S3 pagination returned inconsistent terminal continuation evidence.",
+            )
+        ordered = tuple(observed[key] for key in sorted(observed))
+        digest_basis = [
+            {
+                "identity": item.identity,
+                "size_bytes": item.size_bytes,
+                "modified_at": item.modified_at.isoformat() if item.modified_at else None,
+                "checksum_or_version": item.checksum_or_version,
+            }
+            for item in ordered
+        ]
+        digest = hashlib.sha256(
+            json.dumps(digest_basis, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        return ObjectInventory(
+            prefix=canonical_prefix,
+            retention_cutoff=retention_cutoff,
+            objects=ordered,
+            page_count=page_count,
+            continuation_exhausted=True,
+            complete=True,
+            digest=digest,
+        )
 
 
 def _compaction_failure(
@@ -328,6 +547,20 @@ class IcebergResource:
             print(f"Inserted {result['rows_inserted']} rows")
 
     """
+
+    def inventory_owned_prefix(
+        self,
+        *,
+        location: str,
+        retention_cutoff: datetime,
+        page_size: int = 1_000,
+    ) -> ObjectInventory:
+        """Return paginated completeness evidence for one owned S3 prefix."""
+        return inventory_owned_s3_prefix(
+            location=location,
+            retention_cutoff=retention_cutoff,
+            page_size=page_size,
+        )
 
     ref: str = field(default_factory=lambda: get_settings().iceberg_default_ref)
 
@@ -1352,22 +1585,23 @@ class IcebergResource:
                 referenced_files.add(str(manifest.manifest_path))
                 for entry in manifest.fetch_manifest_entry(table.io):
                     referenced_files.add(str(entry.data_file.file_path))
-        cutoff = datetime.now(UTC) - timedelta(hours=retention_hours)
+        observed_at = datetime.now(UTC)
+        cutoff = observed_at - timedelta(hours=retention_hours)
         candidates: list[dict[str, object]] = []
         unavailable_fields: list[str] = []
-        scan_status = "available"
-        try:
+        inventory = self.inventory_owned_prefix(
+            location=f"{table.location()}/data",
+            retention_cutoff=cutoff,
+        )
+        scan_status = "available" if inventory.complete else "unavailable"
+        if inventory.complete:
             normalized_references = {_storage_path_key(path) for path in referenced_files}
-            for file_info in _list_storage_files(table.io, f"{table.location()}/data"):
-                path = str(file_info.path)
+            for object_info in inventory.objects:
+                path = object_info.identity
                 if _storage_path_key(path) in normalized_references:
                     continue
-                mtime = getattr(file_info, "mtime", None)
-                if isinstance(mtime, datetime):
-                    mtime_value = mtime if mtime.tzinfo else mtime.replace(tzinfo=UTC)
-                elif mtime is not None:
-                    mtime_value = datetime.fromtimestamp(float(mtime), tz=UTC)
-                else:
+                mtime_value = object_info.modified_at
+                if mtime_value is None:
                     unavailable_fields.append("candidate_age")
                     continue
                 if mtime_value < cutoff:
@@ -1375,15 +1609,13 @@ class IcebergResource:
                         {
                             "path": path,
                             "mtime": mtime_value.isoformat(),
-                            "age_seconds": round(
-                                (datetime.now(UTC) - mtime_value).total_seconds(), 3
-                            ),
-                            "size_bytes": _safe_file_size(file_info),
+                            "age_seconds": round((observed_at - mtime_value).total_seconds(), 3),
+                            "size_bytes": object_info.size_bytes,
+                            "checksum_or_version": object_info.checksum_or_version,
                         }
                     )
-        except Exception as exc:  # noqa: BLE001 - fail closed on destructive scans
-            scan_status = "unavailable"
-            unavailable_fields.append(f"candidate_listing: {type(exc).__name__}")
+        else:
+            unavailable_fields.append(f"candidate_listing: {inventory.failure or 'incomplete'}")
         sizes = [cast(int | None, candidate.get("size_bytes")) for candidate in candidates]
         if any(size is None for size in sizes):
             affected_bytes = None if candidates else 0
@@ -1411,6 +1643,15 @@ class IcebergResource:
             "table_snapshot_ref_evidence": "available" if refs_available else "unavailable",
             "nessie_ref_evidence": "unavailable",
             "scan_status": scan_status,
+            "inventory": {
+                "prefix": inventory.prefix,
+                "complete": inventory.complete,
+                "page_count": inventory.page_count,
+                "continuation_exhausted": inventory.continuation_exhausted,
+                "digest": inventory.digest,
+                "retention_cutoff": inventory.retention_cutoff.isoformat(),
+                "failure": inventory.failure,
+            },
             "affected_objects": len(candidates),
             "affected_bytes": affected_bytes,
             "limits_scope": ("candidate_orphan_files; provider_internal_metadata_not_counted"),
@@ -1421,7 +1662,7 @@ class IcebergResource:
             "snapshot_guard": "fresh_table_metadata_only",
             "trino_boundary": "pending",
             "execution_support": "unsupported_without_bound_deletion_set",
-            "observed_at_ms": int(datetime.now(UTC).timestamp() * 1000),
+            "observed_at_ms": int(observed_at.timestamp() * 1000),
             "unavailable_fields": sorted(set(unavailable_fields)),
         }
         plan["plan_token"] = _maintenance_plan_token(plan)

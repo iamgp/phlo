@@ -97,6 +97,7 @@ from phlo.capabilities.interfaces import (
     MaintenanceReadModel,
     MaintenanceRetentionStore,
     MaintenanceTableStore,
+    ObjectInventoryStore,
     OrchestratorOperationsProvider,
     Principal,
     QueryEngine,
@@ -112,6 +113,7 @@ from phlo.capabilities.interfaces import (
     TraceSpanFilter,
     WorkflowAuthoringProvider,
 )
+from phlo.capabilities.inventory import InventoryObject, ObjectInventory
 from phlo.capabilities.maintenance import (
     SAFE_MIN_RETENTION_HOURS,
     DefaultMaintenanceReadModel,
@@ -228,6 +230,9 @@ __all__ = [
     "MaintenanceExecutor",
     "MaintenanceDiscovery",
     "MaintenanceRetentionStore",
+    "ObjectInventoryStore",
+    "InventoryObject",
+    "ObjectInventory",
     "MaintenanceTableStore",
     "MaintenanceExecutorSpec",
     "DefaultObservabilityBackend",
