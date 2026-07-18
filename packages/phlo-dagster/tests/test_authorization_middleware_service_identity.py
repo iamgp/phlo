@@ -78,6 +78,20 @@ def test_extract_principal_from_service_token(monkeypatch):
     assert "initiating_principal" not in principal.attributes
 
 
+def test_extract_principal_rejects_legacy_service_token_in_regulated_mode(monkeypatch):
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    monkeypatch.setenv("PHLO_ENVIRONMENT", "dev")
+    monkeypatch.setenv("PHLO_REGULATED", "false")
+    legacy_token = create_service_token("phlo-api")
+    monkeypatch.setenv("PHLO_REGULATED", "true")
+
+    principal = DagsterGraphQLAuthorizationMiddleware()._extract_principal(
+        _build_info({"Authorization": f"Bearer {legacy_token}"})
+    )
+
+    assert principal is None
+
+
 def test_extract_principal_does_not_authorize_on_unsigned_initiator_header(monkeypatch):
     monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
     service_token = create_service_token("phlo-api")

@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from threading import Lock
+from typing import Any
 
 import pytest
 
@@ -10,10 +16,38 @@ from phlo.security.service_identity import (
     PHLO_CORRELATION_HEADER,
     PHLO_INITIATOR_HEADER,
     PHLO_SERVICE_SECRET_ENV,
+    PostgresNonceStore,
+    ServiceTokenCredential,
     build_service_headers,
+    create_scoped_service_token,
     create_service_token,
+    validate_scoped_service_token,
     validate_service_token,
 )
+
+
+@dataclass
+class SharedNonceStore:
+    """Independent receiver stores sharing the same durable test backing state."""
+
+    consumed: set[str] = field(default_factory=set)
+    lock: Lock = field(default_factory=Lock)
+
+    def consume(self, nonce: str, *, expires_at: datetime) -> bool:
+        del expires_at
+        with self.lock:
+            if nonce in self.consumed:
+                return False
+            self.consumed.add(nonce)
+            return True
+
+
+def _credentials() -> dict[tuple[str, str], ServiceTokenCredential]:
+    return {
+        ("phlo-api", "dagster"): ServiceTokenCredential(secret="api-dagster-secret"),
+        ("phlo-api", "trino"): ServiceTokenCredential(secret="api-trino-secret"),
+        ("worker", "dagster"): ServiceTokenCredential(secret="worker-secret"),
+    }
 
 
 class TestCreateServiceToken:
@@ -122,3 +156,207 @@ class TestBuildServiceHeaders:
         assert headers["Authorization"].startswith("Bearer phlo-api:")
         assert headers[PHLO_INITIATOR_HEADER] == "alice@co.com"
         assert headers[PHLO_CORRELATION_HEADER] == "req-456"
+
+
+class TestScopedServiceTokens:
+    def test_binds_token_to_configured_caller_and_audience(self) -> None:
+        token = create_scoped_service_token(
+            "phlo-api", audience="dagster", credentials=_credentials(), now=1_000
+        )
+        assert (
+            validate_scoped_service_token(
+                token,
+                expected_audience="dagster",
+                credentials=_credentials(),
+                nonce_store=SharedNonceStore(),
+                now=1_001,
+            )
+            == "phlo-api"
+        )
+
+    def test_rejects_wrong_audience_before_consuming_nonce(self) -> None:
+        token = create_scoped_service_token(
+            "phlo-api", audience="dagster", credentials=_credentials(), now=1_000
+        )
+        store = SharedNonceStore()
+        assert (
+            validate_scoped_service_token(
+                token,
+                expected_audience="trino",
+                credentials=_credentials(),
+                nonce_store=store,
+                now=1_001,
+            )
+            is None
+        )
+        assert not store.consumed
+
+    def test_rejects_unconfigured_caller(self) -> None:
+        credentials = _credentials()
+        token = create_scoped_service_token("worker", audience="dagster", credentials=credentials)
+        assert (
+            validate_scoped_service_token(
+                token,
+                expected_audience="dagster",
+                credentials={("phlo-api", "dagster"): credentials[("phlo-api", "dagster")]},
+                nonce_store=SharedNonceStore(),
+            )
+            is None
+        )
+
+    def test_one_caller_has_distinct_credentials_for_each_audience(self) -> None:
+        credentials = _credentials()
+        dagster_token = create_scoped_service_token(
+            "phlo-api", audience="dagster", credentials=credentials, now=1_000
+        )
+        trino_token = create_scoped_service_token(
+            "phlo-api", audience="trino", credentials=credentials, now=1_000
+        )
+
+        assert (
+            validate_scoped_service_token(
+                dagster_token,
+                expected_audience="dagster",
+                credentials=credentials,
+                nonce_store=SharedNonceStore(),
+                now=1_001,
+            )
+            == "phlo-api"
+        )
+        assert (
+            validate_scoped_service_token(
+                trino_token,
+                expected_audience="trino",
+                credentials=credentials,
+                nonce_store=SharedNonceStore(),
+                now=1_001,
+            )
+            == "phlo-api"
+        )
+        assert (
+            validate_scoped_service_token(
+                dagster_token,
+                expected_audience="trino",
+                credentials=credentials,
+                nonce_store=SharedNonceStore(),
+                now=1_001,
+            )
+            is None
+        )
+
+    def test_rejects_service_name_impersonation(self) -> None:
+        token = create_scoped_service_token(
+            "worker", audience="dagster", credentials=_credentials()
+        )
+        impersonating = "phlo-api:" + token.split(":", 1)[1]
+        assert (
+            validate_scoped_service_token(
+                impersonating,
+                expected_audience="dagster",
+                credentials=_credentials(),
+                nonce_store=SharedNonceStore(),
+            )
+            is None
+        )
+
+    def test_rejects_expired_token(self) -> None:
+        token = create_scoped_service_token(
+            "phlo-api", audience="dagster", credentials=_credentials(), now=1_000
+        )
+        assert (
+            validate_scoped_service_token(
+                token,
+                expected_audience="dagster",
+                credentials=_credentials(),
+                nonce_store=SharedNonceStore(),
+                max_age_seconds=300,
+                now=1_301,
+            )
+            is None
+        )
+
+    def test_replay_is_rejected_across_two_receiver_instances_and_restart(self) -> None:
+        backing_store = SharedNonceStore()
+        token = create_scoped_service_token(
+            "phlo-api", audience="dagster", credentials=_credentials(), now=1_000
+        )
+        assert (
+            validate_scoped_service_token(
+                token,
+                expected_audience="dagster",
+                credentials=_credentials(),
+                nonce_store=backing_store,
+                now=1_001,
+            )
+            == "phlo-api"
+        )
+        restarted_receiver = SharedNonceStore(backing_store.consumed, backing_store.lock)
+        assert (
+            validate_scoped_service_token(
+                token,
+                expected_audience="dagster",
+                credentials=_credentials(),
+                nonce_store=restarted_receiver,
+                now=1_001,
+            )
+            is None
+        )
+
+    def test_shared_secret_compatibility_is_not_available_in_production(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "shared-secret")
+        monkeypatch.setenv("PHLO_ENVIRONMENT", "production")
+        with pytest.raises(RuntimeError, match="development-only"):
+            create_service_token("phlo-api")
+        assert validate_service_token("phlo-api:1:nonce:signature") is None
+
+    def test_shared_secret_compatibility_is_not_available_in_regulated_mode(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "shared-secret")
+        monkeypatch.setenv("PHLO_ENVIRONMENT", "dev")
+        monkeypatch.setenv("PHLO_REGULATED", "true")
+        with pytest.raises(RuntimeError, match="development-only"):
+            create_service_token("phlo-api")
+        assert validate_service_token("phlo-api:1:nonce:signature") is None
+
+
+def test_postgres_nonce_store_rejects_one_of_two_simultaneous_consumers() -> None:
+    dsn = os.environ.get("PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN")
+    if not dsn:
+        pytest.skip("set PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN for the live PostgreSQL nonce race")
+
+    import psycopg2
+
+    first_connection = psycopg2.connect(dsn)
+    second_connection = psycopg2.connect(dsn)
+    cleanup_connection = psycopg2.connect(dsn)
+    try:
+        first_store = PostgresNonceStore(first_connection)
+        first_store.ensure_schema()
+        nonce = f"test-{time.time_ns()}"
+        expires_at = datetime.fromtimestamp(time.time() + 300, tz=UTC)
+
+        def consume(connection: Any) -> bool:
+            return PostgresNonceStore(connection).consume(nonce, expires_at=expires_at)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(consume, (first_connection, second_connection)))
+        assert sorted(results) == [False, True]
+
+        # A new connection represents a receiver after process restart.
+        restarted_connection = psycopg2.connect(dsn)
+        try:
+            assert not PostgresNonceStore(restarted_connection).consume(
+                nonce, expires_at=expires_at
+            )
+        finally:
+            restarted_connection.close()
+    finally:
+        with cleanup_connection.cursor() as cursor:
+            cursor.execute("DELETE FROM phlo_service_token_nonces WHERE nonce = %s", (nonce,))
+        cleanup_connection.commit()
+        first_connection.close()
+        second_connection.close()
+        cleanup_connection.close()
