@@ -23,6 +23,18 @@ mutation LaunchPipelineExecution($executionParams: ExecutionParams!) {
 }
 """
 
+EXISTING_MATERIALIZATION_RUN_QUERY = """
+query ExistingMaterializationRun($filter: RunsFilter!) {
+    runsOrError(filter: $filter, limit: 1) {
+        __typename
+        ... on Runs {
+            results { runId status }
+        }
+        ... on PythonError { message }
+    }
+}
+"""
+
 LAUNCH_PIPELINE_REEXECUTION_MUTATION = """
 mutation LaunchPipelineReexecution($executionParams: ExecutionParams, $reexecutionParams: ReexecutionParams) {
     launchPipelineReexecution(executionParams: $executionParams, reexecutionParams: $reexecutionParams) {
@@ -107,6 +119,7 @@ async def launch_materialize(
     run_config: dict[str, Any] | None = None,
     idempotency_key: str | None = None,
     tags: dict[str, str] | None = None,
+    access_token: str | None = None,
 ) -> DagsterOperationResult:
     execution_tags = {"phlo/operation": "materialize_asset", "phlo/asset_key": asset_key_path}
     if idempotency_key:
@@ -114,6 +127,42 @@ async def launch_materialize(
     execution_tags.update(tags or {})
     if partition_key:
         execution_tags.setdefault("dagster/partition", partition_key)
+    if idempotency_key:
+        existing = await _graphql(
+            dagster_url,
+            EXISTING_MATERIALIZATION_RUN_QUERY,
+            {
+                "filter": {
+                    "tags": _tags_for_execution(
+                        {
+                            "phlo/operation": "materialize_asset",
+                            "phlo/idempotency_key": idempotency_key,
+                        }
+                    )
+                }
+            },
+            access_token=access_token,
+        )
+        runs_or_error = existing.get("data", {}).get("runsOrError", {})
+        if runs_or_error.get("__typename") != "Runs":
+            raise RuntimeError(_error_message(runs_or_error))
+        results = runs_or_error.get("results") or []
+        if results:
+            run = results[0]
+            run_id = str(run.get("runId") or "")
+            if not run_id:
+                raise RuntimeError("Dagster returned an existing run without a run ID")
+            return DagsterOperationResult(
+                operation="materialize_asset",
+                dry_run=False,
+                accepted=True,
+                run_id=run_id,
+                asset_key_path=asset_key_path,
+                partition_key=partition_key,
+                status=str(run.get("status") or "UNKNOWN"),
+                message="Dagster previously accepted materialize_asset.",
+                details={"typename": "LaunchRunSuccess", "reconciled": True},
+            )
     result = await _graphql(
         dagster_url,
         LAUNCH_PIPELINE_EXECUTION_MUTATION,
@@ -130,6 +179,7 @@ async def launch_materialize(
                 "executionMetadata": {"tags": _tags_for_execution(execution_tags)},
             }
         },
+        access_token=access_token,
     )
     return _launch_result(
         operation="materialize_asset",
@@ -268,12 +318,21 @@ async def list_partitions(*, dagster_url: str, asset_key_path: str) -> list[dict
     return [{"partition_key": key, "status": "UNKNOWN"} for key in keys]
 
 
-async def _graphql(url: str, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+async def _graphql(
+    url: str,
+    query: str,
+    variables: dict[str, Any],
+    *,
+    access_token: str | None = None,
+) -> dict[str, Any]:
     headers = {"Content-Type": "application/json"}
-    try:
-        headers.update(build_service_headers("phlo-api", initiator="observatory"))
-    except RuntimeError:
-        pass
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+    else:
+        try:
+            headers.update(build_service_headers("phlo-api", initiator="observatory"))
+        except RuntimeError:
+            pass
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             url, json={"query": query, "variables": variables}, headers=headers

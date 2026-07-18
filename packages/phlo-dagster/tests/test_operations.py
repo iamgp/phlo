@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 
 import httpx
+import pytest
 
-from phlo_dagster.operations import launch_materialize, list_partitions, terminate
+from phlo_dagster.operations import launch_materialize, launch_retry, list_partitions, terminate
 
 
 def test_launch_materialize_posts_asset_selection(monkeypatch) -> None:
@@ -46,6 +47,165 @@ def test_launch_materialize_posts_asset_selection(monkeypatch) -> None:
     selector = variables["executionParams"]["selector"]
     assert selector["pipelineName"] == "orders_job"
     assert selector["assetSelection"] == [{"path": ["silver", "orders"]}]
+
+
+def test_launch_materialize_uses_the_explicit_user_access_token(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        captured["headers"] = headers
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "data": {
+                    "launchPipelineExecution": {
+                        "__typename": "LaunchRunSuccess",
+                        "run": {"runId": "run-1", "status": "STARTED"},
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    monkeypatch.setattr(
+        "phlo_dagster.operations.build_service_headers",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("must not impersonate phlo-api")
+        ),
+    )
+
+    result = asyncio.run(
+        launch_materialize(
+            dagster_url="http://dagster.test/graphql",
+            asset_key_path="silver/orders",
+            job_name="orders_job",
+            repository_location_name="phlo_dagster",
+            repository_name="phlo_dagster",
+            access_token="verified-user-token",
+        )
+    )
+
+    assert result.accepted is True
+    assert captured["headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer verified-user-token",
+    }
+
+
+def test_wap_materialize_tags_survive_retry(monkeypatch) -> None:
+    payloads: list[dict[str, object]] = []
+
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        if "ExistingMaterializationRun" in json["query"]:
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={"data": {"runsOrError": {"__typename": "Runs", "results": []}}},
+            )
+        payloads.append(json)
+        mutation = "launchPipelineExecution" if len(payloads) == 1 else "launchPipelineReexecution"
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "data": {
+                    mutation: {
+                        "__typename": "LaunchRunSuccess",
+                        "run": {"runId": "dagster-run", "status": "STARTED"},
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    tags = {"phlo/run_id": "request-42", "phlo/wap_branch": "pipeline-run-request-42"}
+
+    asyncio.run(
+        launch_materialize(
+            dagster_url="http://dagster.test/graphql",
+            asset_key_path="silver/orders",
+            job_name="orders_job",
+            idempotency_key="request-42",
+            tags=tags,
+        )
+    )
+    asyncio.run(
+        launch_retry(
+            dagster_url="http://dagster.test/graphql",
+            run_id="dagster-run",
+            strategy="FROM_FAILURE",
+            tags=tags,
+        )
+    )
+
+    launch_tags = payloads[0]["variables"]["executionParams"]["executionMetadata"]["tags"]  # type: ignore[index]
+    retry = payloads[1]["variables"]["reexecutionParams"]  # type: ignore[index]
+    launch_tag_map = {tag["key"]: tag["value"] for tag in launch_tags}
+    assert launch_tag_map["phlo/wap_branch"] == "pipeline-run-request-42"
+    assert launch_tag_map["phlo/idempotency_key"] == "request-42"
+    assert retry["useParentRunTags"] is True
+    assert {tag["key"]: tag["value"] for tag in retry["extraTags"]}["phlo/run_id"] == "request-42"
+
+
+def test_wap_materialize_reconciles_a_lost_response_without_a_duplicate_launch(
+    monkeypatch,
+) -> None:
+    accepted_run: dict[str, str] | None = None
+    launch_calls = 0
+    lookup_filters: list[dict[str, object]] = []
+
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        nonlocal accepted_run, launch_calls
+        if "ExistingMaterializationRun" in json["query"]:
+            lookup_filters.append(json["variables"]["filter"])
+            results = [accepted_run] if accepted_run else []
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={"data": {"runsOrError": {"__typename": "Runs", "results": results}}},
+            )
+
+        launch_calls += 1
+        accepted_run = {"runId": "dagster-run", "status": "STARTED"}
+        raise httpx.ReadTimeout("Dagster accepted the run but the response was lost")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    kwargs = {
+        "dagster_url": "http://dagster.test/graphql",
+        "asset_key_path": "silver/orders",
+        "job_name": "orders_job",
+        "idempotency_key": "request-42",
+        "tags": {
+            "phlo/run_id": "request-42",
+            "phlo/wap_branch": "pipeline-run-request-42",
+        },
+        "access_token": "verified-user-token",
+    }
+
+    with pytest.raises(httpx.ReadTimeout):
+        asyncio.run(launch_materialize(**kwargs))
+    reconciled = asyncio.run(launch_materialize(**kwargs))
+
+    assert launch_calls == 1
+    assert reconciled.accepted is True
+    assert reconciled.run_id == "dagster-run"
+    assert reconciled.status == "STARTED"
+    assert reconciled.details["reconciled"] is True
+    assert lookup_filters == [
+        {
+            "tags": [
+                {"key": "phlo/operation", "value": "materialize_asset"},
+                {"key": "phlo/idempotency_key", "value": "request-42"},
+            ]
+        },
+        {
+            "tags": [
+                {"key": "phlo/operation", "value": "materialize_asset"},
+                {"key": "phlo/idempotency_key", "value": "request-42"},
+            ]
+        },
+    ]
 
 
 def test_terminate_maps_dagster_error(monkeypatch) -> None:
