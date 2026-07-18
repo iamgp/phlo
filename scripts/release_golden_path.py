@@ -304,13 +304,12 @@ def release_golden_path_wap_check() -> dg.AssetCheckResult:
     )
 
 
-def write_report_policy_fixture(config: RunConfig, logical_run_id: str) -> None:
-    """Grant the ephemeral report reader access only to the promoted WAP run report."""
+def write_report_policy_fixture(config: RunConfig) -> None:
+    """Allow the scoped report reader through the policy boundary."""
     authorization_dir = config.project_dir / ".phlo" / "authorization"
     authorization_dir.mkdir(parents=True, exist_ok=True)
-    report_resource_id = f"project_id={config.project_name}|run_id={logical_run_id}|attempt=1"
     (authorization_dir / "policies.yaml").write_text(
-        f"""version: 1
+        """version: 1
 
 policies:
   - policy_id: release-golden-path-wap-catalog-read
@@ -348,7 +347,7 @@ policies:
     action: run.read
     resource:
       type: run
-      id_pattern: "{report_resource_id}"
+      id_pattern: "*"
 """,
         encoding="utf-8",
     )
@@ -392,7 +391,7 @@ def install_project_dependencies(config: RunConfig) -> None:
     )
 
 
-def configure_non_dev_compose(config: RunConfig) -> None:
+def configure_non_dev_compose(config: RunConfig, logical_run_id: str) -> None:
     run(
         command(
             str(config.operator_bin),
@@ -424,7 +423,12 @@ def configure_non_dev_compose(config: RunConfig) -> None:
         tokens = {
             config.report_token: {
                 "subject": "qa001-report-reader",
-                "attributes": {"qa001_role": "report_reader"},
+                "attributes": {
+                    "qa001_role": "report_reader",
+                    "phlo.run_report_resource_id": (
+                        f"project_id={config.project_name}|run_id={logical_run_id}|attempt=1"
+                    ),
+                },
             }
         }
         stream.write(f"PHLO_AUTH_SERVICE_TOKENS={json.dumps(tokens, separators=(',', ':'))}\n")
@@ -657,7 +661,7 @@ def wait_for_wap_promotion(config: RunConfig, wap_run: WapRun) -> None:
 
 
 def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
-    """Fetch the promoted report with the ephemeral run-read service principal."""
+    """Prove the scoped service token reads its report and no other report."""
     url = service_url(
         config,
         "phlo-api",
@@ -675,12 +679,38 @@ def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
             with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
                 payload = json.load(response)
             if isinstance(payload, dict) and payload.get("run_id") == wap_run.logical_run_id:
-                return
+                break
             raise RuntimeError(f"run report returned the wrong run: {payload!r}")
         except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError) as exc:
             last_error = exc
             time.sleep(1)
-    raise RuntimeError(f"run report was not available for {wap_run.logical_run_id}: {last_error}")
+    else:
+        raise RuntimeError(
+            f"run report was not available for {wap_run.logical_run_id}: {last_error}"
+        )
+
+    other_url = service_url(
+        config,
+        "phlo-api",
+        4000,
+        f"/api/observatory/projects/{config.project_name}/runs/{wap_run.logical_run_id}-other/attempts/1/report",
+    )
+    request = urllib.request.Request(
+        other_url,
+        headers={"Authorization": f"Bearer {config.report_token}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10):  # noqa: S310
+            pass
+    except urllib.error.HTTPError as exc:
+        body = json.load(exc)
+        if exc.code == 403 and body == {
+            "error": "forbidden",
+            "reason": "run_report_scope_mismatch",
+        }:
+            return
+        raise RuntimeError(f"unexpected scoped report response: {exc.code} {body!r}") from exc
+    raise RuntimeError("scoped report token read another run report")
 
 
 def verify_rows(
@@ -838,9 +868,9 @@ def main(argv: list[str] | None = None) -> int:
         write_wap_fixture(config)
         align_project_name(config)
         install_project_dependencies(config)
-        configure_non_dev_compose(config)
         logical_run_id = uuid.uuid4().hex
-        write_report_policy_fixture(config, logical_run_id)
+        configure_non_dev_compose(config, logical_run_id)
+        write_report_policy_fixture(config)
         start_stack(config)
         stack_started = True
         materialize_partition(config)

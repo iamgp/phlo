@@ -50,6 +50,7 @@ class OperationSpec:
 
 HTTP_ROUTE_KEY_MANIFEST: dict[tuple[str, str], OperationSpec] = {}
 logger = get_logger(__name__)
+RUN_REPORT_RESOURCE_ID_ATTRIBUTE = "phlo.run_report_resource_id"
 
 
 def _specs(
@@ -675,6 +676,25 @@ def _raise_unauthorized() -> None:
     )
 
 
+def _enforce_scoped_run_report_service_identity(
+    principal: Any,
+    spec: OperationSpec,
+    resource: ResourceRef,
+) -> None:
+    """Bind a deliberately run-scoped service token to its one report resource."""
+    if (
+        spec.operation_name != "get_observatory_run_report"
+        or principal.principal_type != "service"
+        or RUN_REPORT_RESOURCE_ID_ATTRIBUTE not in principal.attributes
+    ):
+        return
+    if principal.attributes[RUN_REPORT_RESOURCE_ID_ATTRIBUTE] != resource.resource_id:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": "run_report_scope_mismatch"},
+        )
+
+
 async def enforce_http_operation(
     request: Request,
     spec: OperationSpec,
@@ -691,6 +711,7 @@ async def enforce_http_operation(
     spec = await _specialize_operation(request, spec)
     await _validate_request_payload(request, spec)
     resource = await resolve_resource(request, spec, path_params)
+    _enforce_scoped_run_report_service_identity(auth_principal, spec, resource)
     context: DecisionContext = create_decision_context(request)
     correlation_id = get_request_correlation_id(request)
 

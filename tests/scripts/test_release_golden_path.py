@@ -144,12 +144,12 @@ def test_wap_fixture_defines_a_blocking_passing_asset_check(tmp_path: Path) -> N
     assert "return dg.AssetCheckResult(passed=True)" in fixture
 
 
-def test_report_policy_fixture_grants_only_its_generated_run_to_report_reader(
+def test_report_policy_fixture_relies_on_the_service_token_scope(
     tmp_path: Path,
 ) -> None:
     config = _config(tmp_path)
 
-    release_golden_path.write_report_policy_fixture(config, "promoted-logical-run")
+    release_golden_path.write_report_policy_fixture(config)
 
     policy = (config.project_dir / ".phlo" / "authorization" / "policies.yaml").read_text(
         encoding="utf-8"
@@ -162,16 +162,12 @@ def test_report_policy_fixture_grants_only_its_generated_run_to_report_reader(
     assert 'action: "*"' not in policy
     report_policy = policy.split("  - policy_id: release-golden-path-report-read", 1)[1]
     assert "action: run.read" in report_policy
-    assert (
-        'id_pattern: "project_id=phlo-qa001-test|run_id=promoted-logical-run|attempt=1"'
-        in report_policy
-    )
-    assert 'id_pattern: "*"' not in report_policy
+    assert 'id_pattern: "*"' in report_policy
     assert "action: catalog.read" not in report_policy
     assert "action: run.execute" not in report_policy
 
 
-def test_main_binds_report_policy_and_wap_to_the_same_generated_logical_run_id(
+def test_main_binds_report_scope_and_wap_to_the_same_generated_logical_run_id(
     tmp_path: Path, monkeypatch
 ) -> None:
     captured: dict[str, str] = {}
@@ -195,14 +191,14 @@ def test_main_binds_report_policy_and_wap_to_the_same_generated_logical_run_id(
     ):
         monkeypatch.setattr(release_golden_path, name, lambda *_args, **_kwargs: None)
 
-    def write_policy(_config, logical_run_id: str) -> None:
-        captured["policy"] = logical_run_id
+    def configure(_config, logical_run_id: str) -> None:
+        captured["scope"] = logical_run_id
 
     def materialize(_config, logical_run_id: str) -> release_golden_path.WapRun:
         captured["wap"] = logical_run_id
         return release_golden_path.WapRun(logical_run_id, "dagster-run")
 
-    monkeypatch.setattr(release_golden_path, "write_report_policy_fixture", write_policy)
+    monkeypatch.setattr(release_golden_path, "configure_non_dev_compose", configure)
     monkeypatch.setattr(release_golden_path, "materialize_wap", materialize)
     monkeypatch.setattr(release_golden_path, "project_name", lambda: "phlo-qa001-test")
     monkeypatch.setattr(
@@ -215,7 +211,7 @@ def test_main_binds_report_policy_and_wap_to_the_same_generated_logical_run_id(
         )
         == 0
     )
-    assert captured == {"policy": "promoted-logical-run", "wap": "promoted-logical-run"}
+    assert captured == {"scope": "promoted-logical-run", "wap": "promoted-logical-run"}
 
 
 def test_transform_materialization_preserves_the_partition(tmp_path: Path, monkeypatch) -> None:
@@ -340,9 +336,7 @@ def test_run_report_requires_the_wap_logical_run_id(tmp_path: Path, monkeypatch)
     monkeypatch.setattr(
         release_golden_path,
         "service_url",
-        lambda *_: (
-            "http://127.0.0.1:4000/api/observatory/projects/phlo-qa001-test/runs/logical/attempts/1/report"
-        ),
+        lambda _config, _service, _port, path: f"http://127.0.0.1:4000{path}",
     )
 
     class Response(io.BytesIO):
@@ -356,7 +350,17 @@ def test_run_report_requires_the_wap_logical_run_id(tmp_path: Path, monkeypatch)
 
     def urlopen(request, **_kwargs):
         requests.append(request)
-        return Response(json.dumps({"run_id": "logical"}).encode())
+        if request.full_url.endswith("/runs/logical/attempts/1/report"):
+            return Response(json.dumps({"run_id": "logical"}).encode())
+        raise release_golden_path.urllib.error.HTTPError(
+            request.full_url,
+            403,
+            "Forbidden",
+            {},
+            Response(
+                json.dumps({"error": "forbidden", "reason": "run_report_scope_mismatch"}).encode()
+            ),
+        )
 
     monkeypatch.setattr(release_golden_path.urllib.request, "urlopen", urlopen)
 
@@ -365,6 +369,7 @@ def test_run_report_requires_the_wap_logical_run_id(tmp_path: Path, monkeypatch)
     )
 
     assert requests[0].get_header("Authorization") == f"Bearer {config.report_token}"
+    assert requests[1].get_header("Authorization") == f"Bearer {config.report_token}"
 
 
 def test_existing_project_or_sibling_is_rejected_without_touching_it(
@@ -705,7 +710,7 @@ def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, m
     )
     monkeypatch.setattr(release_golden_path, "run", lambda *args, **kwargs: None)
 
-    release_golden_path.configure_non_dev_compose(config)
+    release_golden_path.configure_non_dev_compose(config, "promoted-logical-run")
 
     env_local = config.project_dir.joinpath(".phlo/.env.local").read_text()
     assert all(f"{name}=0\n" in env_local for name in release_golden_path.PORT_NAMES)
@@ -722,6 +727,11 @@ def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, m
     assert configured_tokens == {
         config.report_token: {
             "subject": "qa001-report-reader",
-            "attributes": {"qa001_role": "report_reader"},
+            "attributes": {
+                "qa001_role": "report_reader",
+                "phlo.run_report_resource_id": (
+                    "project_id=phlo-qa001-test|run_id=promoted-logical-run|attempt=1"
+                ),
+            },
         }
     }
