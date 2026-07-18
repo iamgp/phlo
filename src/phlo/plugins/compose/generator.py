@@ -362,12 +362,16 @@ class ComposeGenerator:
         if not isinstance(conditional_environment, dict):
             return
         environment = config.get("environment")
-        if not isinstance(environment, dict):
-            return
         for trigger, entries in conditional_environment.items():
             if not str(env_values.get(str(trigger), "")).strip() or not isinstance(entries, dict):
                 continue
-            environment.update(entries)
+            if environment is None:
+                environment = {}
+                config["environment"] = environment
+            if isinstance(environment, dict):
+                environment.update(entries)
+            elif isinstance(environment, list):
+                environment.extend(f"{key}={value}" for key, value in entries.items())
 
     def _apply_user_overrides(
         self,

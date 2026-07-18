@@ -75,6 +75,61 @@ def test_minio_compose_only_includes_openid_settings_with_a_discovery_url(
     } == expected_openid
 
 
+def test_conditional_environment_creates_an_absent_environment(tmp_path) -> None:
+    service = ServiceDefinition(
+        name="conditional",
+        description="conditional",
+        category="core",
+        default=True,
+        compose={
+            "conditional_environment": {
+                "ENABLE_CONDITIONAL": {"CONDITIONAL_VALUE": "enabled"},
+            }
+        },
+    )
+
+    data = yaml.safe_load(
+        ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery())).generate_compose(
+            [service], output_dir=tmp_path, env_values={"ENABLE_CONDITIONAL": "true"}
+        )
+    )
+
+    assert data["services"]["conditional"]["environment"] == {"CONDITIONAL_VALUE": "enabled"}
+
+
+def test_conditional_environment_supports_list_environment_and_user_overrides(tmp_path) -> None:
+    service = ServiceDefinition(
+        name="conditional",
+        description="conditional",
+        category="core",
+        default=True,
+        compose={
+            "environment": ["EXISTING=value"],
+            "conditional_environment": {
+                "ENABLE_CONDITIONAL": {
+                    "CONDITIONAL_VALUE": "enabled",
+                    "OVERRIDDEN_VALUE": "package",
+                },
+            },
+        },
+    )
+
+    data = yaml.safe_load(
+        ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery())).generate_compose(
+            [service],
+            output_dir=tmp_path,
+            env_values={"ENABLE_CONDITIONAL": "true"},
+            user_overrides={"conditional": {"environment": {"OVERRIDDEN_VALUE": "user"}}},
+        )
+    )
+
+    assert data["services"]["conditional"]["environment"] == {
+        "EXISTING": "value",
+        "CONDITIONAL_VALUE": "enabled",
+        "OVERRIDDEN_VALUE": "user",
+    }
+
+
 def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
     discovery = ServiceDiscovery()
     nessie = discovery.get_service("nessie")
