@@ -44,10 +44,9 @@ DEFAULT_MAX_AGE_SECONDS = 300
 
 @dataclass(frozen=True)
 class ServiceTokenCredential:
-    """The credential and intended receiver configured for one caller."""
+    """One caller-audience credential."""
 
     secret: str
-    audience: str
 
 
 class NonceStore(Protocol):
@@ -144,15 +143,15 @@ def create_scoped_service_token(
     caller: str,
     *,
     audience: str,
-    credentials: Mapping[str, ServiceTokenCredential],
+    credentials: Mapping[tuple[str, str], ServiceTokenCredential],
     now: int | None = None,
 ) -> str:
     """Create a token signed only by ``caller``'s configured credential."""
-    credential = credentials.get(caller)
+    credential = credentials.get((caller, audience))
     if credential is None:
-        raise RuntimeError(f"No service credential configured for caller {caller!r}")
-    if credential.audience != audience:
-        raise RuntimeError(f"Caller {caller!r} is not configured for audience {audience!r}")
+        raise RuntimeError(
+            f"No service credential configured for caller {caller!r} and audience {audience!r}"
+        )
     if not credential.secret:
         raise RuntimeError(f"Caller {caller!r} has an empty service credential")
 
@@ -167,7 +166,7 @@ def validate_scoped_service_token(
     token: str,
     *,
     expected_audience: str,
-    credentials: Mapping[str, ServiceTokenCredential],
+    credentials: Mapping[tuple[str, str], ServiceTokenCredential],
     nonce_store: NonceStore,
     max_age_seconds: int = DEFAULT_MAX_AGE_SECONDS,
     now: int | None = None,
@@ -183,8 +182,8 @@ def validate_scoped_service_token(
     caller, audience, timestamp_str, nonce, provided_hmac = parts
     if audience != expected_audience or not caller or not nonce:
         return None
-    credential = credentials.get(caller)
-    if credential is None or credential.audience != expected_audience or not credential.secret:
+    credential = credentials.get((caller, expected_audience))
+    if credential is None or not credential.secret:
         return None
     try:
         token_time = int(timestamp_str)
@@ -207,6 +206,11 @@ def validate_scoped_service_token(
 
 def _legacy_service_tokens_allowed() -> bool:
     """Keep shared-secret helpers strictly local while receiver migration lands."""
+    # Import lazily to keep this low-level module independent during import.
+    from phlo.security.mode import is_regulated
+
+    if is_regulated():
+        return False
     environment = os.environ.get("PHLO_ENVIRONMENT", "dev").lower()
     return environment not in {"prod", "production", "staging", "regulated"}
 

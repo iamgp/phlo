@@ -42,10 +42,11 @@ class SharedNonceStore:
             return True
 
 
-def _credentials() -> dict[str, ServiceTokenCredential]:
+def _credentials() -> dict[tuple[str, str], ServiceTokenCredential]:
     return {
-        "phlo-api": ServiceTokenCredential(secret="api-secret", audience="dagster"),
-        "worker": ServiceTokenCredential(secret="worker-secret", audience="dagster"),
+        ("phlo-api", "dagster"): ServiceTokenCredential(secret="api-dagster-secret"),
+        ("phlo-api", "trino"): ServiceTokenCredential(secret="api-trino-secret"),
+        ("worker", "dagster"): ServiceTokenCredential(secret="worker-secret"),
     }
 
 
@@ -197,8 +198,48 @@ class TestScopedServiceTokens:
             validate_scoped_service_token(
                 token,
                 expected_audience="dagster",
-                credentials={"phlo-api": credentials["phlo-api"]},
+                credentials={("phlo-api", "dagster"): credentials[("phlo-api", "dagster")]},
                 nonce_store=SharedNonceStore(),
+            )
+            is None
+        )
+
+    def test_one_caller_has_distinct_credentials_for_each_audience(self) -> None:
+        credentials = _credentials()
+        dagster_token = create_scoped_service_token(
+            "phlo-api", audience="dagster", credentials=credentials, now=1_000
+        )
+        trino_token = create_scoped_service_token(
+            "phlo-api", audience="trino", credentials=credentials, now=1_000
+        )
+
+        assert (
+            validate_scoped_service_token(
+                dagster_token,
+                expected_audience="dagster",
+                credentials=credentials,
+                nonce_store=SharedNonceStore(),
+                now=1_001,
+            )
+            == "phlo-api"
+        )
+        assert (
+            validate_scoped_service_token(
+                trino_token,
+                expected_audience="trino",
+                credentials=credentials,
+                nonce_store=SharedNonceStore(),
+                now=1_001,
+            )
+            == "phlo-api"
+        )
+        assert (
+            validate_scoped_service_token(
+                dagster_token,
+                expected_audience="trino",
+                credentials=credentials,
+                nonce_store=SharedNonceStore(),
+                now=1_001,
             )
             is None
         )
@@ -266,6 +307,16 @@ class TestScopedServiceTokens:
     ) -> None:
         monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "shared-secret")
         monkeypatch.setenv("PHLO_ENVIRONMENT", "production")
+        with pytest.raises(RuntimeError, match="development-only"):
+            create_service_token("phlo-api")
+        assert validate_service_token("phlo-api:1:nonce:signature") is None
+
+    def test_shared_secret_compatibility_is_not_available_in_regulated_mode(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "shared-secret")
+        monkeypatch.setenv("PHLO_ENVIRONMENT", "dev")
+        monkeypatch.setenv("PHLO_REGULATED", "true")
         with pytest.raises(RuntimeError, match="development-only"):
             create_service_token("phlo-api")
         assert validate_service_token("phlo-api:1:nonce:signature") is None
