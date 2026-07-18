@@ -33,7 +33,7 @@ def test_dagster_runtime_image_pins_dbt_when_the_provider_version_is_populated()
         "--no-deps --reinstall --find-links /opt/phlo-wheelhouse "
         '"$PHLO_DBT_REQUIREMENT"; fi;'
     ) in dockerfile
-    assert dockerfile.count('"$PHLO_DBT_REQUIREMENT"') == 3
+    assert dockerfile.count('"$PHLO_DBT_REQUIREMENT"') == 4
     package_metadata = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
     assert '"phlo-dbt' not in package_metadata
 
@@ -43,6 +43,7 @@ def test_dagster_runtime_image_keeps_dbt_unpinned_when_provider_version_is_empty
 
     assert 'PHLO_DBT_REQUIREMENT="phlo-dbt";' in dockerfile
     assert '"phlo-dbt==$PHLO_DBT_VERSION" dagster-webserver' not in dockerfile
+    assert '"phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver' in dockerfile
 
 
 def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:

@@ -41,7 +41,7 @@ RUN \
         uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" $PHLO_PRERELEASE_REQUIREMENTS dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi; \
     else \
-        uv pip install --system "phlo[defaults]" phlo-dbt dagster-webserver dagster-postgres "psycopg[binary]"; \
+        uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
