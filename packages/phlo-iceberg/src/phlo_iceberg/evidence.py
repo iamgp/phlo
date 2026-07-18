@@ -99,6 +99,12 @@ def emit_mutation(
                     "resource_kind": "iceberg_table",
                     "role": "output",
                     "table_name": table_name,
+                    "resource_identity": {
+                        "resource_type": "iceberg_table",
+                        "resource_id": table_name,
+                        "tenant": context["project_id"],
+                        "attributes": {"catalog_ref": ref},
+                    },
                     "ref_name": ref,
                     "schema_hash": after.get("schema_hash"),
                     "schema_hash_before": before.get("schema_hash"),
