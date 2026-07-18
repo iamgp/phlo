@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import shutil
@@ -462,9 +463,42 @@ def verify_evidence(store: Any, fixture: dict[str, Any]) -> None:
         )
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def sha256_tree(root: Path) -> str:
+    digest = hashlib.sha256(b"phlo-recovery-tree-v1\0")
+    paths = sorted(root.rglob("*"), key=lambda path: path.relative_to(root).as_posix())
+    for path in paths:
+        if path.is_symlink():
+            raise RecoveryDrillError(f"backup lake contains unsupported entry: {path}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise RecoveryDrillError(f"backup lake contains unsupported entry: {path}")
+        relative = path.relative_to(root).as_posix().encode()
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(bytes.fromhex(sha256_file(path)))
+    return digest.hexdigest()
+
+
 def write_manifest(backup_dir: Path, fixture: dict[str, Any], checksum: str) -> None:
+    artifacts = {
+        "postgres.sql": {"sha256": sha256_file(backup_dir / "postgres.sql")},
+        "nessie.zip": {"sha256": sha256_file(backup_dir / "nessie.zip")},
+        "lake": {"sha256": sha256_tree(backup_dir / "lake")},
+    }
     (backup_dir / "manifest.json").write_text(
-        json.dumps({"fixture": fixture, "probe_checksum": checksum}, sort_keys=True),
+        json.dumps(
+            {"artifacts": artifacts, "fixture": fixture, "probe_checksum": checksum},
+            sort_keys=True,
+        ),
         encoding="utf-8",
     )
 
@@ -476,10 +510,12 @@ def read_manifest(backup_dir: Path) -> dict[str, Any]:
         raise RecoveryDrillError("backup manifest is missing or corrupt") from exc
     fixture = payload.get("fixture") if isinstance(payload, dict) else None
     checksum = payload.get("probe_checksum") if isinstance(payload, dict) else None
+    artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
     if (
         not (backup_dir / "postgres.sql").is_file()
         or not (backup_dir / "nessie.zip").is_file()
         or not (backup_dir / "lake").is_dir()
+        or not isinstance(artifacts, dict)
         or not isinstance(fixture, dict)
         or not all(
             isinstance(fixture.get(key), str) and fixture[key]
@@ -490,7 +526,39 @@ def read_manifest(backup_dir: Path) -> dict[str, Any]:
         or any(character not in "0123456789abcdef" for character in checksum.lower())
     ):
         raise RecoveryDrillError("backup manifest is missing required verification evidence")
+    actual_digests = {
+        "postgres.sql": sha256_file(backup_dir / "postgres.sql"),
+        "nessie.zip": sha256_file(backup_dir / "nessie.zip"),
+        "lake": sha256_tree(backup_dir / "lake"),
+    }
+    for name, actual in actual_digests.items():
+        artifact = artifacts.get(name)
+        expected = artifact.get("sha256") if isinstance(artifact, dict) else None
+        if not isinstance(expected, str) or not hmac.compare_digest(expected, actual):
+            raise RecoveryDrillError(f"backup manifest digest mismatch for {name}")
     return payload
+
+
+def restore_recovery_set(target: Stack, backup_dir: Path) -> dict[str, Any]:
+    manifest = read_manifest(backup_dir)
+    restore_bucket(target, backup_dir)
+    compose(
+        target,
+        "exec",
+        "-T",
+        "postgres",
+        "psql",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-U",
+        "phlo",
+        "-d",
+        "phlo",
+        input=(backup_dir / "postgres.sql").read_bytes(),
+        timeout=300,
+    )
+    import_nessie(target, backup_dir)
+    return manifest
 
 
 def cleanup(stack: Stack) -> RecoveryDrillError | None:
@@ -576,24 +644,7 @@ def drill(root: Path, *, keep_artifacts: bool = False) -> dict[str, float]:
 
         restore_started = time.monotonic()
         start(target, with_nessie=False)
-        manifest = read_manifest(backup)
-        restore_bucket(target, backup)
-        compose(
-            target,
-            "exec",
-            "-T",
-            "postgres",
-            "psql",
-            "-v",
-            "ON_ERROR_STOP=1",
-            "-U",
-            "phlo",
-            "-d",
-            "phlo",
-            input=(backup / "postgres.sql").read_bytes(),
-            timeout=300,
-        )
-        import_nessie(target, backup)
+        manifest = restore_recovery_set(target, backup)
         compose(target, "up", "-d", "nessie", timeout=300)
         wait_for(
             f"http://127.0.0.1:{published_port(target, 'nessie', 19120)}/api/v1/config",

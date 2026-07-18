@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -71,13 +72,34 @@ def test_manifest_round_trip_requires_fixture_and_checksum(tmp_path):
     (tmp_path / "postgres.sql").write_text("backup", encoding="utf-8")
     (tmp_path / "nessie.zip").write_text("backup", encoding="utf-8")
     (tmp_path / "lake").mkdir()
+    (tmp_path / "lake" / "metadata.json").write_text("metadata", encoding="utf-8")
 
     recovery_drill.write_manifest(tmp_path, fixture, "a" * 64)
 
-    assert recovery_drill.read_manifest(tmp_path) == {
-        "fixture": fixture,
-        "probe_checksum": "a" * 64,
+    manifest = recovery_drill.read_manifest(tmp_path)
+    assert manifest["fixture"] == fixture
+    assert manifest["probe_checksum"] == "a" * 64
+    assert manifest["artifacts"] == {
+        "postgres.sql": {"sha256": recovery_drill.sha256_file(tmp_path / "postgres.sql")},
+        "nessie.zip": {"sha256": recovery_drill.sha256_file(tmp_path / "nessie.zip")},
+        "lake": {"sha256": recovery_drill.sha256_tree(tmp_path / "lake")},
     }
+
+
+def test_lake_tree_digest_is_stable_and_path_sensitive(tmp_path):
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    (first / "a").write_bytes(b"alpha")
+    (first / "b").write_bytes(b"beta")
+    (second / "b").write_bytes(b"beta")
+    (second / "a").write_bytes(b"alpha")
+
+    assert recovery_drill.sha256_tree(first) == recovery_drill.sha256_tree(second)
+
+    (second / "a").rename(second / "renamed")
+    assert recovery_drill.sha256_tree(first) != recovery_drill.sha256_tree(second)
 
 
 @pytest.mark.parametrize(
@@ -102,12 +124,77 @@ def test_manifest_rejects_missing_or_corrupt_verification_evidence(tmp_path, con
 
 
 def test_manifest_rejects_missing_backup_files(tmp_path):
+    (tmp_path / "postgres.sql").write_text("backup", encoding="utf-8")
+    (tmp_path / "nessie.zip").write_text("backup", encoding="utf-8")
+    (tmp_path / "lake").mkdir()
     recovery_drill.write_manifest(
         tmp_path, {"project_id": "p", "table_name": "t", "snapshot_id": "s"}, "a" * 64
     )
+    (tmp_path / "nessie.zip").unlink()
 
     with pytest.raises(recovery_drill.RecoveryDrillError, match="backup manifest"):
         recovery_drill.read_manifest(tmp_path)
+
+
+def write_backup_set(path, marker):
+    path.mkdir()
+    (path / "postgres.sql").write_text(f"postgres-{marker}", encoding="utf-8")
+    (path / "nessie.zip").write_text(f"nessie-{marker}", encoding="utf-8")
+    (path / "lake").mkdir()
+    (path / "lake" / "metadata.json").write_text(f"metadata-{marker}", encoding="utf-8")
+    recovery_drill.write_manifest(
+        path,
+        {"project_id": "p", "table_name": "t", "snapshot_id": marker},
+        "a" * 64,
+    )
+
+
+@pytest.mark.parametrize(
+    ("artifact", "path"),
+    [
+        ("postgres.sql", "postgres.sql"),
+        ("nessie.zip", "nessie.zip"),
+        ("lake", "lake/metadata.json"),
+    ],
+)
+def test_corrupt_recovery_set_stops_before_restore_mutation(tmp_path, monkeypatch, artifact, path):
+    backup = tmp_path / "backup"
+    write_backup_set(backup, "original")
+    (backup / path).write_text("corrupt", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(recovery_drill, "restore_bucket", lambda *_: calls.append("bucket"))
+    monkeypatch.setattr(
+        recovery_drill, "compose", lambda *_args, **_kwargs: calls.append("postgres")
+    )
+    monkeypatch.setattr(recovery_drill, "import_nessie", lambda *_: calls.append("nessie"))
+
+    with pytest.raises(recovery_drill.RecoveryDrillError, match=f"digest mismatch for {artifact}"):
+        recovery_drill.restore_recovery_set(
+            recovery_drill.Stack("owned-drill", tmp_path / "target"), backup
+        )
+
+    assert calls == []
+
+
+def test_mixed_recovery_set_stops_before_restore_mutation(tmp_path, monkeypatch):
+    original = tmp_path / "original"
+    replacement = tmp_path / "replacement"
+    write_backup_set(original, "original")
+    write_backup_set(replacement, "replacement")
+    shutil.copy2(original / "manifest.json", replacement / "manifest.json")
+    calls = []
+    monkeypatch.setattr(recovery_drill, "restore_bucket", lambda *_: calls.append("bucket"))
+    monkeypatch.setattr(
+        recovery_drill, "compose", lambda *_args, **_kwargs: calls.append("postgres")
+    )
+    monkeypatch.setattr(recovery_drill, "import_nessie", lambda *_: calls.append("nessie"))
+
+    with pytest.raises(recovery_drill.RecoveryDrillError, match="digest mismatch"):
+        recovery_drill.restore_recovery_set(
+            recovery_drill.Stack("owned-drill", tmp_path / "target"), replacement
+        )
+
+    assert calls == []
 
 
 def test_nessie_export_and_import_use_the_pinned_admin_tool(tmp_path, monkeypatch):
@@ -278,8 +365,11 @@ def test_start_waits_for_postgres_before_other_health_checks(monkeypatch, tmp_pa
 def test_manifest_requires_regular_postgres_file_and_lake_directory(tmp_path):
     fixture = {"project_id": "p", "table_name": "t", "snapshot_id": "s"}
     (tmp_path / "postgres.sql").mkdir()
+    (tmp_path / "nessie.zip").write_text("backup", encoding="utf-8")
     (tmp_path / "lake").write_text("not a directory", encoding="utf-8")
-    recovery_drill.write_manifest(tmp_path, fixture, "a" * 64)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"fixture": fixture, "probe_checksum": "a" * 64}), encoding="utf-8"
+    )
 
     with pytest.raises(recovery_drill.RecoveryDrillError, match="backup manifest"):
         recovery_drill.read_manifest(tmp_path)
