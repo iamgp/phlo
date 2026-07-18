@@ -260,6 +260,8 @@ def test_routing_from_context_reads_canonical_tags() -> None:
         partition_key = "2025-01-01"
         tags = {
             "environment": "dev",
+            "phlo/wap_branch": "pipeline-run-123",
+            "phlo/ref": "canonical-ref",
             "branch": "feature/orders",
             "feature/wap": "true",
             "phlo/capability/table_store": "delta",
@@ -279,12 +281,36 @@ def test_routing_from_context_reads_canonical_tags() -> None:
 
     routing = routing_from_context(StubRuntime())
     assert routing.environment == "dev"
-    assert routing.ref == "feature/orders"
+    assert routing.ref == "pipeline-run-123"
     assert routing.partition_key == "2025-01-01"
     assert routing.run_id == "run-123"
     assert routing.feature_flags == {"wap": "true"}
     assert routing.capability_overrides == {"table_store": "delta"}
     assert "table_store" in routing.resources
+
+
+@pytest.mark.parametrize(
+    ("tags", "expected"),
+    [
+        ({"phlo/wap_branch": "", "phlo/ref": "canonical"}, "canonical"),
+        ({"phlo/wap_branch": "   ", "ref": "legacy-ref"}, "legacy-ref"),
+        ({"phlo/ref": "", "ref": "", "branch": "legacy-branch"}, "legacy-branch"),
+    ],
+)
+def test_routing_from_context_ignores_blank_ref_values(tags, expected) -> None:
+    runtime = type(
+        "StubRuntime",
+        (),
+        {
+            "run_id": "run-123",
+            "partition_key": None,
+            "tags": tags,
+            "resources": {},
+            "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+        },
+    )()
+
+    assert routing_from_context(runtime).ref == expected
 
 
 def test_resolve_capability_uses_global_default(monkeypatch: pytest.MonkeyPatch) -> None:

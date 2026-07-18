@@ -56,6 +56,7 @@ from phlo.capabilities.runtime import (
     RuntimeRouting,
     attempt_from_tags,
     capability_overrides_from_tags,
+    runtime_ref_from_tags,
 )
 from phlo.config import get_settings
 from phlo.capabilities.specs import (
@@ -253,7 +254,7 @@ class DagsterRuntime(RuntimeContext):
             capability_overrides.setdefault(capability_type, provider_name)
         return RuntimeRouting(
             environment=tags.get("environment") or tags.get("env"),
-            ref=tags.get("phlo/ref") or tags.get("ref") or tags.get("branch"),
+            ref=runtime_ref_from_tags(tags),
             partition_key=self.partition_key,
             run_id=self.run_id,
             project_id=project.project_id,

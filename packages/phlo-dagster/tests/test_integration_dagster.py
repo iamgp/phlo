@@ -156,7 +156,12 @@ def test_dagster_runtime_builds_routing_without_recursion():
     from phlo_dagster.adapter import DagsterRuntime
 
     context = SimpleNamespace(
-        tags={"environment": "dev", "phlo/ref": "feature/orders", "feature/wap": "true"},
+        tags={
+            "environment": "dev",
+            "phlo/wap_branch": "pipeline-run-abc123",
+            "phlo/ref": "feature/orders",
+            "feature/wap": "true",
+        },
         run=SimpleNamespace(run_id="abc123"),
         has_partition_key=True,
         partition_key="2025-01-01",
@@ -167,7 +172,7 @@ def test_dagster_runtime_builds_routing_without_recursion():
     runtime = DagsterRuntime(context=cast(AssetExecutionContext, context))
 
     assert runtime.routing.environment == "dev"
-    assert runtime.routing.ref == "feature/orders"
+    assert runtime.routing.ref == "pipeline-run-abc123"
     assert runtime.routing.partition_key == "2025-01-01"
     assert runtime.routing.run_id == "abc123"
     assert runtime.routing.feature_flags == {"wap": "true"}
