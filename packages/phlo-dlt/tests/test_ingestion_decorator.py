@@ -105,6 +105,16 @@ def test_blessed_decorator_persists_runtime_correlation(monkeypatch, tmp_path) -
     assert captured[0]["project_id"] == "project-decorated"
     assert captured[0]["attempt"] == 2
     assert captured[0]["resources"]
+    assert all(
+        resource["resource_identity"]["tenant"] == "project-decorated"
+        for resource in captured[0]["resources"]
+    )
+    assert captured[0]["resources"][-1]["resource_identity"] == {
+        "resource_type": "iceberg_table",
+        "resource_id": "raw.events",
+        "tenant": "project-decorated",
+        "attributes": {"catalog_ref": "main"},
+    }
 
 
 def test_blessed_decorator_persists_runtime_correlation_through_sqlite(

@@ -463,6 +463,21 @@ def _emit_wap_observation(
         catalog_change={
             "operation": operation,
             "catalog_ref": catalog_ref,
+            "resource_identity": {
+                "resource_type": "catalog_ref",
+                "resource_id": catalog_ref,
+                "tenant": project_id,
+                "attributes": {
+                    key: value
+                    for key, value in {
+                        "operation": operation,
+                        "source_hash": source_hash,
+                        "target_hash": target_hash,
+                        "merge_outcome": merge_outcome,
+                    }.items()
+                    if isinstance(value, str) and value
+                },
+            },
             "source_hash": source_hash,
             "target_hash": target_hash,
             "merge_outcome": merge_outcome,
