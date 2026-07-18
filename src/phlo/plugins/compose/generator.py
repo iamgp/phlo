@@ -7,6 +7,7 @@ Generates docker-compose.yml and .env/.env.local files from service definitions.
 import os
 import platform
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal
 
@@ -48,6 +49,7 @@ class ComposeGenerator:
         service_dev_mode: bool = False,
         phlo_src_path: str | None = None,
         user_overrides: dict[str, Any] | None = None,
+        env_values: Mapping[str, Any] | None = None,
         deployment_profile: Literal["development", "production"] = "development",
     ) -> str:
         """Generate docker-compose.yml content.
@@ -59,6 +61,7 @@ class ComposeGenerator:
             service_dev_mode: If True, apply service-specific `dev:` overrides.
             phlo_src_path: Path to phlo source (relative to project root).
             user_overrides: Dict of service name to ServiceOverride config from phlo.yaml.
+            env_values: Effective project environment values used for conditional service settings.
             deployment_profile: Deployment posture for generated service bindings.
 
         Returns:
@@ -72,6 +75,7 @@ class ComposeGenerator:
         # Sort services by dependencies
         sorted_services = self.discovery.resolve_dependencies(services)
         user_overrides = user_overrides or {}
+        env_values = env_values or {}
 
         compose: dict[str, Any] = {"services": {}}
 
@@ -86,6 +90,7 @@ class ComposeGenerator:
                 service_dev_mode=service_dev_mode,
                 phlo_src_path=phlo_src_path,
                 user_override=service_override,
+                env_values=env_values,
             )
             if deployment_profile == "production":
                 self._apply_production_profile(service.name, compose["services"][service.name])
@@ -199,6 +204,7 @@ class ComposeGenerator:
         service_dev_mode: bool = False,
         phlo_src_path: str | None = None,
         user_override: dict[str, Any] | None = None,
+        env_values: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build docker-compose service configuration.
 
@@ -209,6 +215,7 @@ class ComposeGenerator:
             service_dev_mode: Whether to apply service-specific `dev:` runtime overrides.
             phlo_src_path: Path to phlo source.
             user_override: User overrides from phlo.yaml services section.
+            env_values: Effective project environment values for conditional settings.
         """
         config: dict[str, Any] = {}
         user_override = user_override or {}
@@ -252,6 +259,7 @@ class ComposeGenerator:
             "env_file",
             "build",
             "depends_on",
+            "conditional_environment",
         }
 
         for key in ("user", "container_name", "labels", "environment", "ports"):
@@ -336,10 +344,30 @@ class ComposeGenerator:
             if depends_config:
                 config["depends_on"] = depends_config
 
-        # Apply user overrides from phlo.yaml (last, so they take precedence)
+        self._apply_conditional_environment(config, compose, env_values or {})
+
+        # Apply user overrides from phlo.yaml last, so they take precedence.
         self._apply_user_overrides(config, user_override)
 
         return config
+
+    def _apply_conditional_environment(
+        self,
+        config: dict[str, Any],
+        compose: dict[str, Any],
+        env_values: Mapping[str, Any],
+    ) -> None:
+        """Add manifest-defined environment entries only when their trigger has a value."""
+        conditional_environment = compose.get("conditional_environment", {})
+        if not isinstance(conditional_environment, dict):
+            return
+        environment = config.get("environment")
+        if not isinstance(environment, dict):
+            return
+        for trigger, entries in conditional_environment.items():
+            if not str(env_values.get(str(trigger), "")).strip() or not isinstance(entries, dict):
+                continue
+            environment.update(entries)
 
     def _apply_user_overrides(
         self,

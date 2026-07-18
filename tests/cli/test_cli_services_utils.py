@@ -114,9 +114,12 @@ def test_regenerate_compose_writes_compose_and_env_files(
         def __init__(self, discovery) -> None:
             self.discovery = discovery
 
-        def generate_compose(self, services_to_install, _phlo_dir, user_overrides=None) -> str:
+        def generate_compose(
+            self, services_to_install, _phlo_dir, user_overrides=None, env_values=None
+        ) -> str:
             assert [service.name for service in services_to_install] == ["postgres"]
             assert user_overrides == {"enabled": [], "disabled": []}
+            assert env_values is not None
             return "services:\n  postgres: {}\n"
 
         def generate_env(self, services_to_install, env_overrides=None) -> str:

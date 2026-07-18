@@ -334,6 +334,7 @@ def init_cmd(
         service_dev_mode=service_dev,
         phlo_src_path=phlo_src_path,
         user_overrides=user_overrides,
+        env_values={**os.environ, **env_overrides, **existing_env_local},
         deployment_profile="production" if production else "development",
     )
 

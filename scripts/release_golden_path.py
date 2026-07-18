@@ -308,6 +308,7 @@ def write_report_policy_fixture(config: RunConfig, logical_run_id: str) -> None:
     """Grant the ephemeral report reader access only to the promoted WAP run report."""
     authorization_dir = config.project_dir / ".phlo" / "authorization"
     authorization_dir.mkdir(parents=True, exist_ok=True)
+    report_resource_id = f"project_id={config.project_name}|run_id={logical_run_id}|attempt=1"
     (authorization_dir / "policies.yaml").write_text(
         f"""version: 1
 
@@ -347,7 +348,7 @@ policies:
     action: run.read
     resource:
       type: run
-      id_pattern: "{logical_run_id}"
+      id_pattern: "{report_resource_id}"
 """,
         encoding="utf-8",
     )
@@ -469,6 +470,26 @@ def materialize_transform(config: RunConfig) -> None:
         ),
         cwd=config.project_dir,
     )
+
+
+def verify_minio_storage(config: RunConfig) -> None:
+    """Prove the owned object store is ready and accepts an authenticated write."""
+    bucket = f"qa001-evidence-{uuid.uuid4().hex}"
+    check = "\n".join(
+        (
+            "set -eu",
+            "curl -fsS http://localhost:9000/minio/health/ready >/dev/null",
+            'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null',
+            f"mc mb --ignore-existing local/{bucket} >/dev/null",
+            f"printf %s release-golden-path | mc pipe local/{bucket}/ready >/dev/null",
+            f"mc stat local/{bucket}/ready >/dev/null",
+        )
+    )
+    run(
+        compose_command(config, "exec", "--no-TTY", "minio", "/bin/sh", "-c", check),
+        cwd=config.project_dir,
+    )
+    print("MinIO readiness and owned S3 write check passed")
 
 
 def service_url(config: RunConfig, service: str, container_port: int, path: str = "") -> str:
@@ -710,6 +731,32 @@ def emit_runtime_diagnostics(config: RunConfig) -> None:
             )
 
 
+def emit_missing_raw_diagnostics(config: RunConfig) -> None:
+    """Report recent Dagster run IDs and statuses when raw-table verification fails."""
+    query = """query RecentRuns {
+  runsOrError(limit: 5) {
+    __typename
+    ... on Runs { results { runId status jobName } }
+    ... on PythonError { message }
+  }
+}"""
+    try:
+        payload = graphql(
+            service_url(config, "dagster", 3000, "/graphql"),
+            query,
+            {},
+            service_token("phlo-api", wap_service_secret(config)),
+        )
+        run_data = (
+            payload.get("data", {}).get("runsOrError", {})
+            if isinstance(payload.get("data"), dict)
+            else {}
+        )
+        print(f"release golden path Dagster runs: {json.dumps(run_data, sort_keys=True)}")
+    except Exception as exc:
+        print(f"release golden path Dagster run diagnostics failed: {exc}", file=sys.stderr)
+
+
 def cleanup(
     config: RunConfig,
     *,
@@ -795,6 +842,7 @@ def main(argv: list[str] | None = None) -> int:
         start_stack(config)
         stack_started = True
         materialize_partition(config)
+        verify_minio_storage(config)
         verify_rows(config, expected_count=FIXTURE_ROW_COUNT)
         materialize_transform(config)
         verify_rows(config, table="raw_marts.events_mart", expected_count=FIXTURE_ROW_COUNT)
@@ -805,6 +853,8 @@ def main(argv: list[str] | None = None) -> int:
         primary_error = exc
     finally:
         if primary_error and stack_started:
+            if "raw.events" in str(primary_error):
+                emit_missing_raw_diagnostics(config)
             emit_runtime_diagnostics(config)
         if not args.keep_project:
             cleanup_errors = cleanup(

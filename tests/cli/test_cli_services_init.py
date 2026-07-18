@@ -40,6 +40,41 @@ def test_production_credentials_allow_generated_passwords_and_safe_usernames() -
     )
 
 
+@pytest.mark.parametrize(
+    ("env_values", "expected_openid"),
+    (
+        ({}, {}),
+        (
+            {"MINIO_OIDC_CONFIG_URL": "https://identity.example/.well-known/openid-configuration"},
+            {
+                "MINIO_IDENTITY_OPENID_CONFIG_URL": "${MINIO_OIDC_CONFIG_URL}",
+                "MINIO_IDENTITY_OPENID_CLIENT_ID": "${MINIO_OIDC_CLIENT_ID:-}",
+                "MINIO_IDENTITY_OPENID_CLIENT_SECRET": "${MINIO_OIDC_CLIENT_SECRET:-}",
+                "MINIO_IDENTITY_OPENID_CLAIM_NAME": "${MINIO_OIDC_CLAIM_NAME:-policy}",
+                "MINIO_IDENTITY_OPENID_SCOPES": "${MINIO_OIDC_SCOPES:-openid}",
+            },
+        ),
+    ),
+)
+def test_minio_compose_only_includes_openid_settings_with_a_discovery_url(
+    tmp_path, env_values, expected_openid
+) -> None:
+    discovery = ServiceDiscovery()
+    minio = discovery.get_service("minio")
+
+    assert minio is not None
+    rendered = yaml.safe_load(
+        ComposeGenerator(discovery).generate_compose(
+            [minio], output_dir=tmp_path, env_values=env_values
+        )
+    )
+    environment = rendered["services"]["minio"]["environment"]
+
+    assert {
+        key: value for key, value in environment.items() if key.startswith("MINIO_IDENTITY_OPENID_")
+    } == expected_openid
+
+
 def test_services_init_production_selects_the_secure_compose_profile(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

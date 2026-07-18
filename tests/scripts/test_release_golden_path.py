@@ -162,7 +162,10 @@ def test_report_policy_fixture_grants_only_its_generated_run_to_report_reader(
     assert 'action: "*"' not in policy
     report_policy = policy.split("  - policy_id: release-golden-path-report-read", 1)[1]
     assert "action: run.read" in report_policy
-    assert 'id_pattern: "promoted-logical-run"' in report_policy
+    assert (
+        'id_pattern: "project_id=phlo-qa001-test|run_id=promoted-logical-run|attempt=1"'
+        in report_policy
+    )
     assert 'id_pattern: "*"' not in report_policy
     assert "action: catalog.read" not in report_policy
     assert "action: run.execute" not in report_policy
@@ -184,6 +187,7 @@ def test_main_binds_report_policy_and_wap_to_the_same_generated_logical_run_id(
         "configure_non_dev_compose",
         "start_stack",
         "materialize_partition",
+        "verify_minio_storage",
         "materialize_transform",
         "verify_rows",
         "wait_for_wap_promotion",
@@ -407,6 +411,55 @@ def test_verify_rows_requires_the_expected_fixture_count(tmp_path: Path, monkeyp
             assert expected in str(exc)
         else:
             raise AssertionError(f"invalid raw.events result should fail: {output!r}")
+
+
+def test_minio_storage_check_proves_readiness_and_an_owned_write(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = _config(tmp_path)
+    commands: list[list[str]] = []
+    monkeypatch.setattr(release_golden_path, "run", lambda args, **_: commands.append(args))
+    monkeypatch.setattr(
+        release_golden_path.uuid, "uuid4", lambda: type("Id", (), {"hex": "owned-bucket"})()
+    )
+
+    release_golden_path.verify_minio_storage(config)
+
+    assert commands[0][:-1] == release_golden_path.compose_command(
+        config, "exec", "--no-TTY", "minio", "/bin/sh", "-c"
+    )
+    check = commands[0][-1]
+    assert "minio/health/ready" in check
+    assert "mc mb --ignore-existing local/qa001-evidence-owned-bucket" in check
+    assert "mc pipe local/qa001-evidence-owned-bucket/ready" in check
+    assert "mc stat local/qa001-evidence-owned-bucket/ready" in check
+
+
+def test_missing_raw_diagnostics_prints_recent_dagster_run_ids_and_statuses(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    config = _config(tmp_path)
+    monkeypatch.setattr(release_golden_path, "service_url", lambda *_: "http://dagster/graphql")
+    monkeypatch.setattr(release_golden_path, "service_token", lambda *_: "diagnostic-token")
+    monkeypatch.setattr(release_golden_path, "wap_service_secret", lambda _: "secret")
+    monkeypatch.setattr(
+        release_golden_path,
+        "graphql",
+        lambda *_: {
+            "data": {
+                "runsOrError": {
+                    "__typename": "Runs",
+                    "results": [{"runId": "raw-ingest-run", "status": "FAILURE"}],
+                }
+            }
+        },
+    )
+
+    release_golden_path.emit_missing_raw_diagnostics(config)
+
+    output = capsys.readouterr().out
+    assert '"runId": "raw-ingest-run"' in output
+    assert '"status": "FAILURE"' in output
 
 
 def test_verify_rows_reports_trino_query_output(tmp_path: Path, monkeypatch) -> None:
