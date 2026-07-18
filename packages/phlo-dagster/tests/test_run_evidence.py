@@ -105,6 +105,12 @@ def test_dagster_source_maps_durable_run_and_event_log_records() -> None:
     assert observation.events[1].payload["stage_id"] == observation.stages[0].stage_id
     assert observation.stages[0].asset == "raw.orders"
     assert observation.stages[0].provider == "dagster"
+    for item in (*observation.events, *observation.stages):
+        assert item.resource_ref is not None
+        assert item.resource_ref.resource_type == "run"
+        assert item.resource_ref.resource_id == "root-run"
+        assert item.resource_ref.tenant == "project"
+        assert item.resource_ref.attributes == {"attempt": "2"}
 
 
 def test_dagster_source_requires_injected_project_identity() -> None:

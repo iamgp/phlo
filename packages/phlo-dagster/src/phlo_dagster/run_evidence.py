@@ -7,6 +7,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from phlo.capabilities import ResourceRef
 from phlo.run_evidence import (
     EvidenceCompleteness,
     RunEvent,
@@ -259,6 +260,12 @@ class DagsterRunEvidenceSource:
             and successful_event
         )
         no_data = tagged_no_data and successful_terminal
+        run_resource_ref = ResourceRef(
+            resource_type="run",
+            resource_id=logical_run_id,
+            tenant=project_id,
+            attributes={"attempt": str(attempt)},
+        )
         events: list[RunEvent] = []
         stages: list[RunStage] = []
         for index, (entry, record_storage_id) in enumerate(entries):
@@ -381,6 +388,7 @@ class DagsterRunEvidenceSource:
                     observed_at=observed_at,
                     sequence=int(storage_id) if isinstance(storage_id, int) else index,
                     attempt=attempt,
+                    resource_ref=run_resource_ref,
                 )
             )
             if stage_id is not None:
@@ -400,6 +408,7 @@ class DagsterRunEvidenceSource:
                         if stage_status not in {"running", "retrying"}
                         else None,
                         error=message if stage_status == "failed" else None,
+                        resource_ref=run_resource_ref,
                     )
                 )
         if no_data:
@@ -415,6 +424,7 @@ class DagsterRunEvidenceSource:
                         payload={"status": "no_data", "source": "phlo/no_data"},
                         observed_at=tag_timestamp,
                         attempt=attempt,
+                        resource_ref=run_resource_ref,
                     )
                 )
             run_status = "no_data"

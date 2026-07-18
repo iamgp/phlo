@@ -11,7 +11,10 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from phlo.capabilities import ResourceRef
 from phlo.capabilities.registry import CapabilityRegistry
+from phlo.capabilities.authentication import ServiceTokenAuthenticationProvider
+from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
 from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
 from security_test_support import authenticated_client
@@ -52,6 +55,7 @@ from phlo_api.observatory_api.observatory_services import fallback_services as _
 from phlo_api.observatory_api.observatory_services import (
     load_docker_service_statuses as _load_docker_service_statuses,
 )
+from phlo_api.security_manifest import RUN_REPORT_RESOURCE_ID_ATTRIBUTE
 
 _PROVIDER_URL_SETTING_NAMES = (
     "dagster_url",
@@ -134,6 +138,76 @@ def test_authenticated_run_report_isolated_by_attempt_and_path_identity(
         .status_code
         == 403
     )
+
+
+def test_scoped_service_token_cannot_read_another_run_report(monkeypatch, tmp_path) -> None:
+    database = tmp_path / "run-evidence.sqlite"
+    store = SQLiteRunEvidenceStore(database)
+    for run_id in ("allowed", "other"):
+        store.append_pipeline_run(PipelineRun(project_id="project", run_id=run_id, attempt=1))
+        store.append_event(
+            RunEvent(
+                project_id="project",
+                run_id=run_id,
+                event_id=f"{run_id}-event",
+                event_type="run.terminal",
+                producer="dagster",
+                payload={"status": "success"},
+                attempt=1,
+                resource_ref=ResourceRef(
+                    resource_type="run",
+                    resource_id=run_id,
+                    tenant="project",
+                    attributes={"attempt": "1"},
+                ),
+            )
+        )
+    monkeypatch.setenv("PHLO_RUN_EVIDENCE_SQLITE_PATH", str(database))
+    monkeypatch.setenv("PHLO_REGULATED", "false")
+    allowed_resource_id = "project_id=project|run_id=allowed|attempt=1"
+    provider = ServiceTokenAuthenticationProvider(
+        {
+            "dagster-report-token": {
+                "subject": "dagster:report-reader",
+                "attributes": {RUN_REPORT_RESOURCE_ID_ATTRIBUTE: allowed_resource_id},
+            }
+        }
+    )
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "service-report-read",
+                "effect": "allow",
+                "principal": {"attributes": {RUN_REPORT_RESOURCE_ID_ATTRIBUTE: "*"}},
+                "action": "run.read",
+                "resource": {"type": "run", "id_pattern": "*"},
+            }
+        ]
+    )
+    monkeypatch.setattr("phlo_api.api.authentication.get_authentication_provider", lambda: provider)
+    monkeypatch.setattr("phlo_api.security_manifest.get_authorization_backend", lambda: backend)
+
+    client = TestClient(app)
+    allowed = client.get(
+        "/api/observatory/projects/project/runs/allowed/attempts/1/report",
+        headers={"Authorization": "Bearer dagster-report-token"},
+    )
+    denied = client.get(
+        "/api/observatory/projects/project/runs/other/attempts/1/report",
+        headers={"Authorization": "Bearer dagster-report-token"},
+    )
+
+    assert allowed.status_code == 200
+    assert allowed.json()["run_id"] == "allowed"
+    assert allowed.json()["lifecycle"]["events"][0]["resource_identity"] == {
+        "project_id": "project",
+        "resource_type": "run",
+        "resource_id": "allowed",
+        "tenant": "project",
+        "attributes": {"attempt": "1"},
+    }
+    assert denied.status_code == 403
+    assert denied.json() == {"error": "forbidden", "reason": "run_report_scope_mismatch"}
 
 
 class _FakeOrchestratorOperations:
