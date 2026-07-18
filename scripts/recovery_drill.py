@@ -191,7 +191,17 @@ def start(stack: Stack, *, with_nessie: bool) -> None:
 def mc(
     stack: Stack, command: str, *, mounts: list[tuple[Path, str]] = (), timeout: int = 180
 ) -> subprocess.CompletedProcess[bytes]:
-    args = ["docker", "run", "--rm", "--network", f"{stack.project}_default"]
+    host_user = ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
+    args = [
+        "docker",
+        "run",
+        "--rm",
+        *host_user,
+        "-e",
+        "HOME=/tmp",
+        "--network",
+        f"{stack.project}_default",
+    ]
     for source, target in mounts:
         args.extend(["-v", f"{source.resolve()}:{target}"])
     args.extend(["--entrypoint", "/bin/sh", MC_IMAGE, "-c", command])

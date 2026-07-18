@@ -234,6 +234,38 @@ def test_nessie_export_and_import_use_the_pinned_admin_tool(tmp_path, monkeypatc
     ]
 
 
+def test_minio_client_uses_host_owner_for_backup_mounts(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(recovery_drill, "run", lambda command, **_: calls.append(command))
+    monkeypatch.setattr(recovery_drill.os, "name", "posix")
+    monkeypatch.setattr(recovery_drill.os, "getuid", lambda: 1001, raising=False)
+    monkeypatch.setattr(recovery_drill.os, "getgid", lambda: 118, raising=False)
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
+
+    recovery_drill.mc(stack, "true", mounts=[(tmp_path, "/backup")])
+
+    assert calls == [
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            "1001:118",
+            "-e",
+            "HOME=/tmp",
+            "--network",
+            "owned-drill_default",
+            "-v",
+            f"{tmp_path.resolve()}:/backup",
+            "--entrypoint",
+            "/bin/sh",
+            recovery_drill.MC_IMAGE,
+            "-c",
+            "true",
+        ]
+    ]
+
+
 def test_restored_evidence_requires_exact_resource_and_catalog_change():
     fixture = {"project_id": "project", "table_name": "recovery.rows", "snapshot_id": "42"}
 
