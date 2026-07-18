@@ -460,7 +460,7 @@ def test_compose_generator_production_profile_hides_core_host_ports_and_requires
         )
     )
 
-    for name in ("postgres", "minio", "nessie", "trino", "dagster"):
+    for name in ("postgres", "minio", "nessie", "trino"):
         assert "ports" not in data["services"][name]
         environment = data["services"][name]["environment"]
         assert (
@@ -478,6 +478,8 @@ def test_compose_generator_production_profile_hides_core_host_ports_and_requires
             "${MINIO_ROOT_PASSWORD:?Phlo production requires MINIO_ROOT_PASSWORD}"
         )
 
+    assert data["services"]["dagster"]["ports"] == ["10000:5432"]
+
 
 def test_compose_generator_development_profile_keeps_core_host_ports(tmp_path) -> None:
     service = ServiceDefinition(
@@ -492,6 +494,24 @@ def test_compose_generator_development_profile_keeps_core_host_ports(tmp_path) -
     data = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
 
     assert data["services"]["postgres"]["ports"] == ["10000:5432"]
+
+
+def test_development_profile_keeps_bundled_backends_open(tmp_path) -> None:
+    """The regulated production boundary must not change development access."""
+    discovery = ServiceDiscovery()
+    data = yaml.safe_load(
+        ComposeGenerator(discovery).generate_compose(
+            discovery.get_default_services(), output_dir=tmp_path
+        )
+    )
+
+    for name in ("postgres", "minio", "nessie", "trino"):
+        assert data["services"][name]["ports"]
+
+    for name in ("minio", "nessie", "trino"):
+        labels = data["services"][name]["labels"]
+        assert labels["traefik.enable"] == "true"
+    assert "traefik.enable" not in data["services"]["postgres"].get("labels", {})
 
 
 @pytest.mark.parametrize(
@@ -640,10 +660,12 @@ def test_production_profile_renders_bundled_core_without_public_ports_or_credent
     )
     data = yaml.safe_load(compose)
 
-    for name in ("postgres", "minio", "nessie", "trino", "dagster"):
+    for name in ("postgres", "minio", "nessie", "trino"):
         assert "ports" not in data["services"][name]
         labels = data["services"][name].get("labels", {})
         assert not any(str(label).startswith("traefik.") for label in labels)
+    assert data["services"]["dagster"]["ports"] == ["${DAGSTER_PORT:-10006}:3000"]
+    assert data["services"]["dagster"]["labels"]["traefik.enable"] == "true"
     assert "${POSTGRES_PASSWORD:-phlo}" not in compose
     assert "${MINIO_ROOT_PASSWORD:-minio123}" not in compose
 

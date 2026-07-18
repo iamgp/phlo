@@ -2,7 +2,80 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 from phlo.security.validation import run_regulated_validation
+
+
+def _write_generated_compose(tmp_path: Path, services: dict[str, object]) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text(yaml.safe_dump({"services": services}))
+
+
+def test_regulated_backend_boundary_accepts_internal_generated_backends(
+    monkeypatch, tmp_path: Path
+) -> None:
+    from phlo.security.validation import _check_internal_backend_boundary
+
+    _write_generated_compose(
+        tmp_path,
+        {
+            "postgres": {"environment": {"POSTGRES_DB": "phlo"}},
+            "minio": {"environment": {"MINIO_ROOT_USER": "configured"}},
+            "nessie": {},
+            "trino": {},
+            "dagster": {
+                "ports": ["10006:3000"],
+                "labels": {"traefik.enable": "true"},
+            },
+            "phlo-api": {"ports": ["4000:4000"]},
+        },
+    )
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    result = _check_internal_backend_boundary()
+
+    assert result.passed is True
+    assert "minio, nessie, postgres, trino" in result.message
+
+
+def test_regulated_backend_boundary_rejects_published_or_routed_backend(
+    monkeypatch, tmp_path: Path
+) -> None:
+    from phlo.security.validation import _check_internal_backend_boundary
+
+    _write_generated_compose(
+        tmp_path,
+        {
+            "postgres": {"ports": ["10000:5432"]},
+            "minio": {"labels": ["traefik.enable=true"]},
+            "nessie": {"network_mode": "host"},
+            "trino": {},
+            "dagster": {"ports": ["10006:3000"]},
+        },
+    )
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    result = _check_internal_backend_boundary()
+
+    assert result.passed is False
+    assert "postgres publishes host ports" in result.message
+    assert "minio has public Traefik labels" in result.message
+    assert "nessie uses host networking" in result.message
+
+
+def test_regulated_backend_boundary_requires_a_production_render(
+    monkeypatch, tmp_path: Path
+) -> None:
+    from phlo.security.validation import _check_internal_backend_boundary
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    result = _check_internal_backend_boundary()
+
+    assert result.passed is False
+    assert "phlo services init --production" in result.message
 
 
 def test_regulated_validation_requires_audit_hmac_key(monkeypatch) -> None:
