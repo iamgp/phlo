@@ -637,10 +637,12 @@ SLACK_CHANNEL=#data-alerts
 
 ### Recovery Plan
 
-**RTO/RPO targets**:
+**Recovery timing**:
 
-- **RTO** (Recovery Time Objective): 4 hours
-- **RPO** (Recovery Point Objective): 24 hours
+Phlo does not publish an RTO or RPO commitment. The required recovery continuity
+drill records the backup and restore durations it observes for its owned
+PostgreSQL, Nessie/Iceberg, and object-store fixture, but those measurements do
+not establish a production timing objective.
 
 **Recovery steps**:
 

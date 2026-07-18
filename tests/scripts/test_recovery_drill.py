@@ -25,10 +25,15 @@ def test_compose_uses_isolated_ports_and_supported_stack_images(tmp_path):
     assert "minio/minio:RELEASE.2025-09-07T16-13-09Z" in compose
     assert "ghcr.io/projectnessie/nessie:0.107.2" in compose
     assert "127.0.0.1::5432" in compose
+    assert "condition: service_healthy" in compose
+    assert "jdbc:postgresql://postgres:5432/phlo?currentSchema=public" in compose
     assert "nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse" in compose
     assert "nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/" in compose
     assert 'nessie.catalog.service.s3.default-options.path-style-access: "true"' in compose
     assert recovery_drill.MC_IMAGE.startswith("minio/mc@sha256:")
+    assert recovery_drill.NESSIE_ADMIN_IMAGE.startswith(
+        "ghcr.io/projectnessie/nessie-server-admin@sha256:"
+    )
     assert ":latest" not in recovery_drill.MC_IMAGE
 
 
@@ -64,6 +69,7 @@ def test_helper_is_network_local_and_uses_locked_dependency_export(tmp_path, mon
 def test_manifest_round_trip_requires_fixture_and_checksum(tmp_path):
     fixture = {"project_id": "project", "table_name": "recovery.rows", "snapshot_id": "42"}
     (tmp_path / "postgres.sql").write_text("backup", encoding="utf-8")
+    (tmp_path / "nessie.zip").write_text("backup", encoding="utf-8")
     (tmp_path / "lake").mkdir()
 
     recovery_drill.write_manifest(tmp_path, fixture, "a" * 64)
@@ -102,6 +108,38 @@ def test_manifest_rejects_missing_backup_files(tmp_path):
 
     with pytest.raises(recovery_drill.RecoveryDrillError, match="backup manifest"):
         recovery_drill.read_manifest(tmp_path)
+
+
+def test_nessie_export_and_import_use_the_pinned_admin_tool(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(recovery_drill, "run", lambda command, **_: calls.append(command))
+    stack = recovery_drill.Stack("owned-drill", tmp_path / "source")
+
+    recovery_drill.export_nessie(stack, tmp_path)
+    recovery_drill.import_nessie(stack, tmp_path)
+
+    common = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "owned-drill_default",
+        "-v",
+        f"{tmp_path.resolve()}:/backup",
+        "-e",
+        "NESSIE_VERSION_STORE_TYPE=JDBC",
+        "-e",
+        "QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/phlo?currentSchema=public",
+        "-e",
+        "QUARKUS_DATASOURCE_USERNAME=phlo",
+        "-e",
+        "QUARKUS_DATASOURCE_PASSWORD=phlo",
+        recovery_drill.NESSIE_ADMIN_IMAGE,
+    ]
+    assert calls == [
+        [*common, "export", "--path", "/backup/nessie.zip"],
+        [*common, "import", "--erase-before-import", "--path", "/backup/nessie.zip"],
+    ]
 
 
 def test_restored_evidence_requires_exact_resource_and_catalog_change():
