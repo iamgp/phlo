@@ -291,7 +291,7 @@ def _check_internal_backend_boundary() -> ValidationResult:
 
     try:
         document = yaml.safe_load(compose_path.read_text()) or {}
-    except (OSError, yaml.YAMLError) as exc:
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
         return ValidationResult(
             name="internal_backend_boundary",
             passed=False,

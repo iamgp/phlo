@@ -78,6 +78,22 @@ def test_regulated_backend_boundary_requires_a_production_render(
     assert "phlo services init --production" in result.message
 
 
+def test_regulated_backend_boundary_rejects_invalid_utf8_compose(
+    monkeypatch, tmp_path: Path
+) -> None:
+    from phlo.security.validation import _check_internal_backend_boundary
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_bytes(b"\xff")
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    result = _check_internal_backend_boundary()
+
+    assert result.passed is False
+    assert "Could not read generated Compose configuration" in result.message
+
+
 def test_regulated_validation_requires_audit_hmac_key(monkeypatch) -> None:
     monkeypatch.setenv("PHLO_REGULATED", "true")
     monkeypatch.delenv("PHLO_AUDIT_HMAC_KEY", raising=False)
