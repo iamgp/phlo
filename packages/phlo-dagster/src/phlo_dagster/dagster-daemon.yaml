@@ -10,7 +10,7 @@ build:
   dockerfile: dagster/Dockerfile
   args:
     PHLO_VERSION: ${PHLO_VERSION:-}
-    PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-${PHLO_VERSION:-}}
+    PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-}
     PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
 
 depends_on:

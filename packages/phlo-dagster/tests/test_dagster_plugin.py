@@ -2,7 +2,7 @@
 
 from importlib import resources
 
-from phlo_dagster.plugin import DagsterDaemonServicePlugin, DagsterServicePlugin
+from phlo_dagster.plugin import DagsterServicePlugin
 
 
 def test_dagster_service_definition():
@@ -42,15 +42,8 @@ def test_dagster_and_daemon_share_the_postgres_run_evidence_store() -> None:
         "@postgres:5432/${POSTGRES_DB:-phlo}"
     )
 
-    dbt_release_arg = "PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-${PHLO_VERSION:-}}"
+    dbt_release_arg = "PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-}"
     assert dbt_release_arg in service_yaml
     assert dbt_release_arg in daemon_yaml
     assert dsn in service_yaml
     assert dsn in daemon_yaml
-
-
-def test_dagster_build_defaults_dbt_to_the_shared_release_version() -> None:
-    expected = "${PHLO_DBT_VERSION:-${PHLO_VERSION:-}}"
-
-    for plugin in (DagsterServicePlugin(), DagsterDaemonServicePlugin()):
-        assert plugin.service_definition["build"]["args"]["PHLO_DBT_VERSION"] == expected
