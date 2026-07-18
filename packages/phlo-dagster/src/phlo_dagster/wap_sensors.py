@@ -62,7 +62,13 @@ from phlo._attempt import attempt_from_tags
 from phlo.hooks import HookCorrelation, QualityResultEvent, get_hook_bus
 from phlo.logging import get_logger
 from phlo.config import get_settings
-from phlo.run_evidence import default_run_evidence_store, emit_observation
+from phlo.run_evidence import (
+    RequiredEvidenceProfile,
+    RunReconciler,
+    default_run_evidence_store,
+    emit_observation,
+)
+from phlo_dagster.run_evidence import DagsterRunEvidenceSource
 
 logger = get_logger(__name__)
 
@@ -75,6 +81,11 @@ DEFAULT_BRANCH_CREATION_INTERVAL_SECONDS = int(
 )
 DEFAULT_CLEANUP_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_CLEANUP_INTERVAL_SECONDS", "3600"))
 DEFAULT_PROMOTION_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_PROMOTION_INTERVAL_SECONDS", "60"))
+WAP_EVIDENCE_PROFILE = RequiredEvidenceProfile(
+    profile_id="wap",
+    version="1",
+    provider="dagster",
+)
 
 
 def _report_path(run_id: str) -> Path:
@@ -338,6 +349,7 @@ def _quality_evidence(
     *,
     project_id: str | None = None,
     attempt: int | None = None,
+    evidence_run_id: str | None = None,
 ) -> tuple[str | None, dict[str, Any]]:
     """Read report evidence and bind promotion to a durable aggregate decision."""
     path = _report_path(run_id)
@@ -355,7 +367,10 @@ def _quality_evidence(
     ]
     if checks is not None and project_id and attempt is not None:
         aggregate_id = _persist_aggregate_quality_decision(
-            project_id=project_id, run_id=run_id, attempt=attempt, checks=checks
+            project_id=project_id,
+            run_id=evidence_run_id or run_id,
+            attempt=attempt,
+            checks=checks,
         )
         if aggregate_id is not None:
             quality_id = aggregate_id
@@ -418,6 +433,36 @@ def _normalized_dagster_status(run: Any) -> str | None:
     }.get(normalized)
 
 
+def _logical_run_id(run: Any) -> str:
+    """Return the report identity, falling back to the physical Dagster ID."""
+    dagster_run_id = getattr(run, "run_id", None)
+    if not dagster_run_id:
+        return ""
+    tags = getattr(run, "tags", {}) or {}
+    logical_run_id = tags.get("phlo/run_id") if isinstance(tags, dict) else None
+    return str(logical_run_id or dagster_run_id)
+
+
+def _reconcile_promoted_wap_run(run: Any, instance: Any) -> None:
+    """Persist Dagster's authoritative history under the WAP logical identity."""
+    dagster_run_id = getattr(run, "run_id", None)
+    project_id = _project_id_for_run(run)
+    if not dagster_run_id or not project_id:
+        return
+    try:
+        RunReconciler(
+            default_run_evidence_store(),
+            DagsterRunEvidenceSource(instance, project_id=project_id),
+        ).reconcile(project_id, dagster_run_id, WAP_EVIDENCE_PROFILE)
+    except Exception:
+        logger.warning(
+            "wap_promoted_run_reconciliation_failed",
+            dagster_run_id=dagster_run_id,
+            logical_run_id=_logical_run_id(run),
+            exc_info=True,
+        )
+
+
 def _emit_wap_observation(
     *,
     run: Any,
@@ -434,7 +479,7 @@ def _emit_wap_observation(
     project_id = _project_id_for_run(run)
     project_identity = _project_identity_for_run(run)
     attempt = _attempt_for_run(run)
-    run_id = getattr(run, "run_id", None)
+    run_id = _logical_run_id(run)
     if not run_id:
         return
     if not project_id or attempt is None:
@@ -694,6 +739,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 instance,
                 project_id=_project_id_for_run(run),
                 attempt=_attempt_for_run(run),
+                evidence_run_id=_logical_run_id(run),
             )
             if quality_decision_id is None:
                 write_wap_report(
@@ -779,6 +825,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             instance,
             project_id=_project_id_for_run(run),
             attempt=_attempt_for_run(run),
+            evidence_run_id=_logical_run_id(run),
         )
         if quality_decision_id is None:
             write_wap_report(
@@ -820,6 +867,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 instance,
                 project_id=_project_id_for_run(run),
                 attempt=_attempt_for_run(run),
+                evidence_run_id=_logical_run_id(run),
             )
             _emit_wap_observation(
                 run=run,
@@ -865,6 +913,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             instance,
             project_id=_project_id_for_run(run),
             attempt=_attempt_for_run(run),
+            evidence_run_id=_logical_run_id(run),
         )
         _emit_wap_observation(
             run=run,
@@ -892,6 +941,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             merge_outcome="deleted" if source_deleted else "failed",
             metadata={"target_ref": "main"},
         )
+        _reconcile_promoted_wap_run(run, instance)
         promoted += 1
         logger.info(
             "wap_branch_promoted",

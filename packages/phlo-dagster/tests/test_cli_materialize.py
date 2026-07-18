@@ -252,6 +252,7 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
     monkeypatch,
 ) -> None:
     captured: dict[str, str] = {}
+    discovery_calls: list[bool] = []
 
     class Launch:
         logical_run_id = "request-42"
@@ -271,10 +272,17 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
         )
         return type("Result", (), {"accepted": True, "message": "", "run_id": "run-1"})()
 
+    def prepared_launch(**_kwargs):
+        assert discovery_calls == [True]
+        return Launch()
+
     monkeypatch.setenv("PHLO_DAGSTER_REPOSITORY_LOCATION_NAME", "phlo_dagster")
     monkeypatch.setenv("PHLO_DAGSTER_REPOSITORY_NAME", "phlo_dagster")
     monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "verified-user-token")
-    monkeypatch.setattr("phlo_dagster.cli_materialize.prepare_wap_launch", lambda **_: Launch())
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.discover_capabilities", lambda: discovery_calls.append(True)
+    )
+    monkeypatch.setattr("phlo_dagster.cli_materialize.prepare_wap_launch", prepared_launch)
     monkeypatch.setattr("phlo_dagster.cli_materialize.launch_materialize", accepted_launch)
 
     result = CliRunner().invoke(
@@ -288,6 +296,7 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
         "repository_name": "phlo_dagster",
         "access_token": "verified-user-token",
     }
+    assert discovery_calls == [True]
 
 
 @patch(

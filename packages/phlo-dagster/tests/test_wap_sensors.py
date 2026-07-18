@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import dagster as dg
 import pytest
@@ -317,10 +317,11 @@ def test_wap_auto_promotion_sensor_uses_updated_after_filter():
 def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch, tmp_path):
     """A passing run promotion references its durable aggregate quality result."""
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
-    run_id = "run-promote"
-    branch = _wap_branch_name(run_id)
+    dagster_run_id = "run-promote"
+    logical_run_id = "logical-promote"
+    branch = _wap_branch_name(dagster_run_id)
     write_wap_report(
-        run_id,
+        dagster_run_id,
         status="branch_created",
         branch=branch,
         project_id="project-promote",
@@ -336,9 +337,10 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     instance = MagicMock()
     instance.get_runs.return_value = [
         SimpleNamespace(
-            run_id=run_id,
+            run_id=dagster_run_id,
             tags={
                 "phlo/wap_branch": branch,
+                "phlo/run_id": logical_run_id,
                 "phlo/project_id": "project-promote",
                 "phlo/attempt": "1",
             },
@@ -366,24 +368,32 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
         "phlo_dagster.wap_sensors._load_ref_query_catalog_manager",
         lambda: query_catalog_manager,
     )
+    reconciler = MagicMock()
+    reconciler_class = MagicMock(return_value=reconciler)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.RunReconciler", reconciler_class)
 
     wap_auto_promotion_sensor._raw_fn(context)
 
     catalog.merge_branch.assert_called_once_with(source=branch, target="main")
     query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch)
     catalog.delete_branch.assert_called_once_with(branch)
-    quality_rows = store.list_quality_results("project-promote", run_id, attempt=1)
+    quality_rows = store.list_quality_results("project-promote", logical_run_id, attempt=1)
     quality_id = next(row["quality_result_id"] for row in quality_rows)
     assert quality_id in {row["quality_result_id"] for row in quality_rows}
     assert quality_rows[0]["check_id"] == "wap.aggregate"
     assert any(
         row["merge_outcome"] == "promoted" and row["quality_decision_id"] == quality_id
-        for row in store.list_catalog_changes("project-promote", run_id, attempt=1)
+        for row in store.list_catalog_changes("project-promote", logical_run_id, attempt=1)
     )
-    run = store.get_run("project-promote", run_id)
+    run = store.get_run("project-promote", logical_run_id)
     assert run is not None
     assert run["status"] == "success"
     assert run["finished_at"] is not None
+    reconciler.reconcile.assert_called_once_with(
+        "project-promote",
+        dagster_run_id,
+        ANY,
+    )
 
 
 def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypatch, tmp_path):

@@ -6,11 +6,12 @@ profile: api
 phlo_dev: true
 
 build:
-    context: source
-    dockerfile: Dockerfile
+    context: .
+    dockerfile: phlo-api/Dockerfile
     args:
         PHLO_VERSION: ${PHLO_VERSION:-}
         PHLO_API_VERSION: ${PHLO_API_VERSION:-}
+        PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
 
 compose:
     restart: unless-stopped
@@ -25,9 +26,12 @@ compose:
         CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}
         CLICKSTACK_QUERY_USER: ${CLICKSTACK_QUERY_USER:-}
         CLICKSTACK_QUERY_PASSWORD: ${CLICKSTACK_QUERY_PASSWORD:-}
+        PHLO_PROJECT_PATH: /app
         PHLO_RUN_EVIDENCE_DB_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
     ports:
         - "${PHLO_API_PORT:-4000}:4000"
+    volumes:
+        - ../:/app:ro
     healthcheck:
         test:
             [
@@ -53,6 +57,12 @@ env_vars:
     PHLO_API_PORT:
         default: 4000
         description: Phlo API port
+
+files:
+    - source: Dockerfile
+      dest: phlo-api/Dockerfile
+    - source: entrypoint.sh
+      dest: phlo-api/entrypoint.sh
 
 # Dev mode: run as subprocess (no Docker)
 dev:

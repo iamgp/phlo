@@ -1,24 +1,42 @@
+FROM python:3.11-slim AS phlo-build-context
+
+WORKDIR /opt/phlo-build-context
+
+COPY . .
+RUN set -eux; \
+    if [ -f entrypoint.sh ]; then entrypoint=entrypoint.sh; else entrypoint=phlo-api/entrypoint.sh; fi; \
+    install -m 0755 "$entrypoint" /opt/phlo-build-context/phlo-api-entrypoint.sh; \
+    mkdir -p /opt/phlo-build-context/wheelhouse
+
 FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv
-
-# Install the same PyPI package versions that generated this stack. Source
-# checkouts still copy the local phlo_api package below, but PyPI installs only
-# have this package directory as Docker build context.
 ARG PHLO_VERSION=
 ARG PHLO_API_VERSION=
+ARG PHLO_WHEELHOUSE=
+
+RUN pip install --no-cache-dir uv
+
+COPY --from=phlo-build-context /opt/phlo-build-context/wheelhouse /opt/phlo-wheelhouse
+
 RUN set -eux; \
-    if [ -n "$PHLO_VERSION" ]; then pip install --no-cache-dir "phlo==$PHLO_VERSION"; else pip install --no-cache-dir phlo; fi; \
-    if [ -n "$PHLO_API_VERSION" ]; then pip install --no-cache-dir "phlo-api==$PHLO_API_VERSION"; else pip install --no-cache-dir phlo-api; fi
+    PHLO_API_REQUIREMENT="phlo-api"; \
+    if [ -n "$PHLO_API_VERSION" ]; then PHLO_API_REQUIREMENT="phlo-api==$PHLO_API_VERSION"; fi; \
+    if [ -n "$PHLO_VERSION" ]; then \
+        if [ -n "$PHLO_WHEELHOUSE" ]; then \
+            test -d /opt/phlo-wheelhouse; \
+            uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
+            uv pip install --system --prerelease explicit --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
+            uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
+        else \
+            uv pip install --system --prerelease explicit "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
+        fi; \
+    else \
+        uv pip install --system phlo "$PHLO_API_REQUIREMENT"; \
+    fi
 
-# Copy the API package so `phlo_api.main` is importable.
-COPY . /app/phlo_api
-COPY entrypoint.sh /usr/local/bin/phlo-api-entrypoint.sh
-RUN chmod +x /usr/local/bin/phlo-api-entrypoint.sh
-
-ENV PYTHONPATH=/app
+COPY --from=phlo-build-context /opt/phlo-build-context/phlo-api-entrypoint.sh /usr/local/bin/phlo-api-entrypoint.sh
 
 EXPOSE 4000
 

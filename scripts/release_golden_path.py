@@ -4,14 +4,22 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
+import json
 import os
+import re
+import secrets
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
+import urllib.error
+import urllib.request
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 PARTITION = "2025-01-15"
@@ -22,7 +30,11 @@ PORT_NAMES = (
     "NESSIE_PORT",
     "TRINO_PORT",
     "DAGSTER_PORT",
+    "PHLO_API_PORT",
 )
+WAP_RUN_TIMEOUT_SECONDS = 180
+WAP_PROMOTION_TIMEOUT_SECONDS = 180
+RUN_REPORT_TIMEOUT_SECONDS = 60
 
 
 @dataclass(frozen=True)
@@ -33,6 +45,7 @@ class RunConfig:
     operator_env: Path
     project_name: str
     partition: str = PARTITION
+    report_token: str = field(default_factory=lambda: secrets.token_hex(32), repr=False)
 
     @property
     def operator_python(self) -> Path:
@@ -53,6 +66,14 @@ class RunConfig:
     @property
     def compose_file(self) -> Path:
         return self.project_dir / ".phlo" / "docker-compose.yml"
+
+
+@dataclass(frozen=True)
+class WapRun:
+    """The stable logical and provider IDs for one WAP materialization."""
+
+    logical_run_id: str
+    dagster_run_id: str
 
 
 def venv_executable(environment: Path, executable: str) -> Path:
@@ -175,6 +196,7 @@ def install_operator(config: RunConfig) -> None:
             "--find-links",
             str(config.wheelhouse),
             "phlo[core-services]",
+            "phlo-api",
             "phlo-dbt",
             "phlo-dlt",
             "phlo-pandera",
@@ -185,6 +207,7 @@ def install_operator(config: RunConfig) -> None:
         config,
         config.operator_python,
         "phlo",
+        "phlo-api",
         "phlo-dbt",
         "phlo-dlt",
         "phlo-pandera",
@@ -201,6 +224,123 @@ def create_project(config: RunConfig) -> None:
             "csv-batch",
         ),
         cwd=config.repo_root,
+    )
+
+
+def wap_service_secret(config: RunConfig) -> str:
+    """Return the unique, temporary secret shared by this owned local stack."""
+    return f"release-golden-path-{config.project_name}"
+
+
+def service_token(service_id: str, secret: str) -> str:
+    """Create the local development HMAC token accepted by Dagster."""
+    timestamp = str(int(time.time()))
+    nonce = uuid.uuid4().hex
+    message = f"{service_id}:{timestamp}:{nonce}"
+    signature = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+    return f"{message}:{signature}"
+
+
+def write_transform_fixture(config: RunConfig) -> None:
+    """Add one dbt mart to the generated CSV project for release acceptance."""
+    dbt_dir = config.project_dir / "workflows" / "transforms" / "dbt"
+    (dbt_dir / "models" / "marts").mkdir(parents=True, exist_ok=True)
+    (dbt_dir / "models" / "sources").mkdir(parents=True, exist_ok=True)
+    (dbt_dir / "dbt_project.yml").write_text(
+        """name: release_golden_path
+version: 1.0.0
+config-version: 2
+profile: phlo
+model-paths: [\"models\"]
+
+models:
+  release_golden_path:
+    +materialized: table
+""",
+        encoding="utf-8",
+    )
+    (dbt_dir / "models" / "sources" / "raw.yml").write_text(
+        """version: 2
+
+sources:
+  - name: raw
+    database: iceberg
+    schema: raw
+    tables:
+      - name: events
+""",
+        encoding="utf-8",
+    )
+    (dbt_dir / "models" / "marts" / "events_mart.sql").write_text(
+        """{{ config(materialized='table', schema='marts') }}
+select event_id, id, name, value
+from {{ source('raw', 'events') }}
+""",
+        encoding="utf-8",
+    )
+
+
+def write_wap_fixture(config: RunConfig) -> None:
+    """Add one blocking quality check so WAP promotion has durable evidence."""
+    fixture = config.project_dir / "workflows" / "ingestion" / "csv" / "release_wap_check.py"
+    fixture.write_text(
+        """import dagster as dg
+
+
+@dg.asset_check(asset=\"dlt_events\", blocking=True)
+def release_golden_path_wap_check() -> dg.AssetCheckResult:
+    return dg.AssetCheckResult(passed=True)
+""",
+        encoding="utf-8",
+    )
+
+
+def write_report_policy_fixture(config: RunConfig) -> None:
+    """Grant the ephemeral report reader access only to the promoted WAP run report."""
+    authorization_dir = config.project_dir / ".phlo" / "authorization"
+    authorization_dir.mkdir(parents=True, exist_ok=True)
+    (authorization_dir / "policies.yaml").write_text(
+        """version: 1
+
+policies:
+  - policy_id: release-golden-path-wap-catalog-read
+    effect: allow
+    principal:
+      attributes:
+        authentication_source: service_token
+    action: catalog.read
+    resource:
+      type: catalog
+      id_pattern: "*"
+  - policy_id: release-golden-path-wap-run-execute
+    effect: allow
+    principal:
+      attributes:
+        authentication_source: service_token
+    action: run.execute
+    resource:
+      type: run
+      id_pattern: "*"
+  - policy_id: release-golden-path-wap-run-read
+    effect: allow
+    principal:
+      attributes:
+        authentication_source: service_token
+    action: run.read
+    resource:
+      type: run
+      id_pattern: "*"
+  - policy_id: release-golden-path-report-read
+    effect: allow
+    principal:
+      attributes:
+        qa001_role: report_reader
+    action: run.read
+    resource:
+      type: run
+      id_pattern: "*"
+""",
+        encoding="utf-8",
     )
 
 
@@ -227,6 +367,7 @@ def install_project_dependencies(config: RunConfig) -> None:
             str(config.project_python),
             "--find-links",
             str(config.wheelhouse),
+            "phlo-dbt",
             "phlo-dlt",
             "phlo-pandera",
         ),
@@ -235,6 +376,7 @@ def install_project_dependencies(config: RunConfig) -> None:
     force_local_install(
         config,
         config.project_python,
+        "phlo-dbt",
         "phlo-dlt",
         "phlo-pandera",
     )
@@ -242,7 +384,15 @@ def install_project_dependencies(config: RunConfig) -> None:
 
 def configure_non_dev_compose(config: RunConfig) -> None:
     run(
-        command(str(config.operator_bin), "services", "init", "--no-dev", "--force"),
+        command(
+            str(config.operator_bin),
+            "services",
+            "init",
+            "--no-dev",
+            "--profile",
+            "api",
+            "--force",
+        ),
         cwd=config.project_dir,
     )
     destination = config.project_dir / ".phlo" / "wheelhouse"
@@ -252,12 +402,31 @@ def configure_non_dev_compose(config: RunConfig) -> None:
     env_local = config.project_dir / ".phlo" / ".env.local"
     with env_local.open("a", encoding="utf-8") as stream:
         stream.write(f"\nPHLO_VERSION={version}\nPHLO_WHEELHOUSE=wheelhouse\n")
+        stream.write("PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS=1\n")
+        stream.write("PHLO_WAP_PROMOTION_INTERVAL_SECONDS=1\n")
+        stream.write(f"PHLO_PROJECT={config.project_name}\n")
+        stream.write(f"PHLO_SERVICE_SECRET={wap_service_secret(config)}\n")
+        stream.write("PHLO_LOG_FILE_TEMPLATE=/tmp/phlo-{YMD}.log\n")
+        stream.write("PHLO_AUTHENTICATION_PROVIDER=service_token\n")
+        stream.write("PHLO_AUTH_SERVICE_ENABLED=true\n")
+        stream.write("PHLO_AUTHORIZATION_BACKEND=default\n")
+        stream.write("PHLO_AUTHORIZATION_MODE=required\n")
+        tokens = {
+            config.report_token: {
+                "subject": "qa001-report-reader",
+                "attributes": {"qa001_role": "report_reader"},
+            }
+        }
+        stream.write(f"PHLO_AUTH_SERVICE_TOKENS={json.dumps(tokens, separators=(',', ':'))}\n")
         stream.writelines(f"{name}=0\n" for name in PORT_NAMES)
 
 
 def start_stack(config: RunConfig) -> None:
     try:
-        run(compose_command(config, "up", "--detach", "--build"), cwd=config.project_dir)
+        run(
+            compose_command(config, "--profile", "api", "up", "--detach", "--build"),
+            cwd=config.project_dir,
+        )
     except subprocess.CalledProcessError:
         for parts in (("ps",), ("logs", "--no-color", "--timestamps")):
             try:
@@ -280,13 +449,224 @@ def materialize_partition(config: RunConfig) -> None:
     )
 
 
-def verify_rows(config: RunConfig) -> None:
-    query = "SELECT count(*) FROM iceberg.raw.events"
+def materialize_transform(config: RunConfig) -> None:
+    run(
+        command(
+            str(config.operator_bin),
+            "materialize",
+            "events_mart",
+            "--partition",
+            config.partition,
+        ),
+        cwd=config.project_dir,
+    )
+
+
+def service_url(config: RunConfig, service: str, container_port: int, path: str = "") -> str:
+    """Resolve an owned Compose service's dynamically published host URL."""
     result = run(
-        compose_command(config, "exec", "--no-TTY", "trino", "trino", "--execute", query),
+        compose_command(config, "port", service, str(container_port)),
         cwd=config.project_dir,
         capture_output=True,
     )
+    address = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+    try:
+        port = int(address.rsplit(":", 1)[1])
+    except (IndexError, ValueError) as exc:
+        raise RuntimeError(
+            f"could not resolve {service} port {container_port}: {address!r}"
+        ) from exc
+    return f"http://127.0.0.1:{port}{path}"
+
+
+def graphql(url: str, query: str, variables: dict[str, object], token: str) -> dict[str, object]:
+    """Call the local Dagster GraphQL endpoint and reject GraphQL errors."""
+    request = urllib.request.Request(
+        url,
+        data=json.dumps({"query": query, "variables": variables}).encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+            payload = json.load(response)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode(errors="replace").strip()
+        raise RuntimeError(f"Dagster GraphQL HTTP {exc.code}: {body or exc.reason}") from exc
+    if not isinstance(payload, dict) or payload.get("errors"):
+        raise RuntimeError(f"Dagster GraphQL query failed: {payload!r}")
+    return payload
+
+
+def discover_dagster_selector(config: RunConfig, token: str) -> tuple[str, str]:
+    """Find the live repository that exposes Dagster's generated asset job."""
+    payload = graphql(
+        service_url(config, "dagster", 3000, "/graphql"),
+        """query Repositories {
+  repositoriesOrError {
+    __typename
+    ... on RepositoryConnection {
+      nodes { name location { name } pipelines { name } }
+    }
+    ... on PythonError { message }
+  }
+}""",
+        {},
+        token,
+    )
+    connection = (payload.get("data", {}) if isinstance(payload.get("data"), dict) else {}).get(
+        "repositoriesOrError", {}
+    )
+    nodes = connection.get("nodes", []) if isinstance(connection, dict) else []
+    for repository in nodes:
+        if not isinstance(repository, dict):
+            continue
+        pipelines = repository.get("pipelines", [])
+        if "__ASSET_JOB" not in {
+            pipeline.get("name") for pipeline in pipelines if isinstance(pipeline, dict)
+        }:
+            continue
+        location = repository.get("location", {})
+        location_name = location.get("name") if isinstance(location, dict) else None
+        repository_name = repository.get("name")
+        if isinstance(location_name, str) and isinstance(repository_name, str):
+            return location_name, repository_name
+    raise RuntimeError("Dagster did not expose __ASSET_JOB in a live repository")
+
+
+def materialize_wap(config: RunConfig) -> WapRun:
+    """Launch the generated ingestion asset through the public WAP CLI path."""
+    token = service_token("phlo-api", wap_service_secret(config))
+    logical_run_id = uuid.uuid4().hex
+    dagster_url = service_url(config, "dagster", 3000, "/graphql")
+    location_name, repository_name = discover_dagster_selector(config, token)
+    nessie_url = service_url(config, "nessie", 19120)
+    environment = {
+        **os.environ,
+        "NESSIE_HOST": "127.0.0.1",
+        "NESSIE_PORT": nessie_url.rsplit(":", 1)[1],
+        "PHLO_DAGSTER_ACCESS_TOKEN": token,
+    }
+    result = run(
+        command(
+            str(config.operator_bin),
+            "materialize",
+            "dlt_events",
+            "--partition",
+            config.partition,
+            "--wap",
+            "--wap-run-id",
+            logical_run_id,
+            "--job-name",
+            "__ASSET_JOB",
+            "--repository-location-name",
+            location_name,
+            "--repository-name",
+            repository_name,
+            "--dagster-url",
+            dagster_url,
+        ),
+        cwd=config.project_dir,
+        env=environment,
+        capture_output=True,
+    )
+    match = re.search(r"Dagster run ([0-9a-z-]+)", result.stdout)
+    if match is None:
+        raise RuntimeError(f"WAP launch did not return a Dagster run ID: {result.stdout!r}")
+    return WapRun(logical_run_id=logical_run_id, dagster_run_id=match.group(1))
+
+
+def wait_for_wap_promotion(config: RunConfig, wap_run: WapRun) -> None:
+    """Require the launched WAP run to succeed and promote its owned branch."""
+    token = service_token("phlo-api", wap_service_secret(config))
+    dagster_url = service_url(config, "dagster", 3000, "/graphql")
+    run_query = """query Run($runId: ID!) {
+  pipelineRunOrError(runId: $runId) {
+    __typename
+    ... on Run { status tags { key value } }
+    ... on PythonError { message }
+  }
+}"""
+    deadline = time.monotonic() + WAP_RUN_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        payload = graphql(dagster_url, run_query, {"runId": wap_run.dagster_run_id}, token)
+        run_data = (payload.get("data", {}) if isinstance(payload.get("data"), dict) else {}).get(
+            "pipelineRunOrError", {}
+        )
+        if not isinstance(run_data, dict):
+            raise RuntimeError(f"Dagster did not return WAP run data: {run_data!r}")
+        status = run_data.get("status")
+        if status in {"FAILURE", "CANCELED", "CANCELING"}:
+            raise RuntimeError(f"WAP Dagster run finished with {status}")
+        if status == "SUCCESS":
+            break
+        time.sleep(1)
+    else:
+        raise TimeoutError(f"WAP Dagster run did not finish: {wap_run.dagster_run_id}")
+
+    deadline = time.monotonic() + WAP_PROMOTION_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        payload = graphql(dagster_url, run_query, {"runId": wap_run.dagster_run_id}, token)
+        run_data = (payload.get("data", {}) if isinstance(payload.get("data"), dict) else {}).get(
+            "pipelineRunOrError", {}
+        )
+        tags = (
+            {
+                str(tag.get("key")): str(tag.get("value"))
+                for tag in run_data.get("tags", [])
+                if isinstance(tag, dict)
+                and tag.get("key") is not None
+                and tag.get("value") is not None
+            }
+            if isinstance(run_data, dict)
+            else {}
+        )
+        if tags.get("phlo/wap_promoted") == "true":
+            return
+        time.sleep(1)
+    raise TimeoutError(f"WAP run was not promoted: {wap_run.dagster_run_id}")
+
+
+def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
+    """Fetch the promoted report with the ephemeral run-read service principal."""
+    url = service_url(
+        config,
+        "phlo-api",
+        4000,
+        f"/api/observatory/projects/{config.project_name}/runs/{wap_run.logical_run_id}/attempts/1/report",
+    )
+    deadline = time.monotonic() + RUN_REPORT_TIMEOUT_SECONDS
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            request = urllib.request.Request(
+                url,
+                headers={"Authorization": f"Bearer {config.report_token}"},
+            )
+            with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+                payload = json.load(response)
+            if isinstance(payload, dict) and payload.get("run_id") == wap_run.logical_run_id:
+                return
+            raise RuntimeError(f"run report returned the wrong run: {payload!r}")
+        except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError) as exc:
+            last_error = exc
+            time.sleep(1)
+    raise RuntimeError(f"run report was not available for {wap_run.logical_run_id}: {last_error}")
+
+
+def verify_rows(config: RunConfig, table: str = "raw.events") -> None:
+    query = f"SELECT count(*) FROM iceberg.{table}"
+    try:
+        result = run(
+            compose_command(config, "exec", "--no-TTY", "trino", "trino", "--execute", query),
+            cwd=config.project_dir,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        details = "\n".join(
+            output.strip() for output in (exc.stdout, exc.stderr) if output and output.strip()
+        )
+        raise RuntimeError(f"Trino query failed for {table}: {details or exc}") from exc
     print(result.stdout, end="")
     print(result.stderr, end="", file=sys.stderr)
     try:
@@ -297,9 +677,9 @@ def verify_rows(config: RunConfig) -> None:
             raise ValueError(last_line)
         count = int(last_line)
     except (IndexError, ValueError) as exc:
-        raise RuntimeError(f"Trino returned no row count: {result.stdout!r}") from exc
+        raise RuntimeError(f"Trino returned no row count for {table}: {result.stdout!r}") from exc
     if count <= 0:
-        raise RuntimeError(f"raw.events has no rows for partition {config.partition}")
+        raise RuntimeError(f"{table} has no rows for partition {config.partition}")
 
 
 def cleanup(
@@ -376,12 +756,20 @@ def main(argv: list[str] | None = None) -> int:
         build_wheelhouse(config)
         install_operator(config)
         create_project(config)
+        write_transform_fixture(config)
+        write_wap_fixture(config)
         align_project_name(config)
         install_project_dependencies(config)
         configure_non_dev_compose(config)
+        write_report_policy_fixture(config)
         start_stack(config)
         materialize_partition(config)
         verify_rows(config)
+        materialize_transform(config)
+        verify_rows(config, table="raw_marts.events_mart")
+        wap_run = materialize_wap(config)
+        wait_for_wap_promotion(config, wap_run)
+        verify_run_report(config, wap_run)
     except Exception as exc:
         primary_error = exc
     finally:

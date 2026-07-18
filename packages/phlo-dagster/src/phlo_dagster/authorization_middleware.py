@@ -297,7 +297,17 @@ class DagsterGraphQLAuthorizationMiddleware:
         if request is None:
             request = getattr(context, "wsgi_request", None)
         if request is None:
+            # Dagster stores the Starlette request as the private request-context
+            # source rather than exposing it as ``context.request``.
+            request = getattr(context, "_source", None)
+        if request is None:
             return None
+
+        scope = getattr(request, "scope", None)
+        if isinstance(scope, Mapping):
+            principal = scope.get("phlo_authenticated_principal")
+            if isinstance(principal, AuthPrincipal):
+                return principal
 
         connection_init = self._graphql_connection_init(request)
         if connection_init is not None:
