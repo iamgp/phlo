@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from importlib import resources
+from pathlib import Path
 
 
 def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -> None:
@@ -17,6 +18,16 @@ def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -
         in dockerfile
     )
     assert 'dagster-postgres "psycopg[binary]"' in dockerfile
+
+
+def test_dagster_runtime_image_installs_pinned_dbt_from_the_release_artifact() -> None:
+    dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
+
+    assert 'ARG PHLO_DBT_VERSION=""' in dockerfile
+    assert '"phlo-dbt==$PHLO_DBT_VERSION"' in dockerfile
+    assert dockerfile.count('"phlo-dbt==$PHLO_DBT_VERSION"') >= 2
+    package_metadata = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    assert '"phlo-dbt>=0.1.0"' in package_metadata
 
 
 def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:

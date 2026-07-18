@@ -10,6 +10,7 @@ FROM python:3.12-slim
 WORKDIR /opt/dagster
 
 ARG PHLO_VERSION=""
+ARG PHLO_DBT_VERSION=""
 ARG PHLO_WHEELHOUSE=""
 
 # Install system dependencies and uv
@@ -29,15 +30,16 @@ RUN \
     if [ -n "$PHLO_WHEELHOUSE" ]; then \
         test -d /opt/phlo-wheelhouse; \
         uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION"; \
-        uv pip install --system --prerelease explicit --find-links /opt/phlo-wheelhouse "phlo[defaults]==$PHLO_VERSION" dagster-webserver dagster-postgres "psycopg[binary]"; \
+        uv pip install --system --prerelease explicit --find-links /opt/phlo-wheelhouse "phlo[defaults]==$PHLO_VERSION" "phlo-dbt==$PHLO_DBT_VERSION" dagster-webserver dagster-postgres "psycopg[binary]"; \
         uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION"; \
+        uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo-dbt==$PHLO_DBT_VERSION"; \
     else \
         uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"; \
         PHLO_PRERELEASE_REQUIREMENTS="$(python -c 'import importlib.metadata as md, re; print(" ".join(req.split(";")[0].strip() for req in (md.metadata("phlo").get_all("Requires-Dist") or []) if "extra == '\''defaults'\''" in req and re.search(r"(a|b|rc|dev)[0-9]+", req)))')"; \
-        uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION" $PHLO_PRERELEASE_REQUIREMENTS dagster-webserver dagster-postgres "psycopg[binary]"; \
+        uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION" "phlo-dbt==$PHLO_DBT_VERSION" $PHLO_PRERELEASE_REQUIREMENTS dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi; \
     else \
-        uv pip install --system "phlo[defaults]" dagster-webserver dagster-postgres "psycopg[binary]"; \
+        uv pip install --system "phlo[defaults]" phlo-dbt dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
