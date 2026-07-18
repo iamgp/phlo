@@ -138,8 +138,7 @@ def test_api_profile_uses_the_shared_run_evidence_store() -> None:
         "postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}"
         "@postgres:5432/${POSTGRES_DB:-phlo}"
     ) in service
-    assert "  - postgres" in service
-    assert "  - dagster" in service
+    assert "depends_on:" not in service
 
 
 def test_non_dev_api_profile_compose_is_reachable_without_dev_mounts(tmp_path) -> None:
@@ -168,6 +167,6 @@ def test_non_dev_api_profile_compose_is_reachable_without_dev_mounts(tmp_path) -
     assert service["environment"]["PHLO_RUN_EVIDENCE_DB_URL"].endswith(
         "@postgres:5432/${POSTGRES_DB:-phlo}"
     )
-    assert set(service["depends_on"]) == {"postgres", "dagster"}
+    assert "depends_on" not in service
     assert "PHLO_DEV_MODE" not in service["environment"]
     assert "/opt/phlo-dev:rw" not in "\n".join(service.get("volumes", []))
