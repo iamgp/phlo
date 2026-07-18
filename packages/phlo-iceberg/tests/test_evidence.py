@@ -22,6 +22,12 @@ def test_successful_mutation_with_absent_readback_keeps_provider_success(monkeyp
     )
 
     assert captured[0]["status"] == "success"
+    assert captured[0]["resources"][0]["resource_identity"] == {
+        "resource_type": "iceberg_table",
+        "resource_id": "raw.events",
+        "tenant": "project",
+        "attributes": {"catalog_ref": "main"},
+    }
     assert captured[0]["resources"][0]["metadata"]["outcome"] == "contradictory"
     assert captured[0]["resources"][0]["metadata"]["evidence_completeness"] == "incomplete"
 
