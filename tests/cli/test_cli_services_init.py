@@ -75,6 +75,24 @@ def test_minio_compose_only_includes_openid_settings_with_a_discovery_url(
     } == expected_openid
 
 
+def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
+    discovery = ServiceDiscovery()
+    nessie = discovery.get_service("nessie")
+
+    assert nessie is not None
+    generator = ComposeGenerator(discovery)
+    rendered = yaml.safe_load(generator.generate_compose([nessie], output_dir=tmp_path))
+    environment = rendered["services"]["nessie"]["environment"]
+    env = generator.generate_env(
+        [nessie], env_overrides={"ICEBERG_WAREHOUSE_PATH": "s3://other-lake/warehouse"}
+    )
+
+    assert environment["nessie.catalog.warehouses.warehouse.location"] == (
+        "${ICEBERG_WAREHOUSE_PATH:-s3://lake/warehouse}"
+    )
+    assert "ICEBERG_WAREHOUSE_PATH=s3://other-lake/warehouse" in env
+
+
 def test_services_init_production_selects_the_secure_compose_profile(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

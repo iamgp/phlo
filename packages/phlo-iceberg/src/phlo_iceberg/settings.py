@@ -187,7 +187,7 @@ class IcebergSettings(BaseConfig):
             dict: PyIceberg catalog configuration with keys:
                 - ``type``: Always "rest"
                 - ``uri``: Full catalog URI including ref path
-                - ``warehouse``: Warehouse path
+                - ``warehouse``: Nessie warehouse identifier
                 - ``s3.endpoint``: S3 endpoint URL
                 - ``s3.access-key-id``: S3 access key
                 - ``s3.secret-access-key``: S3 secret key
@@ -213,7 +213,9 @@ class IcebergSettings(BaseConfig):
         config = {
             "type": "rest",
             "uri": f"{catalog_uri}/{ref}",
-            "warehouse": self.get_iceberg_warehouse_for_branch(ref),
+            # Nessie's REST catalog uses its configured warehouse identifier here;
+            # the physical S3 location remains iceberg_warehouse_path for storage.
+            "warehouse": "warehouse",
             "s3.endpoint": s3_endpoint,
             "s3.access-key-id": self.iceberg_s3_access_key,
             "s3.secret-access-key": self.iceberg_s3_secret_key,
