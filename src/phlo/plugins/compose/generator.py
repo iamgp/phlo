@@ -103,13 +103,34 @@ class ComposeGenerator:
         """Apply the bounded production network and credential posture."""
         if service_name in _PRODUCTION_INTERNAL_SERVICES:
             config.pop("ports", None)
+            self._remove_traefik_labels(config)
         self._require_production_credentials(config)
+
+    def _remove_traefik_labels(self, config: dict[str, Any]) -> None:
+        """Remove public Traefik routes while retaining unrelated service labels."""
+        labels = config.get("labels")
+        if isinstance(labels, dict):
+            config["labels"] = {
+                key: value for key, value in labels.items() if not str(key).startswith("traefik.")
+            }
+        elif isinstance(labels, list):
+            config["labels"] = [
+                label
+                for label in labels
+                if not isinstance(label, str) or not label.startswith("traefik.")
+            ]
+
+    def _required_credential_expression(self, variable: str) -> str:
+        return f"${{{variable}:?Phlo production requires {variable}}}"
 
     def _require_production_credentials(self, value: Any) -> Any:
         """Replace bundled credential fallbacks with Compose required-variable syntax."""
         if isinstance(value, dict):
             for key, nested_value in value.items():
-                value[key] = self._require_production_credentials(nested_value)
+                if key in _PRODUCTION_CREDENTIAL_DEFAULTS:
+                    value[key] = self._required_credential_expression(key)
+                else:
+                    value[key] = self._require_production_credentials(nested_value)
             return value
         if isinstance(value, list):
             return [self._require_production_credentials(item) for item in value]
@@ -119,7 +140,7 @@ class ComposeGenerator:
         for variable, default in _PRODUCTION_CREDENTIAL_DEFAULTS.items():
             bundled = f"${{{variable}:-{default}}}"
             if bundled in value:
-                required = f"${{{variable}:?Phlo production requires {variable}}}"
+                required = self._required_credential_expression(variable)
                 value = value.replace(bundled, required)
         return value
 

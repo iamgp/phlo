@@ -347,6 +347,77 @@ def test_compose_generator_development_profile_keeps_core_host_ports(tmp_path) -
     assert data["services"]["postgres"]["ports"] == ["10000:5432"]
 
 
+def test_production_profile_neutralizes_protected_service_environment_overrides(
+    tmp_path,
+) -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        compose={"environment": {}},
+    )
+    overrides = {
+        "postgres": {
+            "environment": {
+                "POSTGRES_USER": "phlo",
+                "POSTGRES_PASSWORD": "literal-password",
+                "MINIO_ROOT_USER": "${MINIO_ROOT_USER:-minio}",
+                "MINIO_ROOT_PASSWORD": "${MINIO_ROOT_PASSWORD:-override-password}",
+                "UNRELATED": "preserved",
+            }
+        }
+    }
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    data = yaml.safe_load(
+        generator.generate_compose(
+            [service],
+            output_dir=tmp_path,
+            user_overrides=overrides,
+            deployment_profile="production",
+        )
+    )
+    environment = data["services"]["postgres"]["environment"]
+
+    assert environment == {
+        "POSTGRES_USER": "${POSTGRES_USER:?Phlo production requires POSTGRES_USER}",
+        "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?Phlo production requires POSTGRES_PASSWORD}",
+        "MINIO_ROOT_USER": "${MINIO_ROOT_USER:?Phlo production requires MINIO_ROOT_USER}",
+        "MINIO_ROOT_PASSWORD": (
+            "${MINIO_ROOT_PASSWORD:?Phlo production requires MINIO_ROOT_PASSWORD}"
+        ),
+        "UNRELATED": "preserved",
+    }
+
+
+def test_production_profile_removes_internal_traefik_labels_but_preserves_other_labels(
+    tmp_path,
+) -> None:
+    service = ServiceDefinition(
+        name="trino",
+        description="trino",
+        category="core",
+        default=True,
+        compose={
+            "labels": {
+                "traefik.enable": "true",
+                "traefik.http.routers.trino.rule": "Host(`trino.phlo.localhost`)",
+                "phlo.metrics.enabled": "false",
+            }
+        },
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    production = yaml.safe_load(
+        generator.generate_compose([service], output_dir=tmp_path, deployment_profile="production")
+    )
+    development = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+
+    assert production["services"]["trino"]["labels"] == {"phlo.metrics.enabled": "false"}
+    assert development["services"]["trino"]["labels"] == service.compose["labels"]
+
+
 def test_production_profile_renders_bundled_core_without_public_ports_or_credential_defaults(
     tmp_path,
 ) -> None:
@@ -361,6 +432,8 @@ def test_production_profile_renders_bundled_core_without_public_ports_or_credent
 
     for name in ("postgres", "minio", "nessie", "trino", "dagster"):
         assert "ports" not in data["services"][name]
+        labels = data["services"][name].get("labels", {})
+        assert not any(str(label).startswith("traefik.") for label in labels)
     assert "${POSTGRES_PASSWORD:-phlo}" not in compose
     assert "${MINIO_ROOT_PASSWORD:-minio123}" not in compose
 
