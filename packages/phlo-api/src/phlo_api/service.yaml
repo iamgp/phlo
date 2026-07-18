@@ -5,10 +5,6 @@ default: false
 profile: api
 phlo_dev: true
 
-depends_on:
-  - postgres
-  - dagster
-
 build:
     context: source
     dockerfile: Dockerfile
