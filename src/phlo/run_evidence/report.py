@@ -45,6 +45,17 @@ class ReportGap:
 
 
 @dataclass(frozen=True)
+class ReportResourceIdentity:
+    """Canonical project-scoped authorization identity carried by evidence."""
+
+    project_id: str
+    resource_type: str
+    resource_id: str
+    tenant: str
+    attributes: dict[str, str]
+
+
+@dataclass(frozen=True)
 class ReportEvent:
     event_id: str
     producer: str
@@ -52,6 +63,8 @@ class ReportEvent:
     observed_at: str | None
     sequence: int | None
     payload_checksum: str | None
+    resource_identity: ReportResourceIdentity | None
+    resource_identity_status: str
 
 
 @dataclass(frozen=True)
@@ -65,6 +78,8 @@ class ReportStage:
     started_at: str | None
     finished_at: str | None
     error_fingerprint: str | None
+    resource_identity: ReportResourceIdentity | None
+    resource_identity_status: str
 
 
 @dataclass(frozen=True)
@@ -83,6 +98,8 @@ class ReportResource:
     staged_objects: tuple[dict[str, Scalar], ...]
     snapshot_before: str | None
     snapshot_after: str | None
+    resource_identity: ReportResourceIdentity | None
+    resource_identity_status: str
 
 
 @dataclass(frozen=True)
@@ -92,6 +109,10 @@ class ReportLineage:
     target: str
     origin: str
     derivation: str
+    source_resource_identity: ReportResourceIdentity | None
+    source_resource_identity_status: str
+    target_resource_identity: ReportResourceIdentity | None
+    target_resource_identity_status: str
 
 
 @dataclass(frozen=True)
@@ -106,6 +127,8 @@ class ReportQuality:
     evaluated_count: int | None
     failed_count: int | None
     failure_artifact_id: str | None
+    resource_identity: ReportResourceIdentity | None
+    resource_identity_status: str
 
 
 @dataclass(frozen=True)
@@ -121,6 +144,8 @@ class ReportCatalogChange:
     snapshot_before: str | None
     snapshot_after: str | None
     metadata: dict[str, Scalar]
+    resource_identity: ReportResourceIdentity | None
+    resource_identity_status: str
 
 
 @dataclass(frozen=True)
@@ -133,6 +158,8 @@ class ReportArtifact:
     expires_at: str | None
     legal_hold: bool
     status: str
+    resource_identity: ReportResourceIdentity | None
+    resource_identity_status: str
 
 
 @dataclass(frozen=True)
@@ -225,6 +252,34 @@ def _safe_metadata(value: Any) -> dict[str, Scalar]:
     return safe
 
 
+def _resource_identity(
+    row: dict[str, Any], field: str, project_id: str
+) -> tuple[ReportResourceIdentity | None, str]:
+    """Expose only producer-supplied canonical identities; never infer display text."""
+    value = row.get(field)
+    if not isinstance(value, dict):
+        return None, "incomplete"
+    resource_type = value.get("resource_type")
+    resource_id = value.get("resource_id")
+    attributes = value.get("attributes", {})
+    if (
+        not isinstance(resource_type, str)
+        or not resource_type.strip()
+        or not isinstance(resource_id, str)
+        or not resource_id.strip()
+        or value.get("tenant") != project_id
+        or not isinstance(attributes, dict)
+        or not all(
+            isinstance(key, str) and isinstance(item, str) for key, item in attributes.items()
+        )
+    ):
+        return None, "incomplete"
+    return (
+        ReportResourceIdentity(project_id, resource_type, resource_id, project_id, attributes),
+        "complete",
+    )
+
+
 def _fingerprint(value: Any) -> str | None:
     if value is None:
         return None
@@ -249,6 +304,7 @@ def _run_header(row: dict[str, Any] | None) -> ReportRunHeader | None:
 
 
 def _event(row: dict[str, Any]) -> ReportEvent:
+    identity, identity_status = _resource_identity(row, "resource_identity", str(row["project_id"]))
     return ReportEvent(
         event_id=str(row["event_id"]),
         producer=str(row["producer"]),
@@ -256,10 +312,13 @@ def _event(row: dict[str, Any]) -> ReportEvent:
         observed_at=row.get("observed_at"),
         sequence=row.get("sequence"),
         payload_checksum=row.get("payload_checksum"),
+        resource_identity=identity,
+        resource_identity_status=identity_status,
     )
 
 
 def _stage(row: dict[str, Any]) -> ReportStage:
+    identity, identity_status = _resource_identity(row, "resource_identity", str(row["project_id"]))
     return ReportStage(
         stage_id=str(row["stage_id"]),
         stage_type=str(row["stage_type"]),
@@ -270,10 +329,13 @@ def _stage(row: dict[str, Any]) -> ReportStage:
         started_at=row.get("started_at"),
         finished_at=row.get("finished_at"),
         error_fingerprint=_fingerprint(row.get("error")),
+        resource_identity=identity,
+        resource_identity_status=identity_status,
     )
 
 
 def _resource(row: dict[str, Any]) -> ReportResource:
+    identity, identity_status = _resource_identity(row, "resource_identity", str(row["project_id"]))
     return ReportResource(
         resource_id=str(row["resource_id"]),
         resource_kind=str(row["resource_kind"]),
@@ -289,6 +351,8 @@ def _resource(row: dict[str, Any]) -> ReportResource:
         staged_objects=_safe_staged_objects(row.get("staged_objects")),
         snapshot_before=row.get("snapshot_before"),
         snapshot_after=row.get("snapshot_after"),
+        resource_identity=identity,
+        resource_identity_status=identity_status,
     )
 
 
@@ -385,6 +449,28 @@ def build_run_report(
         gaps.append(
             ReportGap("historical_fields", "unavailable", "attempt_reconciliation_not_proven")
         )
+    identity_fields = {
+        "events": ("resource_identity",),
+        "stages": ("resource_identity",),
+        "resources": ("resource_identity",),
+        "lineage": ("source_resource_identity", "target_resource_identity"),
+        "quality": ("resource_identity",),
+        "catalog_changes": ("resource_identity",),
+        "artifacts": ("resource_identity",),
+    }
+    if any(
+        _resource_identity(row, field, project_id)[1] != "complete"
+        for family, fields in identity_fields.items()
+        for row in rows[family]
+        for field in fields
+    ):
+        gaps.append(
+            ReportGap(
+                "resource_identities",
+                "incomplete",
+                "one_or_more_evidence_records_lack_authoritative_resource_identity",
+            )
+        )
 
     return RunReport(
         schema_version=1,
@@ -405,6 +491,8 @@ def build_run_report(
                 str(row["target"]),
                 str(row["origin"]),
                 str(row["derivation"]),
+                *_resource_identity(row, "source_resource_identity", project_id),
+                *_resource_identity(row, "target_resource_identity", project_id),
             )
             for row in rows["lineage"]
         ),
@@ -423,6 +511,7 @@ def build_run_report(
                 row.get("evaluated_count"),
                 row.get("failed_count"),
                 row.get("failure_artifact_id"),
+                *_resource_identity(row, "resource_identity", project_id),
             )
             for row in rows["quality"]
         ),
@@ -444,6 +533,7 @@ def build_run_report(
                 row.get("snapshot_before"),
                 row.get("snapshot_after"),
                 _safe_metadata(row.get("metadata")),
+                *_resource_identity(row, "resource_identity", project_id),
             )
             for row in rows["catalog_changes"]
         ),
@@ -457,6 +547,7 @@ def build_run_report(
                 row.get("expires_at"),
                 bool(row["legal_hold"]),
                 str(row["status"]),
+                *_resource_identity(row, "resource_identity", project_id),
             )
             for row in rows["artifacts"]
         ),

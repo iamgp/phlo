@@ -7,7 +7,7 @@ import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, replace
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -15,6 +15,8 @@ from uuid import uuid4
 
 import pytest
 
+from phlo.capabilities import ResourceRef
+from phlo.hooks import HookBus
 from phlo.hooks.emitters import (
     IngestionEventContext,
     IngestionEventEmitter,
@@ -51,8 +53,14 @@ from phlo.run_evidence import (
 from phlo.run_evidence.emit import emit_observation
 from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 from phlo.run_evidence.redaction import canonical_json, payload_checksum
-from phlo.run_evidence.report import build_run_report
-from phlo.run_evidence.store import _catalog_checksum_payload, _resource_checksum_payload
+from phlo.run_evidence.report import ReportResourceIdentity, build_run_report
+from phlo.run_evidence.store import (
+    _artifact_checksum_payload,
+    _catalog_checksum_payload,
+    _lineage_checksum_payload,
+    _quality_checksum_payload,
+    _resource_checksum_payload,
+)
 
 
 def _store_with_run(*, project_id: str = "project", run_id: str = "run") -> SQLiteRunEvidenceStore:
@@ -208,6 +216,119 @@ def test_run_report_orders_cross_producer_events_and_redacts_legacy_locations() 
     assert report.artifacts[0].uri == "https://example.test/report?token=<redacted>"
 
 
+def test_report_round_trips_canonical_resource_identities_without_display_inference() -> None:
+    store = _store_with_run()
+    run_ref = ResourceRef("run", "run", tenant="project")
+    stage_ref = ResourceRef("asset", "raw.orders", tenant="project")
+    resource_ref = ResourceRef(
+        "dataset",
+        "warehouse.orders",
+        tenant="project",
+        attributes={"classification": "restricted", "owner": "finance"},
+    )
+    quality_ref = ResourceRef("quality_check", "orders-freshness", tenant="project")
+    catalog_ref = ResourceRef("catalog_change", "promotion-1", tenant="project")
+    artifact_ref = ResourceRef("artifact", "report-1", tenant="project")
+    store.append_event(
+        RunEvent(
+            project_id="project",
+            run_id="run",
+            event_id="event",
+            event_type="stage.finished",
+            producer="test",
+            payload={},
+            resource_ref=run_ref,
+        ),
+        stage=RunStage(
+            project_id="project",
+            run_id="run",
+            stage_id="stage",
+            asset="display-only-asset",
+            resource_ref=stage_ref,
+        ),
+        resources=(
+            RunResource(
+                project_id="project",
+                run_id="run",
+                resource_id="resource",
+                role="input",
+                normalized_identity="display-only-resource",
+                resource_ref=resource_ref,
+            ),
+        ),
+        lineage_edges=(
+            RunLineageEdge(
+                project_id="project",
+                run_id="run",
+                lineage_edge_id="edge",
+                source="display-source",
+                target="display-target",
+                source_resource_ref=stage_ref,
+                target_resource_ref=resource_ref,
+            ),
+        ),
+        quality_result=RunQualityResult(
+            project_id="project",
+            run_id="run",
+            quality_result_id="quality",
+            check_id="display-only-check",
+            resource_ref=quality_ref,
+        ),
+        catalog_change=RunCatalogChange(
+            project_id="project",
+            run_id="run",
+            catalog_change_id="catalog",
+            operation="promotion",
+            resource_ref=catalog_ref,
+        ),
+        artifacts=(
+            RunArtifact(
+                project_id="project",
+                run_id="run",
+                artifact_id="artifact",
+                artifact_kind="log",
+                resource_ref=artifact_ref,
+            ),
+        ),
+    )
+
+    report = build_run_report(store, "project", "run", 1)
+
+    assert report.lifecycle.events[0].resource_identity == ReportResourceIdentity(
+        "project", "run", "run", "project", {}
+    )
+    assert report.stages[0].resource_identity == ReportResourceIdentity(
+        "project", "asset", "raw.orders", "project", {}
+    )
+    assert report.inputs[0].resource_identity == ReportResourceIdentity(
+        "project",
+        "dataset",
+        "warehouse.orders",
+        "project",
+        {"classification": "restricted", "owner": "finance"},
+    )
+    assert report.lineage[0].source_resource_identity == ReportResourceIdentity(
+        "project", "asset", "raw.orders", "project", {}
+    )
+    assert report.lineage[0].target_resource_identity == ReportResourceIdentity(
+        "project",
+        "dataset",
+        "warehouse.orders",
+        "project",
+        {"classification": "restricted", "owner": "finance"},
+    )
+    assert report.quality[0].resource_identity == ReportResourceIdentity(
+        "project", "quality_check", "orders-freshness", "project", {}
+    )
+    assert report.catalog_changes[0].resource_identity == ReportResourceIdentity(
+        "project", "catalog_change", "promotion-1", "project", {}
+    )
+    assert report.artifacts[0].resource_identity == ReportResourceIdentity(
+        "project", "artifact", "report-1", "project", {}
+    )
+    assert not any(gap.field == "resource_identities" for gap in report.gaps)
+
+
 def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
     """Insert rows using only the columns available after migrations 002+003."""
     project_id = "legacy-project"
@@ -283,9 +404,36 @@ def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
         started_at=datetime(2026, 7, 1, 1, 2, 3, tzinfo=UTC),
         finished_at=datetime(2026, 7, 1, 1, 3, 4, tzinfo=UTC),
     )
-    store.append_stage(stage)
     with store._transaction() as (_, cursor):
         p = store.placeholder
+        stage_checksum = payload_checksum(
+            {
+                "stage_id": stage.stage_id,
+                "project_id": project_id,
+                "run_id": run_id,
+                "stage_type": stage.stage_type,
+                "provider": stage.provider,
+                "tool": stage.tool,
+                "asset": stage.asset,
+                "attempt": attempt,
+            }
+        )
+        cursor.execute(
+            f"INSERT INTO {store._table('run_stage')} "
+            "(stage_id, project_id, run_id, stage_type, attempt, status, started_at, finished_at, "
+            "record_checksum) VALUES (" + ", ".join([p] * 9) + ")",
+            (
+                stage.stage_id,
+                project_id,
+                run_id,
+                stage.stage_type,
+                attempt,
+                stage.status,
+                stage.started_at.isoformat(),
+                stage.finished_at.isoformat(),
+                stage_checksum,
+            ),
+        )
         cursor.execute(
             f"INSERT INTO {store._table('run_event')} "
             "(project_id, run_id, event_id, event_type, schema_version, producer, observed_at, "
@@ -336,9 +484,7 @@ def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
                 catalog_checksum,
             ),
         )
-        quality_checksum = payload_checksum(
-            {key: value for key, value in asdict(quality).items() if key != "quality_result_id"}
-        )
+        quality_checksum = payload_checksum(_quality_checksum_payload(quality))
         cursor.execute(
             f"INSERT INTO {store._table('run_quality_result')} "
             "(quality_result_id, project_id, run_id, attempt, check_id, blocking, passed, metadata, "
@@ -355,9 +501,7 @@ def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
                 quality_checksum,
             ),
         )
-        artifact_checksum = payload_checksum(
-            {key: value for key, value in asdict(artifact).items() if key != "artifact_id"}
-        )
+        artifact_checksum = payload_checksum(_artifact_checksum_payload(artifact))
         cursor.execute(
             f"INSERT INTO {store._table('run_artifact')} "
             "(artifact_id, project_id, run_id, attempt, artifact_kind, expires_at, legal_hold, status, "
@@ -1250,7 +1394,7 @@ def test_sqlite_migration_is_versioned_and_idempotent() -> None:
     store._initialize_schema()
     with store._transaction() as (_, cursor):
         cursor.execute("SELECT version FROM run_evidence_schema_version")
-        assert [row[0] for row in cursor.fetchall()] == [1, 2, RUN_EVIDENCE_SCHEMA_VERSION]
+        assert [row[0] for row in cursor.fetchall()] == [1, 2, 3, RUN_EVIDENCE_SCHEMA_VERSION]
         for table in (
             "run_event",
             "run_resource",
@@ -1460,8 +1604,15 @@ def test_observation_persists_provider_resources_and_catalog_change() -> None:
             producer="provider",
             resources=[
                 {
+                    "resource_id": "stage-object-1",
                     "resource_kind": "staged_object",
                     "role": "staged",
+                    "resource_identity": {
+                        "resource_type": "staged_object",
+                        "resource_id": "stage-object-1",
+                        "tenant": "project",
+                        "attributes": {"classification": "internal"},
+                    },
                     "staged_objects": [
                         {"identity": "sha256:abc", "checksum": "abc", "byte_count": 10}
                     ],
@@ -1469,12 +1620,30 @@ def test_observation_persists_provider_resources_and_catalog_change() -> None:
                 }
             ],
             catalog_change={
+                "catalog_change_id": "promotion-1",
                 "operation": "promotion",
                 "catalog_ref": "main",
+                "resource_identity": {
+                    "resource_type": "catalog",
+                    "resource_id": "main",
+                    "tenant": "project",
+                    "attributes": {"environment": "production"},
+                },
                 "source_hash": "source",
                 "target_hash": "target",
                 "merge_outcome": "promoted",
             },
+            artifacts=[
+                {
+                    "artifact_id": "run-log-1",
+                    "artifact_kind": "log",
+                    "resource_identity": {
+                        "resource_type": "log",
+                        "resource_id": "run-log-1",
+                        "tenant": "project",
+                    },
+                }
+            ],
             correlation=HookCorrelation(project_id="project", run_id="run", attempt=2),
         )
     )
@@ -1491,6 +1660,158 @@ def test_observation_persists_provider_resources_and_catalog_change() -> None:
     assert resource[2] == '{"watermark":{"status":"unavailable"}}'
     assert change[0] == 2
     assert tuple(change[1:]) == ("source", "target", "promoted")
+    report = build_run_report(store, "project", "run", 2)
+    assert report.staging[0].resource_identity == ReportResourceIdentity(
+        "project",
+        "staged_object",
+        "stage-object-1",
+        "project",
+        {"classification": "internal"},
+    )
+    assert report.catalog_changes[0].resource_identity == ReportResourceIdentity(
+        "project", "catalog", "main", "project", {"environment": "production"}
+    )
+    assert report.artifacts[0].resource_identity == ReportResourceIdentity(
+        "project", "log", "run-log-1", "project", {}
+    )
+
+
+@pytest.mark.parametrize(
+    "resource_identity",
+    [
+        None,
+        {"resource_type": "dataset", "resource_id": "raw.orders", "tenant": "other"},
+        {
+            "resource_type": "dataset",
+            "resource_id": "raw.orders",
+            "tenant": "project",
+            "attributes": {"classification": 7},
+        },
+    ],
+)
+def test_observation_rejects_resource_without_canonical_producer_identity(
+    resource_identity: dict[str, object] | None,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    raw_resource: dict[str, object] = {
+        "resource_id": "local-correlation-id",
+        "resource_kind": "dataset",
+        "role": "output",
+    }
+    if resource_identity is not None:
+        raw_resource["resource_identity"] = resource_identity
+
+    with pytest.raises(ValueError, match="observation resource requires canonical"):
+        CoreRunEvidenceHookProvider(store)._handle_event(
+            RunEvidenceObservationEvent(
+                event_type="run_evidence.observation",
+                observation_type="ingest",
+                status="success",
+                resources=[raw_resource],
+                correlation=HookCorrelation(project_id="project", run_id="run"),
+            )
+        )
+
+    assert store.get_run("project", "run") is None
+
+
+@pytest.mark.parametrize(
+    "resource_identity",
+    [
+        None,
+        {"resource_type": "catalog", "resource_id": "main", "tenant": "other"},
+    ],
+)
+def test_observation_rejects_catalog_change_without_canonical_producer_identity(
+    resource_identity: dict[str, object] | None,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    catalog_change: dict[str, object] = {
+        "catalog_change_id": "local-correlation-id",
+        "operation": "promotion",
+        "catalog_ref": "main",
+    }
+    if resource_identity is not None:
+        catalog_change["resource_identity"] = resource_identity
+
+    with pytest.raises(ValueError, match="catalog change requires canonical"):
+        CoreRunEvidenceHookProvider(store)._handle_event(
+            RunEvidenceObservationEvent(
+                event_type="run_evidence.observation",
+                observation_type="publish",
+                status="success",
+                catalog_change=catalog_change,
+                correlation=HookCorrelation(project_id="project", run_id="run"),
+            )
+        )
+
+    assert store.get_run("project", "run") is None
+
+
+@pytest.mark.parametrize(
+    "resource_identity",
+    [
+        None,
+        {"resource_type": "log", "resource_id": "run-log", "tenant": "other"},
+    ],
+)
+def test_observation_rejects_artifact_without_canonical_producer_identity(
+    resource_identity: dict[str, object] | None,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    artifact: dict[str, object] = {
+        "artifact_id": "run-log",
+        "artifact_kind": "log",
+    }
+    if resource_identity is not None:
+        artifact["resource_identity"] = resource_identity
+
+    with pytest.raises(ValueError, match="artifact requires canonical"):
+        CoreRunEvidenceHookProvider(store)._handle_event(
+            RunEvidenceObservationEvent(
+                event_type="run_evidence.observation",
+                observation_type="publish",
+                status="success",
+                artifacts=[artifact],
+                correlation=HookCorrelation(project_id="project", run_id="run"),
+            )
+        )
+
+    assert store.get_run("project", "run") is None
+
+
+def test_public_observation_boundary_persists_canonical_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo.run_evidence.emit.get_hook_bus", lambda: bus)
+
+    emit_observation(
+        project_id="project",
+        run_id="run",
+        observation_type="publish",
+        status="success",
+        producer="provider",
+        artifacts=[
+            {
+                "artifact_id": "run-log",
+                "artifact_kind": "log",
+                "resource_identity": {
+                    "resource_type": "log",
+                    "resource_id": "run-log",
+                    "tenant": "project",
+                    "attributes": {"classification": "internal"},
+                },
+            }
+        ],
+    )
+
+    report = build_run_report(store, "project", "run", 1)
+    assert report.artifacts[0].resource_identity == ReportResourceIdentity(
+        "project", "log", "run-log", "project", {"classification": "internal"}
+    )
 
 
 def test_observation_redacts_rows_and_credentials() -> None:
@@ -1507,6 +1828,11 @@ def test_observation_redacts_rows_and_credentials() -> None:
                 {
                     "resource_kind": "staged_object",
                     "role": "staged",
+                    "resource_identity": {
+                        "resource_type": "staged_object",
+                        "resource_id": "redacted-object",
+                        "tenant": "project",
+                    },
                     "uri": "https://example.test/object?client_secret=TOPSECRET",
                     "metadata": {"rows": [{"email": "alice@example.test"}]},
                 }
@@ -1672,24 +1998,30 @@ def test_sqlite_v1_store_upgrades_additive_instrumentation_columns(tmp_path) -> 
     assert "attempt" in lineage_columns
     assert "attempt" in quality_columns
     assert "attempt" in artifact_columns
-    assert versions == [1, 2, RUN_EVIDENCE_SCHEMA_VERSION]
+    assert versions == [1, 2, 3, RUN_EVIDENCE_SCHEMA_VERSION]
 
 
 def test_v2_field_order_and_additive_checksums_are_compatibility_safe() -> None:
     from dataclasses import fields
 
-    assert [field.name for field in fields(RunResource)][-4:] == [
+    assert [field.name for field in fields(RunResource)][-5:] == [
         "attempt",
         "schema_hash_before",
         "schema_hash_after",
         "metadata",
+        "resource_ref",
     ]
-    assert [field.name for field in fields(RunCatalogChange)][-2:] == [
+    assert [field.name for field in fields(RunCatalogChange)][-3:] == [
         "attempt",
         "quality_decision_id",
+        "resource_ref",
     ]
-    assert [field.name for field in fields(RunArtifact)][-1:] == ["attempt"]
-    assert [field.name for field in fields(RunLineageEdge)][-1:] == ["attempt"]
+    assert [field.name for field in fields(RunArtifact)][-2:] == ["attempt", "resource_ref"]
+    assert [field.name for field in fields(RunLineageEdge)][-3:] == [
+        "attempt",
+        "source_resource_ref",
+        "target_resource_ref",
+    ]
 
     store = _store_with_run()
     resource = RunResource(project_id="project", run_id="run", resource_id="resource")
@@ -1718,28 +2050,9 @@ def test_v2_field_order_and_additive_checksums_are_compatibility_safe() -> None:
             ("lineage",),
         )
         lineage_checksum = cursor.fetchone()[0]
-    assert resource_checksum == payload_checksum(
-        {
-            key: value
-            for key, value in asdict(resource).items()
-            if key != "resource_id"
-            and key not in {"schema_hash_before", "schema_hash_after", "metadata"}
-        }
-    )
-    assert catalog_checksum == payload_checksum(
-        {
-            key: value
-            for key, value in asdict(catalog_change).items()
-            if key != "catalog_change_id" and key != "quality_decision_id"
-        }
-    )
-    assert lineage_checksum == payload_checksum(
-        {
-            key: value
-            for key, value in asdict(lineage).items()
-            if key not in {"lineage_edge_id", "attempt"}
-        }
-    )
+    assert resource_checksum == payload_checksum(_resource_checksum_payload(resource))
+    assert catalog_checksum == payload_checksum(_catalog_checksum_payload(catalog_change))
+    assert lineage_checksum == payload_checksum(_lineage_checksum_payload(lineage))
     with pytest.raises(IdempotencyConflict):
         store.append_resource(replace(resource, schema_hash_before="changed"))
     with pytest.raises(IdempotencyConflict):
@@ -1752,7 +2065,7 @@ def test_v2_field_order_and_additive_checksums_are_compatibility_safe() -> None:
         store.append_lineage_edge(replace(lineage, attempt=2))
 
 
-def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible(tmp_path) -> None:
+def test_true_v2_to_v4_upgrade_is_idempotent_and_marks_legacy_identity_incomplete(tmp_path) -> None:
     store = _make_sqlite_v2_store(tmp_path / "v2-evidence.db")
     fixture = _insert_v2_fixture_rows(store)
     before_checksums = _fixture_checksums(store)
@@ -1767,7 +2080,7 @@ def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible(tmp_path) -> None:
 
     with store._transaction() as (_, cursor):
         cursor.execute("SELECT version FROM run_evidence_schema_version ORDER BY version")
-        assert [row[0] for row in cursor.fetchall()] == [1, 2, 3]
+        assert [row[0] for row in cursor.fetchall()] == [1, 2, 3, 4]
     assert _fixture_checksums(store) == before_checksums
 
     assert store.append_event(fixture["event"]) is False
@@ -1775,6 +2088,13 @@ def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible(tmp_path) -> None:
     assert store.append_catalog_change(fixture["catalog"]) is None
     assert store.append_quality_result(fixture["quality"]) is None
     assert store.append_artifact(fixture["artifact"]) is None
+    report = build_run_report(store, fixture["project_id"], fixture["run_id"], fixture["attempt"])
+    assert report.staging[0].resource_identity is None
+    assert report.staging[0].resource_identity_status == "incomplete"
+    assert report.artifacts[0].resource_identity is None
+    assert any(
+        gap.field == "resource_identities" and gap.status == "incomplete" for gap in report.gaps
+    )
     with pytest.raises(IdempotencyConflict):
         store.append_resource(replace(fixture["resource"], uri="https://changed.example"))
     with pytest.raises(IdempotencyConflict):
@@ -1908,6 +2228,11 @@ def test_wap_rejection_is_failed_terminal_publish_evidence() -> None:
                 "operation": "promotion",
                 "catalog_ref": "main",
                 "merge_outcome": "rejected_quality",
+                "resource_identity": {
+                    "resource_type": "catalog",
+                    "resource_id": "main",
+                    "tenant": "project",
+                },
             },
             correlation=HookCorrelation(project_id="project", run_id="run", attempt=1),
         )
@@ -1999,7 +2324,15 @@ def test_wap_rejection_preserves_authoritative_success_status() -> None:
             status="rejected",
             run_status="success",
             producer="phlo-dagster-nessie",
-            catalog_change={"operation": "promotion", "merge_outcome": "rejected_quality"},
+            catalog_change={
+                "operation": "promotion",
+                "merge_outcome": "rejected_quality",
+                "resource_identity": {
+                    "resource_type": "catalog",
+                    "resource_id": "main",
+                    "tenant": "project",
+                },
+            },
             correlation=HookCorrelation(project_id="project", run_id="run"),
         )
     )
