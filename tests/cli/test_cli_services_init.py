@@ -347,6 +347,36 @@ def test_compose_generator_development_profile_keeps_core_host_ports(tmp_path) -
     assert data["services"]["postgres"]["ports"] == ["10000:5432"]
 
 
+@pytest.mark.parametrize(
+    ("dev_mode", "service_dev_mode"),
+    [(True, False), (False, True), (True, True)],
+)
+def test_compose_generator_rejects_dev_options_for_production_profile(
+    tmp_path,
+    dev_mode: bool,
+    service_dev_mode: bool,
+) -> None:
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        phlo_dev=True,
+        compose={},
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    with pytest.raises(ValueError, match="production.*dev_mode.*service_dev_mode"):
+        generator.generate_compose(
+            [service],
+            output_dir=tmp_path,
+            dev_mode=dev_mode,
+            service_dev_mode=service_dev_mode,
+            phlo_src_path="../phlo/src/phlo",
+            deployment_profile="production",
+        )
+
+
 def test_production_profile_neutralizes_protected_service_environment_overrides(
     tmp_path,
 ) -> None:
@@ -389,6 +419,39 @@ def test_production_profile_neutralizes_protected_service_environment_overrides(
         ),
         "UNRELATED": "preserved",
     }
+
+
+def test_production_profile_normalizes_list_form_protected_environment_assignments(
+    tmp_path,
+) -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        compose={
+            "environment": [
+                "POSTGRES_USER=literal-user",
+                "POSTGRES_PASSWORD=phlo",
+                "MINIO_ROOT_USER=${MINIO_ROOT_USER:-override-user}",
+                "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minio123}",
+                "UNRELATED=preserved",
+            ]
+        },
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    data = yaml.safe_load(
+        generator.generate_compose([service], output_dir=tmp_path, deployment_profile="production")
+    )
+
+    assert data["services"]["postgres"]["environment"] == [
+        "POSTGRES_USER=${POSTGRES_USER:?Phlo production requires POSTGRES_USER}",
+        "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Phlo production requires POSTGRES_PASSWORD}",
+        "MINIO_ROOT_USER=${MINIO_ROOT_USER:?Phlo production requires MINIO_ROOT_USER}",
+        "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Phlo production requires MINIO_ROOT_PASSWORD}",
+        "UNRELATED=preserved",
+    ]
 
 
 def test_production_profile_removes_internal_traefik_labels_but_preserves_other_labels(

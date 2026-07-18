@@ -64,6 +64,11 @@ class ComposeGenerator:
         Returns:
             Docker compose YAML content as string.
         """
+        if deployment_profile == "production" and (dev_mode or service_dev_mode):
+            raise ValueError(
+                "production deployment profile cannot use dev_mode or service_dev_mode"
+            )
+
         # Sort services by dependencies
         sorted_services = self.discovery.resolve_dependencies(services)
         user_overrides = user_overrides or {}
@@ -123,12 +128,25 @@ class ComposeGenerator:
     def _required_credential_expression(self, variable: str) -> str:
         return f"${{{variable}:?Phlo production requires {variable}}}"
 
+    def _require_production_environment_assignment(self, value: Any) -> Any:
+        """Normalize a protected list-form environment assignment."""
+        if isinstance(value, str):
+            variable, separator, _assigned_value = value.partition("=")
+            if variable in _PRODUCTION_CREDENTIAL_DEFAULTS and (separator or value == variable):
+                return f"{variable}={self._required_credential_expression(variable)}"
+        return self._require_production_credentials(value)
+
     def _require_production_credentials(self, value: Any) -> Any:
         """Replace bundled credential fallbacks with Compose required-variable syntax."""
         if isinstance(value, dict):
             for key, nested_value in value.items():
                 if key in _PRODUCTION_CREDENTIAL_DEFAULTS:
                     value[key] = self._required_credential_expression(key)
+                elif key == "environment" and isinstance(nested_value, list):
+                    value[key] = [
+                        self._require_production_environment_assignment(item)
+                        for item in nested_value
+                    ]
                 else:
                     value[key] = self._require_production_credentials(nested_value)
             return value
