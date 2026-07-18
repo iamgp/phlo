@@ -303,7 +303,6 @@ def _resources_for_event(event: HookEvent, *, project_id: str, run_id: str) -> l
         if not isinstance(raw, dict):
             continue
         values = dict(raw)
-        supplied_resource_id = values.get("resource_id")
         values.setdefault(
             "resource_id",
             _stable_id(
@@ -316,19 +315,10 @@ def _resources_for_event(event: HookEvent, *, project_id: str, run_id: str) -> l
         values["resource_ref"] = _resource_ref_from_mapping(
             values.get("resource_identity"), project_id
         )
-        if (
-            values["resource_ref"] is None
-            and isinstance(supplied_resource_id, str)
-            and supplied_resource_id.strip()
-        ):
-            # resource_id is an explicit producer ID; generated IDs are only correlation keys.
-            resource_kind = values.get("resource_kind")
-            if isinstance(resource_kind, str) and resource_kind.strip():
-                values["resource_ref"] = ResourceRef(
-                    resource_type=resource_kind,
-                    resource_id=supplied_resource_id,
-                    tenant=project_id,
-                )
+        if values["resource_ref"] is None:
+            raise ValueError(
+                "observation resource requires canonical project-scoped resource_identity"
+            )
         allowed = {
             "project_id",
             "run_id",
@@ -371,13 +361,9 @@ def _catalog_change_for_event(
     )
     values.update(project_id=project_id, run_id=run_id)
     values.setdefault("attempt", event.correlation.attempt)
-    values["resource_ref"] = _resource_ref_from_mapping(
-        values.get("resource_identity"), project_id
-    ) or ResourceRef(
-        resource_type="catalog_change",
-        resource_id=str(values["catalog_change_id"]),
-        tenant=project_id,
-    )
+    values["resource_ref"] = _resource_ref_from_mapping(values.get("resource_identity"), project_id)
+    if values["resource_ref"] is None:
+        raise ValueError("catalog change requires canonical project-scoped resource_identity")
     allowed = {
         "project_id",
         "run_id",

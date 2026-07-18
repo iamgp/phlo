@@ -219,7 +219,12 @@ def test_report_round_trips_canonical_resource_identities_without_display_infere
     store = _store_with_run()
     run_ref = ResourceRef("run", "run", tenant="project")
     stage_ref = ResourceRef("asset", "raw.orders", tenant="project")
-    resource_ref = ResourceRef("dataset", "warehouse.orders", tenant="project")
+    resource_ref = ResourceRef(
+        "dataset",
+        "warehouse.orders",
+        tenant="project",
+        attributes={"classification": "restricted", "owner": "finance"},
+    )
     quality_ref = ResourceRef("quality_check", "orders-freshness", tenant="project")
     catalog_ref = ResourceRef("catalog_change", "promotion-1", tenant="project")
     artifact_ref = ResourceRef("artifact", "report-1", tenant="project")
@@ -289,28 +294,36 @@ def test_report_round_trips_canonical_resource_identities_without_display_infere
     report = build_run_report(store, "project", "run", 1)
 
     assert report.lifecycle.events[0].resource_identity == ReportResourceIdentity(
-        "project", "run", "run"
+        "project", "run", "run", "project", {}
     )
     assert report.stages[0].resource_identity == ReportResourceIdentity(
-        "project", "asset", "raw.orders"
+        "project", "asset", "raw.orders", "project", {}
     )
     assert report.inputs[0].resource_identity == ReportResourceIdentity(
-        "project", "dataset", "warehouse.orders"
+        "project",
+        "dataset",
+        "warehouse.orders",
+        "project",
+        {"classification": "restricted", "owner": "finance"},
     )
     assert report.lineage[0].source_resource_identity == ReportResourceIdentity(
-        "project", "asset", "raw.orders"
+        "project", "asset", "raw.orders", "project", {}
     )
     assert report.lineage[0].target_resource_identity == ReportResourceIdentity(
-        "project", "dataset", "warehouse.orders"
+        "project",
+        "dataset",
+        "warehouse.orders",
+        "project",
+        {"classification": "restricted", "owner": "finance"},
     )
     assert report.quality[0].resource_identity == ReportResourceIdentity(
-        "project", "quality_check", "orders-freshness"
+        "project", "quality_check", "orders-freshness", "project", {}
     )
     assert report.catalog_changes[0].resource_identity == ReportResourceIdentity(
-        "project", "catalog_change", "promotion-1"
+        "project", "catalog_change", "promotion-1", "project", {}
     )
     assert report.artifacts[0].resource_identity == ReportResourceIdentity(
-        "project", "artifact", "report-1"
+        "project", "artifact", "report-1", "project", {}
     )
     assert not any(gap.field == "resource_identities" for gap in report.gaps)
 
@@ -1597,6 +1610,7 @@ def test_observation_persists_provider_resources_and_catalog_change() -> None:
                         "resource_type": "staged_object",
                         "resource_id": "stage-object-1",
                         "tenant": "project",
+                        "attributes": {"classification": "internal"},
                     },
                     "staged_objects": [
                         {"identity": "sha256:abc", "checksum": "abc", "byte_count": 10}
@@ -1608,6 +1622,12 @@ def test_observation_persists_provider_resources_and_catalog_change() -> None:
                 "catalog_change_id": "promotion-1",
                 "operation": "promotion",
                 "catalog_ref": "main",
+                "resource_identity": {
+                    "resource_type": "catalog",
+                    "resource_id": "main",
+                    "tenant": "project",
+                    "attributes": {"environment": "production"},
+                },
                 "source_hash": "source",
                 "target_hash": "target",
                 "merge_outcome": "promoted",
@@ -1641,14 +1661,90 @@ def test_observation_persists_provider_resources_and_catalog_change() -> None:
     assert tuple(change[1:]) == ("source", "target", "promoted")
     report = build_run_report(store, "project", "run", 2)
     assert report.staging[0].resource_identity == ReportResourceIdentity(
-        "project", "staged_object", "stage-object-1"
+        "project",
+        "staged_object",
+        "stage-object-1",
+        "project",
+        {"classification": "internal"},
     )
     assert report.catalog_changes[0].resource_identity == ReportResourceIdentity(
-        "project", "catalog_change", "promotion-1"
+        "project", "catalog", "main", "project", {"environment": "production"}
     )
     assert report.artifacts[0].resource_identity == ReportResourceIdentity(
-        "project", "log", "run-log-1"
+        "project", "log", "run-log-1", "project", {}
     )
+
+
+@pytest.mark.parametrize(
+    "resource_identity",
+    [
+        None,
+        {"resource_type": "dataset", "resource_id": "raw.orders", "tenant": "other"},
+        {
+            "resource_type": "dataset",
+            "resource_id": "raw.orders",
+            "tenant": "project",
+            "attributes": {"classification": 7},
+        },
+    ],
+)
+def test_observation_rejects_resource_without_canonical_producer_identity(
+    resource_identity: dict[str, object] | None,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    raw_resource: dict[str, object] = {
+        "resource_id": "local-correlation-id",
+        "resource_kind": "dataset",
+        "role": "output",
+    }
+    if resource_identity is not None:
+        raw_resource["resource_identity"] = resource_identity
+
+    with pytest.raises(ValueError, match="observation resource requires canonical"):
+        CoreRunEvidenceHookProvider(store)._handle_event(
+            RunEvidenceObservationEvent(
+                event_type="run_evidence.observation",
+                observation_type="ingest",
+                status="success",
+                resources=[raw_resource],
+                correlation=HookCorrelation(project_id="project", run_id="run"),
+            )
+        )
+
+    assert store.get_run("project", "run") is None
+
+
+@pytest.mark.parametrize(
+    "resource_identity",
+    [
+        None,
+        {"resource_type": "catalog", "resource_id": "main", "tenant": "other"},
+    ],
+)
+def test_observation_rejects_catalog_change_without_canonical_producer_identity(
+    resource_identity: dict[str, object] | None,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    catalog_change: dict[str, object] = {
+        "catalog_change_id": "local-correlation-id",
+        "operation": "promotion",
+        "catalog_ref": "main",
+    }
+    if resource_identity is not None:
+        catalog_change["resource_identity"] = resource_identity
+
+    with pytest.raises(ValueError, match="catalog change requires canonical"):
+        CoreRunEvidenceHookProvider(store)._handle_event(
+            RunEvidenceObservationEvent(
+                event_type="run_evidence.observation",
+                observation_type="publish",
+                status="success",
+                catalog_change=catalog_change,
+                correlation=HookCorrelation(project_id="project", run_id="run"),
+            )
+        )
+
+    assert store.get_run("project", "run") is None
 
 
 def test_observation_redacts_rows_and_credentials() -> None:
@@ -1665,6 +1761,11 @@ def test_observation_redacts_rows_and_credentials() -> None:
                 {
                     "resource_kind": "staged_object",
                     "role": "staged",
+                    "resource_identity": {
+                        "resource_type": "staged_object",
+                        "resource_id": "redacted-object",
+                        "tenant": "project",
+                    },
                     "uri": "https://example.test/object?client_secret=TOPSECRET",
                     "metadata": {"rows": [{"email": "alice@example.test"}]},
                 }
@@ -2060,6 +2161,11 @@ def test_wap_rejection_is_failed_terminal_publish_evidence() -> None:
                 "operation": "promotion",
                 "catalog_ref": "main",
                 "merge_outcome": "rejected_quality",
+                "resource_identity": {
+                    "resource_type": "catalog",
+                    "resource_id": "main",
+                    "tenant": "project",
+                },
             },
             correlation=HookCorrelation(project_id="project", run_id="run", attempt=1),
         )
@@ -2151,7 +2257,15 @@ def test_wap_rejection_preserves_authoritative_success_status() -> None:
             status="rejected",
             run_status="success",
             producer="phlo-dagster-nessie",
-            catalog_change={"operation": "promotion", "merge_outcome": "rejected_quality"},
+            catalog_change={
+                "operation": "promotion",
+                "merge_outcome": "rejected_quality",
+                "resource_identity": {
+                    "resource_type": "catalog",
+                    "resource_id": "main",
+                    "tenant": "project",
+                },
+            },
             correlation=HookCorrelation(project_id="project", run_id="run"),
         )
     )

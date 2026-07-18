@@ -51,6 +51,8 @@ class ReportResourceIdentity:
     project_id: str
     resource_type: str
     resource_id: str
+    tenant: str
+    attributes: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -259,15 +261,23 @@ def _resource_identity(
         return None, "incomplete"
     resource_type = value.get("resource_type")
     resource_id = value.get("resource_id")
+    attributes = value.get("attributes", {})
     if (
         not isinstance(resource_type, str)
         or not resource_type.strip()
         or not isinstance(resource_id, str)
         or not resource_id.strip()
         or value.get("tenant") != project_id
+        or not isinstance(attributes, dict)
+        or not all(
+            isinstance(key, str) and isinstance(item, str) for key, item in attributes.items()
+        )
     ):
         return None, "incomplete"
-    return ReportResourceIdentity(project_id, resource_type, resource_id), "complete"
+    return (
+        ReportResourceIdentity(project_id, resource_type, resource_id, project_id, attributes),
+        "complete",
+    )
 
 
 def _fingerprint(value: Any) -> str | None:
