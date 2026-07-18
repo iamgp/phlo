@@ -12,6 +12,7 @@ import pytest
 
 from phlo_dagster.wap_sensors import (
     _all_checks_passed,
+    _cleanup_owned_wap_branch,
     _quality_evidence,
     _project_identity_for_run,
     _wap_branch_name,
@@ -360,10 +361,17 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
     monkeypatch.setattr("phlo.run_evidence.emit.get_hook_bus", lambda: bus)
     monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    query_catalog_manager = MagicMock()
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._load_ref_query_catalog_manager",
+        lambda: query_catalog_manager,
+    )
 
     wap_auto_promotion_sensor._raw_fn(context)
 
     catalog.merge_branch.assert_called_once_with(source=branch, target="main")
+    query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch)
+    catalog.delete_branch.assert_called_once_with(branch)
     quality_rows = store.list_quality_results("project-promote", run_id, attempt=1)
     quality_id = next(row["quality_result_id"] for row in quality_rows)
     assert quality_id in {row["quality_result_id"] for row in quality_rows}
@@ -376,6 +384,111 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     assert run is not None
     assert run["status"] == "success"
     assert run["finished_at"] is not None
+
+
+def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypatch, tmp_path):
+    """A rejected quality decision removes the WAP ref and its owned catalog."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-rejected"
+    branch = _wap_branch_name(run_id)
+    run = SimpleNamespace(
+        run_id=run_id,
+        tags={
+            "phlo/wap_branch": branch,
+            "phlo/project_id": "project-rejected",
+            "phlo/attempt": "1",
+        },
+    )
+    instance = MagicMock()
+    instance.get_runs.return_value = [run]
+    instance.get_records_for_run.return_value = SimpleNamespace(records=[_FakeRecord(passed=False)])
+    catalog = MagicMock()
+    catalog.delete_branch.return_value = True
+    query_catalog_manager = MagicMock()
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._load_ref_query_catalog_manager",
+        lambda: query_catalog_manager,
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._quality_evidence",
+        lambda *_args, **_kwargs: ("quality-rejected", {}),
+    )
+    monkeypatch.setattr("phlo_dagster.wap_sensors._emit_wap_observation", lambda **_kwargs: None)
+    context = MagicMock(instance=instance, cursor=None)
+
+    wap_auto_promotion_sensor._raw_fn(context)
+
+    catalog.merge_branch.assert_not_called()
+    query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch)
+    catalog.delete_branch.assert_called_once_with(branch)
+    payload = json.loads((tmp_path / ".phlo" / "wap-reports" / f"{run_id}.json").read_text())
+    assert payload["status"] == "rejected"
+    assert payload["cleanup_complete"] is True
+
+
+def test_wap_cleanup_keeps_branch_when_query_catalog_cleanup_fails(monkeypatch, tmp_path):
+    """A manager failure does not report or perform completed branch cleanup."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-catalog-failure"
+    branch = _wap_branch_name(run_id)
+    run = SimpleNamespace(
+        run_id=run_id,
+        tags={
+            "phlo/wap_branch": branch,
+            "phlo/project_id": "project-catalog-failure",
+            "phlo/attempt": "1",
+        },
+    )
+    check_record = SimpleNamespace(
+        storage_id=1,
+        event_log_entry=SimpleNamespace(asset_check_evaluation=SimpleNamespace(passed=True)),
+    )
+    instance = MagicMock()
+    instance.get_runs.return_value = [run]
+    instance.get_records_for_run.return_value = SimpleNamespace(records=[check_record])
+    catalog = MagicMock()
+    catalog.get_branch_hash.side_effect = ["source", "target-before", "target-after"]
+    catalog.merge_branch.return_value = True
+    query_catalog_manager = MagicMock()
+    query_catalog_manager.drop_ref_query_catalog.side_effect = RuntimeError("catalog unavailable")
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._load_ref_query_catalog_manager",
+        lambda: query_catalog_manager,
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._quality_evidence",
+        lambda *_args, **_kwargs: ("quality-passed", {}),
+    )
+    monkeypatch.setattr("phlo_dagster.wap_sensors._emit_wap_observation", lambda **_kwargs: None)
+    context = MagicMock(instance=instance, cursor=None)
+
+    wap_auto_promotion_sensor._raw_fn(context)
+
+    catalog.merge_branch.assert_called_once_with(source=branch, target="main")
+    catalog.delete_branch.assert_not_called()
+    payload = json.loads((tmp_path / ".phlo" / "wap-reports" / f"{run_id}.json").read_text())
+    assert payload["source_deleted"] is False
+
+
+def test_wap_cleanup_rejects_unowned_ref_without_calling_either_provider():
+    catalog = MagicMock()
+    query_catalog_manager = MagicMock()
+
+    assert _cleanup_owned_wap_branch(catalog, "pipeline-legacy", query_catalog_manager) is False
+
+    query_catalog_manager.drop_ref_query_catalog.assert_not_called()
+    catalog.delete_branch.assert_not_called()
+
+
+def test_wap_cleanup_without_query_catalog_manager_keeps_nessie_only_behavior():
+    catalog = MagicMock()
+    catalog.delete_branch.return_value = True
+
+    assert _cleanup_owned_wap_branch(catalog, "pipeline-run-compatibility", None) is True
+
+    catalog.delete_branch.assert_called_once_with("pipeline-run-compatibility")
 
 
 def test_wap_quality_evidence_ignores_forged_report_ids_when_checks_unavailable(
@@ -495,8 +608,13 @@ def test_wap_cleanup_uses_authoritative_terminated_run_status(monkeypatch, tmp_p
     catalog = MagicMock()
     catalog.list_branches.return_value = [branch]
     catalog.delete_branch.return_value = True
+    query_catalog_manager = MagicMock()
     observations: list[dict[str, object]] = []
     monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    monkeypatch.setattr(
+        "phlo_dagster.wap_sensors._load_ref_query_catalog_manager",
+        lambda: query_catalog_manager,
+    )
     monkeypatch.setattr(
         "phlo_dagster.wap_sensors._emit_wap_observation",
         lambda **kwargs: observations.append(kwargs),
@@ -505,6 +623,8 @@ def test_wap_cleanup_uses_authoritative_terminated_run_status(monkeypatch, tmp_p
 
     wap_branch_cleanup_sensor._raw_fn(context)
 
+    query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch_name)
+    catalog.delete_branch.assert_called_once_with(branch_name)
     assert observations[0]["run_status"] == "success"
     assert observations[0]["run"].tags["phlo/project_id"] == "project-cleanup"
 

@@ -56,7 +56,7 @@ from typing import Any
 import dagster as dg
 
 from phlo._correlation import ProjectIdentity, resolve_project_identity
-from phlo.capabilities.interfaces import VersionedCatalog
+from phlo.capabilities.interfaces import RefQueryCatalogManager, VersionedCatalog
 from phlo.capabilities.resolver import resolve_capability
 from phlo._attempt import attempt_from_tags
 from phlo.hooks import HookCorrelation, QualityResultEvent, get_hook_bus
@@ -67,6 +67,7 @@ from phlo.run_evidence import default_run_evidence_store, emit_observation
 logger = get_logger(__name__)
 
 WAP_BRANCH_PREFIX = "pipeline-"
+OWNED_WAP_BRANCH_PREFIX = "pipeline-run-"
 WAP_TAG_KEY = "phlo/wap_branch"
 DEFAULT_RETENTION_HOURS = 24
 DEFAULT_BRANCH_CREATION_INTERVAL_SECONDS = int(
@@ -154,6 +155,58 @@ def _load_versioned_catalog() -> VersionedCatalog:
     if not isinstance(provider, VersionedCatalog):
         raise RuntimeError("WAP sensors require a VersionedCatalog-compatible provider.")
     return provider
+
+
+def _load_ref_query_catalog_manager() -> RefQueryCatalogManager | None:
+    """Resolve the optional query-catalog cleanup capability for WAP refs.
+
+    The configured query-engine provider may also own a file-backed catalog for
+    each WAP ref. Providers that do not implement this optional capability keep
+    the established Nessie-only branch cleanup behaviour.
+    """
+    resolution = resolve_capability("query_engine")
+    if resolution is None or not isinstance(resolution.provider, RefQueryCatalogManager):
+        return None
+    return resolution.provider
+
+
+def _is_owned_wap_branch(branch_name: str) -> bool:
+    """Return whether a ref was created by Phlo's WAP branch lifecycle."""
+    return branch_name.startswith(OWNED_WAP_BRANCH_PREFIX)
+
+
+def _cleanup_owned_wap_branch(
+    catalog: VersionedCatalog,
+    branch_name: str,
+    query_catalog_manager: RefQueryCatalogManager | None,
+) -> bool:
+    """Clean up one owned WAP ref and its optional query catalog.
+
+    The query catalog is removed first so a manager failure leaves the Nessie
+    branch available for a truthful retry. If branch deletion then fails, the
+    operation is still incomplete; providers must make their catalog removal
+    idempotent for the retry path.
+    """
+    if not _is_owned_wap_branch(branch_name):
+        logger.warning("wap_branch_cleanup_rejected_unowned_ref", branch_name=branch_name)
+        return False
+
+    if query_catalog_manager is not None:
+        try:
+            query_catalog_manager.drop_ref_query_catalog(branch_name)
+        except Exception:
+            logger.warning(
+                "wap_query_catalog_cleanup_failed",
+                branch_name=branch_name,
+                exc_info=True,
+            )
+            return False
+
+    try:
+        return catalog.delete_branch(branch_name)
+    except Exception:
+        logger.warning("wap_branch_cleanup_failed", branch_name=branch_name, exc_info=True)
+        return False
 
 
 def _wap_branch_name(run_id: str) -> str:
@@ -577,6 +630,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
     """
     instance = context.instance
     catalog = _load_versioned_catalog()
+    query_catalog_manager = _load_ref_query_catalog_manager()
 
     evaluation_time = datetime.now(timezone.utc)
     cursor_ts = None
@@ -608,6 +662,14 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         if not branch_name:
             continue
 
+        if not _is_owned_wap_branch(branch_name):
+            logger.warning(
+                "wap_promotion_skipped_unowned_ref",
+                run_id=run.run_id,
+                branch_name=branch_name,
+            )
+            continue
+
         if run_tags.get("phlo/wap_promoted"):
             continue
 
@@ -618,6 +680,30 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 project_id=_project_id_for_run(run),
                 attempt=_attempt_for_run(run),
             )
+            if quality_decision_id is None:
+                write_wap_report(
+                    run.run_id,
+                    status="promotion_blocked",
+                    branch=branch_name,
+                    target_branch="main",
+                    failure_reason="quality_evidence_unavailable",
+                )
+                _emit_wap_observation(
+                    run=run,
+                    status="incomplete",
+                    run_status="success",
+                    operation="promotion",
+                    catalog_ref="main",
+                    source_hash=_branch_hash(catalog, branch_name),
+                    target_hash=_branch_hash(catalog, "main"),
+                    merge_outcome="skipped_quality_evidence_unavailable",
+                    metadata={
+                        **quality_metadata,
+                        "changed_content_keys": {"status": "unavailable"},
+                    },
+                )
+                blocked += 1
+                continue
             write_wap_report(
                 run.run_id,
                 status="promotion_blocked",
@@ -641,6 +727,29 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                     **quality_metadata,
                     "changed_content_keys": {"status": "unavailable"},
                 },
+            )
+            cleanup_complete = _cleanup_owned_wap_branch(
+                catalog,
+                branch_name,
+                query_catalog_manager,
+            )
+            write_wap_report(
+                run.run_id,
+                status="rejected" if cleanup_complete else "rejected_cleanup_incomplete",
+                branch=branch_name,
+                source_hash=_branch_hash(catalog, branch_name),
+                cleanup_complete=cleanup_complete,
+                failure_reason=None if cleanup_complete else "branch_cleanup_incomplete",
+            )
+            _emit_wap_observation(
+                run=run,
+                status="success" if cleanup_complete else "incomplete",
+                run_status="success",
+                operation="cleanup",
+                catalog_ref=branch_name,
+                source_hash=_branch_hash(catalog, branch_name),
+                merge_outcome="deleted" if cleanup_complete else "failed",
+                metadata={"target_ref": "main", "reason": "rejected_quality"},
             )
             blocked += 1
             logger.info(
@@ -720,7 +829,11 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             continue
 
         target_hash_after = _branch_hash(catalog, "main")
-        source_deleted = catalog.delete_branch(branch_name)
+        source_deleted = _cleanup_owned_wap_branch(
+            catalog,
+            branch_name,
+            query_catalog_manager,
+        )
         instance.add_run_tags(run.run_id, {"phlo/wap_promoted": "true"})
         write_wap_report(
             run.run_id,
@@ -842,11 +955,12 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
 
     """
     catalog = _load_versioned_catalog()
+    query_catalog_manager = _load_ref_query_catalog_manager()
 
     retention_cutoff = datetime.now(timezone.utc) - timedelta(hours=DEFAULT_RETENTION_HOURS)
 
     branches = catalog.list_branches()
-    pipeline_branches = [b for b in branches if b.name.startswith(WAP_BRANCH_PREFIX)]
+    pipeline_branches = [b for b in branches if _is_owned_wap_branch(b.name)]
 
     deleted = 0
     skipped = 0
@@ -856,70 +970,83 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
             skipped += 1
             continue
 
-        if catalog.delete_branch(branch.name):
+        run_id = branch.name.removeprefix(OWNED_WAP_BRANCH_PREFIX)
+        report = _read_wap_report(run_id)
+        if report and (
+            report.get("run_id") != run_id or report.get("branch") not in (None, branch.name)
+        ):
+            report = None
+        dagster_run = None
+        run_status = None
+        get_run_by_id = getattr(context.instance, "get_run_by_id", None)
+        if callable(get_run_by_id):
+            dagster_run = get_run_by_id(run_id)
+            if dagster_run is not None:
+                run_status = _normalized_dagster_status(dagster_run)
+        report_status = report.get("run_status") if report else None
+        if report_status in {"success", "failed", "error", "cancelled", "canceled", "skipped"}:
+            run_status = report_status
+        elif report and report.get("status") == "promoted":
+            run_status = "success"
+        if run_status is None:
+            _record_uncorrelated_gap(
+                run_id,
+                branch=branch.name,
+                missing=["run_status"],
+                reason="cleanup_authoritative_status_missing",
+            )
+            continue
+
+        tags = dict(getattr(dagster_run, "tags", {}) or {}) if dagster_run else {}
+        report_project = report.get("project_id") if report else None
+        tagged_project = tags.get("phlo/project_id")
+        if report_project and tagged_project and report_project != tagged_project:
+            _record_uncorrelated_gap(
+                run_id,
+                branch=branch.name,
+                missing=["project_id"],
+                reason="cleanup_project_conflict",
+            )
+            continue
+        if report_project and not tagged_project:
+            tags["phlo/project_id"] = report_project
+        if "phlo/attempt" not in tags and report:
+            tags["phlo/attempt"] = str(report.get("attempt", ""))
+        cleanup_run = type("CleanupRun", (), {"run_id": run_id, "tags": tags})()
+        project_id = _project_id_for_run(cleanup_run)
+        attempt = _attempt_for_run(cleanup_run)
+        if not project_id or attempt is None:
+            _record_uncorrelated_gap(
+                run_id,
+                branch=branch.name,
+                missing=[
+                    field
+                    for field, value in (("project_id", project_id), ("attempt", attempt))
+                    if not value
+                ],
+                reason="cleanup_report_missing_correlation",
+            )
+            continue
+
+        cleanup_complete = _cleanup_owned_wap_branch(
+            catalog,
+            branch.name,
+            query_catalog_manager,
+        )
+        write_wap_report(
+            run_id,
+            status="cleanup_complete" if cleanup_complete else "cleanup_incomplete",
+            branch=branch.name,
+            cleanup_complete=cleanup_complete,
+            failure_reason=None if cleanup_complete else "branch_cleanup_incomplete",
+        )
+        if cleanup_complete:
             deleted += 1
             logger.info(
                 "wap_branch_cleaned_up",
                 branch_name=branch.name,
                 created_at=branch.created_at.isoformat() if branch.created_at else None,
             )
-            run_id = branch.name.removeprefix(WAP_BRANCH_PREFIX + "run-")
-            report = _read_wap_report(run_id)
-            if report and (
-                report.get("run_id") != run_id or report.get("branch") not in (None, branch.name)
-            ):
-                report = None
-            dagster_run = None
-            run_status = None
-            get_run_by_id = getattr(context.instance, "get_run_by_id", None)
-            if callable(get_run_by_id):
-                dagster_run = get_run_by_id(run_id)
-                if dagster_run is not None:
-                    run_status = _normalized_dagster_status(dagster_run)
-            report_status = report.get("run_status") if report else None
-            if report_status in {"success", "failed", "error", "cancelled", "canceled", "skipped"}:
-                run_status = report_status
-            elif report and report.get("status") == "promoted":
-                run_status = "success"
-            if run_status is None:
-                _record_uncorrelated_gap(
-                    run_id,
-                    branch=branch.name,
-                    missing=["run_status"],
-                    reason="cleanup_authoritative_status_missing",
-                )
-                continue
-
-            tags = dict(getattr(dagster_run, "tags", {}) or {}) if dagster_run else {}
-            report_project = report.get("project_id") if report else None
-            tagged_project = tags.get("phlo/project_id")
-            if report_project and tagged_project and report_project != tagged_project:
-                _record_uncorrelated_gap(
-                    run_id,
-                    branch=branch.name,
-                    missing=["project_id"],
-                    reason="cleanup_project_conflict",
-                )
-                continue
-            if report_project and not tagged_project:
-                tags["phlo/project_id"] = report_project
-            if "phlo/attempt" not in tags and report:
-                tags["phlo/attempt"] = str(report.get("attempt", ""))
-            cleanup_run = type("CleanupRun", (), {"run_id": run_id, "tags": tags})()
-            project_id = _project_id_for_run(cleanup_run)
-            attempt = _attempt_for_run(cleanup_run)
-            if not project_id or attempt is None:
-                _record_uncorrelated_gap(
-                    run_id,
-                    branch=branch.name,
-                    missing=[
-                        field
-                        for field, value in (("project_id", project_id), ("attempt", attempt))
-                        if not value
-                    ],
-                    reason="cleanup_report_missing_correlation",
-                )
-                continue
             _emit_wap_observation(
                 run=cleanup_run,
                 status="success",
