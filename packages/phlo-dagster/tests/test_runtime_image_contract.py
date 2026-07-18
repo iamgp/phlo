@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from importlib import resources
+from pathlib import Path
 
 
 def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -> None:
@@ -17,6 +18,32 @@ def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -
         in dockerfile
     )
     assert 'dagster-postgres "psycopg[binary]"' in dockerfile
+
+
+def test_dagster_runtime_image_pins_dbt_when_the_provider_version_is_populated() -> None:
+    dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
+
+    assert 'ARG PHLO_DBT_VERSION=""' in dockerfile
+    assert (
+        'if [ -n "$PHLO_DBT_VERSION" ]; then '
+        'PHLO_DBT_REQUIREMENT="phlo-dbt==$PHLO_DBT_VERSION"; fi;'
+    ) in dockerfile
+    assert (
+        'if [ -n "$PHLO_DBT_VERSION" ]; then uv pip install --system --no-index '
+        "--no-deps --reinstall --find-links /opt/phlo-wheelhouse "
+        '"$PHLO_DBT_REQUIREMENT"; fi;'
+    ) in dockerfile
+    assert dockerfile.count('"$PHLO_DBT_REQUIREMENT"') == 4
+    package_metadata = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    assert '"phlo-dbt' not in package_metadata
+
+
+def test_dagster_runtime_image_keeps_dbt_unpinned_when_provider_version_is_empty() -> None:
+    dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
+
+    assert 'PHLO_DBT_REQUIREMENT="phlo-dbt";' in dockerfile
+    assert '"phlo-dbt==$PHLO_DBT_VERSION" dagster-webserver' not in dockerfile
+    assert '"phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver' in dockerfile
 
 
 def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:

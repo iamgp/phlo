@@ -175,6 +175,7 @@ def install_operator(config: RunConfig) -> None:
             "--find-links",
             str(config.wheelhouse),
             "phlo[core-services]",
+            "phlo-dbt",
             "phlo-dlt",
             "phlo-pandera",
         ),
@@ -184,6 +185,7 @@ def install_operator(config: RunConfig) -> None:
         config,
         config.operator_python,
         "phlo",
+        "phlo-dbt",
         "phlo-dlt",
         "phlo-pandera",
     )

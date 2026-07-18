@@ -25,6 +25,7 @@ compose:
         CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}
         CLICKSTACK_QUERY_USER: ${CLICKSTACK_QUERY_USER:-}
         CLICKSTACK_QUERY_PASSWORD: ${CLICKSTACK_QUERY_PASSWORD:-}
+        PHLO_RUN_EVIDENCE_DB_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
     ports:
         - "${PHLO_API_PORT:-4000}:4000"
     healthcheck:

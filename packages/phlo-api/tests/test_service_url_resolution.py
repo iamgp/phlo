@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import socket
+from pathlib import Path
 from unittest.mock import Mock, patch
 
+import yaml
+
+from phlo.plugins.compose import ComposeGenerator
+from phlo.plugins.discovery import ServiceDefinition
 from phlo_api.observatory_api import dagster, loki, nessie, quality, trino
 from phlo_api.observatory_api.observatory_models import ObservatoryExternalLink
 from phlo_api.observatory_api.observatory_models import ObservatoryHealth
@@ -120,3 +125,48 @@ def test_merge_service_links_prefers_native_port() -> None:
     )
 
     assert links[0].url == "http://localhost:3000"
+
+
+def test_api_profile_uses_the_shared_run_evidence_store() -> None:
+    service = (Path(__file__).resolve().parents[1] / "src" / "phlo_api" / "service.yaml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "profile: api" in service
+    assert "PHLO_RUN_EVIDENCE_DB_URL:" in service
+    assert (
+        "postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}"
+        "@postgres:5432/${POSTGRES_DB:-phlo}"
+    ) in service
+    assert "depends_on:" not in service
+
+
+def test_non_dev_api_profile_compose_is_reachable_without_dev_mounts(tmp_path) -> None:
+    api = ServiceDefinition.from_yaml(
+        Path(__file__).resolve().parents[1] / "src" / "phlo_api" / "service.yaml"
+    )
+    postgres = ServiceDefinition(name="postgres", description="postgres")
+    dagster = ServiceDefinition(name="dagster", description="dagster")
+
+    class Discovery:
+        def resolve_dependencies(self, services):
+            return services
+
+        def get_service(self, name):
+            return {"postgres": postgres, "dagster": dagster, "phlo-api": api}.get(name)
+
+    compose = yaml.safe_load(
+        ComposeGenerator(Discovery()).generate_compose(
+            [postgres, dagster, api], output_dir=tmp_path, dev_mode=False
+        )
+    )
+    service = compose["services"]["phlo-api"]
+
+    assert service["profiles"] == ["api"]
+    assert service["ports"] == ["${PHLO_API_PORT:-4000}:4000"]
+    assert service["environment"]["PHLO_RUN_EVIDENCE_DB_URL"].endswith(
+        "@postgres:5432/${POSTGRES_DB:-phlo}"
+    )
+    assert "depends_on" not in service
+    assert "PHLO_DEV_MODE" not in service["environment"]
+    assert "/opt/phlo-dev:rw" not in "\n".join(service.get("volumes", []))

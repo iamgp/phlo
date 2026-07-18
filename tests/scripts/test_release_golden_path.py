@@ -105,8 +105,9 @@ def test_operator_install_uses_wheelhouse_and_not_editable_source(
     assert str(config.wheelhouse) in local_install
     assert "-e" not in local_install
     assert "." not in local_install
-    assert local_install[-3:] == ["phlo", "phlo-dlt", "phlo-pandera"]
+    assert local_install[-4:] == ["phlo", "phlo-dbt", "phlo-dlt", "phlo-pandera"]
     assert "phlo[core-services]" in commands[-2]
+    assert "phlo-dbt" in commands[-2]
 
 
 def test_existing_project_or_sibling_is_rejected_without_touching_it(

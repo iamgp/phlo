@@ -31,3 +31,19 @@ def test_dagster_daemon_uses_same_project_discovery_contract() -> None:
     assert "PHLO_WORKFLOWS_PATH: /app/workflows" in daemon_yaml
     assert "DBT_PROJECT_DIR:" not in daemon_yaml
     assert "../:/app" in daemon_yaml
+
+
+def test_dagster_and_daemon_share_the_postgres_run_evidence_store() -> None:
+    service_yaml = resources.files("phlo_dagster").joinpath("service.yaml").read_text()
+    daemon_yaml = resources.files("phlo_dagster").joinpath("dagster-daemon.yaml").read_text()
+    dsn = (
+        "PHLO_RUN_EVIDENCE_DB_URL: "
+        "postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}"
+        "@postgres:5432/${POSTGRES_DB:-phlo}"
+    )
+
+    dbt_release_arg = "PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-}"
+    assert dbt_release_arg in service_yaml
+    assert dbt_release_arg in daemon_yaml
+    assert dsn in service_yaml
+    assert dsn in daemon_yaml

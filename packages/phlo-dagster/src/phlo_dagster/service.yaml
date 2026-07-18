@@ -14,6 +14,7 @@ build:
   dockerfile: dagster/Dockerfile
   args:
     PHLO_VERSION: ${PHLO_VERSION:-}
+    PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-}
     PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
 
 depends_on:
@@ -73,6 +74,7 @@ compose:
     POSTGRES_USER: ${DAGSTER_POSTGRES_USER:-${POSTGRES_USER:-phlo}}
     POSTGRES_PASSWORD: ${DAGSTER_POSTGRES_PASSWORD:-${POSTGRES_PASSWORD:-phlo}}
     POSTGRES_DB: ${POSTGRES_DB:-phlo}
+    PHLO_RUN_EVIDENCE_DB_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
     WORKFLOWS_PATH: /app/workflows
     PHLO_WORKFLOWS_PATH: /app/workflows
     PHLO_PROJECT_PATH: /app
@@ -114,6 +116,10 @@ env_vars:
   PHLO_VERSION:
     default: ""
     description: Phlo version to install (empty for latest)
+  PHLO_DBT_VERSION:
+    default: ""
+    package: phlo-dbt
+    description: phlo-dbt version to install in the service image
   PHLO_HOST_PLATFORM:
     default: ""
     description: Host platform for executor selection (Darwin/Linux)
