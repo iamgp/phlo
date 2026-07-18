@@ -26,6 +26,7 @@ COPY --from=phlo-build-context /opt/phlo-build-context/wheelhouse /opt/phlo-whee
 
 # Install Phlo from the local wheelhouse when supplied; normal generated stacks retain PyPI behavior.
 RUN \
+    PHLO_DBT_VERSION="${PHLO_DBT_VERSION:-$PHLO_VERSION}"; \
     if [ -n "$PHLO_VERSION" ]; then \
     if [ -n "$PHLO_WHEELHOUSE" ]; then \
         test -d /opt/phlo-wheelhouse; \
