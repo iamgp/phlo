@@ -424,6 +424,7 @@ class RunEvidenceObservationEvent(HookEvent):
     stage_id: str | None = None
     resources: list[dict[str, Any]] = field(default_factory=list)
     catalog_change: dict[str, Any] | None = None
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
     metrics: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
 

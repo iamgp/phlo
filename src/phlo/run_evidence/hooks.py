@@ -6,6 +6,7 @@ import hashlib
 from dataclasses import asdict
 from typing import Any
 
+from phlo.capabilities import ResourceRef
 from phlo.hooks.events import (
     HookEvent,
     IngestionEvent,
@@ -18,6 +19,7 @@ from phlo.hooks.events import (
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookRegistration
 from phlo.run_evidence.models import (
     PipelineRun,
+    RunArtifact,
     RunCatalogChange,
     RunEvent,
     RunLineageEdge,
@@ -116,6 +118,7 @@ class CoreRunEvidenceHookProvider:
         lineage_edges = _lineage_for_event(event, project_id=project_id, run_id=run_id)
         resources = _resources_for_event(event, project_id=project_id, run_id=run_id)
         catalog_change = _catalog_change_for_event(event, project_id=project_id, run_id=run_id)
+        artifacts = _artifacts_for_event(event, project_id=project_id, run_id=run_id)
         store.append_event(
             RunEvent(
                 project_id=project_id,
@@ -128,6 +131,9 @@ class CoreRunEvidenceHookProvider:
                 payload=_event_payload(event),
                 attempt=event.correlation.attempt,
                 stage_id=stage.stage_id if stage else None,
+                resource_ref=stage.resource_ref
+                if stage is not None
+                else ResourceRef(resource_type="run", resource_id=run_id, tenant=project_id),
             ),
             run=run,
             stage=stage,
@@ -135,6 +141,7 @@ class CoreRunEvidenceHookProvider:
             lineage_edges=tuple(lineage_edges),
             resources=tuple(resources),
             catalog_change=catalog_change,
+            artifacts=tuple(artifacts),
         )
 
 
@@ -202,6 +209,11 @@ def _stage_for_event(event: HookEvent, *, project_id: str, run_id: str) -> RunSt
         finished_at=stage_finished_at,
         metrics=getattr(event, "metrics", {}) or {},
         error=getattr(event, "error", None),
+        resource_ref=ResourceRef(
+            resource_type="asset" if asset else "stage",
+            resource_id=asset or stage_id,
+            tenant=project_id,
+        ),
     )
 
 
@@ -231,6 +243,9 @@ def _quality_for_event(
         evaluated_count=_as_int(metadata.get("evaluated_count", metadata.get("total_rows"))),
         failed_count=_as_int(metadata.get("failed_count", metadata.get("failed_rows"))),
         metadata=metadata,
+        resource_ref=ResourceRef(
+            resource_type="quality_check", resource_id=event.check_name, tenant=project_id
+        ),
     )
 
 
@@ -257,6 +272,8 @@ def _lineage_for_event(
             origin=str(metadata.get("origin", "observed")),
             derivation=str(metadata.get("derivation", "exact")),
             confidence=_as_float(metadata.get("confidence")),
+            source_resource_ref=_asset_resource_ref(source, project_id),
+            target_resource_ref=_asset_resource_ref(target, project_id),
         )
         for index, (source, target) in enumerate(event.edges)
     ]
@@ -295,6 +312,13 @@ def _resources_for_event(event: HookEvent, *, project_id: str, run_id: str) -> l
         values["project_id"] = project_id
         values["run_id"] = run_id
         values.setdefault("attempt", event.correlation.attempt)
+        values["resource_ref"] = _resource_ref_from_mapping(
+            values.get("resource_identity"), project_id
+        )
+        if values["resource_ref"] is None:
+            raise ValueError(
+                "observation resource requires canonical project-scoped resource_identity"
+            )
         allowed = {
             "project_id",
             "run_id",
@@ -317,6 +341,7 @@ def _resources_for_event(event: HookEvent, *, project_id: str, run_id: str) -> l
             "snapshot_before",
             "snapshot_after",
             "metadata",
+            "resource_ref",
         }
         resources.append(
             RunResource(**{key: value for key, value in values.items() if key in allowed})
@@ -336,6 +361,9 @@ def _catalog_change_for_event(
     )
     values.update(project_id=project_id, run_id=run_id)
     values.setdefault("attempt", event.correlation.attempt)
+    values["resource_ref"] = _resource_ref_from_mapping(values.get("resource_identity"), project_id)
+    if values["resource_ref"] is None:
+        raise ValueError("catalog change requires canonical project-scoped resource_identity")
     allowed = {
         "project_id",
         "run_id",
@@ -353,8 +381,74 @@ def _catalog_change_for_event(
         "snapshot_after",
         "quality_decision_id",
         "metadata",
+        "resource_ref",
     }
     return RunCatalogChange(**{key: value for key, value in values.items() if key in allowed})
+
+
+def _artifacts_for_event(event: HookEvent, *, project_id: str, run_id: str) -> list[RunArtifact]:
+    if not isinstance(event, RunEvidenceObservationEvent):
+        return []
+    artifacts: list[RunArtifact] = []
+    for raw in event.artifacts:
+        if not isinstance(raw, dict) or not isinstance(raw.get("artifact_id"), str):
+            continue
+        values = dict(raw)
+        values.update(project_id=project_id, run_id=run_id)
+        values.setdefault("attempt", event.correlation.attempt)
+        values["resource_ref"] = _resource_ref_from_mapping(
+            values.get("resource_identity"), project_id
+        ) or ResourceRef(
+            resource_type="artifact", resource_id=values["artifact_id"], tenant=project_id
+        )
+        allowed = {
+            "project_id",
+            "run_id",
+            "artifact_id",
+            "artifact_kind",
+            "uri",
+            "content_type",
+            "checksum",
+            "retention_class",
+            "expires_at",
+            "legal_hold",
+            "status",
+            "attempt",
+            "resource_ref",
+        }
+        artifacts.append(
+            RunArtifact(**{key: value for key, value in values.items() if key in allowed})
+        )
+    return artifacts
+
+
+def _resource_ref_from_mapping(value: Any, project_id: str) -> ResourceRef | None:
+    if not isinstance(value, dict):
+        return None
+    resource_type = value.get("resource_type")
+    resource_id = value.get("resource_id")
+    attributes = value.get("attributes", {})
+    if (
+        not isinstance(resource_type, str)
+        or not resource_type.strip()
+        or not isinstance(resource_id, str)
+        or not resource_id.strip()
+        or value.get("tenant") != project_id
+        or not isinstance(attributes, dict)
+        or not all(
+            isinstance(key, str) and isinstance(item, str) for key, item in attributes.items()
+        )
+    ):
+        return None
+    return ResourceRef(resource_type, resource_id, tenant=project_id, attributes=attributes)
+
+
+def _asset_resource_ref(value: str, project_id: str) -> ResourceRef | None:
+    return (
+        ResourceRef(resource_type="asset", resource_id=value, tenant=project_id)
+        if value.strip()
+        else None
+    )
 
 
 def _run_status(event: HookEvent) -> str:

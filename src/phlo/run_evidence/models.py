@@ -7,7 +7,9 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, TypedDict
 
-RUN_EVIDENCE_SCHEMA_VERSION = 3
+from phlo.capabilities.interfaces import ResourceRef
+
+RUN_EVIDENCE_SCHEMA_VERSION = 4
 
 
 def _now() -> datetime:
@@ -80,9 +82,11 @@ class RunEvent:
     observed_at: datetime = field(default_factory=_now)
     sequence: int | None = None
     attempt: int = 1
+    resource_ref: ResourceRef | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        _validate_resource_ref(self.resource_ref, self.project_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,9 +106,11 @@ class RunStage:
     finished_at: datetime | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
+    resource_ref: ResourceRef | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        _validate_resource_ref(self.resource_ref, self.project_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,9 +138,11 @@ class RunResource:
     schema_hash_before: str | None = None
     schema_hash_after: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    resource_ref: ResourceRef | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        _validate_resource_ref(self.resource_ref, self.project_id)
         for item in self.staged_objects:
             if isinstance(item, str):
                 continue
@@ -156,9 +164,13 @@ class RunLineageEdge:
     derivation: str = "exact"
     confidence: float | None = None
     attempt: int = 1
+    source_resource_ref: ResourceRef | None = None
+    target_resource_ref: ResourceRef | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        _validate_resource_ref(self.source_resource_ref, self.project_id)
+        _validate_resource_ref(self.target_resource_ref, self.project_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,9 +191,11 @@ class RunQualityResult:
     failure_artifact_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     attempt: int = 1
+    resource_ref: ResourceRef | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        _validate_resource_ref(self.resource_ref, self.project_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,9 +218,11 @@ class RunCatalogChange:
     metadata: dict[str, Any] = field(default_factory=dict)
     attempt: int = 1
     quality_decision_id: str | None = None
+    resource_ref: ResourceRef | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        _validate_resource_ref(self.resource_ref, self.project_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +241,18 @@ class RunArtifact:
     legal_hold: bool = False
     status: EvidenceCompleteness = EvidenceCompleteness.COMPLETE
     attempt: int = 1
+    resource_ref: ResourceRef | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attempt", _positive_attempt(self.attempt))
+        _validate_resource_ref(self.resource_ref, self.project_id)
+
+
+def _validate_resource_ref(value: ResourceRef | None, project_id: str) -> None:
+    """Keep report authorization identities project-scoped and serializable."""
+    if value is None:
+        return
+    if not value.resource_type.strip() or not value.resource_id.strip():
+        raise ValueError("resource_ref requires non-empty resource_type and resource_id")
+    if value.tenant != project_id:
+        raise ValueError("resource_ref tenant must match the evidence project_id")
