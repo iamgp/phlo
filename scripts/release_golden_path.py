@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 PARTITION = "2025-01-15"
+FIXTURE_ROW_COUNT = 2
 PORT_NAMES = (
     "POSTGRES_PORT",
     "MINIO_API_PORT",
@@ -303,12 +304,12 @@ def release_golden_path_wap_check() -> dg.AssetCheckResult:
     )
 
 
-def write_report_policy_fixture(config: RunConfig) -> None:
+def write_report_policy_fixture(config: RunConfig, logical_run_id: str) -> None:
     """Grant the ephemeral report reader access only to the promoted WAP run report."""
     authorization_dir = config.project_dir / ".phlo" / "authorization"
     authorization_dir.mkdir(parents=True, exist_ok=True)
     (authorization_dir / "policies.yaml").write_text(
-        """version: 1
+        f"""version: 1
 
 policies:
   - policy_id: release-golden-path-wap-catalog-read
@@ -346,7 +347,7 @@ policies:
     action: run.read
     resource:
       type: run
-      id_pattern: "*"
+      id_pattern: "{logical_run_id}"
 """,
         encoding="utf-8",
     )
@@ -542,10 +543,9 @@ def discover_dagster_selector(config: RunConfig, token: str) -> tuple[str, str]:
     raise RuntimeError("Dagster did not expose __ASSET_JOB in a live repository")
 
 
-def materialize_wap(config: RunConfig) -> WapRun:
+def materialize_wap(config: RunConfig, logical_run_id: str) -> WapRun:
     """Launch the generated ingestion asset through the public WAP CLI path."""
     token = service_token("phlo-api", wap_service_secret(config))
-    logical_run_id = uuid.uuid4().hex
     dagster_url = service_url(config, "dagster", 3000, "/graphql")
     location_name, repository_name = discover_dagster_selector(config, token)
     nessie_url = service_url(config, "nessie", 19120)
@@ -662,7 +662,9 @@ def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
     raise RuntimeError(f"run report was not available for {wap_run.logical_run_id}: {last_error}")
 
 
-def verify_rows(config: RunConfig, table: str = "raw.events") -> None:
+def verify_rows(
+    config: RunConfig, table: str = "raw.events", expected_count: int = FIXTURE_ROW_COUNT
+) -> None:
     query = f"SELECT count(*) FROM iceberg.{table}"
     try:
         result = run(
@@ -686,8 +688,11 @@ def verify_rows(config: RunConfig, table: str = "raw.events") -> None:
         count = int(last_line)
     except (IndexError, ValueError) as exc:
         raise RuntimeError(f"Trino returned no row count for {table}: {result.stdout!r}") from exc
-    if count <= 0:
-        raise RuntimeError(f"{table} has no rows for partition {config.partition}")
+    if count != expected_count:
+        raise RuntimeError(
+            f"{table} row count {count} does not match expected {expected_count} "
+            f"for partition {config.partition}"
+        )
 
 
 def emit_runtime_diagnostics(config: RunConfig) -> None:
@@ -785,14 +790,15 @@ def main(argv: list[str] | None = None) -> int:
         align_project_name(config)
         install_project_dependencies(config)
         configure_non_dev_compose(config)
-        write_report_policy_fixture(config)
+        logical_run_id = uuid.uuid4().hex
+        write_report_policy_fixture(config, logical_run_id)
         start_stack(config)
         stack_started = True
         materialize_partition(config)
-        verify_rows(config)
+        verify_rows(config, expected_count=FIXTURE_ROW_COUNT)
         materialize_transform(config)
-        verify_rows(config, table="raw_marts.events_mart")
-        wap_run = materialize_wap(config)
+        verify_rows(config, table="raw_marts.events_mart", expected_count=FIXTURE_ROW_COUNT)
+        wap_run = materialize_wap(config, logical_run_id)
         wait_for_wap_promotion(config, wap_run)
         verify_run_report(config, wap_run)
     except Exception as exc:

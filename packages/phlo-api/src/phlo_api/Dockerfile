@@ -21,17 +21,17 @@ RUN pip install --no-cache-dir uv
 COPY --from=phlo-build-context /opt/phlo-build-context/wheelhouse /opt/phlo-wheelhouse
 
 RUN set -eux; \
+    PHLO_REQUIREMENT="phlo"; \
+    if [ -n "$PHLO_VERSION" ]; then PHLO_REQUIREMENT="phlo==$PHLO_VERSION"; fi; \
     PHLO_API_REQUIREMENT="phlo-api"; \
     if [ -n "$PHLO_API_VERSION" ]; then PHLO_API_REQUIREMENT="phlo-api==$PHLO_API_VERSION"; fi; \
-    if [ -n "$PHLO_VERSION" ]; then \
-        if [ -n "$PHLO_WHEELHOUSE" ]; then \
-            test -d /opt/phlo-wheelhouse; \
-            uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
-            uv pip install --system --prerelease explicit --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
-            uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
-        else \
-            uv pip install --system --prerelease explicit "phlo==$PHLO_VERSION" "$PHLO_API_REQUIREMENT"; \
-        fi; \
+    if [ -n "$PHLO_WHEELHOUSE" ]; then \
+        test -d /opt/phlo-wheelhouse; \
+        uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "$PHLO_REQUIREMENT" "$PHLO_API_REQUIREMENT"; \
+        uv pip install --system --prerelease explicit --find-links /opt/phlo-wheelhouse "$PHLO_REQUIREMENT" "$PHLO_API_REQUIREMENT"; \
+        uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "$PHLO_REQUIREMENT" "$PHLO_API_REQUIREMENT"; \
+    elif [ -n "$PHLO_VERSION" ]; then \
+        uv pip install --system --prerelease explicit "$PHLO_REQUIREMENT" "$PHLO_API_REQUIREMENT"; \
     else \
         uv pip install --system phlo "$PHLO_API_REQUIREMENT"; \
     fi

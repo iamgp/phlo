@@ -157,6 +157,11 @@ def test_api_image_accepts_direct_and_generated_build_contexts() -> None:
         "COPY --from=phlo-build-context /opt/phlo-build-context/phlo-api-entrypoint.sh "
         "/usr/local/bin/phlo-api-entrypoint.sh"
     ) in dockerfile
+    wheelhouse_branch = dockerfile.index('if [ -n "$PHLO_WHEELHOUSE" ]; then')
+    version_branch = dockerfile.index('elif [ -n "$PHLO_VERSION" ]; then')
+    assert wheelhouse_branch < version_branch
+    assert '"$PHLO_REQUIREMENT" "$PHLO_API_REQUIREMENT"' in dockerfile
+    assert dockerfile.count("--no-index --no-deps --reinstall --find-links") == 2
 
 
 def test_non_dev_api_profile_compose_is_reachable_without_dev_mounts(tmp_path) -> None:

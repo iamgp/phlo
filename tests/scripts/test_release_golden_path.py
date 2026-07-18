@@ -144,10 +144,12 @@ def test_wap_fixture_defines_a_blocking_passing_asset_check(tmp_path: Path) -> N
     assert "return dg.AssetCheckResult(passed=True)" in fixture
 
 
-def test_report_policy_fixture_grants_only_run_read_to_report_reader(tmp_path: Path) -> None:
+def test_report_policy_fixture_grants_only_its_generated_run_to_report_reader(
+    tmp_path: Path,
+) -> None:
     config = _config(tmp_path)
 
-    release_golden_path.write_report_policy_fixture(config)
+    release_golden_path.write_report_policy_fixture(config, "promoted-logical-run")
 
     policy = (config.project_dir / ".phlo" / "authorization" / "policies.yaml").read_text(
         encoding="utf-8"
@@ -160,8 +162,56 @@ def test_report_policy_fixture_grants_only_run_read_to_report_reader(tmp_path: P
     assert 'action: "*"' not in policy
     report_policy = policy.split("  - policy_id: release-golden-path-report-read", 1)[1]
     assert "action: run.read" in report_policy
+    assert 'id_pattern: "promoted-logical-run"' in report_policy
+    assert 'id_pattern: "*"' not in report_policy
     assert "action: catalog.read" not in report_policy
     assert "action: run.execute" not in report_policy
+
+
+def test_main_binds_report_policy_and_wap_to_the_same_generated_logical_run_id(
+    tmp_path: Path, monkeypatch
+) -> None:
+    captured: dict[str, str] = {}
+
+    for name in (
+        "build_wheelhouse",
+        "install_operator",
+        "create_project",
+        "write_transform_fixture",
+        "write_wap_fixture",
+        "align_project_name",
+        "install_project_dependencies",
+        "configure_non_dev_compose",
+        "start_stack",
+        "materialize_partition",
+        "materialize_transform",
+        "verify_rows",
+        "wait_for_wap_promotion",
+        "verify_run_report",
+    ):
+        monkeypatch.setattr(release_golden_path, name, lambda *_args, **_kwargs: None)
+
+    def write_policy(_config, logical_run_id: str) -> None:
+        captured["policy"] = logical_run_id
+
+    def materialize(_config, logical_run_id: str) -> release_golden_path.WapRun:
+        captured["wap"] = logical_run_id
+        return release_golden_path.WapRun(logical_run_id, "dagster-run")
+
+    monkeypatch.setattr(release_golden_path, "write_report_policy_fixture", write_policy)
+    monkeypatch.setattr(release_golden_path, "materialize_wap", materialize)
+    monkeypatch.setattr(release_golden_path, "project_name", lambda: "phlo-qa001-test")
+    monkeypatch.setattr(
+        release_golden_path.uuid, "uuid4", lambda: type("Id", (), {"hex": "promoted-logical-run"})()
+    )
+
+    assert (
+        release_golden_path.main(
+            ["--repo-root", str(tmp_path), "--project-dir", str(tmp_path / "project")]
+        )
+        == 0
+    )
+    assert captured == {"policy": "promoted-logical-run", "wap": "promoted-logical-run"}
 
 
 def test_transform_materialization_preserves_the_partition(tmp_path: Path, monkeypatch) -> None:
@@ -227,12 +277,12 @@ def test_wap_materialization_uses_live_selector_and_dynamic_urls(
         )
 
     monkeypatch.setattr(release_golden_path, "run", fake_run)
-    values = iter(["token", "logical"])
+    values = iter(["token"])
     monkeypatch.setattr(
         release_golden_path.uuid, "uuid4", lambda: type("Id", (), {"hex": next(values)})()
     )
 
-    wap_run = release_golden_path.materialize_wap(config)
+    wap_run = release_golden_path.materialize_wap(config, "logical")
 
     assert wap_run == release_golden_path.WapRun("logical", "dagster-1")
     args, kwargs = commands[0]
@@ -333,7 +383,7 @@ def test_existing_project_or_sibling_is_rejected_without_touching_it(
         assert marker.read_text(encoding="utf-8") == "caller-owned\n"
 
 
-def test_verify_rows_requires_a_positive_count(tmp_path: Path, monkeypatch) -> None:
+def test_verify_rows_requires_the_expected_fixture_count(tmp_path: Path, monkeypatch) -> None:
     config = _config(tmp_path)
     result = release_golden_path.subprocess.CompletedProcess([], 0, stdout='"2"\n', stderr="")
     monkeypatch.setattr(release_golden_path, "run", lambda *args, **kwargs: result)
@@ -342,7 +392,9 @@ def test_verify_rows_requires_a_positive_count(tmp_path: Path, monkeypatch) -> N
 
     for output, expected in (
         ("\n", "no row count"),
-        ("0\n", "no rows"),
+        ("0\n", "does not match expected 2"),
+        ("1\n", "does not match expected 2"),
+        ("3\n", "does not match expected 2"),
         ("oops\n", "no row count"),
     ):
         invalid = release_golden_path.subprocess.CompletedProcess([], 0, stdout=output, stderr="")
