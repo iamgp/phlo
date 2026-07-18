@@ -135,6 +135,7 @@ class TamperEvidentAuditSink:
             hmac_key: Secret key for HMAC sealing. Uses env default if not provided.
         """
         self._store = store
+        self.is_durable = store.is_durable
         self._hmac_key = hmac_key or _get_hmac_key()
         self._surface_locks: dict[str, threading.Lock] = {}
         self._surface_locks_guard = threading.Lock()
@@ -188,6 +189,8 @@ class TamperEvidentAuditSink:
 
 class AuditStore:
     """Protocol for audit storage backends."""
+
+    is_durable = False
 
     def append(self, record: SealedAuditRecord) -> None:
         """Append a sealed record to the store.

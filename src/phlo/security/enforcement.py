@@ -187,6 +187,7 @@ def enforce(
     request_id: str | None = None,
     surface: str = "unknown",
     correlation_id: str | None = None,
+    require_durable_audit: bool = False,
 ) -> EnforcementResult:
     """Make an authorization decision and emit a canonical audit event.
 
@@ -201,6 +202,8 @@ def enforce(
         request_id: Optional request correlation ID for audit.
         surface: Name of the surface invoking enforcement (e.g., "phlo-api").
         correlation_id: Optional end-to-end correlation ID across services.
+        require_durable_audit: Fail a permitted operation closed unless its audit
+            event persists to a durable sink.
 
     Returns:
         EnforcementResult: allow, deny, or error.
@@ -253,8 +256,14 @@ def enforce(
             policy_id=result.policy_id,
             request_id=request_id,
             correlation_id=correlation_id,
+            require_durable=require_durable_audit,
         )
     except Exception:
         logger.exception("audit_emission_failed")
+        if require_durable_audit and result.allowed:
+            return EnforcementResult.error(
+                reason_code="audit_persistence_failed",
+                explanation="Required durable audit persistence failed",
+            )
 
     return result
