@@ -93,6 +93,36 @@ def test_resolve_dbt_runtime_config_uses_ref_aware_catalog() -> None:
     assert config.catalog == "iceberg_feature_orders"
 
 
+def test_resolve_dbt_runtime_config_prefers_wap_branch_catalog() -> None:
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key=None,
+        tags={
+            "environment": "dev",
+            "phlo/wap_branch": "pipeline-run-run-1",
+            "phlo/ref": "feature_orders",
+        },
+        resources={},
+    )
+
+    config = resolve_dbt_runtime_config(runtime)
+
+    assert config.catalog == "iceberg_pipeline-run-run-1"
+
+
+def test_resolve_dbt_runtime_config_ignores_blank_wap_branch() -> None:
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key=None,
+        tags={"phlo/wap_branch": "  ", "phlo/ref": "feature_orders"},
+        resources={},
+    )
+
+    config = resolve_dbt_runtime_config(runtime)
+
+    assert config.catalog == "iceberg_feature_orders"
+
+
 def test_resolve_dbt_runtime_config_defaults_to_main_catalog() -> None:
     config = resolve_dbt_runtime_config()
 

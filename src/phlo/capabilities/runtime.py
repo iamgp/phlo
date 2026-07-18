@@ -46,6 +46,18 @@ def capability_overrides_from_tags(tags: Mapping[str, str]) -> dict[str, str]:
     return overrides
 
 
+def runtime_ref_from_tags(tags: Mapping[str, object]) -> str | None:
+    """Resolve the first non-blank runtime ref using canonical precedence."""
+    for key in ("phlo/wap_branch", "phlo/ref", "ref", "branch"):
+        value = tags.get(key)
+        if value is None:
+            continue
+        normalized = str(value).strip()
+        if normalized:
+            return normalized
+    return None
+
+
 class RuntimeContext(Protocol):
     """Orchestrator-agnostic runtime context."""
 
@@ -107,7 +119,7 @@ def routing_from_context(context: RuntimeContext) -> RuntimeRouting:
     }
     capability_overrides = capability_overrides_from_tags(tags)
     environment = tags.get("environment") or tags.get("env")
-    ref = tags.get("phlo/ref") or tags.get("ref") or tags.get("branch")
+    ref = runtime_ref_from_tags(tags)
 
     attempt, attempt_error = attempt_from_tags(tags)
     project = resolve_project_identity(tags)
