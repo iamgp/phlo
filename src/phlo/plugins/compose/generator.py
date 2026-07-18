@@ -8,7 +8,7 @@ import os
 import platform
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 
@@ -22,6 +22,15 @@ from phlo.plugins.compose.env import (
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 logger = get_logger(__name__)
+
+
+_PRODUCTION_INTERNAL_SERVICES = frozenset({"postgres", "minio", "nessie", "trino", "dagster"})
+_PRODUCTION_CREDENTIAL_DEFAULTS = {
+    "POSTGRES_USER": "phlo",
+    "POSTGRES_PASSWORD": "phlo",
+    "MINIO_ROOT_USER": "minio",
+    "MINIO_ROOT_PASSWORD": "minio123",
+}
 
 
 class ComposeGenerator:
@@ -39,6 +48,7 @@ class ComposeGenerator:
         service_dev_mode: bool = False,
         phlo_src_path: str | None = None,
         user_overrides: dict[str, Any] | None = None,
+        deployment_profile: Literal["development", "production"] = "development",
     ) -> str:
         """Generate docker-compose.yml content.
 
@@ -49,10 +59,16 @@ class ComposeGenerator:
             service_dev_mode: If True, apply service-specific `dev:` overrides.
             phlo_src_path: Path to phlo source (relative to project root).
             user_overrides: Dict of service name to ServiceOverride config from phlo.yaml.
+            deployment_profile: Deployment posture for generated service bindings.
 
         Returns:
             Docker compose YAML content as string.
         """
+        if deployment_profile == "production" and (dev_mode or service_dev_mode):
+            raise ValueError(
+                "production deployment profile cannot use dev_mode or service_dev_mode"
+            )
+
         # Sort services by dependencies
         sorted_services = self.discovery.resolve_dependencies(services)
         user_overrides = user_overrides or {}
@@ -71,6 +87,8 @@ class ComposeGenerator:
                 phlo_src_path=phlo_src_path,
                 user_override=service_override,
             )
+            if deployment_profile == "production":
+                self._apply_production_profile(service.name, compose["services"][service.name])
 
         named_volumes = self._collect_named_volumes(compose["services"].values())
         if named_volumes:
@@ -85,6 +103,64 @@ class ComposeGenerator:
 
 """
         return header + yaml.dump(compose, default_flow_style=False, sort_keys=False)
+
+    def _apply_production_profile(self, service_name: str, config: dict[str, Any]) -> None:
+        """Apply the bounded production network and credential posture."""
+        if service_name in _PRODUCTION_INTERNAL_SERVICES:
+            config.pop("ports", None)
+            self._remove_traefik_labels(config)
+        self._require_production_credentials(config)
+
+    def _remove_traefik_labels(self, config: dict[str, Any]) -> None:
+        """Remove public Traefik routes while retaining unrelated service labels."""
+        labels = config.get("labels")
+        if isinstance(labels, dict):
+            config["labels"] = {
+                key: value for key, value in labels.items() if not str(key).startswith("traefik.")
+            }
+        elif isinstance(labels, list):
+            config["labels"] = [
+                label
+                for label in labels
+                if not isinstance(label, str) or not label.startswith("traefik.")
+            ]
+
+    def _required_credential_expression(self, variable: str) -> str:
+        return f"${{{variable}:?Phlo production requires {variable}}}"
+
+    def _require_production_environment_assignment(self, value: Any) -> Any:
+        """Normalize a protected list-form environment assignment."""
+        if isinstance(value, str):
+            variable, separator, _assigned_value = value.partition("=")
+            if variable in _PRODUCTION_CREDENTIAL_DEFAULTS and (separator or value == variable):
+                return f"{variable}={self._required_credential_expression(variable)}"
+        return self._require_production_credentials(value)
+
+    def _require_production_credentials(self, value: Any) -> Any:
+        """Replace bundled credential fallbacks with Compose required-variable syntax."""
+        if isinstance(value, dict):
+            for key, nested_value in value.items():
+                if key in _PRODUCTION_CREDENTIAL_DEFAULTS:
+                    value[key] = self._required_credential_expression(key)
+                elif key == "environment" and isinstance(nested_value, list):
+                    value[key] = [
+                        self._require_production_environment_assignment(item)
+                        for item in nested_value
+                    ]
+                else:
+                    value[key] = self._require_production_credentials(nested_value)
+            return value
+        if isinstance(value, list):
+            return [self._require_production_credentials(item) for item in value]
+        if not isinstance(value, str):
+            return value
+
+        for variable, default in _PRODUCTION_CREDENTIAL_DEFAULTS.items():
+            bundled = f"${{{variable}:-{default}}}"
+            if bundled in value:
+                required = self._required_credential_expression(variable)
+                value = value.replace(bundled, required)
+        return value
 
     def _collect_named_volumes(self, services: Any) -> set[str]:
         """Collect named service volumes that need top-level compose declarations."""

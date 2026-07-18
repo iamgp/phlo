@@ -4,6 +4,7 @@ import os
 import re
 from typing import cast
 
+import click
 import pytest
 import yaml
 from click.testing import CliRunner
@@ -15,6 +16,77 @@ from phlo.plugins.compose.env import generate_env, generate_env_local
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 from tests.helpers import FakeDiscovery, _service
+
+
+def test_production_credentials_reject_defaults_and_require_safe_usernames() -> None:
+    from phlo.cli.commands.services.init import _validate_production_credentials
+
+    with pytest.raises(click.ClickException, match="MINIO_ROOT_USER, POSTGRES_USER"):
+        _validate_production_credentials({}, {})
+
+    with pytest.raises(click.ClickException, match="POSTGRES_PASSWORD"):
+        _validate_production_credentials(
+            {"POSTGRES_USER": "lakehouse", "MINIO_ROOT_USER": "object-admin"},
+            {"POSTGRES_PASSWORD": "phlo", "MINIO_ROOT_PASSWORD": "independent-secret"},
+        )
+
+
+def test_production_credentials_allow_generated_passwords_and_safe_usernames() -> None:
+    from phlo.cli.commands.services.init import _validate_production_credentials
+
+    _validate_production_credentials(
+        {"POSTGRES_USER": "lakehouse", "MINIO_ROOT_USER": "object-admin"},
+        {},
+    )
+
+
+def test_services_init_production_selects_the_secure_compose_profile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    postgres = _service("postgres", default=True)
+    discovery = FakeDiscovery({postgres.name: postgres}, default_names=(postgres.name,))
+    captured: dict[str, object] = {}
+
+    class FakeComposer:
+        def __init__(self, _discovery) -> None:
+            pass
+
+        def generate_compose(self, _services, _output_dir, **kwargs) -> str:
+            captured.update(kwargs)
+            return "services: {}\n"
+
+        def generate_env(self, _services, env_overrides=None) -> str:
+            captured["env_overrides"] = env_overrides
+            return ""
+
+        def generate_env_local(self, _services, **_kwargs) -> str:
+            return ""
+
+        def generate_gitignore(self, _services) -> str:
+            return ""
+
+        def copy_service_files(self, _services, _output_dir) -> list[str]:
+            return []
+
+    (tmp_path / "phlo.yaml").write_text(
+        "env:\n  POSTGRES_USER: lakehouse\n  MINIO_ROOT_USER: object-admin\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    from phlo.cli.commands.services import init as init_module
+
+    monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: discovery)
+    monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
+
+    result = CliRunner().invoke(init_module.init_cmd, ["--production"])
+
+    assert result.exit_code == 0, result.output
+    assert captured["deployment_profile"] == "production"
+    assert captured["dev_mode"] is False
+    assert captured["env_overrides"] == {
+        "POSTGRES_USER": "lakehouse",
+        "MINIO_ROOT_USER": "object-admin",
+        "PHLO_ENVIRONMENT": "production",
+    }
 
 
 def test_select_services_to_install_respects_enabled_disabled_and_profiles() -> None:
@@ -202,6 +274,231 @@ def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
     assert trino["mem_limit"] == "3g"
     assert trino["cpus"] == "2.0"
     assert trino["ulimits"] == {"nofile": {"soft": 16384, "hard": 16384}}
+
+
+def test_compose_generator_production_profile_hides_core_host_ports_and_requires_credentials(
+    tmp_path,
+) -> None:
+    class MinimalFakeDiscovery(FakeDiscovery):
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return services
+
+    services = [
+        ServiceDefinition(
+            name=name,
+            description=name,
+            category="core",
+            default=True,
+            compose={
+                "ports": ["10000:5432"],
+                "environment": {
+                    "POSTGRES_USER": "${POSTGRES_USER:-phlo}",
+                    "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:-phlo}",
+                    "MINIO_ROOT_USER": "${MINIO_ROOT_USER:-minio}",
+                    "MINIO_ROOT_PASSWORD": "${MINIO_ROOT_PASSWORD:-minio123}",
+                },
+            },
+        )
+        for name in ("postgres", "minio", "nessie", "trino", "dagster")
+    ]
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, MinimalFakeDiscovery()))
+    data = yaml.safe_load(
+        generator.generate_compose(
+            services=services,
+            output_dir=tmp_path,
+            deployment_profile="production",
+        )
+    )
+
+    for name in ("postgres", "minio", "nessie", "trino", "dagster"):
+        assert "ports" not in data["services"][name]
+        environment = data["services"][name]["environment"]
+        assert (
+            environment["POSTGRES_USER"]
+            == "${POSTGRES_USER:?Phlo production requires POSTGRES_USER}"
+        )
+        assert environment["POSTGRES_PASSWORD"] == (
+            "${POSTGRES_PASSWORD:?Phlo production requires POSTGRES_PASSWORD}"
+        )
+        assert (
+            environment["MINIO_ROOT_USER"]
+            == "${MINIO_ROOT_USER:?Phlo production requires MINIO_ROOT_USER}"
+        )
+        assert environment["MINIO_ROOT_PASSWORD"] == (
+            "${MINIO_ROOT_PASSWORD:?Phlo production requires MINIO_ROOT_PASSWORD}"
+        )
+
+
+def test_compose_generator_development_profile_keeps_core_host_ports(tmp_path) -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        compose={"ports": ["10000:5432"]},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    data = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+
+    assert data["services"]["postgres"]["ports"] == ["10000:5432"]
+
+
+@pytest.mark.parametrize(
+    ("dev_mode", "service_dev_mode"),
+    [(True, False), (False, True), (True, True)],
+)
+def test_compose_generator_rejects_dev_options_for_production_profile(
+    tmp_path,
+    dev_mode: bool,
+    service_dev_mode: bool,
+) -> None:
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        phlo_dev=True,
+        compose={},
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    with pytest.raises(ValueError, match="production.*dev_mode.*service_dev_mode"):
+        generator.generate_compose(
+            [service],
+            output_dir=tmp_path,
+            dev_mode=dev_mode,
+            service_dev_mode=service_dev_mode,
+            phlo_src_path="../phlo/src/phlo",
+            deployment_profile="production",
+        )
+
+
+def test_production_profile_neutralizes_protected_service_environment_overrides(
+    tmp_path,
+) -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        compose={"environment": {}},
+    )
+    overrides = {
+        "postgres": {
+            "environment": {
+                "POSTGRES_USER": "phlo",
+                "POSTGRES_PASSWORD": "literal-password",
+                "MINIO_ROOT_USER": "${MINIO_ROOT_USER:-minio}",
+                "MINIO_ROOT_PASSWORD": "${MINIO_ROOT_PASSWORD:-override-password}",
+                "UNRELATED": "preserved",
+            }
+        }
+    }
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    data = yaml.safe_load(
+        generator.generate_compose(
+            [service],
+            output_dir=tmp_path,
+            user_overrides=overrides,
+            deployment_profile="production",
+        )
+    )
+    environment = data["services"]["postgres"]["environment"]
+
+    assert environment == {
+        "POSTGRES_USER": "${POSTGRES_USER:?Phlo production requires POSTGRES_USER}",
+        "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?Phlo production requires POSTGRES_PASSWORD}",
+        "MINIO_ROOT_USER": "${MINIO_ROOT_USER:?Phlo production requires MINIO_ROOT_USER}",
+        "MINIO_ROOT_PASSWORD": (
+            "${MINIO_ROOT_PASSWORD:?Phlo production requires MINIO_ROOT_PASSWORD}"
+        ),
+        "UNRELATED": "preserved",
+    }
+
+
+def test_production_profile_normalizes_list_form_protected_environment_assignments(
+    tmp_path,
+) -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        compose={
+            "environment": [
+                "POSTGRES_USER=literal-user",
+                "POSTGRES_PASSWORD=phlo",
+                "MINIO_ROOT_USER=${MINIO_ROOT_USER:-override-user}",
+                "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minio123}",
+                "UNRELATED=preserved",
+            ]
+        },
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    data = yaml.safe_load(
+        generator.generate_compose([service], output_dir=tmp_path, deployment_profile="production")
+    )
+
+    assert data["services"]["postgres"]["environment"] == [
+        "POSTGRES_USER=${POSTGRES_USER:?Phlo production requires POSTGRES_USER}",
+        "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Phlo production requires POSTGRES_PASSWORD}",
+        "MINIO_ROOT_USER=${MINIO_ROOT_USER:?Phlo production requires MINIO_ROOT_USER}",
+        "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?Phlo production requires MINIO_ROOT_PASSWORD}",
+        "UNRELATED=preserved",
+    ]
+
+
+def test_production_profile_removes_internal_traefik_labels_but_preserves_other_labels(
+    tmp_path,
+) -> None:
+    service = ServiceDefinition(
+        name="trino",
+        description="trino",
+        category="core",
+        default=True,
+        compose={
+            "labels": {
+                "traefik.enable": "true",
+                "traefik.http.routers.trino.rule": "Host(`trino.phlo.localhost`)",
+                "phlo.metrics.enabled": "false",
+            }
+        },
+    )
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+
+    production = yaml.safe_load(
+        generator.generate_compose([service], output_dir=tmp_path, deployment_profile="production")
+    )
+    development = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+
+    assert production["services"]["trino"]["labels"] == {"phlo.metrics.enabled": "false"}
+    assert development["services"]["trino"]["labels"] == service.compose["labels"]
+
+
+def test_production_profile_renders_bundled_core_without_public_ports_or_credential_defaults(
+    tmp_path,
+) -> None:
+    discovery = ServiceDiscovery()
+    generator = ComposeGenerator(discovery)
+    compose = generator.generate_compose(
+        discovery.get_default_services(),
+        output_dir=tmp_path,
+        deployment_profile="production",
+    )
+    data = yaml.safe_load(compose)
+
+    for name in ("postgres", "minio", "nessie", "trino", "dagster"):
+        assert "ports" not in data["services"][name]
+        labels = data["services"][name].get("labels", {})
+        assert not any(str(label).startswith("traefik.") for label in labels)
+    assert "${POSTGRES_PASSWORD:-phlo}" not in compose
+    assert "${MINIO_ROOT_PASSWORD:-minio123}" not in compose
 
 
 def test_compose_generator_declares_named_volumes(tmp_path) -> None:
