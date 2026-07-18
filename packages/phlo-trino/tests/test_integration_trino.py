@@ -233,6 +233,33 @@ class TestTrinoResourceUnit:
         assert connect.call_args_list[1].kwargs["catalog"] == "iceberg_pipeline-run-1"
         bootstrap.close.assert_called_once()
 
+    def test_trino_implements_neutral_ref_query_catalog_manager(self):
+        """The core contract is satisfied without exposing Trino to orchestrators."""
+        from phlo.capabilities import RefQueryCatalogManager
+        from phlo_trino import TrinoResource
+
+        assert isinstance(TrinoResource(), RefQueryCatalogManager)
+
+    def test_public_catalog_provision_is_deterministic_and_owned(self):
+        """Provisioning derives the same catalog identity from an owned run ref."""
+        from phlo_trino import TrinoResource
+
+        resource = TrinoResource(catalog="iceberg")
+        with (
+            patch("phlo_trino.resource.config") as mock_config,
+            patch.object(resource, "_provision_catalog") as provision,
+        ):
+            mock_config.trino_catalog = "iceberg"
+
+            assert (
+                resource.provision_ref_query_catalog("pipeline-run-1") == "iceberg_pipeline-run-1"
+            )
+
+        provision.assert_called_once_with("iceberg_pipeline-run-1", "pipeline-run-1")
+
+        with pytest.raises(ValueError, match="owned pipeline-run"):
+            resource.provision_ref_query_catalog("dev")
+
     def test_connection_keeps_non_wap_refs_on_their_existing_catalogs(self):
         """A normal ref cannot claim ownership of a dynamic WAP catalog."""
         from phlo_trino import TrinoResource
@@ -253,7 +280,7 @@ class TestTrinoResourceUnit:
         connect.assert_called_once()
         assert connect.call_args.kwargs["catalog"] == "iceberg_dev"
 
-    def test_drop_ref_catalog_only_allows_owned_non_main_catalog(self):
+    def test_drop_ref_query_catalog_only_allows_owned_non_main_catalog(self):
         """Explicit cleanup cannot remove the shared main catalog."""
         from phlo_trino import TrinoResource
 
@@ -270,9 +297,9 @@ class TestTrinoResourceUnit:
             mock_config.trino_host = "trino"
             mock_config.trino_port = 8080
             resource = TrinoResource()
-            resource.drop_ref_catalog("pipeline-run-1")
+            resource.drop_ref_query_catalog("pipeline-run-1")
             with pytest.raises(ValueError, match="owned pipeline-run"):
-                resource.drop_ref_catalog("main")
+                resource.drop_ref_query_catalog("main")
 
         assert (
             bootstrap_cursor.execute.call_args.args[0]

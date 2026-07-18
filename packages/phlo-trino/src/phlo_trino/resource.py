@@ -221,14 +221,25 @@ class TrinoResource:
             or not ref.startswith(_OWNED_WAP_REF_PREFIX)
         ):
             return
-        self._provision_catalog(self._resolved_catalog(), ref)
+        self.provision_ref_query_catalog(ref)
 
-    def drop_ref_catalog(self, ref: str) -> None:
-        """Remove this resource's non-main catalog after explicit cleanup.
+    def provision_ref_query_catalog(self, ref: str) -> str:
+        """Provision the deterministic query catalog owned by a WAP run ref."""
+        if not ref.startswith(_OWNED_WAP_REF_PREFIX):
+            raise ValueError("Only owned pipeline-run catalogs can be provisioned")
+        base_catalog = self.catalog or config.trino_catalog
+        if base_catalog != config.trino_catalog:
+            raise ValueError("Only the configured Nessie catalog can be provisioned")
+        catalog = f"{base_catalog}_{ref}"
+        self._provision_catalog(catalog, ref)
+        return catalog
+
+    def drop_ref_query_catalog(self, ref: str) -> None:
+        """Remove this resource's owned WAP query catalog after explicit cleanup.
 
         The deterministic name must be derived from this resource and the
-        supplied non-main ref, so callers cannot drop the shared main catalog
-        or an unrelated catalog.
+        supplied WAP ref, so callers cannot drop the shared main catalog or an
+        unrelated catalog.
         """
         if not ref.startswith(_OWNED_WAP_REF_PREFIX):
             raise ValueError("Only owned pipeline-run catalogs can be removed")

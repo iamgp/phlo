@@ -297,6 +297,23 @@ class QueryEngine(Protocol):
 
 
 @runtime_checkable
+class RefQueryCatalogManager(Protocol):
+    """Provider-neutral lifecycle for query catalogs owned by one runtime ref.
+
+    Implementations derive a deterministic catalog identity from ``ref`` and
+    must reject cleanup for references they do not own.
+    """
+
+    def provision_ref_query_catalog(self, ref: str) -> str:
+        """Provision and return the query catalog owned by ``ref``."""
+        ...
+
+    def drop_ref_query_catalog(self, ref: str) -> None:
+        """Drop only the query catalog owned by ``ref``."""
+        ...
+
+
+@runtime_checkable
 class MaintenanceExecutor(Protocol):
     """Provider-neutral executor for scoped table maintenance operations."""
 
