@@ -41,6 +41,7 @@ Example:
 from __future__ import annotations
 
 import asyncio
+import os
 import platform
 import subprocess
 import sys
@@ -123,11 +124,6 @@ def wait_for_dagster_runtime(
     help="Dagster repository name for a WAP launch",
 )
 @click.option(
-    "--access-token",
-    envvar="PHLO_DAGSTER_ACCESS_TOKEN",
-    help="Verified user access token for a WAP launch",
-)
-@click.option(
     "--dagster-url",
     envvar="DAGSTER_GRAPHQL_URL",
     default="http://localhost:3000/graphql",
@@ -149,7 +145,6 @@ def materialize(
     job_name: str | None,
     repository_location_name: str | None,
     repository_name: str | None,
-    access_token: str | None,
     dagster_url: str,
     no_contract_refresh: bool,
     dry_run: bool,
@@ -184,10 +179,9 @@ def materialize(
                 "WAP materialization requires --repository-location-name and --repository-name "
                 "(or PHLO_DAGSTER_REPOSITORY_LOCATION_NAME and PHLO_DAGSTER_REPOSITORY_NAME)."
             )
+        access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
         if not access_token:
-            raise click.UsageError(
-                "WAP materialization requires --access-token or PHLO_DAGSTER_ACCESS_TOKEN."
-            )
+            raise click.UsageError("WAP materialization requires PHLO_DAGSTER_ACCESS_TOKEN.")
 
         logical_run_id = wap_run_id or uuid.uuid4().hex
         if dry_run:

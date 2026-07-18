@@ -23,6 +23,18 @@ mutation LaunchPipelineExecution($executionParams: ExecutionParams!) {
 }
 """
 
+EXISTING_MATERIALIZATION_RUN_QUERY = """
+query ExistingMaterializationRun($filter: RunsFilter!) {
+    runsOrError(filter: $filter, limit: 1) {
+        __typename
+        ... on Runs {
+            results { runId status }
+        }
+        ... on PythonError { message }
+    }
+}
+"""
+
 LAUNCH_PIPELINE_REEXECUTION_MUTATION = """
 mutation LaunchPipelineReexecution($executionParams: ExecutionParams, $reexecutionParams: ReexecutionParams) {
     launchPipelineReexecution(executionParams: $executionParams, reexecutionParams: $reexecutionParams) {
@@ -115,6 +127,42 @@ async def launch_materialize(
     execution_tags.update(tags or {})
     if partition_key:
         execution_tags.setdefault("dagster/partition", partition_key)
+    if idempotency_key:
+        existing = await _graphql(
+            dagster_url,
+            EXISTING_MATERIALIZATION_RUN_QUERY,
+            {
+                "filter": {
+                    "tags": _tags_for_execution(
+                        {
+                            "phlo/operation": "materialize_asset",
+                            "phlo/idempotency_key": idempotency_key,
+                        }
+                    )
+                }
+            },
+            access_token=access_token,
+        )
+        runs_or_error = existing.get("data", {}).get("runsOrError", {})
+        if runs_or_error.get("__typename") != "Runs":
+            raise RuntimeError(_error_message(runs_or_error))
+        results = runs_or_error.get("results") or []
+        if results:
+            run = results[0]
+            run_id = str(run.get("runId") or "")
+            if not run_id:
+                raise RuntimeError("Dagster returned an existing run without a run ID")
+            return DagsterOperationResult(
+                operation="materialize_asset",
+                dry_run=False,
+                accepted=True,
+                run_id=run_id,
+                asset_key_path=asset_key_path,
+                partition_key=partition_key,
+                status=str(run.get("status") or "UNKNOWN"),
+                message="Dagster previously accepted materialize_asset.",
+                details={"typename": "LaunchRunSuccess", "reconciled": True},
+            )
     result = await _graphql(
         dagster_url,
         LAUNCH_PIPELINE_EXECUTION_MUTATION,

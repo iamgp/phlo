@@ -151,6 +151,7 @@ def test_wap_materialize_uses_graphql_launch_and_cleans_a_rejected_new_branch(
 
     monkeypatch.setattr("phlo_dagster.cli_materialize.prepare_wap_launch", lambda **_: Launch())
     monkeypatch.setattr("phlo_dagster.cli_materialize.launch_materialize", rejected_launch)
+    monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "user-access-token")
 
     result = CliRunner().invoke(
         materialize,
@@ -165,8 +166,6 @@ def test_wap_materialize_uses_graphql_launch_and_cleans_a_rejected_new_branch(
             "phlo_dagster",
             "--repository-name",
             "phlo_dagster",
-            "--access-token",
-            "user-access-token",
         ],
     )
 
@@ -193,6 +192,7 @@ def test_wap_materialize_retains_new_branch_after_ambiguous_transport_failure(
 
     monkeypatch.setattr("phlo_dagster.cli_materialize.prepare_wap_launch", lambda **_: Launch())
     monkeypatch.setattr("phlo_dagster.cli_materialize.launch_materialize", timeout_launch)
+    monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "user-access-token")
 
     result = CliRunner().invoke(
         materialize,
@@ -205,8 +205,6 @@ def test_wap_materialize_retains_new_branch_after_ambiguous_transport_failure(
             "phlo_dagster",
             "--repository-name",
             "phlo_dagster",
-            "--access-token",
-            "user-access-token",
         ],
     )
 
@@ -221,10 +219,12 @@ def test_wap_materialize_requires_a_complete_selector_and_user_credential(monkey
     )
     runner = CliRunner()
 
+    monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "user-access-token")
     incomplete_selector = runner.invoke(
         materialize,
-        ["dlt_orders", "--wap", "--job-name", "__ASSET_JOB", "--access-token", "token"],
+        ["dlt_orders", "--wap", "--job-name", "__ASSET_JOB"],
     )
+    monkeypatch.delenv("PHLO_DAGSTER_ACCESS_TOKEN")
     missing_credential = runner.invoke(
         materialize,
         [
@@ -242,7 +242,10 @@ def test_wap_materialize_requires_a_complete_selector_and_user_credential(monkey
     assert incomplete_selector.exit_code != 0
     assert "requires --repository-location-name and --repository-name" in incomplete_selector.output
     assert missing_credential.exit_code != 0
-    assert "requires --access-token or PHLO_DAGSTER_ACCESS_TOKEN" in missing_credential.output
+    assert "requires PHLO_DAGSTER_ACCESS_TOKEN" in missing_credential.output
+
+    help_result = runner.invoke(materialize, ["--help"])
+    assert "--access-token" not in help_result.output
 
 
 def test_wap_materialize_resolves_the_required_selector_and_credential_from_environment(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 import httpx
+import pytest
 
 from phlo_dagster.operations import launch_materialize, launch_retry, list_partitions, terminate
 
@@ -96,6 +97,12 @@ def test_wap_materialize_tags_survive_retry(monkeypatch) -> None:
     payloads: list[dict[str, object]] = []
 
     async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        if "ExistingMaterializationRun" in json["query"]:
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={"data": {"runsOrError": {"__typename": "Runs", "results": []}}},
+            )
         payloads.append(json)
         mutation = "launchPipelineExecution" if len(payloads) == 1 else "launchPipelineReexecution"
         return httpx.Response(
@@ -139,6 +146,66 @@ def test_wap_materialize_tags_survive_retry(monkeypatch) -> None:
     assert launch_tag_map["phlo/idempotency_key"] == "request-42"
     assert retry["useParentRunTags"] is True
     assert {tag["key"]: tag["value"] for tag in retry["extraTags"]}["phlo/run_id"] == "request-42"
+
+
+def test_wap_materialize_reconciles_a_lost_response_without_a_duplicate_launch(
+    monkeypatch,
+) -> None:
+    accepted_run: dict[str, str] | None = None
+    launch_calls = 0
+    lookup_filters: list[dict[str, object]] = []
+
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        nonlocal accepted_run, launch_calls
+        if "ExistingMaterializationRun" in json["query"]:
+            lookup_filters.append(json["variables"]["filter"])
+            results = [accepted_run] if accepted_run else []
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={"data": {"runsOrError": {"__typename": "Runs", "results": results}}},
+            )
+
+        launch_calls += 1
+        accepted_run = {"runId": "dagster-run", "status": "STARTED"}
+        raise httpx.ReadTimeout("Dagster accepted the run but the response was lost")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    kwargs = {
+        "dagster_url": "http://dagster.test/graphql",
+        "asset_key_path": "silver/orders",
+        "job_name": "orders_job",
+        "idempotency_key": "request-42",
+        "tags": {
+            "phlo/run_id": "request-42",
+            "phlo/wap_branch": "pipeline-run-request-42",
+        },
+        "access_token": "verified-user-token",
+    }
+
+    with pytest.raises(httpx.ReadTimeout):
+        asyncio.run(launch_materialize(**kwargs))
+    reconciled = asyncio.run(launch_materialize(**kwargs))
+
+    assert launch_calls == 1
+    assert reconciled.accepted is True
+    assert reconciled.run_id == "dagster-run"
+    assert reconciled.status == "STARTED"
+    assert reconciled.details["reconciled"] is True
+    assert lookup_filters == [
+        {
+            "tags": [
+                {"key": "phlo/operation", "value": "materialize_asset"},
+                {"key": "phlo/idempotency_key", "value": "request-42"},
+            ]
+        },
+        {
+            "tags": [
+                {"key": "phlo/operation", "value": "materialize_asset"},
+                {"key": "phlo/idempotency_key", "value": "request-42"},
+            ]
+        },
+    ]
 
 
 def test_terminate_maps_dagster_error(monkeypatch) -> None:
