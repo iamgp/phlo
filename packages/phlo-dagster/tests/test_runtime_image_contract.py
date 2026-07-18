@@ -27,7 +27,7 @@ def test_dagster_runtime_image_installs_pinned_dbt_from_the_release_artifact() -
     assert '"phlo-dbt==$PHLO_DBT_VERSION"' in dockerfile
     assert dockerfile.count('"phlo-dbt==$PHLO_DBT_VERSION"') >= 2
     package_metadata = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
-    assert '"phlo-dbt>=0.1.0"' in package_metadata
+    assert '"phlo-dbt' not in package_metadata
 
 
 def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:
