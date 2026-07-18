@@ -579,7 +579,9 @@ def test_cleanup_only_tears_down_owned_compose_project(tmp_path: Path, monkeypat
 
     assert errors == []
     assert commands == [
-        release_golden_path.compose_command(config, "down", "--volumes", "--remove-orphans")
+        release_golden_path.compose_command(
+            config, "--profile", "api", "down", "--volumes", "--remove-orphans"
+        )
     ]
     assert not config.project_dir.exists()
 

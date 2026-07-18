@@ -767,7 +767,9 @@ def cleanup(
     if config.compose_file.exists():
         try:
             run(
-                compose_command(config, "down", "--volumes", "--remove-orphans"),
+                compose_command(
+                    config, "--profile", "api", "down", "--volumes", "--remove-orphans"
+                ),
                 cwd=config.project_dir,
             )
         except Exception as exc:

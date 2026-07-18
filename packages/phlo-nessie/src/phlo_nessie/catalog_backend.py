@@ -49,7 +49,9 @@ def _pyiceberg_catalog_config(ref: str) -> dict[str, Any]:
     return {
         "type": "rest",
         "uri": f"{settings.nessie_iceberg_rest_uri()}/{ref}",
-        "warehouse": os.environ.get("ICEBERG_WAREHOUSE_PATH", "s3://lake/warehouse"),
+        # Nessie REST catalog endpoints expect the configured warehouse identifier,
+        # not its physical S3 location.  The local Nessie service names it "warehouse".
+        "warehouse": "warehouse",
         "s3.endpoint": resolve_url(
             os.environ.get("ICEBERG_S3_ENDPOINT")
             or os.environ.get("S3_ENDPOINT", "http://minio:10001"),

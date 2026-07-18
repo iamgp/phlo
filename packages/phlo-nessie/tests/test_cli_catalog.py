@@ -29,6 +29,14 @@ def test_pyiceberg_catalog_config_resolves_unreachable_minio_endpoint(
     assert config["s3.endpoint"] == "http://localhost:19001"
 
 
+def test_pyiceberg_catalog_config_uses_nessie_warehouse_identifier(monkeypatch) -> None:
+    monkeypatch.setenv("ICEBERG_WAREHOUSE_PATH", "s3://other-lake/other-warehouse")
+
+    config = catalog_backend._pyiceberg_catalog_config("main")
+
+    assert config["warehouse"] == "warehouse"
+
+
 def test_get_iceberg_catalog_loads_catalog_backend(monkeypatch) -> None:
     mock_catalog = MagicMock()
     mock_loader = MagicMock(return_value=mock_catalog)
