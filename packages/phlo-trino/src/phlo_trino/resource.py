@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+import os
 import re
 import time
 from typing import Any, Iterable
@@ -50,6 +51,8 @@ from phlo_trino.type_mapping import apply_schema_types
 logger = get_logger(__name__)
 
 _MAINTENANCE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_CATALOG_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+_OWNED_WAP_REF_PREFIX = "pipeline-run-"
 
 TRINO_QUERY_ENGINE_SUPPORT = CapabilitySupport(
     supports_refs=True,
@@ -151,6 +154,113 @@ class TrinoResource:
             return f"{base_catalog}_{ref}"
         return base_catalog
 
+    @staticmethod
+    def _quote_catalog_identifier(name: str) -> str:
+        """Return a validated Trino catalog identifier for dynamic-catalog SQL."""
+        if not _CATALOG_IDENTIFIER.fullmatch(name):
+            raise ValueError(f"Invalid Trino catalog identifier: {name!r}")
+        return f'"{name}"'
+
+    @staticmethod
+    def _quote_sql_literal(value: str) -> str:
+        """Return a SQL string literal without allowing property-value injection."""
+        return "'" + value.replace("'", "''") + "'"
+
+    def _dynamic_catalog_properties(self, ref: str) -> dict[str, str]:
+        """Return the direct Nessie catalog properties for one exact reference."""
+        s3_endpoint = os.environ.get("S3_ENDPOINT", "http://minio:9000")
+        s3_region = os.environ.get("AWS_REGION", "us-east-1")
+        return {
+            "iceberg.catalog.type": "nessie",
+            "iceberg.nessie-catalog.uri": "http://nessie:19120/api/v2",
+            "iceberg.nessie-catalog.ref": ref,
+            "iceberg.nessie-catalog.default-warehouse-dir": "s3://lake/warehouse",
+            "fs.native-s3.enabled": "true",
+            "s3.endpoint": s3_endpoint,
+            "s3.path-style-access": "true",
+            "s3.region": s3_region,
+        }
+
+    def _provision_catalog(self, catalog: str, ref: str) -> None:
+        """Create the deterministic in-memory catalog for a Nessie reference.
+
+        ``CREATE CATALOG IF NOT EXISTS`` makes concurrent readers of the same
+        run reference converge on one catalog without deleting or replacing a
+        catalog owned by another run. S3 credentials stay in the Trino service
+        environment and are never included in this SQL statement.
+        """
+        quoted_catalog = self._quote_catalog_identifier(catalog)
+        properties = self._dynamic_catalog_properties(ref)
+        rendered_properties = ", ".join(
+            f'"{key}" = {self._quote_sql_literal(value)}' for key, value in properties.items()
+        )
+        statement = (
+            f"CREATE CATALOG IF NOT EXISTS {quoted_catalog} USING iceberg "
+            f"WITH ({rendered_properties})"
+        )
+        bootstrap = connect(
+            host=self.host or config.trino_host,
+            port=self.port or config.trino_port,
+            user=self.user,
+            catalog="system",
+            schema="runtime",
+        )
+        try:
+            with bootstrap.cursor() as cursor:
+                cursor.execute(statement)
+        finally:
+            bootstrap.close()
+
+    def _provision_resolved_catalog(self) -> None:
+        """Provision the active WAP catalog before connecting to it."""
+        base_catalog = self.catalog or config.trino_catalog
+        ref = self._resolved_ref()
+        if (
+            base_catalog != config.trino_catalog
+            or ref is None
+            or not ref.startswith(_OWNED_WAP_REF_PREFIX)
+        ):
+            return
+        self.provision_ref_query_catalog(ref)
+
+    def provision_ref_query_catalog(self, ref: str) -> str:
+        """Provision the deterministic query catalog owned by a WAP run ref."""
+        if not ref.startswith(_OWNED_WAP_REF_PREFIX):
+            raise ValueError("Only owned pipeline-run catalogs can be provisioned")
+        base_catalog = self.catalog or config.trino_catalog
+        if base_catalog != config.trino_catalog:
+            raise ValueError("Only the configured Nessie catalog can be provisioned")
+        catalog = f"{base_catalog}_{ref}"
+        self._provision_catalog(catalog, ref)
+        return catalog
+
+    def drop_ref_query_catalog(self, ref: str) -> None:
+        """Remove this resource's owned WAP query catalog after explicit cleanup.
+
+        The deterministic name must be derived from this resource and the
+        supplied WAP ref, so callers cannot drop the shared main catalog or an
+        unrelated catalog.
+        """
+        if not ref.startswith(_OWNED_WAP_REF_PREFIX):
+            raise ValueError("Only owned pipeline-run catalogs can be removed")
+        base_catalog = self.catalog or config.trino_catalog
+        if base_catalog != config.trino_catalog:
+            raise ValueError("Only the configured Nessie catalog can be removed")
+        catalog = f"{base_catalog}_{ref}"
+        quoted_catalog = self._quote_catalog_identifier(catalog)
+        bootstrap = connect(
+            host=self.host or config.trino_host,
+            port=self.port or config.trino_port,
+            user=self.user,
+            catalog="system",
+            schema="runtime",
+        )
+        try:
+            with bootstrap.cursor() as cursor:
+                cursor.execute(f"DROP CATALOG IF EXISTS {quoted_catalog}")
+        finally:
+            bootstrap.close()
+
     def get_connection(self, schema: str | None = None):
         """Create a DB-API connection to Trino.
 
@@ -161,6 +271,7 @@ class TrinoResource:
             Open Trino DB-API connection.
 
         """
+        self._provision_resolved_catalog()
         return connect(
             host=self.host or config.trino_host,
             port=self.port or config.trino_port,

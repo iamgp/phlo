@@ -14,6 +14,7 @@ from phlo.capabilities import (
     ObservabilityBackendSpec,
     PublishTargetSpec,
     QueryEngineSpec,
+    RefQueryCatalogManager,
     RuntimeRouting,
     SchemaMigrationSpec,
     TableStoreSpec,
@@ -119,6 +120,22 @@ def test_maintenance_executor_protocol_is_provider_neutral() -> None:
         "retain_last": 5,
         "operation_id": "op-1",
     }
+
+
+def test_ref_query_catalog_manager_protocol_is_provider_neutral() -> None:
+    """A structural provider can own query catalogs without core knowing its engine."""
+
+    class DeltaLikeRefQueryCatalogManager:
+        def provision_ref_query_catalog(self, ref: str) -> str:
+            return f"delta_{ref}"
+
+        def drop_ref_query_catalog(self, ref: str) -> None:
+            return None
+
+    manager = DeltaLikeRefQueryCatalogManager()
+    assert isinstance(manager, RefQueryCatalogManager)
+    assert manager.provision_ref_query_catalog("pipeline-run-1") == "delta_pipeline-run-1"
+    assert manager.drop_ref_query_catalog("pipeline-run-1") is None
 
 
 def test_maintenance_operation_result_uses_neutral_revision_keys() -> None:

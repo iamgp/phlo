@@ -31,7 +31,7 @@ compose:
     - "${TRINO_PORT:-10005}:8080"
   mem_limit: 2g
   volumes:
-    - ./trino:/etc/trino:ro
+    - ./trino:/etc/trino:rw
   healthcheck:
     test: ["CMD-SHELL", "[ \"$(curl -fsS http://127.0.0.1:8080/v1/info/state | tr -d '\"')\" = \"ACTIVE\" ]"]
     interval: 10s

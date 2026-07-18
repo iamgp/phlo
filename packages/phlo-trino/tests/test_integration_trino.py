@@ -202,6 +202,110 @@ class TestTrinoResourceUnit:
             resource = TrinoResource(catalog="iceberg", runtime=runtime)
             assert resource._resolved_catalog() == "iceberg_feature_orders"
 
+    def test_connection_provisions_exact_runtime_ref_before_querying(self):
+        """The WAP catalog must be created against the same branch as the query."""
+        from phlo_trino import TrinoResource
+
+        bootstrap_cursor = MagicMock()
+        bootstrap_cursor.__enter__.return_value = bootstrap_cursor
+        bootstrap = MagicMock()
+        bootstrap.cursor.return_value = bootstrap_cursor
+        query_connection = MagicMock()
+
+        with (
+            patch("phlo_trino.resource.config") as mock_config,
+            patch(
+                "phlo_trino.resource.connect", side_effect=[bootstrap, query_connection]
+            ) as connect,
+        ):
+            mock_config.trino_catalog = "iceberg"
+            mock_config.default_catalog_ref = "main"
+            mock_config.trino_host = "trino"
+            mock_config.trino_port = 8080
+            resource = TrinoResource(ref="pipeline-run-1")
+
+            assert resource.get_connection(schema="raw") is query_connection
+
+        statement = bootstrap_cursor.execute.call_args.args[0]
+        assert 'CREATE CATALOG IF NOT EXISTS "iceberg_pipeline-run-1"' in statement
+        assert "\"iceberg.nessie-catalog.ref\" = 'pipeline-run-1'" in statement
+        assert connect.call_args_list[0].kwargs["catalog"] == "system"
+        assert connect.call_args_list[1].kwargs["catalog"] == "iceberg_pipeline-run-1"
+        bootstrap.close.assert_called_once()
+
+    def test_trino_implements_neutral_ref_query_catalog_manager(self):
+        """The core contract is satisfied without exposing Trino to orchestrators."""
+        from phlo.capabilities import RefQueryCatalogManager
+        from phlo_trino import TrinoResource
+
+        assert isinstance(TrinoResource(), RefQueryCatalogManager)
+
+    def test_public_catalog_provision_is_deterministic_and_owned(self):
+        """Provisioning derives the same catalog identity from an owned run ref."""
+        from phlo_trino import TrinoResource
+
+        resource = TrinoResource(catalog="iceberg")
+        with (
+            patch("phlo_trino.resource.config") as mock_config,
+            patch.object(resource, "_provision_catalog") as provision,
+        ):
+            mock_config.trino_catalog = "iceberg"
+
+            assert (
+                resource.provision_ref_query_catalog("pipeline-run-1") == "iceberg_pipeline-run-1"
+            )
+
+        provision.assert_called_once_with("iceberg_pipeline-run-1", "pipeline-run-1")
+
+        with pytest.raises(ValueError, match="owned pipeline-run"):
+            resource.provision_ref_query_catalog("dev")
+
+    def test_connection_keeps_non_wap_refs_on_their_existing_catalogs(self):
+        """A normal ref cannot claim ownership of a dynamic WAP catalog."""
+        from phlo_trino import TrinoResource
+
+        query_connection = MagicMock()
+        with (
+            patch("phlo_trino.resource.config") as mock_config,
+            patch("phlo_trino.resource.connect", return_value=query_connection) as connect,
+        ):
+            mock_config.trino_catalog = "iceberg"
+            mock_config.default_catalog_ref = "main"
+            mock_config.trino_host = "trino"
+            mock_config.trino_port = 8080
+            resource = TrinoResource(ref="dev")
+
+            assert resource.get_connection(schema="raw") is query_connection
+
+        connect.assert_called_once()
+        assert connect.call_args.kwargs["catalog"] == "iceberg_dev"
+
+    def test_drop_ref_query_catalog_only_allows_owned_non_main_catalog(self):
+        """Explicit cleanup cannot remove the shared main catalog."""
+        from phlo_trino import TrinoResource
+
+        bootstrap_cursor = MagicMock()
+        bootstrap_cursor.__enter__.return_value = bootstrap_cursor
+        bootstrap = MagicMock()
+        bootstrap.cursor.return_value = bootstrap_cursor
+
+        with (
+            patch("phlo_trino.resource.config") as mock_config,
+            patch("phlo_trino.resource.connect", return_value=bootstrap),
+        ):
+            mock_config.trino_catalog = "iceberg"
+            mock_config.trino_host = "trino"
+            mock_config.trino_port = 8080
+            resource = TrinoResource()
+            resource.drop_ref_query_catalog("pipeline-run-1")
+            with pytest.raises(ValueError, match="owned pipeline-run"):
+                resource.drop_ref_query_catalog("main")
+
+        assert (
+            bootstrap_cursor.execute.call_args.args[0]
+            == 'DROP CATALOG IF EXISTS "iceberg_pipeline-run-1"'
+        )
+
     def test_execute_with_mocked_connection(self):
         """Test execute method with mocked Trino connection."""
         from phlo_trino import TrinoResource
