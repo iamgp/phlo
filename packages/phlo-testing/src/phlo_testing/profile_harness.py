@@ -1565,7 +1565,7 @@ QualityResultEventEmitter(
             List of snapshot dictionaries.
 
         """
-        from phlo_iceberg.catalog import reset_catalog_cache
+        from phlo_iceberg.catalog import get_catalog, reset_catalog_cache
         from phlo_iceberg.resource import IcebergResource
         from phlo_iceberg.settings import get_settings as get_iceberg_settings
 
@@ -1586,18 +1586,39 @@ QualityResultEventEmitter(
             "ICEBERG_S3_ACCESS_KEY": minio_access_key,
             "ICEBERG_S3_SECRET_KEY": minio_secret_key,
         }
+        host_file_io_properties = {
+            "s3.endpoint": env_updates["ICEBERG_S3_ENDPOINT"],
+            "s3.access-key-id": minio_access_key,
+            "s3.secret-access-key": minio_secret_key,
+        }
         previous = {key: os.environ.get(key) for key in env_updates}
+        catalog = None
+        original_load_file_io = None
         try:
             for key, value in env_updates.items():
                 os.environ[key] = value
             get_iceberg_settings.cache_clear()
             reset_catalog_cache()
+            catalog = get_catalog(ref=ref)
+            original_load_file_io = catalog._load_file_io
+
+            def load_host_file_io(
+                properties: dict[str, Any] | None = None,
+                location: str | None = None,
+            ) -> Any:
+                return original_load_file_io(
+                    {**(properties or {}), **host_file_io_properties}, location
+                )
+
+            catalog._load_file_io = load_host_file_io
             resource = IcebergResource(ref=ref)
             try:
                 return resource.list_snapshots(table_name=table_name, limit=limit)
             except Exception:
                 return []
         finally:
+            if catalog is not None and original_load_file_io is not None:
+                catalog._load_file_io = original_load_file_io
             for key, value in previous.items():
                 if value is None:
                     os.environ.pop(key, None)
