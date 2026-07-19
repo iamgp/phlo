@@ -413,11 +413,14 @@ def _allocate_unique_port(
     return candidate
 
 
-def build_bundled_stack_env_updates(resolve_port: Any) -> dict[str, str]:
+def build_bundled_stack_env_updates(
+    resolve_port: Any, *, project_name: str | None = None
+) -> dict[str, str]:
     """Build environment variable updates for bundled stack ports.
 
     Args:
         resolve_port: Function to resolve service ports.
+        project_name: Stable project identity for generated service processes.
 
     Returns:
         Dictionary of environment variable updates with unique ports.
@@ -436,6 +439,9 @@ def build_bundled_stack_env_updates(resolve_port: Any) -> dict[str, str]:
         for env_key, (service_name, default_port) in _BUNDLED_STACK_PORT_DEFAULTS.items()
     }
     updates["PHLO_DEV_EXTRA_PACKAGES"] = ",".join(BUNDLED_STACK_DEV_PACKAGES)
+    if project_name:
+        updates["PHLO_PROJECT"] = project_name
+    updates["PHLO_WAP_SENSORS_ENABLED"] = "true"
     updates["PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS"] = "1"
     updates["PHLO_WAP_PROMOTION_INTERVAL_SECONDS"] = "1"
     return updates
@@ -1392,13 +1398,19 @@ QualityResultEventEmitter(
         """
         from phlo_nessie.resource import NessieResource
 
-        branch_name = f"pipeline-run-{uuid.uuid4().hex[:12]}"
+        logical_run_id = uuid.uuid4().hex
+        branch_name = f"pipeline-run-{logical_run_id}"
         nessie = NessieResource(base_url=f"http://127.0.0.1:{self.ports.nessie}")
         created_hash = nessie.create_branch(branch_name, from_ref="main")
         if created_hash is None:
             raise RuntimeError(f"Unable to create WAP branch {branch_name}")
 
-        tags: dict[str, str] = {"phlo/wap_branch": branch_name}
+        tags: dict[str, str] = {
+            "phlo/wap_branch": branch_name,
+            "phlo/run_id": logical_run_id,
+            "phlo/project_id": self.project_dir.name,
+            "phlo/attempt": "1",
+        }
         if partition_date:
             tags[PARTITION_NAME_TAG] = partition_date
 
@@ -1947,7 +1959,7 @@ def bootstrap_bundled_stack_harness(
         )
         utils.apply_env_updates(
             target_project_dir / ".phlo",
-            build_bundled_stack_env_updates(utils.resolve_port),
+            build_bundled_stack_env_updates(utils.resolve_port, project_name=project_name),
         )
         _write_bundled_stack_workflow(
             project_dir=target_project_dir,

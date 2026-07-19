@@ -39,6 +39,7 @@ def test_build_bundled_stack_env_updates_resolves_core_ports(monkeypatch) -> Non
     assert updates["DAGSTER_PORT"] == "3010"
     assert updates["POSTGRES_PORT"] == "5442"
     assert updates["PHLO_DEV_EXTRA_PACKAGES"] == ",".join(BUNDLED_STACK_DEV_PACKAGES)
+    assert updates["PHLO_WAP_SENSORS_ENABLED"] == "true"
     assert ("Dagster", 3000) in calls
     assert ("Nessie", 19120) in calls
     assert ("Hasura", 8082) in calls
@@ -64,6 +65,16 @@ def test_build_bundled_stack_env_updates_avoids_duplicate_ports(monkeypatch) -> 
     assert updates["OBSERVATORY_PORT"] == "3002"
     assert updates["MINIO_API_PORT"] == "9002"
     assert updates["MINIO_CONSOLE_PORT"] == "9003"
+
+
+def test_build_bundled_stack_env_updates_sets_generated_project_identity(monkeypatch) -> None:
+    monkeypatch.setattr("phlo_testing.profile_harness._port_in_use", lambda port: False)
+
+    updates = build_bundled_stack_env_updates(
+        lambda _service_name, port: port, project_name="proof"
+    )
+
+    assert updates["PHLO_PROJECT"] == "proof"
 
 
 def test_bundled_stack_harness_materialize_adds_partition(monkeypatch) -> None:
