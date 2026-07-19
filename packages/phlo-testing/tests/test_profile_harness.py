@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -289,6 +291,83 @@ def test_bundled_stack_harness_get_run_status_reads_metadata_db(monkeypatch) -> 
         "SELECT status FROM runs WHERE run_id = %s",
         ("run-1",),
     )
+
+
+@pytest.mark.parametrize(
+    ("override_access_key", "override_secret_key", "expected_access_key", "expected_secret_key"),
+    [
+        (None, None, "generated-user", "generated-password"),
+        ("override-user", "override-password", "override-user", "override-password"),
+    ],
+)
+def test_bundled_stack_harness_snapshot_read_uses_resolved_minio_credentials(
+    monkeypatch,
+    override_access_key: str | None,
+    override_secret_key: str | None,
+    expected_access_key: str,
+    expected_secret_key: str,
+) -> None:
+    captured: dict[str, str | None] = {}
+
+    class FakeIcebergResource:
+        def __init__(self, *, ref: str) -> None:
+            captured["ref"] = ref
+
+        def list_snapshots(self, *, table_name: str, limit: int) -> list[dict[str, Any]]:
+            captured.update(
+                table_name=table_name,
+                limit=str(limit),
+                aws_access_key=os.environ.get("AWS_ACCESS_KEY_ID"),
+                aws_secret_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+                iceberg_access_key=os.environ.get("ICEBERG_S3_ACCESS_KEY"),
+                iceberg_secret_key=os.environ.get("ICEBERG_S3_SECRET_KEY"),
+            )
+            return [{"snapshot-id": 1}]
+
+    monkeypatch.setattr("phlo_iceberg.resource.IcebergResource", FakeIcebergResource)
+    monkeypatch.setattr("phlo_iceberg.catalog.reset_catalog_cache", lambda: None)
+    monkeypatch.setattr("phlo_iceberg.settings.get_settings.cache_clear", lambda: None)
+    for name, value in {
+        "PHLO_TEST_MINIO_ACCESS_KEY": override_access_key,
+        "PHLO_TEST_MINIO_SECRET_KEY": override_secret_key,
+    }.items():
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(
+            phlo_api=54000,
+            dagster=3000,
+            minio_api=9000,
+            nessie=19120,
+        ),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "read_env",
+        lambda self: {
+            "MINIO_ROOT_USER": "generated-user",
+            "MINIO_ROOT_PASSWORD": "generated-password",
+        },
+    )
+
+    assert harness.list_table_snapshots(table_name="raw.posts", ref="main", limit=3) == [
+        {"snapshot-id": 1}
+    ]
+    assert captured == {
+        "ref": "main",
+        "table_name": "raw.posts",
+        "limit": "3",
+        "aws_access_key": expected_access_key,
+        "aws_secret_key": expected_secret_key,
+        "iceberg_access_key": expected_access_key,
+        "iceberg_secret_key": expected_secret_key,
+    }
 
 
 def test_bundled_stack_harness_installs_optional_workspace_packages(monkeypatch) -> None:
