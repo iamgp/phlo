@@ -26,6 +26,7 @@ from phlo_dagster.authorization import (
 )
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.oidc_identity import OIDC_REQUIRED_ENV
+from phlo.security import is_regulated
 
 GRAPHQL_WS_INIT_TIMEOUT_ENV = "PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS"
 _DEFAULT_GRAPHQL_WS_INIT_TIMEOUT = 10.0
@@ -186,6 +187,9 @@ class DagsterHTTPAuthenticationASGI:
         if scope.get("type") != "http":
             await self.app(scope, receive, send)
             return
+        if not is_regulated():
+            await self.app(scope, receive, send)
+            return
         matched = self._match(scope)
         if matched is None:
             await self.app(scope, receive, send)
@@ -291,6 +295,9 @@ class GraphQLWebSocketAuthenticationASGI:
         if scope.get("type") != "websocket" or scope.get("path") != "/graphql":
             await self.app(scope, receive, send)
             return
+        if not is_regulated():
+            await self.app(scope, receive, send)
+            return
 
         offered_protocols = set(scope.get("subprotocols") or ())
         if GraphQLWS.PROTOCOL.value not in offered_protocols:
@@ -393,6 +400,8 @@ class PhloDagsterWebserver(DagsterWebserver):
 
     def build_graphql_middleware(self) -> list:
         validate_graphql_schema(self._graphene_schema.graphql_schema)
+        if not is_regulated():
+            return []
         discover_capabilities()
         get_adapter().install(self)
         middleware = self._get_graphql_authorization_middleware()
@@ -442,6 +451,14 @@ class PhloDagsterWebserver(DagsterWebserver):
         operation_name: str | None,
     ):
         """Authorize subscription roots before Dagster starts the async task."""
+        if not is_regulated():
+            return await super().execute_graphql_subscription(
+                websocket,
+                operation_id,
+                query,
+                variables,
+                operation_name,
+            )
         middleware = self._get_graphql_authorization_middleware()
         try:
             document = parse(query)
