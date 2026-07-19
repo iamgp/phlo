@@ -309,11 +309,27 @@ def test_bundled_stack_harness_snapshot_read_uses_resolved_minio_credentials(
 ) -> None:
     captured: dict[str, str | None] = {}
 
+    class FakeCatalog:
+        def _load_file_io(self, properties: dict[str, str], location: str | None = None) -> object:
+            captured.update(properties)
+            captured["location"] = location
+            return object()
+
+    catalog = FakeCatalog()
+
     class FakeIcebergResource:
         def __init__(self, *, ref: str) -> None:
             captured["ref"] = ref
 
         def list_snapshots(self, *, table_name: str, limit: int) -> list[dict[str, Any]]:
+            catalog._load_file_io(
+                {
+                    "s3.endpoint": "http://minio:9000/",
+                    "s3.access-key-id": "catalog-user",
+                    "s3.secret-access-key": "catalog-password",
+                },
+                "s3://lake/warehouse/raw/posts/metadata.json",
+            )
             captured.update(
                 table_name=table_name,
                 limit=str(limit),
@@ -325,6 +341,7 @@ def test_bundled_stack_harness_snapshot_read_uses_resolved_minio_credentials(
             return [{"snapshot-id": 1}]
 
     monkeypatch.setattr("phlo_iceberg.resource.IcebergResource", FakeIcebergResource)
+    monkeypatch.setattr("phlo_iceberg.catalog.get_catalog", lambda *, ref: catalog)
     monkeypatch.setattr("phlo_iceberg.catalog.reset_catalog_cache", lambda: None)
     monkeypatch.setattr("phlo_iceberg.settings.get_settings.cache_clear", lambda: None)
     for name, value in {
@@ -367,7 +384,12 @@ def test_bundled_stack_harness_snapshot_read_uses_resolved_minio_credentials(
         "aws_secret_key": expected_secret_key,
         "iceberg_access_key": expected_access_key,
         "iceberg_secret_key": expected_secret_key,
+        "s3.endpoint": "http://127.0.0.1:9000",
+        "s3.access-key-id": expected_access_key,
+        "s3.secret-access-key": expected_secret_key,
+        "location": "s3://lake/warehouse/raw/posts/metadata.json",
     }
+    assert catalog._load_file_io.__func__ is FakeCatalog._load_file_io
 
 
 def test_bundled_stack_harness_installs_optional_workspace_packages(monkeypatch) -> None:
