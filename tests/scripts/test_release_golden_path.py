@@ -5,6 +5,7 @@ import io
 import json
 import sys
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
@@ -132,16 +133,40 @@ def test_transform_fixture_has_a_raw_events_mart(tmp_path: Path) -> None:
     )
 
 
-def test_wap_fixture_defines_a_blocking_passing_asset_check(tmp_path: Path) -> None:
+def test_wap_fixture_rejects_one_run_and_preserves_the_happy_path(
+    tmp_path: Path, monkeypatch
+) -> None:
     config = _config(tmp_path)
     fixture_dir = config.project_dir / "workflows" / "ingestion" / "csv"
     fixture_dir.mkdir(parents=True)
 
-    release_golden_path.write_wap_fixture(config)
+    release_golden_path.write_wap_fixture(config, "rejected-run")
 
     fixture = (fixture_dir / "release_wap_check.py").read_text(encoding="utf-8")
-    assert '@dg.asset_check(asset="dlt_events", blocking=True)' in fixture
-    assert "return dg.AssetCheckResult(passed=True)" in fixture
+    assert '@dg.asset_check(asset="dlt_events")' in fixture
+    assert "blocking=True" not in fixture
+    assert "run_tags = context.run.tags or {}" in fixture
+    assert 'run_tags.get("phlo/run_id") == "rejected-run"' in fixture
+    assert "passed=not rejected" in fixture
+    assert "intentional_quality_rejection" in fixture
+
+    fake_dagster = ModuleType("dagster")
+    fake_dagster.asset_check = lambda **_: lambda check: check
+    fake_dagster.AssetCheckResult = lambda **kwargs: kwargs
+    monkeypatch.setitem(sys.modules, "dagster", fake_dagster)
+    namespace: dict[str, object] = {}
+    exec(compile(fixture, str(fixture_dir / "release_wap_check.py"), "exec"), namespace)
+    check = namespace["release_golden_path_wap_check"]
+
+    assert callable(check)
+    assert check(SimpleNamespace(run=SimpleNamespace(tags={}))) == {
+        "passed": True,
+        "metadata": {"reason": "happy_path"},
+    }
+    assert check(SimpleNamespace(run=SimpleNamespace(tags={"phlo/run_id": "rejected-run"}))) == {
+        "passed": False,
+        "metadata": {"reason": "intentional_quality_rejection"},
+    }
 
 
 def test_report_policy_fixture_relies_on_the_service_token_scope(
@@ -167,7 +192,7 @@ def test_report_policy_fixture_relies_on_the_service_token_scope(
     assert "action: run.execute" not in report_policy
 
 
-def test_main_binds_report_scope_and_wap_to_the_same_generated_logical_run_id(
+def test_main_binds_each_report_scope_to_its_matching_generated_wap_run(
     tmp_path: Path, monkeypatch
 ) -> None:
     captured: dict[str, str] = {}
@@ -188,21 +213,26 @@ def test_main_binds_report_scope_and_wap_to_the_same_generated_logical_run_id(
         "verify_rows",
         "wait_for_wap_promotion",
         "verify_run_report",
+        "verify_rejected_wap_report",
     ):
         monkeypatch.setattr(release_golden_path, name, lambda *_args, **_kwargs: None)
 
-    def configure(_config, logical_run_id: str) -> None:
-        captured["scope"] = logical_run_id
+    def configure(_config, promoted_logical_run_id: str, rejected_logical_run_id: str) -> None:
+        captured["promoted_scope"] = promoted_logical_run_id
+        captured["rejected_scope"] = rejected_logical_run_id
 
     def materialize(_config, logical_run_id: str) -> release_golden_path.WapRun:
-        captured["wap"] = logical_run_id
+        captured[f"wap_{logical_run_id}"] = logical_run_id
         return release_golden_path.WapRun(logical_run_id, "dagster-run")
 
     monkeypatch.setattr(release_golden_path, "configure_non_dev_compose", configure)
     monkeypatch.setattr(release_golden_path, "materialize_wap", materialize)
     monkeypatch.setattr(release_golden_path, "project_name", lambda: "phlo-qa001-test")
+    logical_run_ids = iter(("rejected-logical-run", "promoted-logical-run"))
     monkeypatch.setattr(
-        release_golden_path.uuid, "uuid4", lambda: type("Id", (), {"hex": "promoted-logical-run"})()
+        release_golden_path.uuid,
+        "uuid4",
+        lambda: type("Id", (), {"hex": next(logical_run_ids)})(),
     )
 
     assert (
@@ -211,7 +241,12 @@ def test_main_binds_report_scope_and_wap_to_the_same_generated_logical_run_id(
         )
         == 0
     )
-    assert captured == {"scope": "promoted-logical-run", "wap": "promoted-logical-run"}
+    assert captured == {
+        "rejected_scope": "rejected-logical-run",
+        "promoted_scope": "promoted-logical-run",
+        "wap_rejected-logical-run": "rejected-logical-run",
+        "wap_promoted-logical-run": "promoted-logical-run",
+    }
 
 
 def test_transform_materialization_preserves_the_partition(tmp_path: Path, monkeypatch) -> None:
@@ -370,6 +405,65 @@ def test_run_report_requires_the_wap_logical_run_id(tmp_path: Path, monkeypatch)
 
     assert requests[0].get_header("Authorization") == f"Bearer {config.report_token}"
     assert requests[1].get_header("Authorization") == f"Bearer {config.report_token}"
+
+
+def test_rejected_wap_report_requires_failed_quality_and_rejection_evidence(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = _config(tmp_path)
+    wap_run = release_golden_path.WapRun("rejected", "dagster-rejected")
+    monkeypatch.setattr(
+        release_golden_path,
+        "fetch_run_report",
+        lambda *_: {
+            "run_id": "rejected",
+            "quality": [{"blocking": True, "passed": False}],
+            "catalog_changes": [{"merge_outcome": "rejected_quality"}],
+        },
+    )
+    monkeypatch.setattr(release_golden_path, "service_url", lambda *_: "http://dagster/graphql")
+    monkeypatch.setattr(release_golden_path, "service_token", lambda *_: "service-token")
+    monkeypatch.setattr(release_golden_path, "wap_service_secret", lambda _: "secret")
+    monkeypatch.setattr(
+        release_golden_path,
+        "graphql",
+        lambda *_: {"data": {"pipelineRunOrError": {"tags": []}}},
+    )
+
+    release_golden_path.verify_rejected_wap_report(config, wap_run)
+
+
+def test_rejected_wap_report_rejects_any_promotion(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    wap_run = release_golden_path.WapRun("rejected", "dagster-rejected")
+    monkeypatch.setattr(
+        release_golden_path,
+        "fetch_run_report",
+        lambda *_: {
+            "run_id": "rejected",
+            "quality": [{"blocking": True, "passed": False}],
+            "catalog_changes": [{"merge_outcome": "rejected_quality"}],
+        },
+    )
+    monkeypatch.setattr(release_golden_path, "service_url", lambda *_: "http://dagster/graphql")
+    monkeypatch.setattr(release_golden_path, "service_token", lambda *_: "service-token")
+    monkeypatch.setattr(release_golden_path, "wap_service_secret", lambda _: "secret")
+    monkeypatch.setattr(
+        release_golden_path,
+        "graphql",
+        lambda *_: {
+            "data": {
+                "pipelineRunOrError": {"tags": [{"key": "phlo/wap_promoted", "value": "true"}]}
+            }
+        },
+    )
+
+    try:
+        release_golden_path.verify_rejected_wap_report(config, wap_run)
+    except RuntimeError as exc:
+        assert "was promoted" in str(exc)
+    else:
+        raise AssertionError("a rejected WAP run must not be promoted")
 
 
 def test_existing_project_or_sibling_is_rejected_without_touching_it(
@@ -710,7 +804,9 @@ def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, m
     )
     monkeypatch.setattr(release_golden_path, "run", lambda *args, **kwargs: None)
 
-    release_golden_path.configure_non_dev_compose(config, "promoted-logical-run")
+    release_golden_path.configure_non_dev_compose(
+        config, "promoted-logical-run", "rejected-logical-run"
+    )
 
     env_local = config.project_dir.joinpath(".phlo/.env.local").read_text()
     assert all(f"{name}=0\n" in env_local for name in release_golden_path.PORT_NAMES)
@@ -733,5 +829,14 @@ def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, m
                     "project_id=phlo-qa001-test|run_id=promoted-logical-run|attempt=1"
                 ),
             },
-        }
+        },
+        config.rejection_report_token: {
+            "subject": "qa002-rejection-report-reader",
+            "attributes": {
+                "qa001_role": "report_reader",
+                "phlo.run_report_resource_id": (
+                    "project_id=phlo-qa001-test|run_id=rejected-logical-run|attempt=1"
+                ),
+            },
+        },
     }

@@ -55,6 +55,7 @@ class RunConfig:
     project_name: str
     partition: str = PARTITION
     report_token: str = field(default_factory=lambda: secrets.token_hex(32), repr=False)
+    rejection_report_token: str = field(default_factory=lambda: secrets.token_hex(32), repr=False)
 
     @property
     def operator_python(self) -> Path:
@@ -289,16 +290,21 @@ from {{ source('raw', 'events') }}
     )
 
 
-def write_wap_fixture(config: RunConfig) -> None:
-    """Add one blocking quality check so WAP promotion has durable evidence."""
+def write_wap_fixture(config: RunConfig, rejected_logical_run_id: str) -> None:
+    """Add a check that rejects one WAP run and passes the happy path."""
     fixture = config.project_dir / "workflows" / "ingestion" / "csv" / "release_wap_check.py"
     fixture.write_text(
-        """import dagster as dg
+        f"""import dagster as dg
 
 
-@dg.asset_check(asset=\"dlt_events\", blocking=True)
-def release_golden_path_wap_check() -> dg.AssetCheckResult:
-    return dg.AssetCheckResult(passed=True)
+@dg.asset_check(asset=\"dlt_events\")
+def release_golden_path_wap_check(context) -> dg.AssetCheckResult:
+    run_tags = context.run.tags or {{}}
+    rejected = run_tags.get(\"phlo/run_id\") == \"{rejected_logical_run_id}\"
+    return dg.AssetCheckResult(
+        passed=not rejected,
+        metadata={{\"reason\": \"intentional_quality_rejection\" if rejected else \"happy_path\"}},
+    )
 """,
         encoding="utf-8",
     )
@@ -391,7 +397,11 @@ def install_project_dependencies(config: RunConfig) -> None:
     )
 
 
-def configure_non_dev_compose(config: RunConfig, logical_run_id: str) -> None:
+def configure_non_dev_compose(
+    config: RunConfig,
+    promoted_logical_run_id: str,
+    rejected_logical_run_id: str,
+) -> None:
     run(
         command(
             str(config.operator_bin),
@@ -426,10 +436,19 @@ def configure_non_dev_compose(config: RunConfig, logical_run_id: str) -> None:
                 "attributes": {
                     "qa001_role": "report_reader",
                     "phlo.run_report_resource_id": (
-                        f"project_id={config.project_name}|run_id={logical_run_id}|attempt=1"
+                        f"project_id={config.project_name}|run_id={promoted_logical_run_id}|attempt=1"
                     ),
                 },
-            }
+            },
+            config.rejection_report_token: {
+                "subject": "qa002-rejection-report-reader",
+                "attributes": {
+                    "qa001_role": "report_reader",
+                    "phlo.run_report_resource_id": (
+                        f"project_id={config.project_name}|run_id={rejected_logical_run_id}|attempt=1"
+                    ),
+                },
+            },
         }
         stream.write(f"PHLO_AUTH_SERVICE_TOKENS={json.dumps(tokens, separators=(',', ':'))}\n")
         stream.writelines(f"{name}=0\n" for name in PORT_NAMES)
@@ -660,8 +679,8 @@ def wait_for_wap_promotion(config: RunConfig, wap_run: WapRun) -> None:
     raise TimeoutError(f"WAP run was not promoted: {wap_run.dagster_run_id}")
 
 
-def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
-    """Prove the scoped service token reads its report and no other report."""
+def fetch_run_report(config: RunConfig, wap_run: WapRun, token: str) -> dict[str, object]:
+    """Read one exact run report, waiting for its durable projection."""
     url = service_url(
         config,
         "phlo-api",
@@ -674,12 +693,12 @@ def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
         try:
             request = urllib.request.Request(
                 url,
-                headers={"Authorization": f"Bearer {config.report_token}"},
+                headers={"Authorization": f"Bearer {token}"},
             )
             with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
                 payload = json.load(response)
             if isinstance(payload, dict) and payload.get("run_id") == wap_run.logical_run_id:
-                break
+                return payload
             raise RuntimeError(f"run report returned the wrong run: {payload!r}")
         except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError) as exc:
             last_error = exc
@@ -688,6 +707,11 @@ def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
         raise RuntimeError(
             f"run report was not available for {wap_run.logical_run_id}: {last_error}"
         )
+
+
+def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
+    """Prove the scoped service token reads its report and no other report."""
+    fetch_run_report(config, wap_run, config.report_token)
 
     other_url = service_url(
         config,
@@ -711,6 +735,50 @@ def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
             return
         raise RuntimeError(f"unexpected scoped report response: {exc.code} {body!r}") from exc
     raise RuntimeError("scoped report token read another run report")
+
+
+def verify_rejected_wap_report(config: RunConfig, wap_run: WapRun) -> None:
+    """Require durable rejected-quality evidence and prove that run was not promoted."""
+    payload = fetch_run_report(config, wap_run, config.rejection_report_token)
+    quality = payload.get("quality")
+    if not isinstance(quality, list) or not any(
+        isinstance(result, dict)
+        and result.get("blocking") is True
+        and result.get("passed") is False
+        for result in quality
+    ):
+        raise RuntimeError(
+            f"rejected WAP report lacks a blocking failed quality result: {payload!r}"
+        )
+    catalog_changes = payload.get("catalog_changes")
+    if not isinstance(catalog_changes, list) or not any(
+        isinstance(change, dict) and change.get("merge_outcome") == "rejected_quality"
+        for change in catalog_changes
+    ):
+        raise RuntimeError(f"rejected WAP report lacks rejection evidence: {payload!r}")
+
+    token = service_token("phlo-api", wap_service_secret(config))
+    dagster_url = service_url(config, "dagster", 3000, "/graphql")
+    run_query = """query Run($runId: ID!) {
+  pipelineRunOrError(runId: $runId) {
+    __typename
+    ... on Run { tags { key value } }
+    ... on PythonError { message }
+  }
+}"""
+    response = graphql(dagster_url, run_query, {"runId": wap_run.dagster_run_id}, token)
+    run_data = (response.get("data", {}) if isinstance(response.get("data"), dict) else {}).get(
+        "pipelineRunOrError", {}
+    )
+    if not isinstance(run_data, dict):
+        raise RuntimeError(f"Dagster did not return rejected WAP run data: {run_data!r}")
+    tags = {
+        str(tag.get("key")): str(tag.get("value"))
+        for tag in run_data.get("tags", [])
+        if isinstance(tag, dict) and tag.get("key") is not None and tag.get("value") is not None
+    }
+    if tags.get("phlo/wap_promoted") == "true":
+        raise RuntimeError(f"quality-rejected WAP run was promoted: {wap_run.dagster_run_id}")
 
 
 def verify_rows(
@@ -865,11 +933,12 @@ def main(argv: list[str] | None = None) -> int:
         install_operator(config)
         create_project(config)
         write_transform_fixture(config)
-        write_wap_fixture(config)
+        rejected_logical_run_id = uuid.uuid4().hex
+        promoted_logical_run_id = uuid.uuid4().hex
+        write_wap_fixture(config, rejected_logical_run_id)
         align_project_name(config)
         install_project_dependencies(config)
-        logical_run_id = uuid.uuid4().hex
-        configure_non_dev_compose(config, logical_run_id)
+        configure_non_dev_compose(config, promoted_logical_run_id, rejected_logical_run_id)
         write_report_policy_fixture(config)
         start_stack(config)
         stack_started = True
@@ -878,9 +947,11 @@ def main(argv: list[str] | None = None) -> int:
         verify_rows(config, expected_count=FIXTURE_ROW_COUNT)
         materialize_transform(config)
         verify_rows(config, table="raw_marts.events_mart", expected_count=FIXTURE_ROW_COUNT)
-        wap_run = materialize_wap(config, logical_run_id)
-        wait_for_wap_promotion(config, wap_run)
-        verify_run_report(config, wap_run)
+        rejected_wap_run = materialize_wap(config, rejected_logical_run_id)
+        verify_rejected_wap_report(config, rejected_wap_run)
+        promoted_wap_run = materialize_wap(config, promoted_logical_run_id)
+        wait_for_wap_promotion(config, promoted_wap_run)
+        verify_run_report(config, promoted_wap_run)
     except Exception as exc:
         primary_error = exc
     finally:

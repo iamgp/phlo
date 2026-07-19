@@ -349,12 +349,13 @@ def _quality_evidence(
 ) -> tuple[str | None, dict[str, Any]]:
     """Read report evidence and bind promotion to a durable aggregate decision."""
     path = _report_path(run_id)
+    raw: bytes | None = None
     try:
         raw = path.read_bytes()
         report = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None, {"quality_evidence": {"status": "unavailable"}}
-    if report.get("run_id") != run_id:
+        report = None
+    if report is not None and report.get("run_id") != run_id:
         return None, {"quality_evidence": {"status": "unavailable"}}
     quality_id = None
     checks = _quality_check_records(instance, run_id) if instance is not None else None
@@ -370,12 +371,12 @@ def _quality_evidence(
         )
         if aggregate_id is not None:
             quality_id = aggregate_id
-    checksum = hashlib.sha256(raw).hexdigest()
-    snapshot_path = _report_snapshot_path(run_id, checksum)
-    evidence_path = snapshot_path if snapshot_path.exists() else path
+    checksum = hashlib.sha256(raw).hexdigest() if raw is not None else None
+    snapshot_path = _report_snapshot_path(run_id, checksum) if checksum is not None else None
+    evidence_path = snapshot_path if snapshot_path is not None and snapshot_path.exists() else path
     return quality_id, {
         "quality_evidence": {
-            "uri": str(evidence_path),
+            "uri": str(evidence_path) if raw is not None else None,
             "checksum": checksum,
             "status": "observed" if quality_id else "unavailable",
             "identifier_source": (

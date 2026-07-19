@@ -505,6 +505,46 @@ def test_wap_quality_evidence_ignores_forged_report_ids_when_checks_unavailable(
     assert metadata["quality_evidence"]["identifier_source"] is None
 
 
+def test_wap_quality_evidence_persists_decision_without_a_preexisting_report(monkeypatch, tmp_path):
+    """Launches have Dagster check records before the sensor writes its WAP report."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    dagster_run_id = "dagster-run"
+    logical_run_id = "logical-run"
+    instance = SimpleNamespace(
+        get_records_for_run=lambda *_args, **_kwargs: SimpleNamespace(
+            records=[
+                SimpleNamespace(
+                    storage_id=1,
+                    event_log_entry=SimpleNamespace(
+                        asset_check_evaluation=SimpleNamespace(passed=False)
+                    ),
+                )
+            ]
+        )
+    )
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo_dagster.wap_sensors.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
+
+    quality_id, metadata = _quality_evidence(
+        dagster_run_id,
+        instance,
+        project_id="project-quality",
+        attempt=1,
+        evidence_run_id=logical_run_id,
+    )
+
+    results = store.list_quality_results("project-quality", logical_run_id, attempt=1)
+    assert quality_id == results[0]["quality_result_id"]
+    assert results[0]["check_id"] == "wap.aggregate"
+    assert results[0]["passed"] == 0
+    assert metadata["quality_evidence"]["status"] == "observed"
+    assert metadata["quality_evidence"]["uri"] is None
+    assert metadata["quality_evidence"]["checksum"] is None
+
+
 def test_wap_merge_failure_preserves_successful_dagster_run_status(monkeypatch, tmp_path):
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     run_id = "run-merge-failure"
