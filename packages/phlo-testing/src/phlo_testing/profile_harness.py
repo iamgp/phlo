@@ -1569,13 +1569,22 @@ QualityResultEventEmitter(
         from phlo_iceberg.resource import IcebergResource
         from phlo_iceberg.settings import get_settings as get_iceberg_settings
 
+        env_vars = self.read_env()
+        minio_access_key = os.environ.get(
+            "PHLO_TEST_MINIO_ACCESS_KEY",
+            env_vars.get("MINIO_ROOT_USER", "minio"),
+        )
+        minio_secret_key = os.environ.get(
+            "PHLO_TEST_MINIO_SECRET_KEY",
+            env_vars.get("MINIO_ROOT_PASSWORD", "minio123"),
+        )
         env_updates = {
             "ICEBERG_S3_ENDPOINT": f"http://127.0.0.1:{self.ports.minio_api}",
             "ICEBERG_NESSIE_URI": f"http://127.0.0.1:{self.ports.nessie}/iceberg",
-            "AWS_ACCESS_KEY_ID": os.environ.get("PHLO_TEST_MINIO_ACCESS_KEY", "minio"),
-            "AWS_SECRET_ACCESS_KEY": os.environ.get("PHLO_TEST_MINIO_SECRET_KEY", "minio123"),
-            "ICEBERG_S3_ACCESS_KEY": os.environ.get("PHLO_TEST_MINIO_ACCESS_KEY", "minio"),
-            "ICEBERG_S3_SECRET_KEY": os.environ.get("PHLO_TEST_MINIO_SECRET_KEY", "minio123"),
+            "AWS_ACCESS_KEY_ID": minio_access_key,
+            "AWS_SECRET_ACCESS_KEY": minio_secret_key,
+            "ICEBERG_S3_ACCESS_KEY": minio_access_key,
+            "ICEBERG_S3_SECRET_KEY": minio_secret_key,
         }
         previous = {key: os.environ.get(key) for key in env_updates}
         try:
