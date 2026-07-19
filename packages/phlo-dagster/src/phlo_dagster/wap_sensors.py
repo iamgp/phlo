@@ -355,6 +355,8 @@ def _quality_evidence(
         report = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         report = None
+    if report is not None and not isinstance(report, dict):
+        report = None
     if report is not None and report.get("run_id") != run_id:
         return None, {"quality_evidence": {"status": "unavailable"}}
     quality_id = None

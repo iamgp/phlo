@@ -505,6 +505,57 @@ def test_wap_quality_evidence_ignores_forged_report_ids_when_checks_unavailable(
     assert metadata["quality_evidence"]["identifier_source"] is None
 
 
+@pytest.mark.parametrize("report", ["[]", '"not-a-report"'])
+def test_wap_quality_evidence_ignores_non_mapping_reports(monkeypatch, tmp_path, report):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-non-mapping-quality"
+    report_path = tmp_path / ".phlo" / "wap-reports" / f"{run_id}.json"
+    report_path.parent.mkdir(parents=True)
+    report_path.write_text(report)
+    instance = SimpleNamespace(
+        get_records_for_run=lambda *_args, **_kwargs: SimpleNamespace(
+            records=[
+                SimpleNamespace(
+                    storage_id=1,
+                    event_log_entry=SimpleNamespace(
+                        asset_check_evaluation=SimpleNamespace(passed=False)
+                    ),
+                )
+            ]
+        )
+    )
+    store = SQLiteRunEvidenceStore(":memory:")
+    bus = HookBus()
+    bus.register_provider(CoreRunEvidenceHookProvider(store), plugin_name="test")
+    monkeypatch.setattr("phlo_dagster.wap_sensors.get_hook_bus", lambda: bus)
+    monkeypatch.setattr("phlo_dagster.wap_sensors.default_run_evidence_store", lambda: store)
+
+    quality_id, metadata = _quality_evidence(
+        run_id, instance, project_id="project-quality", attempt=1
+    )
+
+    results = store.list_quality_results("project-quality", run_id, attempt=1)
+    assert quality_id == results[0]["quality_result_id"]
+    assert metadata["quality_evidence"]["status"] == "observed"
+
+
+def test_wap_quality_evidence_rejects_report_with_wrong_run_id(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    run_id = "run-quality"
+    report_path = tmp_path / ".phlo" / "wap-reports" / f"{run_id}.json"
+    report_path.parent.mkdir(parents=True)
+    report_path.write_text(json.dumps({"run_id": "different-run"}))
+    instance = MagicMock()
+
+    quality_id, metadata = _quality_evidence(
+        run_id, instance, project_id="project-quality", attempt=1
+    )
+
+    assert quality_id is None
+    assert metadata["quality_evidence"]["status"] == "unavailable"
+    instance.get_records_for_run.assert_not_called()
+
+
 def test_wap_quality_evidence_persists_decision_without_a_preexisting_report(monkeypatch, tmp_path):
     """Launches have Dagster check records before the sensor writes its WAP report."""
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
