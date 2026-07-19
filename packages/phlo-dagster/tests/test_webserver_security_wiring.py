@@ -63,9 +63,20 @@ def test_installed_dagster_schema_is_fully_classified() -> None:
     validate_graphql_schema(create_schema().graphql_schema)
 
 
-def test_shipped_webserver_discovers_project_capabilities_before_authorization(monkeypatch) -> None:
+def test_development_webserver_omits_graphql_authorization_middleware(monkeypatch) -> None:
     server = object.__new__(PhloDagsterWebserver)
     server._graphene_schema = create_schema()
+    monkeypatch.setenv("PHLO_REGULATED", "false")
+
+    assert server.build_graphql_middleware() == []
+
+
+def test_regulated_webserver_discovers_project_capabilities_before_authorization(
+    monkeypatch,
+) -> None:
+    server = object.__new__(PhloDagsterWebserver)
+    server._graphene_schema = create_schema()
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     discovered = False
 
     def discover() -> None:
@@ -137,6 +148,7 @@ def test_server_info_is_minimal_public_readiness() -> None:
 def test_inherited_http_route_enforces_before_handler(
     monkeypatch, principal, decision: str | None, status_code: int
 ) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     called = False
 
     async def endpoint(_request):  # noqa: ANN001
@@ -171,7 +183,10 @@ def test_inherited_http_route_enforces_before_handler(
     assert called is (status_code == 200)
 
 
-def test_graphql_http_boundary_preserves_validated_principal_for_graphql_execution() -> None:
+def test_regulated_graphql_http_boundary_preserves_validated_principal_for_graphql_execution(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     principal = AuthPrincipal(subject="service:phlo-api", principal_type="service")
     middleware = MagicMock()
     middleware._extract_principal.return_value = principal
@@ -190,7 +205,45 @@ def test_graphql_http_boundary_preserves_validated_principal_for_graphql_executi
     assert response.json() == {"subject": "service:phlo-api"}
 
 
+def test_development_graphql_http_allows_unauthenticated_execution(monkeypatch) -> None:
+    called = False
+
+    async def endpoint(_request):  # noqa: ANN001
+        nonlocal called
+        called = True
+        return JSONResponse({"ok": True})
+
+    monkeypatch.setenv("PHLO_REGULATED", "false")
+    downstream = Starlette(routes=[Route("/graphql", endpoint, methods=["POST"])])
+    middleware = MagicMock()
+    middleware._extract_principal.return_value = None
+    secured = DagsterHTTPAuthenticationASGI(downstream, middleware, downstream.routes)
+
+    with TestClient(secured) as client:
+        response = client.post("/graphql")
+
+    assert response.status_code == 200
+    assert called
+    middleware._extract_principal.assert_not_called()
+
+
+def test_regulated_graphql_http_requires_authentication(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
+    downstream = Starlette(
+        routes=[Route("/graphql", lambda _request: JSONResponse({"ok": True}), methods=["POST"])]
+    )
+    middleware = MagicMock()
+    middleware._extract_principal.return_value = None
+    secured = DagsterHTTPAuthenticationASGI(downstream, middleware, downstream.routes)
+
+    with TestClient(secured) as client:
+        response = client.post("/graphql")
+
+    assert response.status_code == 401
+
+
 def test_dagster_log_keys_bind_http_authorization_to_the_run_before_handler(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     assert (
         extract_dagster_run_id_from_log_key(["run-allowed", "compute_logs", "step"])
         == "run-allowed"
@@ -273,6 +326,8 @@ def test_regulated_dagster_startup_fails_without_complete_oidc(monkeypatch) -> N
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("PHLO_DAGSTER_OIDC_REQUIRED", "true")
+    monkeypatch.setenv("PHLO_REGULATED", "true")
+    monkeypatch.setattr("phlo_dagster.webserver.discover_capabilities", lambda: None)
     server = object.__new__(PhloDagsterWebserver)
     server._graphene_schema = create_schema()
 
@@ -336,6 +391,7 @@ def test_create_asgi_app_installs_inherited_http_and_graphql_wrappers(monkeypatc
 
 
 def test_graphql_ws_requires_authenticated_human(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     monkeypatch.delenv("PHLO_DAGSTER_OIDC_ISSUER", raising=False)
     monkeypatch.delenv("PHLO_DAGSTER_OIDC_AUDIENCE", raising=False)
     monkeypatch.delenv("PHLO_DAGSTER_OIDC_JWKS_URL", raising=False)
@@ -356,6 +412,7 @@ def test_graphql_ws_requires_authenticated_human(monkeypatch) -> None:
 
 
 def test_graphql_ws_verified_oidc_human_can_pass_or_is_denied_by_policy(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     private_key, jwks = key_and_jwks()
     monkeypatch.setenv("PHLO_DAGSTER_OIDC_ISSUER", ISSUER)
     monkeypatch.setenv("PHLO_DAGSTER_OIDC_AUDIENCE", AUDIENCE)
@@ -406,6 +463,7 @@ def test_graphql_ws_verified_oidc_human_can_pass_or_is_denied_by_policy(monkeypa
 
 
 def test_graphql_ws_connection_init_requires_access_token_field(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     private_key, jwks = key_and_jwks()
     monkeypatch.setenv("PHLO_DAGSTER_OIDC_ISSUER", ISSUER)
     monkeypatch.setenv("PHLO_DAGSTER_OIDC_AUDIENCE", AUDIENCE)
@@ -435,6 +493,7 @@ def test_graphql_ws_connection_init_requires_access_token_field(monkeypatch) -> 
 
 
 def test_graphql_ws_asgi_protocol_authenticates_connection_init(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     private_key, jwks = key_and_jwks()
     monkeypatch.setenv("PHLO_DAGSTER_OIDC_ISSUER", ISSUER)
     monkeypatch.setenv("PHLO_DAGSTER_OIDC_AUDIENCE", AUDIENCE)
@@ -478,7 +537,8 @@ def _websocket_downstream():
 
 
 @pytest.mark.parametrize("offered", [None, ["graphql-transport-ws"]])
-def test_graphql_ws_rejects_missing_or_unsupported_subprotocol(offered) -> None:
+def test_graphql_ws_rejects_missing_or_unsupported_subprotocol(monkeypatch, offered) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     asgi = GraphQLWebSocketAuthenticationASGI(
         _websocket_downstream(), DagsterGraphQLAuthorizationMiddleware()
     )
@@ -496,6 +556,7 @@ def test_graphql_ws_rejects_missing_or_unsupported_subprotocol(offered) -> None:
 
 
 def test_graphql_ws_invalid_connection_init_token_closes_unauthenticated(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     asgi = GraphQLWebSocketAuthenticationASGI(
         _websocket_downstream(), DagsterGraphQLAuthorizationMiddleware()
     )
@@ -509,6 +570,7 @@ def test_graphql_ws_invalid_connection_init_token_closes_unauthenticated(monkeyp
 
 
 def test_graphql_ws_idle_connection_init_times_out(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_REGULATED", "true")
     monkeypatch.setenv(GRAPHQL_WS_INIT_TIMEOUT_ENV, "0.05")
     asgi = GraphQLWebSocketAuthenticationASGI(
         _websocket_downstream(), DagsterGraphQLAuthorizationMiddleware()
