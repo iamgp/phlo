@@ -780,7 +780,7 @@ def rollback_table_to_snapshot(
     try:
         catalog = get_catalog(ref=ref)
         table = catalog.load_table(table_name)
-        table.manage_snapshots().rollback_to(snapshot_id).commit()
+        table.manage_snapshots().rollback_to_snapshot(snapshot_id).commit()
     except Exception as exc:
         logger.error(
             "iceberg_table_rollback_failed",

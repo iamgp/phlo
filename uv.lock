@@ -3660,7 +3660,7 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "phlo-minio", marker = "extra == 'minio'", editable = "packages/phlo-minio" },
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
-    { name = "pyiceberg", extras = ["s3fs", "pyarrow"], specifier = ">=0.10.0" },
+    { name = "pyiceberg", extras = ["s3fs", "pyarrow"], specifier = ">=0.11.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]

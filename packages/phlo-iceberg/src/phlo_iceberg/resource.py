@@ -109,7 +109,13 @@ def _validate_compaction_table_name(table_name: str) -> str:
 def _maintenance_plan_token(plan: dict[str, object]) -> str:
     """Hash only plan fields that change the requested mutation."""
     basis = json.loads(json.dumps(plan, sort_keys=True, default=str))
-    for key in ("plan_token", "observed_at_ms", "age_seconds", "trino_boundary"):
+    for key in (
+        "plan_token",
+        "observed_at_ms",
+        "age_seconds",
+        "retention_cutoff",
+        "trino_boundary",
+    ):
         _remove_plan_field(basis, key)
     encoded = json.dumps(basis, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
@@ -2241,8 +2247,8 @@ class IcebergResource:
     ) -> dict:
         """Roll back a table to a previous snapshot.
 
-        Restores the table to a specific point in time using the snapshot ID.
-        Creates a new snapshot that points to the historical state.
+        Restores the table to a specific point in time using the snapshot ID by
+        repointing the current snapshot reference to that existing ancestor.
 
         Args:
             table_name: Fully qualified table name (``namespace.table``).
@@ -2269,8 +2275,8 @@ class IcebergResource:
                 print(f"Rolled back to snapshot {result['rolled_back_to']}")
 
         Warning:
-            Rollback creates a new snapshot. The newer snapshots are not
-            deleted and can still be accessed if needed.
+            Rollback does not delete newer snapshots, but they are no longer
+            ancestors of the table's current state.
 
         """
         logger.info(
