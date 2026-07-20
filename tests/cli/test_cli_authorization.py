@@ -297,6 +297,58 @@ class TestResourceActionMapping:
 class TestAuthorizationWrappers:
     """Tests for CLI authorization wrappers."""
 
+    def test_regulated_services_start_discovers_configured_authorization_backend(
+        self, monkeypatch, tmp_path
+    ):
+        """The regulated services wrapper resolves the configured discovered backend."""
+        from phlo.capabilities import clear_all_capabilities
+        from phlo.cli.authorization_wrappers import require_mutation_authorization
+        from phlo.security.enforcement import EnforcementContext
+
+        auth_dir = tmp_path / ".phlo" / "authorization"
+        auth_dir.mkdir(parents=True)
+        (auth_dir / "roles.yaml").write_text(
+            """
+version: 1
+roles:
+  operator:
+    inherits: []
+subjects:
+  services:
+    proof-operator: [operator]
+""".lstrip()
+        )
+        (auth_dir / "policies.yaml").write_text(
+            """
+version: 1
+policies:
+  - policy_id: allow_services_start
+    effect: allow
+    principal:
+      roles: [operator]
+    action: infrastructure.start
+    resource:
+      type: infrastructure
+      id_pattern: cli:services.start
+""".lstrip()
+        )
+        monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+        monkeypatch.setenv("PHLO_REGULATED", "true")
+        monkeypatch.setenv("PHLO_AUTHORIZATION_BACKEND", "default")
+        monkeypatch.setenv("PHLO_SERVICE_ACCOUNT", "proof-operator")
+        clear_all_capabilities()
+        EnforcementContext.reset_instance()
+
+        @require_mutation_authorization("services.start")
+        def handler() -> str:
+            return "started"
+
+        try:
+            assert handler() == "started"
+        finally:
+            EnforcementContext.reset_instance()
+            clear_all_capabilities()
+
     def test_require_mutation_authorization_import(self):
         """Can import the wrapper module."""
         from phlo.cli import authorization_wrappers

@@ -142,6 +142,7 @@ def test_authoring_create_workflow_uses_project_root_and_provider(monkeypatch, t
 def test_authoring_write_routes_require_project_write_scope(monkeypatch, tmp_path) -> None:
     from phlo_api.api import authoring
 
+    monkeypatch.setattr("phlo_api.api.operation_controls.is_regulated", lambda: True)
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv(
         "PHLO_API_TOKENS",
@@ -176,6 +177,24 @@ def test_authoring_write_routes_require_project_write_scope(monkeypatch, tmp_pat
     assert allowed.json()["valid"] is True
     audit_path = tmp_path / ".phlo" / "audit" / "operations.jsonl"
     assert "validate_workflow" in audit_path.read_text(encoding="utf-8")
+
+
+def test_unregulated_authoring_validation_uses_development_identity(monkeypatch, tmp_path) -> None:
+    from phlo_api.api import authoring
+
+    workflow_file = tmp_path / "workflow.py"
+    workflow_file.write_text("# workflow\n", encoding="utf-8")
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr("phlo_api.api.operation_controls.is_regulated", lambda: False)
+    monkeypatch.setattr(authoring, "_validate_workflow_file", lambda path: None)
+
+    response = TestClient(app).post(
+        "/api/authoring/workflows/validate", json={"workflow_path": str(workflow_file)}
+    )
+
+    assert response.status_code == 200
+    audit_path = tmp_path / ".phlo" / "audit" / "operations.jsonl"
+    assert '"subject": "development:anonymous"' in audit_path.read_text(encoding="utf-8")
 
 
 def test_authoring_validation_rejects_paths_outside_project(monkeypatch, tmp_path) -> None:

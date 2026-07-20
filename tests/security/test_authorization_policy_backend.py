@@ -32,6 +32,37 @@ def teardown_function() -> None:
     reset_capability_test_state()
 
 
+def test_enforcement_fails_closed_for_missing_or_ambiguous_provider(monkeypatch) -> None:
+    """Discovery does not turn missing or ambiguous backend selection into access."""
+    from phlo.capabilities import clear_all_capabilities
+    from phlo.capabilities import discovery as capability_discovery
+    from phlo.security.enforcement import EnforcementContext
+
+    monkeypatch.setattr(capability_discovery, "discover_capabilities", lambda: None)
+    monkeypatch.setattr(
+        "phlo.infrastructure.config.get_configured_authorization_backend_name",
+        lambda: "missing",
+    )
+    clear_all_capabilities()
+    with pytest.raises(RuntimeError, match="Configured authorization_policy_backend"):
+        EnforcementContext()._init_authorization_backend()
+
+    monkeypatch.setattr(
+        "phlo.infrastructure.config.get_configured_authorization_backend_name",
+        lambda: None,
+    )
+    register_capability(
+        "authorization_policy_backend",
+        AuthorizationPolicyBackendSpec(name="one", provider=DefaultAuthorizationPolicyBackend()),
+    )
+    register_capability(
+        "authorization_policy_backend",
+        AuthorizationPolicyBackendSpec(name="two", provider=DefaultAuthorizationPolicyBackend()),
+    )
+    with pytest.raises(RuntimeError, match="No authorization_policy_backend"):
+        EnforcementContext()._init_authorization_backend()
+
+
 def test_registry_tracks_authorization_policy_backends() -> None:
     backend = DefaultAuthorizationPolicyBackend()
     register_capability(
@@ -130,11 +161,12 @@ def test_auth_principal_uses_canonical_subject_assignments_and_inheritance() -> 
         AuthPrincipal(
             subject="alice",
             principal_type="user",
-            groups=("untrusted-idp-group",),
+            groups=("admin",),
         )
     )
 
     assert set(principal.roles) == {"custom_analyst", "viewer"}
+    assert principal.attributes["idp_groups"] == "admin"
     assert backend.is_allowed(
         principal,
         "dataset.read",

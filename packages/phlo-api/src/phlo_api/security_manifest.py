@@ -704,6 +704,9 @@ async def enforce_http_operation(
     if spec.public:
         return
 
+    if not is_regulated():
+        return
+
     auth_principal = get_request_principal(request)
     if auth_principal is None:
         _raise_unauthorized()

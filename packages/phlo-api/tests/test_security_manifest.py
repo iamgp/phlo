@@ -47,6 +47,34 @@ def _principal(subject: str = "viewer") -> tuple[AuthPrincipal, Principal]:
     return auth, canonical
 
 
+@pytest.fixture(autouse=True)
+def _regulated_manifest_boundary(monkeypatch):
+    """Keep existing manifest authorization cases explicitly regulated."""
+    from phlo_api import security_manifest
+
+    monkeypatch.setattr(security_manifest, "is_regulated", lambda: True)
+
+    def enforce_with_test_backend(*, principal, action, resource, context, **_kwargs):  # noqa: ANN001
+        backend = security_manifest.get_authorization_backend()
+        if backend is None:
+            return EnforcementResult.error(reason_code="backend_unavailable")
+        decision = backend.explain_decision(
+            Principal(
+                subject=principal.subject,
+                principal_type=principal.principal_type,
+                roles=principal.groups,
+            ),
+            action,
+            resource,
+            context,
+        )
+        if decision.allowed:
+            return EnforcementResult.allow()
+        return EnforcementResult.deny(reason_code=decision.reason_code)
+
+    monkeypatch.setattr(security_manifest, "enforce", enforce_with_test_backend)
+
+
 def test_http_route_manifest_covers_every_registered_route() -> None:
     resolved = validate_manifest(app)
     actual_operations = {
@@ -201,6 +229,7 @@ def test_manifest_supports_fastapi_lazy_included_routers(monkeypatch) -> None:
 def test_anonymous_protected_request_is_401_before_handler(monkeypatch, tmp_path) -> None:
     from phlo_api import main
 
+    monkeypatch.setattr("phlo_api.security_manifest.is_regulated", lambda: True)
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     called = False
 
@@ -216,6 +245,20 @@ def test_anonymous_protected_request_is_401_before_handler(monkeypatch, tmp_path
 
     assert response.status_code == 401
     assert called is False
+
+
+def test_unregulated_anonymous_non_public_request_reaches_handler(monkeypatch, tmp_path) -> None:
+    from phlo_api import main
+
+    monkeypatch.setattr("phlo_api.security_manifest.is_regulated", lambda: False)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: None)
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(main, "load_phlo_config", lambda: {"name": "development"})
+
+    response = TestClient(app).get("/api/config")
+
+    assert response.status_code == 200
+    assert response.json() == {"name": "development"}
 
 
 def test_detailed_health_summary_is_protected(monkeypatch) -> None:
