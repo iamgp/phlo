@@ -9,7 +9,7 @@ requires = [
 dependencies = [
     "phlo>=0.1.0",
     "pandera>=0.26.1",
-    "pyiceberg[s3fs,pyarrow]>=0.10.0",
+    "pyiceberg[s3fs,pyarrow]>=0.11.0",
 ]
 description = "Iceberg table-store capability plugin for Phlo"
 name = "phlo-iceberg"

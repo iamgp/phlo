@@ -627,6 +627,84 @@ def test_orphan_execute_is_blocked_and_non_retryable(monkeypatch) -> None:
     assert result["planned"]["trino_boundary"] == "not_invoked"
 
 
+def test_orphan_execute_accepts_same_plan_after_only_inventory_cutoff_moves(monkeypatch) -> None:
+    resource = IcebergResource(ref="main")
+    planned = _plan("cleanup_orphan_files")
+    planned["inventory"] = {
+        "complete": True,
+        "digest": "complete-inventory",
+        "retention_cutoff": "2026-07-19T09:00:00+00:00",
+    }
+    planned["plan_token"] = _maintenance_plan_token(planned)
+    revalidated = {
+        **planned,
+        "inventory": {
+            **planned["inventory"],
+            "retention_cutoff": "2026-07-19T09:00:01+00:00",
+        },
+    }
+    revalidated["plan_token"] = _maintenance_plan_token(revalidated)
+    plans = iter([planned, revalidated])
+    monkeypatch.setattr(resource, "_orphan_retention_metadata", lambda **_: (next(plans), object()))
+
+    dry_run = resource.cleanup_orphan_files(
+        table_name="raw.events", catalog="iceberg", dry_run=True
+    )
+    result = resource.cleanup_orphan_files(
+        table_name="raw.events",
+        catalog="iceberg",
+        dry_run=False,
+        expected_snapshot_id=41,
+        confirmation_token=dry_run["plan_token"],
+        max_affected_objects=10,
+        max_affected_bytes=1000,
+    )
+
+    assert dry_run["plan_token"] == revalidated["plan_token"]
+    assert result["failure"]["code"] == "bounded_execution_unsupported"
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"inventory": {"complete": True, "digest": "changed-inventory"}},
+        {"before_snapshot_id": 42},
+        {"retention_hours": SAFE_MIN_RETENTION_HOURS + 24},
+    ],
+    ids=["inventory", "snapshot", "request"],
+)
+def test_orphan_execute_rejects_changed_inventory_snapshot_or_request(
+    monkeypatch, change: dict[str, object]
+) -> None:
+    resource = IcebergResource(ref="main")
+    planned = _plan("cleanup_orphan_files")
+    planned["inventory"] = {
+        "complete": True,
+        "digest": "complete-inventory",
+        "retention_cutoff": "2026-07-19T09:00:00+00:00",
+    }
+    planned["plan_token"] = _maintenance_plan_token(planned)
+    revalidated = {**planned, **change}
+    revalidated["plan_token"] = _maintenance_plan_token(revalidated)
+    plans = iter([planned, revalidated])
+    monkeypatch.setattr(resource, "_orphan_retention_metadata", lambda **_: (next(plans), object()))
+
+    dry_run = resource.cleanup_orphan_files(
+        table_name="raw.events", catalog="iceberg", dry_run=True
+    )
+    result = resource.cleanup_orphan_files(
+        table_name="raw.events",
+        catalog="iceberg",
+        dry_run=False,
+        expected_snapshot_id=41,
+        confirmation_token=dry_run["plan_token"],
+        max_affected_objects=10,
+        max_affected_bytes=1000,
+    )
+
+    assert result["failure"]["code"] == "plan_token_invalid"
+
+
 @pytest.mark.parametrize(
     ("error", "retryable"),
     [
