@@ -705,6 +705,15 @@ async def enforce_http_operation(
         return
 
     if not is_regulated():
+        if spec.operation_name == "get_observatory_run_report":
+            auth_principal = get_request_principal(request)
+            if (
+                auth_principal is not None
+                and auth_principal.principal_type == "service"
+                and RUN_REPORT_RESOURCE_ID_ATTRIBUTE in auth_principal.attributes
+            ):
+                resource = await resolve_resource(request, spec, path_params)
+                _enforce_scoped_run_report_service_identity(auth_principal, spec, resource)
         return
 
     auth_principal = get_request_principal(request)

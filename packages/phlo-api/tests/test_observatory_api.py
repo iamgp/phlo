@@ -211,6 +211,42 @@ def test_scoped_service_token_cannot_read_another_run_report(
     assert denied.json() == {"error": "forbidden", "reason": "run_report_scope_mismatch"}
 
 
+def test_unregulated_run_report_keeps_anonymous_open_but_enforces_supplied_scope(
+    monkeypatch, tmp_path
+) -> None:
+    database = tmp_path / "run-evidence.sqlite"
+    SQLiteRunEvidenceStore(database).append_pipeline_run(
+        PipelineRun(project_id="project", run_id="allowed", attempt=1)
+    )
+    monkeypatch.setenv("PHLO_REGULATED", "false")
+    monkeypatch.setenv("PHLO_RUN_EVIDENCE_SQLITE_PATH", str(database))
+    provider = ServiceTokenAuthenticationProvider(
+        {
+            "dagster-report-token": {
+                "subject": "dagster:report-reader",
+                "attributes": {
+                    RUN_REPORT_RESOURCE_ID_ATTRIBUTE: (
+                        "project_id=project|run_id=allowed|attempt=1"
+                    )
+                },
+            }
+        }
+    )
+    monkeypatch.setattr("phlo_api.api.authentication.get_authentication_provider", lambda: provider)
+    client = TestClient(app)
+    path = "/api/observatory/projects/project/runs/allowed/attempts/1/report"
+    headers = {"Authorization": "Bearer dagster-report-token"}
+
+    anonymous = client.get(path)
+    allowed = client.get(path, headers=headers)
+    denied = client.get(path.replace("/allowed/", "/other/"), headers=headers)
+
+    assert anonymous.status_code == 200
+    assert allowed.status_code == 200
+    assert denied.status_code == 403
+    assert denied.json() == {"error": "forbidden", "reason": "run_report_scope_mismatch"}
+
+
 class _FakeOrchestratorOperations:
     def __init__(self, **handlers: Any) -> None:
         self._handlers = handlers
