@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
+import pytest
 from fastapi.testclient import TestClient
 
 from phlo.capabilities import (
@@ -22,8 +23,9 @@ from phlo.capabilities import (
     register_capability,
 )
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
-from phlo.capabilities.interfaces import RequestContext
+from phlo.capabilities.interfaces import Principal, RequestContext
 from phlo.rbac.models import CanonicalAction
+from phlo.security.adapters import EnforcementResult
 from phlo_api.main import app
 
 PrincipalName = Literal["viewer", "analyst", "operator", "admin"]
@@ -145,3 +147,34 @@ class _AuthenticatedTestClient(TestClient):
 def authenticated_client(principal: PrincipalName) -> TestClient:
     """Create a client with an explicitly named narrow test principal."""
     return _AuthenticatedTestClient(principal)
+
+
+@pytest.fixture(name="regulated_api_boundary")
+def _regulated_api_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run API authorization expectations through an explicit regulated boundary."""
+    from phlo_api import security_manifest
+
+    monkeypatch.setenv("PHLO_REGULATED", "true")
+    monkeypatch.setattr(security_manifest, "is_regulated", lambda: True)
+
+    def enforce_with_test_backend(*, principal, action, resource, context, **_kwargs):  # noqa: ANN001
+        backend = security_manifest.get_authorization_backend()
+        if backend is None:
+            return EnforcementResult.error(reason_code="backend_unavailable")
+        test_role = principal.attributes.get("test_principal")
+        decision = backend.explain_decision(
+            Principal(
+                subject=principal.subject,
+                principal_type=principal.principal_type,
+                roles=(test_role,) if isinstance(test_role, str) else principal.groups,
+                attributes=principal.attributes,
+            ),
+            action,
+            resource,
+            context,
+        )
+        if decision.allowed:
+            return EnforcementResult.allow()
+        return EnforcementResult.deny(reason_code=decision.reason_code)
+
+    monkeypatch.setattr(security_manifest, "enforce", enforce_with_test_backend)

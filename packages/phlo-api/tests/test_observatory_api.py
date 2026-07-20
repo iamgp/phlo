@@ -17,7 +17,7 @@ from phlo.capabilities.authentication import ServiceTokenAuthenticationProvider
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
 from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
-from security_test_support import authenticated_client
+from security_test_support import _regulated_api_boundary, authenticated_client  # noqa: F401
 from phlo.run_evidence import PipelineRun, RunEvent, RunStage, SQLiteRunEvidenceStore
 from phlo_api.observatory_api import observatory
 from phlo_api.observatory_api import observatory_services
@@ -69,7 +69,7 @@ _PROVIDER_URL_SETTING_NAMES = (
 
 
 def test_authenticated_run_report_isolated_by_attempt_and_path_identity(
-    monkeypatch, tmp_path
+    monkeypatch, tmp_path, regulated_api_boundary
 ) -> None:
     database = tmp_path / "run-evidence.sqlite"
     store = SQLiteRunEvidenceStore(database)
@@ -140,7 +140,9 @@ def test_authenticated_run_report_isolated_by_attempt_and_path_identity(
     )
 
 
-def test_scoped_service_token_cannot_read_another_run_report(monkeypatch, tmp_path) -> None:
+def test_scoped_service_token_cannot_read_another_run_report(
+    monkeypatch, tmp_path, regulated_api_boundary
+) -> None:
     database = tmp_path / "run-evidence.sqlite"
     store = SQLiteRunEvidenceStore(database)
     for run_id in ("allowed", "other"):
@@ -163,7 +165,6 @@ def test_scoped_service_token_cannot_read_another_run_report(monkeypatch, tmp_pa
             )
         )
     monkeypatch.setenv("PHLO_RUN_EVIDENCE_SQLITE_PATH", str(database))
-    monkeypatch.setenv("PHLO_REGULATED", "false")
     allowed_resource_id = "project_id=project|run_id=allowed|attempt=1"
     provider = ServiceTokenAuthenticationProvider(
         {
@@ -1538,7 +1539,7 @@ def test_observatory_run_operational_routes_use_observatory_paths(
 
 
 def test_observatory_operation_routes_enforce_scope_idempotency_audit_and_rate_limit(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path, regulated_api_boundary
 ) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv("PHLO_API_RATE_LIMIT_MATERIALIZE", "2")

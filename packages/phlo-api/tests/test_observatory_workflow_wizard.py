@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from phlo.capabilities import WorkflowFilePreview, WorkflowProposal
 from phlo_api.main import app
-from security_test_support import authenticated_client
+from security_test_support import _regulated_api_boundary, authenticated_client  # noqa: F401
 from phlo_api.observatory_api import observatory
 from phlo_api.observatory_api import observatory_workflow_wizard as wizard
 
@@ -75,7 +75,7 @@ def test_workflow_wizard_proposal_requires_graph_nodes() -> None:
 
 
 def test_workflow_wizard_proposal_requires_project_write(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, regulated_api_boundary
 ) -> None:
     request = {
         "workflow_name": "customer_health",
@@ -458,7 +458,7 @@ def test_workflow_wizard_conflict_records_failed_operation(
 
 
 def test_workflow_wizard_apply_requires_project_write(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regulated_api_boundary
 ) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     proposal = client.post(
@@ -501,7 +501,7 @@ def test_workflow_wizard_apply_requires_project_write(
 
 
 def test_workflow_wizard_proposal_is_bound_to_issuing_principal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, regulated_api_boundary
 ) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv(

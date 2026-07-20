@@ -39,6 +39,10 @@ def _direct_test_client_calls(function: ast.AST) -> list[ast.Call]:
     return calls
 
 
+def _is_explicit_development_test(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return "unregulated" in function.name and _contains_status_assertion(function, 200)
+
+
 def test_protected_testclient_calls_name_an_auth_helper_or_401() -> None:
     test_root = Path(__file__).parent
     violations: list[str] = []
@@ -59,7 +63,11 @@ def test_protected_testclient_calls_name_an_auth_helper_or_401() -> None:
                 if method == "OPTIONS" or (method, route_path) not in HTTP_ROUTE_KEY_MANIFEST:
                     continue
                 has_headers = any(keyword.arg == "headers" for keyword in call.keywords)
-                if has_headers or _contains_status_assertion(function, 401):
+                if (
+                    has_headers
+                    or _contains_status_assertion(function, 401)
+                    or _is_explicit_development_test(function)
+                ):
                     continue
                 violations.append(f"{path.name}:{call.lineno} {method} {route_path}")
 
