@@ -236,14 +236,14 @@ def create_regulated_bridge(
     enforcement enabled.
 
     Args:
-        group_role_mapping: Optional custom group-to-role mapping.
-            Uses DEFAULT_GROUP_ROLE_MAPPING if not provided.
+        group_role_mapping: Retained for API compatibility. Regulated bridges
+            never translate identity-provider groups into authorization roles.
 
     Returns:
         IdentityBridge configured for regulated mode.
     """
     config = IdentityBridgeConfig(
-        group_role_mapping=group_role_mapping or DEFAULT_GROUP_ROLE_MAPPING.copy(),
+        group_role_mapping={},
         enforce_approved_principal_types=True,
         propagate_idp_groups=True,
         canonical_rbac=canonical_rbac,
