@@ -13,8 +13,8 @@ import {
 } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
 
-import type { ContributingRowsPageResult } from '@/server/contributing.server'
-import type { DataRow } from '@/server/trino.server'
+import type { ContributingRowsPageResult } from '@/observatory/api/contributing'
+import type { DataRow } from '@/observatory/api/trino'
 import type { Edge, Node } from '@xyflow/react'
 
 import type { JourneyNodeData } from '@/components/flow/nodeTypes'
@@ -35,10 +35,10 @@ import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import {
   getContributingRowsPage,
   getContributingRowsQuery,
-} from '@/server/contributing.server'
-import { getAssetDetails } from '@/server/dagster.server'
-import { getAssetNeighbors } from '@/server/graph.server'
-import { getAssetChecks } from '@/server/quality.server'
+} from '@/observatory/api/contributing'
+import { getAssetDetails } from '@/observatory/api/dagster'
+import { getAssetNeighbors } from '@/observatory/api/graph'
+import { getAssetChecks } from '@/observatory/api/quality'
 
 interface RowJourneyProps {
   assetKey: string

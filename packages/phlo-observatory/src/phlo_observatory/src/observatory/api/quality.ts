@@ -7,12 +7,12 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import type { MetadataValue, QualityCheck } from './quality.types'
-import { authMiddleware } from '@/server/auth.server'
+import type { MetadataValue, QualityCheck } from '@/server/quality.types'
+import { authMiddleware } from '@/observatory/api/auth'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
-export type { QualityCheck } from './quality.types'
+export type { QualityCheck } from '@/server/quality.types'
 
 // Python API types (snake_case)
 interface ApiQualityCheck {

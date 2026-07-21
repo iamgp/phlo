@@ -9,155 +9,40 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WorkspaceRouteImport } from './routes/workspace'
-import { Route as TablesRouteImport } from './routes/tables'
-import { Route as StorageRouteImport } from './routes/storage'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ServicesRouteImport } from './routes/services'
-import { Route as SearchRouteImport } from './routes/search'
-import { Route as RunsRouteImport } from './routes/runs'
-import { Route as RecentsRouteImport } from './routes/recents'
-import { Route as QueryHistoryRouteImport } from './routes/query-history'
-import { Route as QueriesRouteImport } from './routes/queries'
-import { Route as QualityRouteImport } from './routes/quality'
-import { Route as PublishingRouteImport } from './routes/publishing'
-import { Route as PipelinesRouteImport } from './routes/pipelines'
-import { Route as OperationsRouteImport } from './routes/operations'
-import { Route as ObservabilityRouteImport } from './routes/observability'
-import { Route as LogsRouteImport } from './routes/logs'
-import { Route as LineageRouteImport } from './routes/lineage'
-import { Route as IngestionRouteImport } from './routes/ingestion'
-import { Route as GovernanceRouteImport } from './routes/governance'
-import { Route as ExtensionsRouteImport } from './routes/extensions'
-import { Route as DatasetsRouteImport } from './routes/datasets'
-import { Route as BranchesRouteImport } from './routes/branches'
-import { Route as BiRouteImport } from './routes/bi'
-import { Route as ApisRouteImport } from './routes/apis'
-import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as WorkflowsNewRouteImport } from './routes/workflows/new'
-import { Route as ExtensionsExtensionIdRouteImport } from './routes/extensions/$extensionId'
+import { Route as SplatRouteImport } from './routes/$'
+import { Route as ApisRouteImport } from './routes/apis'
+import { Route as BiRouteImport } from './routes/bi'
+import { Route as BranchesRouteImport } from './routes/branches'
+import { Route as DatasetsRouteImport } from './routes/datasets'
+import { Route as ExtensionsRouteImport } from './routes/extensions'
+import { Route as GovernanceRouteImport } from './routes/governance'
+import { Route as IngestionRouteImport } from './routes/ingestion'
+import { Route as LineageRouteImport } from './routes/lineage'
+import { Route as LogsRouteImport } from './routes/logs'
+import { Route as ObservabilityRouteImport } from './routes/observability'
+import { Route as OperationsRouteImport } from './routes/operations'
+import { Route as PipelinesRouteImport } from './routes/pipelines'
+import { Route as PublishingRouteImport } from './routes/publishing'
+import { Route as QualityRouteImport } from './routes/quality'
+import { Route as QueriesRouteImport } from './routes/queries'
+import { Route as QueryHistoryRouteImport } from './routes/query-history'
+import { Route as RecentsRouteImport } from './routes/recents'
+import { Route as RunsRouteImport } from './routes/runs'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as ServicesRouteImport } from './routes/services'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StorageRouteImport } from './routes/storage'
+import { Route as TablesRouteImport } from './routes/tables'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as DatasetsDatasetIdRouteImport } from './routes/datasets.$datasetId'
+import { Route as ExtensionsExtensionIdRouteImport } from './routes/extensions/$extensionId'
+import { Route as WorkflowsNewRouteImport } from './routes/workflows/new'
 import { Route as RunsProjectIdRunIdAttemptsAttemptReportRouteImport } from './routes/runs.$projectId.$runId.attempts.$attempt.report'
 
-const WorkspaceRoute = WorkspaceRouteImport.update({
-  id: '/workspace',
-  path: '/workspace',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TablesRoute = TablesRouteImport.update({
-  id: '/tables',
-  path: '/tables',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StorageRoute = StorageRouteImport.update({
-  id: '/storage',
-  path: '/storage',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ServicesRoute = ServicesRouteImport.update({
-  id: '/services',
-  path: '/services',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SearchRoute = SearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RunsRoute = RunsRouteImport.update({
-  id: '/runs',
-  path: '/runs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecentsRoute = RecentsRouteImport.update({
-  id: '/recents',
-  path: '/recents',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QueryHistoryRoute = QueryHistoryRouteImport.update({
-  id: '/query-history',
-  path: '/query-history',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QueriesRoute = QueriesRouteImport.update({
-  id: '/queries',
-  path: '/queries',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QualityRoute = QualityRouteImport.update({
-  id: '/quality',
-  path: '/quality',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PublishingRoute = PublishingRouteImport.update({
-  id: '/publishing',
-  path: '/publishing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PipelinesRoute = PipelinesRouteImport.update({
-  id: '/pipelines',
-  path: '/pipelines',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OperationsRoute = OperationsRouteImport.update({
-  id: '/operations',
-  path: '/operations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ObservabilityRoute = ObservabilityRouteImport.update({
-  id: '/observability',
-  path: '/observability',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LogsRoute = LogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LineageRoute = LineageRouteImport.update({
-  id: '/lineage',
-  path: '/lineage',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IngestionRoute = IngestionRouteImport.update({
-  id: '/ingestion',
-  path: '/ingestion',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GovernanceRoute = GovernanceRouteImport.update({
-  id: '/governance',
-  path: '/governance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExtensionsRoute = ExtensionsRouteImport.update({
-  id: '/extensions',
-  path: '/extensions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DatasetsRoute = DatasetsRouteImport.update({
-  id: '/datasets',
-  path: '/datasets',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BranchesRoute = BranchesRouteImport.update({
-  id: '/branches',
-  path: '/branches',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BiRoute = BiRouteImport.update({
-  id: '/bi',
-  path: '/bi',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApisRoute = ApisRouteImport.update({
-  id: '/apis',
-  path: '/apis',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SplatRoute = SplatRouteImport.update({
@@ -165,25 +50,140 @@ const SplatRoute = SplatRouteImport.update({
   path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ApisRoute = ApisRouteImport.update({
+  id: '/apis',
+  path: '/apis',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkflowsNewRoute = WorkflowsNewRouteImport.update({
-  id: '/workflows/new',
-  path: '/workflows/new',
+const BiRoute = BiRouteImport.update({
+  id: '/bi',
+  path: '/bi',
   getParentRoute: () => rootRouteImport,
+} as any)
+const BranchesRoute = BranchesRouteImport.update({
+  id: '/branches',
+  path: '/branches',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DatasetsRoute = DatasetsRouteImport.update({
+  id: '/datasets',
+  path: '/datasets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExtensionsRoute = ExtensionsRouteImport.update({
+  id: '/extensions',
+  path: '/extensions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GovernanceRoute = GovernanceRouteImport.update({
+  id: '/governance',
+  path: '/governance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IngestionRoute = IngestionRouteImport.update({
+  id: '/ingestion',
+  path: '/ingestion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LineageRoute = LineageRouteImport.update({
+  id: '/lineage',
+  path: '/lineage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogsRoute = LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObservabilityRoute = ObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OperationsRoute = OperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelinesRoute = PipelinesRouteImport.update({
+  id: '/pipelines',
+  path: '/pipelines',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublishingRoute = PublishingRouteImport.update({
+  id: '/publishing',
+  path: '/publishing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QualityRoute = QualityRouteImport.update({
+  id: '/quality',
+  path: '/quality',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueriesRoute = QueriesRouteImport.update({
+  id: '/queries',
+  path: '/queries',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueryHistoryRoute = QueryHistoryRouteImport.update({
+  id: '/query-history',
+  path: '/query-history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecentsRoute = RecentsRouteImport.update({
+  id: '/recents',
+  path: '/recents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RunsRoute = RunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StorageRoute = StorageRouteImport.update({
+  id: '/storage',
+  path: '/storage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TablesRoute = TablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DatasetsDatasetIdRoute = DatasetsDatasetIdRouteImport.update({
+  id: '/$datasetId',
+  path: '/$datasetId',
+  getParentRoute: () => DatasetsRoute,
 } as any)
 const ExtensionsExtensionIdRoute = ExtensionsExtensionIdRouteImport.update({
   id: '/$extensionId',
   path: '/$extensionId',
   getParentRoute: () => ExtensionsRoute,
 } as any)
-const DatasetsDatasetIdRoute = DatasetsDatasetIdRouteImport.update({
-  id: '/$datasetId',
-  path: '/$datasetId',
-  getParentRoute: () => DatasetsRoute,
+const WorkflowsNewRoute = WorkflowsNewRouteImport.update({
+  id: '/workflows/new',
+  path: '/workflows/new',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const RunsProjectIdRunIdAttemptsAttemptReportRoute =
   RunsProjectIdRunIdAttemptsAttemptReportRouteImport.update({
@@ -420,172 +420,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/workspace': {
-      id: '/workspace'
-      path: '/workspace'
-      fullPath: '/workspace'
-      preLoaderRoute: typeof WorkspaceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tables': {
-      id: '/tables'
-      path: '/tables'
-      fullPath: '/tables'
-      preLoaderRoute: typeof TablesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/storage': {
-      id: '/storage'
-      path: '/storage'
-      fullPath: '/storage'
-      preLoaderRoute: typeof StorageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/services': {
-      id: '/services'
-      path: '/services'
-      fullPath: '/services'
-      preLoaderRoute: typeof ServicesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/search': {
-      id: '/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof SearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/runs': {
-      id: '/runs'
-      path: '/runs'
-      fullPath: '/runs'
-      preLoaderRoute: typeof RunsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recents': {
-      id: '/recents'
-      path: '/recents'
-      fullPath: '/recents'
-      preLoaderRoute: typeof RecentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/query-history': {
-      id: '/query-history'
-      path: '/query-history'
-      fullPath: '/query-history'
-      preLoaderRoute: typeof QueryHistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/queries': {
-      id: '/queries'
-      path: '/queries'
-      fullPath: '/queries'
-      preLoaderRoute: typeof QueriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/quality': {
-      id: '/quality'
-      path: '/quality'
-      fullPath: '/quality'
-      preLoaderRoute: typeof QualityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/publishing': {
-      id: '/publishing'
-      path: '/publishing'
-      fullPath: '/publishing'
-      preLoaderRoute: typeof PublishingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pipelines': {
-      id: '/pipelines'
-      path: '/pipelines'
-      fullPath: '/pipelines'
-      preLoaderRoute: typeof PipelinesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/operations': {
-      id: '/operations'
-      path: '/operations'
-      fullPath: '/operations'
-      preLoaderRoute: typeof OperationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/observability': {
-      id: '/observability'
-      path: '/observability'
-      fullPath: '/observability'
-      preLoaderRoute: typeof ObservabilityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/logs': {
-      id: '/logs'
-      path: '/logs'
-      fullPath: '/logs'
-      preLoaderRoute: typeof LogsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lineage': {
-      id: '/lineage'
-      path: '/lineage'
-      fullPath: '/lineage'
-      preLoaderRoute: typeof LineageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ingestion': {
-      id: '/ingestion'
-      path: '/ingestion'
-      fullPath: '/ingestion'
-      preLoaderRoute: typeof IngestionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/governance': {
-      id: '/governance'
-      path: '/governance'
-      fullPath: '/governance'
-      preLoaderRoute: typeof GovernanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/extensions': {
-      id: '/extensions'
-      path: '/extensions'
-      fullPath: '/extensions'
-      preLoaderRoute: typeof ExtensionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/datasets': {
-      id: '/datasets'
-      path: '/datasets'
-      fullPath: '/datasets'
-      preLoaderRoute: typeof DatasetsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/branches': {
-      id: '/branches'
-      path: '/branches'
-      fullPath: '/branches'
-      preLoaderRoute: typeof BranchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bi': {
-      id: '/bi'
-      path: '/bi'
-      fullPath: '/bi'
-      preLoaderRoute: typeof BiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apis': {
-      id: '/apis'
-      path: '/apis'
-      fullPath: '/apis'
-      preLoaderRoute: typeof ApisRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$': {
@@ -595,19 +434,180 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/apis': {
+      id: '/apis'
+      path: '/apis'
+      fullPath: '/apis'
+      preLoaderRoute: typeof ApisRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workflows/new': {
-      id: '/workflows/new'
-      path: '/workflows/new'
-      fullPath: '/workflows/new'
-      preLoaderRoute: typeof WorkflowsNewRouteImport
+    '/bi': {
+      id: '/bi'
+      path: '/bi'
+      fullPath: '/bi'
+      preLoaderRoute: typeof BiRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/branches': {
+      id: '/branches'
+      path: '/branches'
+      fullPath: '/branches'
+      preLoaderRoute: typeof BranchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/datasets': {
+      id: '/datasets'
+      path: '/datasets'
+      fullPath: '/datasets'
+      preLoaderRoute: typeof DatasetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/extensions': {
+      id: '/extensions'
+      path: '/extensions'
+      fullPath: '/extensions'
+      preLoaderRoute: typeof ExtensionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/governance': {
+      id: '/governance'
+      path: '/governance'
+      fullPath: '/governance'
+      preLoaderRoute: typeof GovernanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ingestion': {
+      id: '/ingestion'
+      path: '/ingestion'
+      fullPath: '/ingestion'
+      preLoaderRoute: typeof IngestionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lineage': {
+      id: '/lineage'
+      path: '/lineage'
+      fullPath: '/lineage'
+      preLoaderRoute: typeof LineageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logs': {
+      id: '/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/observability': {
+      id: '/observability'
+      path: '/observability'
+      fullPath: '/observability'
+      preLoaderRoute: typeof ObservabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operations': {
+      id: '/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof OperationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipelines': {
+      id: '/pipelines'
+      path: '/pipelines'
+      fullPath: '/pipelines'
+      preLoaderRoute: typeof PipelinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/publishing': {
+      id: '/publishing'
+      path: '/publishing'
+      fullPath: '/publishing'
+      preLoaderRoute: typeof PublishingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quality': {
+      id: '/quality'
+      path: '/quality'
+      fullPath: '/quality'
+      preLoaderRoute: typeof QualityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/queries': {
+      id: '/queries'
+      path: '/queries'
+      fullPath: '/queries'
+      preLoaderRoute: typeof QueriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/query-history': {
+      id: '/query-history'
+      path: '/query-history'
+      fullPath: '/query-history'
+      preLoaderRoute: typeof QueryHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recents': {
+      id: '/recents'
+      path: '/recents'
+      fullPath: '/recents'
+      preLoaderRoute: typeof RecentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/runs': {
+      id: '/runs'
+      path: '/runs'
+      fullPath: '/runs'
+      preLoaderRoute: typeof RunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/storage': {
+      id: '/storage'
+      path: '/storage'
+      fullPath: '/storage'
+      preLoaderRoute: typeof StorageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tables': {
+      id: '/tables'
+      path: '/tables'
+      fullPath: '/tables'
+      preLoaderRoute: typeof TablesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/datasets/$datasetId': {
+      id: '/datasets/$datasetId'
+      path: '/$datasetId'
+      fullPath: '/datasets/$datasetId'
+      preLoaderRoute: typeof DatasetsDatasetIdRouteImport
+      parentRoute: typeof DatasetsRoute
     }
     '/extensions/$extensionId': {
       id: '/extensions/$extensionId'
@@ -616,12 +616,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExtensionsExtensionIdRouteImport
       parentRoute: typeof ExtensionsRoute
     }
-    '/datasets/$datasetId': {
-      id: '/datasets/$datasetId'
-      path: '/$datasetId'
-      fullPath: '/datasets/$datasetId'
-      preLoaderRoute: typeof DatasetsDatasetIdRouteImport
-      parentRoute: typeof DatasetsRoute
+    '/workflows/new': {
+      id: '/workflows/new'
+      path: '/workflows/new'
+      fullPath: '/workflows/new'
+      preLoaderRoute: typeof WorkflowsNewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/runs/$projectId/$runId/attempts/$attempt/report': {
       id: '/runs/$projectId/$runId/attempts/$attempt/report'

@@ -23,10 +23,13 @@ WORKDIR /app
 # Required for service discovery/status code paths that run `docker ps`.
 RUN apk add --no-cache docker-cli
 
+# Install only the runtime dependency graph. The build-only Vite, Nitro, and
+# scaffolding packages remain in the builder stage.
+COPY --from=builder /app/package*.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
 # Copy built application
 COPY --from=builder /app/.output /app/.output
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules /app/node_modules
 
 # Set environment
 ENV NODE_ENV=production

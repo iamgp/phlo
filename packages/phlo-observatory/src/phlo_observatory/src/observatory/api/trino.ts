@@ -7,7 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { authMiddleware } from '@/server/auth.server'
+import { authMiddleware } from '@/observatory/api/auth'
 import { apiGet, apiPost } from '@/server/phlo-api'
 
 // Types for Trino responses

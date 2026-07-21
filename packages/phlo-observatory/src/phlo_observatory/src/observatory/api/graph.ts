@@ -7,7 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { authMiddleware } from '@/server/auth.server'
+import { authMiddleware } from '@/observatory/api/auth'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
@@ -20,13 +20,7 @@ export interface GraphNode {
   computeKind?: string
   groupName?: string
   layer:
-    | 'source'
-    | 'bronze'
-    | 'silver'
-    | 'gold'
-    | 'marts'
-    | 'publish'
-    | 'unknown'
+    'source' | 'bronze' | 'silver' | 'gold' | 'marts' | 'publish' | 'unknown'
   lastMaterialization?: string
   upstreamCount: number
   downstreamCount: number

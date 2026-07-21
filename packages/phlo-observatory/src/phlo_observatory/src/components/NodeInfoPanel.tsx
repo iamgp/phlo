@@ -18,11 +18,11 @@ import {
   X,
 } from 'lucide-react'
 import { useReducer, useState } from 'react'
-import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
+import type { GraphNode, ImpactedAsset } from '@/observatory/api/graph'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { getAssetImpact } from '@/server/graph.server'
+import { getAssetImpact } from '@/observatory/api/graph'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { formatDate } from '@/utils/dateFormat'
 

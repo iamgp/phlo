@@ -1,6 +1,6 @@
 import type { ObservatorySettings } from '@/lib/observatorySettings'
 import { loadStoredObservatorySettings } from '@/lib/observatorySettings'
-import { getObservatorySettingsDefaults } from '@/server/settings.server'
+import { getObservatorySettingsDefaults } from '@/observatory/api/settings'
 
 export async function getEffectiveObservatorySettings(): Promise<ObservatorySettings> {
   const stored = loadStoredObservatorySettings()

@@ -6,8 +6,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import type { DataRow } from '@/server/trino.server'
-import { authMiddleware } from '@/server/auth.server'
+import type { DataRow } from '@/observatory/api/trino'
+import { authMiddleware } from '@/observatory/api/auth'
 import { apiPost } from '@/server/phlo-api'
 import { camelizeKeys } from '@/utils/caseTransform'
 

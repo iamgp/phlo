@@ -1,7 +1,7 @@
 import { ChevronDown, Loader2, Play, Trash2 } from 'lucide-react'
 import { useEffect, useReducer, useRef, useState } from 'react'
 
-import type { DataPreviewResult } from '@/server/trino.server'
+import type { DataPreviewResult } from '@/observatory/api/trino'
 import { SaveQueryDialog } from '@/components/data/SaveQueryDialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,7 +13,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { useSavedQueries } from '@/hooks/useSavedQueries'
-import { executeQuery } from '@/server/trino.server'
+import { executeQuery } from '@/observatory/api/trino'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 interface QueryEditorProps {

@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { Register, ValidateSerializableInput } from '@tanstack/router-core'
 
-import { authMiddleware } from '@/server/auth.server'
+import { authMiddleware } from '@/observatory/api/auth'
 import { apiGet, apiPut } from '@/server/phlo-api'
 
 export type ExtensionSettingsResponse = {

@@ -7,7 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { authMiddleware } from '@/server/auth.server'
+import { authMiddleware } from '@/observatory/api/auth'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 

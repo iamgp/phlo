@@ -17,7 +17,7 @@ describe('trino.server v2 wrappers', () => {
   })
 
   it('previews table data through the v2 table preview endpoint', async () => {
-    const { previewDataFromApi } = await import('@/server/trino.server')
+    const { previewDataFromApi } = await import('@/observatory/api/trino')
     apiGet.mockResolvedValue({
       columns: ['order_id'],
       column_types: ['varchar'],
@@ -46,7 +46,7 @@ describe('trino.server v2 wrappers', () => {
   })
 
   it('runs read queries through the v2 query endpoint', async () => {
-    const { executeQueryFromApi } = await import('@/server/trino.server')
+    const { executeQueryFromApi } = await import('@/observatory/api/trino')
     apiPost.mockResolvedValue({
       columns: ['order_id'],
       column_types: ['varchar'],

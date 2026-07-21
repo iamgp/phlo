@@ -18,7 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 
-import type { ColumnDiff, StageDiffResult } from '@/server/diff.server'
+import type { ColumnDiff, StageDiffResult } from '@/observatory/api/diff'
 import type { TransformType } from '@/utils/sqlParser'
 
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +30,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { getSimpleStageDiff, getStageDiff } from '@/server/diff.server'
+import { getSimpleStageDiff, getStageDiff } from '@/observatory/api/diff'
 
 interface StageDiffProps {
   open: boolean
