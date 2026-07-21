@@ -191,7 +191,8 @@ async function loadBrowserExtensions(): Promise<Array<ObservatoryExtension>> {
 
 function loadExtensionModule(moduleUrl: string): Promise<ExtensionModule> {
   const loader = bundledExtensionModules[moduleUrl] as
-    ExtensionModuleLoader | undefined
+    | ExtensionModuleLoader
+    | undefined
   if (loader) return loader()
   return Promise.resolve({})
 }
@@ -272,7 +273,8 @@ export function ObservatoryExtensionProvider({
               try {
                 const module = await loadExtensionModule(route.module)
                 const registerRoutes = module[route.export] as
-                  RegisterRoutesFn | undefined
+                  | RegisterRoutesFn
+                  | undefined
                 if (typeof registerRoutes !== 'function') return
                 const result = registerRoutes({
                   createRoute,
@@ -304,7 +306,8 @@ export function ObservatoryExtensionProvider({
               try {
                 const module = await loadExtensionModule(slot.module)
                 const registerSlotFn = module[slot.export] as
-                  RegisterSlotFn | undefined
+                  | RegisterSlotFn
+                  | undefined
                 if (typeof registerSlotFn !== 'function') return
                 registerSlotFn({ register: registerSlot(slot.slot_id) })
               } catch {
@@ -321,7 +324,8 @@ export function ObservatoryExtensionProvider({
               try {
                 const module = await loadExtensionModule(setting.module)
                 const registerSettingsFn = module[setting.export] as
-                  RegisterSettingsFn | undefined
+                  | RegisterSettingsFn
+                  | undefined
                 if (typeof registerSettingsFn !== 'function') return
                 const scope = extension.manifest.settings?.scope ?? 'extension'
                 const loadSettings = async () => {

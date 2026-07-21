@@ -49,7 +49,11 @@ function computeDiffSummary(columnDiffs: Array<ColumnDiff>) {
  * Column change type for diff display
  */
 type ColumnChangeType =
-  'added' | 'removed' | 'renamed' | 'transformed' | 'unchanged'
+  | 'added'
+  | 'removed'
+  | 'renamed'
+  | 'transformed'
+  | 'unchanged'
 
 /**
  * Column diff entry

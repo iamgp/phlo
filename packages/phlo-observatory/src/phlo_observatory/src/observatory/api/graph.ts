@@ -20,7 +20,13 @@ export interface GraphNode {
   computeKind?: string
   groupName?: string
   layer:
-    'source' | 'bronze' | 'silver' | 'gold' | 'marts' | 'publish' | 'unknown'
+    | 'source'
+    | 'bronze'
+    | 'silver'
+    | 'gold'
+    | 'marts'
+    | 'publish'
+    | 'unknown'
   lastMaterialization?: string
   upstreamCount: number
   downstreamCount: number
