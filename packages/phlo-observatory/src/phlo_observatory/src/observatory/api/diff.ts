@@ -8,7 +8,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type { ColumnMapping, TransformType } from '@/utils/sqlParser'
-import { authMiddleware } from '@/server/auth.server'
+import { authMiddleware } from '@/observatory/api/auth'
 
 import { analyzeSQLTransformation } from '@/utils/sqlParser'
 

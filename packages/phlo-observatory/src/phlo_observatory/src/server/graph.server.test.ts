@@ -12,7 +12,7 @@ describe('graph.server api wrappers', () => {
   })
 
   it('fetches the asset graph from phlo-api', async () => {
-    const { fetchAssetGraphFromApi } = await import('@/server/graph.server')
+    const { fetchAssetGraphFromApi } = await import('@/observatory/api/graph')
     const payload = {
       nodes: [
         {
@@ -63,7 +63,7 @@ describe('graph.server api wrappers', () => {
   })
 
   it('fetches impact data from phlo-api', async () => {
-    const { fetchAssetImpactFromApi } = await import('@/server/graph.server')
+    const { fetchAssetImpactFromApi } = await import('@/observatory/api/graph')
     const payload = [
       {
         key_path: 'gold.fct_orders',

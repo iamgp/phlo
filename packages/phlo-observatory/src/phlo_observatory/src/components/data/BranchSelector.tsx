@@ -1,8 +1,8 @@
 import { GitBranch, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useReducer } from 'react'
 
-import type { Branch, NessieConfig } from '@/server/nessie.server'
-import { checkNessieConnection, getBranches } from '@/server/nessie.server'
+import type { Branch, NessieConfig } from '@/observatory/api/nessie'
+import { checkNessieConnection, getBranches } from '@/observatory/api/nessie'
 
 interface BranchSelectorProps {
   branch: string

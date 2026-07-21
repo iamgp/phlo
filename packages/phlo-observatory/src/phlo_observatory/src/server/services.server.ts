@@ -14,7 +14,7 @@ import { promisify } from 'node:util'
 import { createServerFn } from '@tanstack/react-start'
 import { parse as parseYaml } from 'yaml'
 
-import { authMiddleware } from '@/server/auth.server'
+import { authMiddleware } from '@/observatory/api/auth'
 import {
   getComposeLabelValue,
   matchesComposeProject,

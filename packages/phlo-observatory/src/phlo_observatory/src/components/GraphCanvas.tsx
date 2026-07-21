@@ -22,7 +22,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { Database } from 'lucide-react'
 
-import type { GraphEdge, GraphNode } from '@/server/graph.server'
+import type { GraphEdge, GraphNode } from '@/observatory/api/graph'
 import type { Edge, Node, NodeProps, NodeTypes } from '@xyflow/react'
 
 const LAYER_STYLES: Record<

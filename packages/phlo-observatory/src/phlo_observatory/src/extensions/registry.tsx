@@ -14,12 +14,12 @@ import type {
   ObservatoryExtension,
   ObservatoryExtensionNavItem,
   ObservatoryExtensionRoute,
-} from '@/server/extensions.server'
-import { getObservatoryExtensions } from '@/server/extensions.server'
+} from '@/observatory/api/extensions'
+import { getObservatoryExtensions } from '@/observatory/api/extensions'
 import {
   getExtensionSettings,
   putExtensionSettings,
-} from '@/server/extension-settings.server'
+} from '@/observatory/api/extension-settings'
 
 type ExtensionRouteContext = {
   createRoute: typeof createRoute

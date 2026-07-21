@@ -2,8 +2,12 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { Register, ValidateSerializableInput } from '@tanstack/router-core'
 
-import { observatorySettingsSchema } from '@/lib/observatorySettings'
-import { authMiddleware } from '@/server/auth.server'
+import type { ObservatorySettings } from '@/lib/observatorySettings'
+import {
+  getFallbackObservatorySettings,
+  observatorySettingsSchema,
+} from '@/lib/observatorySettings'
+import { authMiddleware } from '@/observatory/api/auth'
 import { apiGet, apiPut } from '@/server/phlo-api'
 
 export type ObservatorySettingsResponse = {
@@ -21,6 +25,23 @@ const observatorySettingsInputSchema = z.object({
 })
 
 type ObservatorySettingsInput = z.infer<typeof observatorySettingsInputSchema>
+
+export const getObservatorySettingsDefaults = createServerFn().handler(
+  (): ObservatorySettings => {
+    const fallback = getFallbackObservatorySettings()
+
+    return {
+      ...fallback,
+      connections: {
+        dagsterGraphqlUrl:
+          process.env.DAGSTER_GRAPHQL_URL ||
+          fallback.connections.dagsterGraphqlUrl,
+        trinoUrl: process.env.TRINO_URL || fallback.connections.trinoUrl,
+        nessieUrl: process.env.NESSIE_URL || fallback.connections.nessieUrl,
+      },
+    }
+  },
+)
 
 export const getObservatorySettings = createServerFn()
   .middleware([authMiddleware])

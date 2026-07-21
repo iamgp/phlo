@@ -9,7 +9,7 @@
  *
  * Usage:
  * ```ts
- * import { authMiddleware } from '@/server/auth.server'
+ * import { authMiddleware } from '@/observatory/api/auth'
  *
  * export const getAssets = createServerFn()
  *   .middleware([authMiddleware])

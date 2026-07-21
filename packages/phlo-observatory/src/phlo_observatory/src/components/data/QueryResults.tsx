@@ -1,5 +1,5 @@
 import { Download } from 'lucide-react'
-import type { DataPreviewResult, DataRow } from '@/server/trino.server'
+import type { DataPreviewResult, DataRow } from '@/observatory/api/trino'
 import { Button } from '@/components/ui/button'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 

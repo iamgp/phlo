@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveObservatoryExtensions } from './extensions.server'
+import { resolveObservatoryExtensions } from '@/observatory/api/extensions'
 
 describe('extensions.server resolveObservatoryExtensions', () => {
   it('returns no extensions when phlo-api extension discovery is unavailable', async () => {

@@ -16,9 +16,9 @@ import {
 } from '@/lib/observatorySettings'
 import {
   getObservatorySettings,
+  getObservatorySettingsDefaults,
   putObservatorySettings,
-} from '@/server/observatory-settings.server'
-import { getObservatorySettingsDefaults } from '@/server/settings.server'
+} from '@/observatory/api/settings'
 
 type ObservatorySettingsContextValue = {
   settings: ObservatorySettings

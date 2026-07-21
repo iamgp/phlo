@@ -4,7 +4,7 @@ import {
   fetchContributingRowsQueryFromApi,
   transformContributingRowsPageResult,
   transformContributingRowsQueryResult,
-} from '@/server/contributing.server'
+} from '@/observatory/api/contributing'
 
 const { apiPost } = vi.hoisted(() => ({
   apiPost: vi.fn(),
