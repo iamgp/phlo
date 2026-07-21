@@ -142,6 +142,19 @@ def _top_level_yaml_name(path: Path) -> str | None:
     return None
 
 
+def _service_image_reference(path: Path) -> str | None:
+    """Return the literal image or build reference declared by a service definition."""
+    text = path.read_text(encoding="utf-8")
+    image = re.search(r"^image:\s*(\S+)\s*$", text, re.MULTILINE)
+    if image:
+        return re.sub(r"\$\{[^:}]+:-([^}]+)\}", r"\1", image.group(1))
+    context = re.search(r"^\s+context:\s*(\S+)\s*$", text, re.MULTILINE)
+    dockerfile = re.search(r"^\s+dockerfile:\s*(\S+)\s*$", text, re.MULTILINE)
+    if context and dockerfile:
+        return f"build:context={context.group(1)};dockerfile={dockerfile.group(1)}"
+    return None
+
+
 def _registered_service_plugins(pyproject_path: Path) -> dict[str, str]:
     with pyproject_path.open("rb") as handle:
         project = tomllib.load(handle)["project"]
@@ -475,6 +488,71 @@ def validate_manifest(manifest: dict[str, Any], *, repo_root: Path = ROOT) -> li
                 f"service {entry['name']!r}: package {entry['package']!r} is absent from the package manifest"
             )
 
+    release_set = manifest["release_set"]
+    release_package_names = [entry["name"] for entry in release_set["packages"]]
+    if len(release_package_names) != len(set(release_package_names)):
+        errors.append("release_set.packages contains duplicate package names")
+    release_packages = {entry["name"]: entry["version"] for entry in release_set["packages"]}
+    blessed_packages = {
+        _normalise_package_name(entry["name"])
+        for entry in package_entries
+        if entry["scope"] == "blessed_core"
+    }
+    if set(release_packages) != blessed_packages:
+        errors.append("release_set.packages must cover exactly the blessed_core packages")
+    for package, version in release_packages.items():
+        path = package_inventory.get(package)
+        if path is None:
+            continue
+        with path.open("rb") as handle:
+            declared_version = tomllib.load(handle)["project"]["version"]
+        if version != declared_version:
+            errors.append(
+                f"release_set package {package!r} version {version!r} does not match {path.relative_to(repo_root)}"
+            )
+
+    release_service_names = [entry["name"] for entry in release_set["services"]]
+    if len(release_service_names) != len(set(release_service_names)):
+        errors.append("release_set.services contains duplicate service names")
+    release_services = {
+        entry["name"]: entry["image_reference"] for entry in release_set["services"]
+    }
+    blessed_services = {
+        entry["name"] for entry in service_entries if entry["scope"] == "blessed_core"
+    }
+    if set(release_services) != blessed_services:
+        errors.append("release_set.services must cover exactly the blessed_core services")
+    for service, image_reference in release_services.items():
+        source = service_inventory.get(service)
+        if source is None:
+            continue
+        declared_reference = _service_image_reference(source)
+        if image_reference != declared_reference:
+            errors.append(
+                f"release_set service {service!r} image_reference does not match declared metadata"
+            )
+
+    config_schema = release_set["schemas"]["configuration"]
+    database_schema = release_set["schemas"]["database"]
+    config_source = repo_root / config_schema["source"]
+    database_source = repo_root / database_schema["source"]
+    if not config_source.is_file():
+        errors.append("release_set configuration source does not exist")
+    elif not re.search(
+        rf'^CONFIG_SCHEMA_VERSION\s*=\s*["\']{re.escape(config_schema["version"])}["\']\s*$',
+        config_source.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    ):
+        errors.append("release_set configuration version does not match CONFIG_SCHEMA_VERSION")
+    if not database_source.is_file():
+        errors.append("release_set database source does not exist")
+    elif not re.search(
+        rf"^RUN_EVIDENCE_SCHEMA_VERSION\s*=\s*{re.escape(database_schema['version'])}\s*$",
+        database_source.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    ):
+        errors.append("release_set database version does not match RUN_EVIDENCE_SCHEMA_VERSION")
+
     # Registry ``core`` marks discovery/defaulting roles, not release maturity.
     core_packages, core_services = _registry_core_claims(repo_root)
     for package in sorted(core_packages):
@@ -656,8 +734,19 @@ def validate_manifest(manifest: dict[str, Any], *, repo_root: Path = ROOT) -> li
             "runtime Python supported, advertised_unverified, and unverified sets must be disjoint"
         )
     classifiers = set(root_project["project"].get("classifiers", []))
+    classifier_prefix = "Programming Language :: Python :: "
+    advertised_python = {
+        classifier.removeprefix(classifier_prefix)
+        for classifier in classifiers
+        if classifier.startswith(classifier_prefix)
+        and classifier.removeprefix(classifier_prefix) != "3"
+    }
+    if advertised_python != supported_python | advertised_unverified:
+        errors.append(
+            "runtime Python supported and advertised_unverified claims must exactly match pyproject classifiers"
+        )
     for version in supported_python | advertised_unverified:
-        if f"Programming Language :: Python :: {version}" not in classifiers:
+        if f"{classifier_prefix}{version}" not in classifiers:
             errors.append(f"runtime Python claim {version!r} is absent from pyproject classifiers")
     ci_text = (repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     for version in supported_python:

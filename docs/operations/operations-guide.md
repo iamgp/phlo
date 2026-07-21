@@ -688,30 +688,7 @@ done
 
 ### Testing Recovery
 
-**Regular DR drills**:
-
-```bash
-#!/bin/bash
-# dr-test.sh
-
-# 1. Backup current state
-./backup-all.sh
-
-# 2. Destroy services
-phlo services stop --volumes
-
-# 3. Restore from backup
-./restore-all.sh
-
-# 4. Verify services
-phlo services status
-
-# 5. Test asset materialization
-phlo materialize --select "tag:critical" --partition $(date -d "yesterday" +%Y-%m-%d)
-
-# 6. Validate data
-./validate-data.sh
-```
+Automated upgrade and restore drills are deferred beyond v1; Phlo does not currently provide recovery scripts for those operations.
 
 ## Release Management
 
