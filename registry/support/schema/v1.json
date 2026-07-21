@@ -18,6 +18,7 @@
     "current_release",
     "runtime",
     "production",
+    "release_set",
     "exclusions"
   ],
   "properties": {
@@ -46,6 +47,7 @@
     "current_release": { "$ref": "#/$defs/current_release" },
     "runtime": { "$ref": "#/$defs/runtime" },
     "production": { "$ref": "#/$defs/production" },
+    "release_set": { "$ref": "#/$defs/release_set" },
     "exclusions": {
       "type": "array",
       "items": { "$ref": "#/$defs/exclusion" }
@@ -266,6 +268,58 @@
         "status": { "const": "excluded" },
         "reason": { "type": "string", "minLength": 1 },
         "evidence": { "$ref": "#/$defs/evidence" }
+      }
+    },
+    "release_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packages", "services", "schemas"],
+      "properties": {
+        "packages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/release_package" }
+        },
+        "services": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/release_service" }
+        },
+        "schemas": { "$ref": "#/$defs/release_schemas" }
+      }
+    },
+    "release_package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "release_service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "image_reference"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "image_reference": { "type": "string", "minLength": 1 }
+      }
+    },
+    "release_schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configuration", "database"],
+      "properties": {
+        "configuration": { "$ref": "#/$defs/versioned_schema" },
+        "database": { "$ref": "#/$defs/versioned_schema" }
+      }
+    },
+    "versioned_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source"],
+      "properties": {
+        "version": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 }
       }
     }
   }

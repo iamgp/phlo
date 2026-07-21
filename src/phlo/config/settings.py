@@ -15,6 +15,8 @@ from pydantic import AliasChoices, Field
 from phlo.config.base import BaseConfig
 from phlo.config.cache import project_root_cached
 
+CONFIG_SCHEMA_VERSION = "1"
+
 
 class Settings(BaseConfig):
     """Core configuration for Phlo.

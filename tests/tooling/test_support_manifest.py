@@ -46,6 +46,37 @@ def test_checked_in_manifest_matches_schema_and_repository_inventory() -> None:
     assert validate_manifest(_manifest()) == []
 
 
+def test_release_set_package_versions_and_service_images_are_derived_from_metadata() -> None:
+    manifest = _manifest()
+    manifest["release_set"]["packages"][0]["version"] = "0.0.0"
+    manifest["release_set"]["services"][0]["image_reference"] = "example:latest"
+
+    errors = validate_manifest(manifest)
+
+    assert any("release_set package 'phlo' version" in error for error in errors)
+    assert any("release_set service 'dagster' image_reference" in error for error in errors)
+
+
+def test_release_set_rejects_duplicate_package_and_service_names() -> None:
+    manifest = _manifest()
+    manifest["release_set"]["packages"].append(manifest["release_set"]["packages"][0])
+    manifest["release_set"]["services"].append(manifest["release_set"]["services"][0])
+
+    errors = validate_manifest(manifest)
+
+    assert "release_set.packages contains duplicate package names" in errors
+    assert "release_set.services contains duplicate service names" in errors
+
+
+def test_release_set_configuration_schema_version_matches_source() -> None:
+    manifest = _manifest()
+    manifest["release_set"]["schemas"]["configuration"]["version"] = "2"
+
+    errors = validate_manifest(manifest)
+
+    assert "release_set configuration version does not match CONFIG_SCHEMA_VERSION" in errors
+
+
 def test_schema_version_is_compatible_only_at_v1() -> None:
     manifest = _manifest()
     manifest["schema_version"] = "2.0"
@@ -467,6 +498,15 @@ def test_runtime_claim_sets_must_be_disjoint() -> None:
     errors = validate_manifest(manifest)
 
     assert any("must be disjoint" in error for error in errors)
+
+
+def test_runtime_python_claims_must_match_advertised_classifiers() -> None:
+    manifest = _manifest()
+    manifest["runtime"]["python"]["advertised_unverified"] = ["3.13"]
+
+    errors = validate_manifest(manifest)
+
+    assert any("must exactly match pyproject classifiers" in error for error in errors)
 
 
 def test_runtime_supported_python_requires_ci_evidence() -> None:
