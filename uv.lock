@@ -3177,7 +3177,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "asyncpg", marker = "extra == 'runtime'", specifier = ">=0.30.0" },
-    { name = "click", specifier = ">=8.0" },
+    { name = "click", specifier = ">=8.3.3" },
     { name = "dagster", marker = "extra == 'runtime'", specifier = ">=1.13,<1.14" },
     { name = "dagster-webserver", marker = "extra == 'runtime'", specifier = ">=1.13,<1.14" },
     { name = "duckdb", marker = "extra == 'runtime'", specifier = ">=0.9.0" },
@@ -3207,7 +3207,7 @@ requires-dist = [
     { name = "phlo-trino", marker = "extra == 'core-services'", editable = "packages/phlo-trino" },
     { name = "phlo-trino", marker = "extra == 'defaults'", editable = "packages/phlo-trino" },
     { name = "psycopg2-binary", marker = "extra == 'runtime'", specifier = ">=2.9.11" },
-    { name = "pydantic-settings", specifier = ">=2.11.0" },
+    { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "rich", specifier = ">=13.0" },
     { name = "structlog", specifier = ">=25.5.0" },
@@ -3454,6 +3454,7 @@ name = "phlo-dagster"
 version = "0.6.0"
 source = { editable = "packages/phlo-dagster" }
 dependencies = [
+    { name = "cryptography" },
     { name = "dagster" },
     { name = "dagster-graphql" },
     { name = "dagster-webserver" },
@@ -3484,6 +3485,7 @@ observatory = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=48.0.1" },
     { name = "dagster", specifier = ">=1.13,<1.14" },
     { name = "dagster-graphql", specifier = ">=1.13,<1.14" },
     { name = "dagster-webserver", specifier = ">=1.13,<1.14" },
@@ -3493,7 +3495,7 @@ requires-dist = [
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
-    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.13.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests", specifier = ">=2.32.5" },
