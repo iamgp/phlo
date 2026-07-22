@@ -176,6 +176,108 @@ def test_plugin_check_json_emits_only_json(setup_registry):
     assert "invalid" in data
 
 
+def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_registry, tmp_path):
+    """Container checks run tools against files generated in an external project."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        if command[0] == "/bin/phlo":
+            project = kwargs["cwd"]
+            dockerfile = project / ".phlo" / "dagster" / "Dockerfile"
+            dockerfile.parent.mkdir(parents=True, exist_ok=True)
+            dockerfile.write_text("FROM python:3.11\n")
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(check_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_module, "discover_plugins", lambda **_: {"service": []})
+    monkeypatch.setattr(check_module, "validate_plugins", lambda: {"valid": [], "invalid": []})
+
+    result = check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={"dagster/Dockerfile": "phlo-dagster"},
+        service_names=["phlo-api", "observatory"],
+    )
+
+    assert result["dockerfiles"] == ["dagster/Dockerfile"]
+    assert result["owners"] == {"dagster/Dockerfile": "phlo-dagster"}
+    assert calls[0][0][0] == "/bin/phlo"
+    assert calls[1][0] == [
+        "/bin/phlo",
+        "services",
+        "add",
+        "--service",
+        "phlo-api",
+        "--service",
+        "observatory",
+        "--no-start",
+    ]
+    generated_dockerfile = calls[0][1]["cwd"] / ".phlo" / "dagster" / "Dockerfile"
+    assert calls[2][0] == ["/bin/hadolint", str(generated_dockerfile)]
+    assert calls[3][0][:5] == ["/bin/trivy", "config", "--exit-code", "1", "--severity"]
+
+
+def test_plugin_check_containers_reports_tool_failure(monkeypatch, tmp_path):
+    """A generated-container tool failure is reported as a CLI failure."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    def fake_run(command, **kwargs):
+        return type("Result", (), {"returncode": 1, "stdout": "bad", "stderr": "failure"})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(check_module.subprocess, "run", fake_run)
+
+    with pytest.raises(check_module.ContainerCheckError, match="phlo services init failed"):
+        check_module.check_generated_containers(
+            project_parent=tmp_path,
+            service_files={"dagster/Dockerfile": "phlo-dagster"},
+        )
+
+
+def test_plugin_check_containers_rejects_unowned_dockerfile(monkeypatch, tmp_path):
+    """Generated Dockerfiles without discovered package ownership fail closed."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    def fake_run(command, **kwargs):
+        dockerfile = kwargs["cwd"] / ".phlo" / "unknown" / "Dockerfile"
+        dockerfile.parent.mkdir(parents=True, exist_ok=True)
+        dockerfile.write_text("FROM python:3.11\n")
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    with pytest.raises(check_module.ContainerCheckError, match="no package owner"):
+        check_module.check_generated_containers(
+            project_parent=tmp_path,
+            service_files={},
+            command_runner=fake_run,
+        )
+
+
+def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, setup_registry):
+    """The public check command exposes generated-container results as JSON."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    monkeypatch.setattr(
+        check_module,
+        "check_generated_containers",
+        lambda: {
+            "dockerfiles": ["dagster/Dockerfile"],
+            "owners": {"dagster/Dockerfile": "phlo-dagster"},
+        },
+    )
+
+    result = CliRunner().invoke(plugin_group, ["check", "--containers", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["containers"]["owners"] == {
+        "dagster/Dockerfile": "phlo-dagster"
+    }
+
+
 def test_plugin_list_all_json(setup_registry, monkeypatch):
     """List command includes registry plugins when --all is set."""
     registry_plugins = [
