@@ -49,6 +49,24 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
     return owners, list(dict.fromkeys(service_names))
 
 
+def _run_command(
+    command: list[str],
+    *,
+    cwd: Path,
+    runner: Callable[..., Any],
+    label: str,
+) -> str | None:
+    """Run one external command and return a failure detail, if any."""
+    try:
+        result = runner(command, cwd=cwd, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        return f"{label} could not start: {exc}"
+    if result.returncode:
+        detail = (result.stderr or result.stdout or "no output").strip()
+        return f"{label} failed with exit code {result.returncode}: {detail}"
+    return None
+
+
 def _run_checked_command(
     command: list[str],
     *,
@@ -56,14 +74,10 @@ def _run_checked_command(
     runner: Callable[..., Any],
     label: str,
 ) -> None:
-    """Run one external command and turn its failure into a useful error."""
-    try:
-        result = runner(command, cwd=cwd, capture_output=True, text=True, check=False)
-    except OSError as exc:
-        raise ContainerCheckError(f"{label} could not start: {exc}") from exc
-    if result.returncode:
-        detail = (result.stderr or result.stdout or "no output").strip()
-        raise ContainerCheckError(f"{label} failed with exit code {result.returncode}: {detail}")
+    """Run one required setup command and raise on failure."""
+    failure = _run_command(command, cwd=cwd, runner=runner, label=label)
+    if failure:
+        raise ContainerCheckError(failure)
 
 
 def check_generated_containers(
@@ -130,20 +144,37 @@ def check_generated_containers(
             relative: owners[relative] for relative in relative_dockerfiles if relative in owners
         }
 
-        if dockerfiles:
-            if not hadolint:
-                raise ContainerCheckError(
-                    "required tool 'hadolint' is not installed or not on PATH"
+        failures: list[dict[str, str]] = []
+        if dockerfiles and not hadolint:
+            for relative in relative_dockerfiles:
+                failures.append(
+                    {
+                        "tool": "hadolint",
+                        "package": dockerfile_owners[relative],
+                        "target": relative,
+                        "detail": "required tool is not installed or not on PATH",
+                    }
                 )
+        elif dockerfiles:
             for dockerfile in dockerfiles:
-                _run_checked_command(
+                relative = str(dockerfile.relative_to(generated_root))
+                failure = _run_command(
                     [hadolint, str(dockerfile)],
                     cwd=project,
                     runner=command_runner,
-                    label=f"hadolint {dockerfile.relative_to(generated_root)}",
+                    label=f"hadolint {relative}",
                 )
+                if failure:
+                    failures.append(
+                        {
+                            "tool": "hadolint",
+                            "package": dockerfile_owners[relative],
+                            "target": relative,
+                            "detail": failure,
+                        }
+                    )
 
-        _run_checked_command(
+        trivy_failure = _run_command(
             [
                 trivy,
                 "config",
@@ -157,6 +188,23 @@ def check_generated_containers(
             runner=command_runner,
             label="trivy config",
         )
+        if trivy_failure:
+            failures.append(
+                {
+                    "tool": "trivy",
+                    "package": "project",
+                    "target": ".phlo",
+                    "detail": trivy_failure,
+                }
+            )
+        if failures:
+            lines = ["Generated container checks failed:"]
+            lines.extend(
+                f"- {failure['tool']} [{failure['package']}] {failure['target']}: "
+                f"{failure['detail']}"
+                for failure in failures
+            )
+            raise ContainerCheckError("\n".join(lines))
 
     return {
         "dockerfiles": relative_dockerfiles,

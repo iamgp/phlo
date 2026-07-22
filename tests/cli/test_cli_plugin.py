@@ -257,6 +257,43 @@ def test_plugin_check_containers_rejects_unowned_dockerfile(monkeypatch, tmp_pat
         )
 
 
+def test_plugin_check_containers_reports_all_package_failures(monkeypatch, tmp_path):
+    """All generated package failures are reported after every scanner runs."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[0] == "/bin/phlo":
+            for name in ("one", "two"):
+                dockerfile = kwargs["cwd"] / ".phlo" / name / "Dockerfile"
+                dockerfile.parent.mkdir(parents=True, exist_ok=True)
+                dockerfile.write_text("FROM python:3.11\n")
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "failed"})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    with pytest.raises(check_module.ContainerCheckError) as exc_info:
+        check_module.check_generated_containers(
+            project_parent=tmp_path,
+            service_files={"one/Dockerfile": "package-one", "two/Dockerfile": "package-two"},
+            command_runner=fake_run,
+        )
+
+    message = str(exc_info.value)
+    assert "package-one" in message
+    assert "package-two" in message
+    assert "trivy [project]" in message
+    assert [command[0] for command in calls] == [
+        "/bin/phlo",
+        "/bin/hadolint",
+        "/bin/hadolint",
+        "/bin/trivy",
+    ]
+
+
 def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, setup_registry):
     """The public check command exposes generated-container results as JSON."""
     from phlo.cli.commands.plugin import check as check_module
