@@ -13,12 +13,14 @@ ARG PHLO_VERSION=""
 ARG PHLO_DBT_VERSION=""
 ARG PHLO_WHEELHOUSE=""
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Install system dependencies and uv
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    git \
+    curl="$(apt-cache policy curl | awk '/Candidate:/ {print $2}')" \
+    git="$(apt-cache policy git | awk '/Candidate:/ {print $2}')" \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install uv
+    && pip install --no-cache-dir "uv==0.8.13"
 
 # Copy only the artifact directory from the context stage; normal generated builds receive an
 # empty directory and retain the existing PyPI installation path.
@@ -38,7 +40,7 @@ RUN \
     else \
         uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"; \
         PHLO_PRERELEASE_REQUIREMENTS="$(python -c 'import importlib.metadata as md, re; print(" ".join(req.split(";")[0].strip() for req in (md.metadata("phlo").get_all("Requires-Dist") or []) if "extra == '\''defaults'\''" in req and re.search(r"(a|b|rc|dev)[0-9]+", req)))')"; \
-        uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" $PHLO_PRERELEASE_REQUIREMENTS dagster-webserver dagster-postgres "psycopg[binary]"; \
+        if [ -n "$PHLO_PRERELEASE_REQUIREMENTS" ]; then printf '%s\n' "$PHLO_PRERELEASE_REQUIREMENTS" | xargs uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; fi; \
     fi; \
     else \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
@@ -46,7 +48,12 @@ RUN \
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
 COPY dagster/entrypoint.sh /usr/local/bin/phlo-dagster-entrypoint.sh
-RUN chmod +x /usr/local/bin/phlo-dagster-entrypoint.sh
+RUN chmod +x /usr/local/bin/phlo-dagster-entrypoint.sh \
+    && groupadd --system phlo \
+    && useradd --system --gid phlo --home-dir /opt/dagster --no-create-home phlo \
+    && chown -R phlo:phlo /opt/dagster
+
+USER phlo
 
 # Copy workspace configuration
 COPY dagster/workspace.yaml /opt/dagster/workspace.yaml

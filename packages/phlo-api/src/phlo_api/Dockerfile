@@ -16,7 +16,7 @@ ARG PHLO_VERSION=
 ARG PHLO_API_VERSION=
 ARG PHLO_WHEELHOUSE=
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir "uv==0.8.13"
 
 COPY --from=phlo-build-context /opt/phlo-build-context/wheelhouse /opt/phlo-wheelhouse
 
@@ -37,6 +37,12 @@ RUN set -eux; \
     fi
 
 COPY --from=phlo-build-context /opt/phlo-build-context/phlo-api-entrypoint.sh /usr/local/bin/phlo-api-entrypoint.sh
+
+RUN groupadd --system phlo \
+    && useradd --system --gid phlo --home-dir /app --no-create-home phlo \
+    && chown -R phlo:phlo /app
+
+USER phlo
 
 EXPOSE 4000
 
