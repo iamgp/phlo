@@ -90,10 +90,9 @@ def check_generated_containers(
     """Generate a disposable user project and check only its generated files."""
     command_runner = command_runner or subprocess.run
     phlo = shutil.which("phlo")
-    hadolint = shutil.which("hadolint")
-    trivy = shutil.which("trivy")
-    if not trivy:
-        raise ContainerCheckError("required tool 'trivy' is not installed or not on PATH")
+    docker = shutil.which("docker")
+    if not docker:
+        raise ContainerCheckError("required tool 'docker' is not installed or not on PATH")
 
     if service_files is None:
         owners, discovered_service_names = _service_inventory()
@@ -145,21 +144,19 @@ def check_generated_containers(
         }
 
         failures: list[dict[str, str]] = []
-        if dockerfiles and not hadolint:
-            for relative in relative_dockerfiles:
-                failures.append(
-                    {
-                        "tool": "hadolint",
-                        "package": dockerfile_owners[relative],
-                        "target": relative,
-                        "detail": "required tool is not installed or not on PATH",
-                    }
-                )
-        elif dockerfiles:
+        if dockerfiles:
             for dockerfile in dockerfiles:
                 relative = str(dockerfile.relative_to(generated_root))
                 failure = _run_command(
-                    [hadolint, str(dockerfile)],
+                    [
+                        docker,
+                        "run",
+                        "--rm",
+                        "-v",
+                        f"{project.resolve()}:/workspace:ro",
+                        "hadolint/hadolint:latest",
+                        f"/workspace/.phlo/{relative}",
+                    ],
                     cwd=project,
                     runner=command_runner,
                     label=f"hadolint {relative}",
@@ -176,13 +173,18 @@ def check_generated_containers(
 
         trivy_failure = _run_command(
             [
-                trivy,
+                docker,
+                "run",
+                "--rm",
+                "-v",
+                f"{project.resolve()}:/workspace:ro",
+                "aquasec/trivy:latest",
                 "config",
                 "--exit-code",
                 "1",
                 "--severity",
                 "HIGH,CRITICAL",
-                str(generated_root),
+                "/workspace/.phlo",
             ],
             cwd=project,
             runner=command_runner,

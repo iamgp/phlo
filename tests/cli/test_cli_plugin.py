@@ -215,9 +215,30 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
         "observatory",
         "--no-start",
     ]
-    generated_dockerfile = calls[0][1]["cwd"] / ".phlo" / "dagster" / "Dockerfile"
-    assert calls[2][0] == ["/bin/hadolint", str(generated_dockerfile)]
-    assert calls[3][0][:5] == ["/bin/trivy", "config", "--exit-code", "1", "--severity"]
+    project_mount = f"{calls[0][1]['cwd'].resolve()}:/workspace:ro"
+    assert calls[2][0] == [
+        "/bin/docker",
+        "run",
+        "--rm",
+        "-v",
+        project_mount,
+        "hadolint/hadolint:latest",
+        "/workspace/.phlo/dagster/Dockerfile",
+    ]
+    assert calls[3][0] == [
+        "/bin/docker",
+        "run",
+        "--rm",
+        "-v",
+        project_mount,
+        "aquasec/trivy:latest",
+        "config",
+        "--exit-code",
+        "1",
+        "--severity",
+        "HIGH,CRITICAL",
+        "/workspace/.phlo",
+    ]
 
 
 def test_plugin_check_containers_reports_tool_failure(monkeypatch, tmp_path):
@@ -288,9 +309,9 @@ def test_plugin_check_containers_reports_all_package_failures(monkeypatch, tmp_p
     assert "trivy [project]" in message
     assert [command[0] for command in calls] == [
         "/bin/phlo",
-        "/bin/hadolint",
-        "/bin/hadolint",
-        "/bin/trivy",
+        "/bin/docker",
+        "/bin/docker",
+        "/bin/docker",
     ]
 
 
