@@ -295,6 +295,29 @@ jobs:
             exit 1
           fi
 
+  generated-container-checks:
+    name: containers / generated service files
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Check generated service containers
+        run: uv run --locked phlo --no-color plugin check --containers
+
   release-golden-path:
     name: python / release golden path
     runs-on: ubuntu-latest
@@ -496,6 +519,7 @@ jobs:
       - python-quality
       - python-core-tests
       - quickstart-smoke
+      - generated-container-checks
       - release-golden-path
       - recovery-continuity-drill
       - windows-release-contract
@@ -509,6 +533,7 @@ jobs:
           PYTHON_QUALITY: ${{ needs.python-quality.result }}
           PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
           QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
+          GENERATED_CONTAINER_CHECKS: ${{ needs.generated-container-checks.result }}
           RELEASE_GOLDEN_PATH: ${{ needs.release-golden-path.result }}
           RECOVERY_CONTINUITY_DRILL: ${{ needs.recovery-continuity-drill.result }}
           WINDOWS_RELEASE_CONTRACT: ${{ needs.windows-release-contract.result }}
@@ -526,6 +551,7 @@ jobs:
             echo "| python / quality | ${PYTHON_QUALITY} |"
             echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
             echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
+            echo "| containers / generated service files | ${GENERATED_CONTAINER_CHECKS} |"
             echo "| python / release golden path | ${RELEASE_GOLDEN_PATH} |"
             echo "| python / recovery continuity drill | ${RECOVERY_CONTINUITY_DRILL} |"
             echo "| windows / release golden path contract | ${WINDOWS_RELEASE_CONTRACT} |"
@@ -538,6 +564,7 @@ jobs:
             "${PYTHON_QUALITY}" \
             "${PYTHON_CORE_TESTS}" \
             "${QUICKSTART_SMOKE}" \
+            "${GENERATED_CONTAINER_CHECKS}" \
             "${RELEASE_GOLDEN_PATH}" \
             "${RECOVERY_CONTINUITY_DRILL}" \
             "${WINDOWS_RELEASE_CONTRACT}" \
