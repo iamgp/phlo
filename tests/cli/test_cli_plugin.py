@@ -223,6 +223,7 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
         "-v",
         project_mount,
         "hadolint/hadolint:latest",
+        "/bin/hadolint",
         "/workspace/.phlo/dagster/Dockerfile",
     ]
     assert calls[3][0] == [

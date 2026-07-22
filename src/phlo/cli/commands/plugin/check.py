@@ -155,6 +155,7 @@ def check_generated_containers(
                         "-v",
                         f"{project.resolve()}:/workspace:ro",
                         "hadolint/hadolint:latest",
+                        "/bin/hadolint",
                         f"/workspace/.phlo/{relative}",
                     ],
                     cwd=project,
