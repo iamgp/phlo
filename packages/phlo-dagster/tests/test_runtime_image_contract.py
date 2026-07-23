@@ -14,9 +14,9 @@ def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -
     )
     assert "PHLO_PRERELEASE_REQUIREMENTS" in dockerfile
     assert (
-        'uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION"'
-        in dockerfile
+        'base_requirements=("phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT"' in dockerfile
     )
+    assert 'uv pip install --system --prerelease explicit "${base_requirements[@]}"' in dockerfile
     assert 'dagster-postgres "psycopg[binary]"' in dockerfile
 
 
