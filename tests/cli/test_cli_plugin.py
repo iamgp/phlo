@@ -189,6 +189,29 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             dockerfile = project / ".phlo" / "dagster" / "Dockerfile"
             dockerfile.parent.mkdir(parents=True, exist_ok=True)
             dockerfile.write_text("FROM python:3.11\n")
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "dagster": {"image": "example/dagster:1"},
+                                "observatory": {"image": "example/observatory:1"},
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            return type("Result", (), {"returncode": 0, "stdout": "sha256:test\n", "stderr": ""})()
         return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
 
     monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
@@ -198,7 +221,11 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
 
     result = check_module.check_generated_containers(
         project_parent=tmp_path,
-        service_files={"dagster/Dockerfile": "phlo-dagster"},
+        service_files={
+            "dagster/Dockerfile": "phlo-dagster",
+            "@service:dagster": "phlo-dagster",
+            "@service:observatory": "phlo-observatory",
+        },
         service_names=["phlo-api", "observatory"],
     )
 
@@ -222,23 +249,34 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
         "--rm",
         "-v",
         project_mount,
-        "hadolint/hadolint:latest",
+        check_module.HADOLINT_IMAGE,
         "/bin/hadolint",
         "/workspace/.phlo/dagster/Dockerfile",
     ]
-    assert calls[3][0] == [
-        "/bin/docker",
-        "run",
-        "--rm",
-        "-v",
-        project_mount,
-        "aquasec/trivy:latest",
-        "config",
-        "--exit-code",
-        "1",
-        "--severity",
-        "HIGH,CRITICAL",
-        "/workspace/.phlo",
+    assert any(
+        check_module.TRIVY_IMAGE in command
+        and "image" in command
+        and "/var/run/docker.sock:/var/run/docker.sock" in command
+        for command, _ in calls
+    )
+    assert calls[-1][0][-1] == "/workspace/.phlo"
+    assert result["services"] == [
+        {
+            "service": "dagster",
+            "package": "phlo-dagster",
+            "image": "example/dagster:1",
+            "image_id": "sha256:test",
+            "status": "passed",
+            "image_scan": "passed",
+        },
+        {
+            "service": "observatory",
+            "package": "phlo-observatory",
+            "image": "example/observatory:1",
+            "image_id": "sha256:test",
+            "status": "passed",
+            "image_scan": "passed",
+        },
     ]
 
 
@@ -257,6 +295,25 @@ def test_plugin_check_containers_reports_tool_failure(monkeypatch, tmp_path):
             project_parent=tmp_path,
             service_files={"dagster/Dockerfile": "phlo-dagster"},
         )
+
+    with pytest.raises(check_module.ContainerCheckError) as exc_info:
+        check_module.check_generated_containers(
+            project_parent=tmp_path,
+            service_files={"dagster/Dockerfile": "phlo-dagster"},
+        )
+    assert "stdout: bad" in str(exc_info.value)
+    assert "stderr: failure" in str(exc_info.value)
+
+
+def test_plugin_check_containers_requires_installed_cli(monkeypatch, tmp_path):
+    from phlo.cli.commands.plugin import check as check_module
+
+    monkeypatch.setattr(
+        check_module.shutil, "which", lambda name: None if name == "phlo" else f"/bin/{name}"
+    )
+
+    with pytest.raises(check_module.ContainerCheckError, match="installed CLI 'phlo'"):
+        check_module.check_generated_containers(project_parent=tmp_path, service_files={})
 
 
 def test_plugin_check_containers_rejects_unowned_dockerfile(monkeypatch, tmp_path):
@@ -293,6 +350,27 @@ def test_plugin_check_containers_reports_all_package_failures(monkeypatch, tmp_p
                 dockerfile.parent.mkdir(parents=True, exist_ok=True)
                 dockerfile.write_text("FROM python:3.11\n")
             return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "one": {"image": "example/one:1"},
+                                "two": {"image": "example/two:1"},
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
         return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "failed"})()
 
     monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
@@ -300,7 +378,12 @@ def test_plugin_check_containers_reports_all_package_failures(monkeypatch, tmp_p
     with pytest.raises(check_module.ContainerCheckError) as exc_info:
         check_module.check_generated_containers(
             project_parent=tmp_path,
-            service_files={"one/Dockerfile": "package-one", "two/Dockerfile": "package-two"},
+            service_files={
+                "one/Dockerfile": "package-one",
+                "two/Dockerfile": "package-two",
+                "@service:one": "package-one",
+                "@service:two": "package-two",
+            },
             command_runner=fake_run,
         )
 
@@ -308,12 +391,9 @@ def test_plugin_check_containers_reports_all_package_failures(monkeypatch, tmp_p
     assert "package-one" in message
     assert "package-two" in message
     assert "trivy [project]" in message
-    assert [command[0] for command in calls] == [
-        "/bin/phlo",
-        "/bin/docker",
-        "/bin/docker",
-        "/bin/docker",
-    ]
+    assert "stdout:" not in message
+    assert [command[0] for command in calls].count("/bin/phlo") == 1
+    assert [command[0] for command in calls].count("/bin/docker") >= 5
 
 
 def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, setup_registry):

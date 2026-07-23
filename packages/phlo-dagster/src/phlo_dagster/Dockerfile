@@ -40,7 +40,9 @@ RUN \
     else \
         uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"; \
         PHLO_PRERELEASE_REQUIREMENTS="$(python -c 'import importlib.metadata as md, re; print(" ".join(req.split(";")[0].strip() for req in (md.metadata("phlo").get_all("Requires-Dist") or []) if "extra == '\''defaults'\''" in req and re.search(r"(a|b|rc|dev)[0-9]+", req)))')"; \
-        if [ -n "$PHLO_PRERELEASE_REQUIREMENTS" ]; then printf '%s\n' "$PHLO_PRERELEASE_REQUIREMENTS" | xargs uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; fi; \
+        base_requirements=("phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"); \
+        if [ -n "$PHLO_PRERELEASE_REQUIREMENTS" ]; then read -r -a prerelease_requirements <<< "$PHLO_PRERELEASE_REQUIREMENTS"; base_requirements+=("${prerelease_requirements[@]}"); fi; \
+        uv pip install --system --prerelease explicit "${base_requirements[@]}"; \
     fi; \
     else \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \

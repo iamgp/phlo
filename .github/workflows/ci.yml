@@ -298,7 +298,7 @@ jobs:
   generated-container-checks:
     name: containers / generated service files
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -312,11 +312,44 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Install dependencies
-        run: uv sync --dev --locked
+      - name: Build Phlo and service wheels
+        run: uv build --all-packages --wheel --out-dir "$RUNNER_TEMP/phlo-container-wheelhouse"
+
+      - name: Install wheels into a clean environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          env_dir="$RUNNER_TEMP/phlo-container-env"
+          uv venv "$env_dir" --python 3.11
+          uv pip install \
+            --python "$env_dir/bin/python" \
+            --find-links "$RUNNER_TEMP/phlo-container-wheelhouse" \
+            phlo \
+            phlo-alloy \
+            phlo-api \
+            phlo-clickhouse \
+            phlo-clickstack \
+            phlo-dagster \
+            phlo-grafana \
+            phlo-hasura \
+            phlo-loki \
+            phlo-minio \
+            phlo-nessie \
+            phlo-oauth2-proxy \
+            phlo-openmetadata \
+            phlo-observatory \
+            phlo-pgweb \
+            phlo-postgres \
+            phlo-postgrest \
+            phlo-prometheus \
+            phlo-rustfs \
+            phlo-superset \
+            phlo-traefik \
+            phlo-trino
+          echo "$env_dir/bin" >> "$GITHUB_PATH"
 
       - name: Check generated service containers
-        run: uv run --locked phlo --no-color plugin check --containers
+        run: phlo --no-color plugin check --containers
 
   release-golden-path:
     name: python / release golden path

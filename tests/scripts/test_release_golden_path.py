@@ -792,6 +792,15 @@ def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:
     assert "--no-index --no-deps --reinstall --find-links" in api_dockerfile
 
 
+def test_dagster_stable_version_install_keeps_base_requirements_unconditional() -> None:
+    dockerfile = (REPO_ROOT / "packages/phlo-dagster/src/phlo_dagster/Dockerfile").read_text()
+
+    assert 'base_requirements=("phlo[defaults]==$PHLO_VERSION"' in dockerfile
+    assert 'base_requirements+=("${prerelease_requirements[@]}")' in dockerfile
+    assert 'uv pip install --system --prerelease explicit "${base_requirements[@]}"' in dockerfile
+    assert 'if [ -n "$PHLO_PRERELEASE_REQUIREMENTS" ]; then' in dockerfile
+
+
 def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, monkeypatch) -> None:
     config = _config(tmp_path)
     config.project_dir.mkdir()

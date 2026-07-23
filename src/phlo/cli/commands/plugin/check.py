@@ -17,8 +17,17 @@ import click
 from phlo.cli.commands.plugin.utils import console
 from phlo.logging import get_logger
 from phlo.plugins import discover_plugins, validate_plugins
+from phlo.plugins.discovery import ServiceDiscovery
+from phlo.plugins.discovery._service_loading import resolve_plugin_source_path
 
 logger = get_logger(__name__)
+
+HADOLINT_IMAGE = (
+    "hadolint/hadolint@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e"
+)
+TRIVY_IMAGE = (
+    "aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
+)
 
 
 class ContainerCheckError(RuntimeError):
@@ -36,8 +45,13 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
     """Return generated service-file owners and all currently installed service names."""
     owners: dict[str, str] = {}
     service_names: list[str] = []
+    package_roots: dict[Path, str] = {}
     discovered = discover_plugins(plugin_type="service", auto_register=True)
     for plugin in discovered.get("service", []):
+        package = _plugin_package(plugin)
+        source_path = resolve_plugin_source_path(plugin)
+        if source_path:
+            package_roots[source_path.resolve()] = package
         service_definition = plugin.service_definition
         service_name = service_definition.get("name")
         if service_name:
@@ -45,7 +59,19 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
         for file_spec in plugin.get_files():
             destination = file_spec.get("dest")
             if destination:
-                owners[destination] = _plugin_package(plugin)
+                owners[destination] = package
+    for service_name, definition in ServiceDiscovery().discover().items():
+        source_path = definition.source_path
+        if not source_path:
+            continue
+        resolved_source = source_path.resolve()
+        matching_roots = [
+            (len(root.parts), package)
+            for root, package in package_roots.items()
+            if resolved_source == root or root in resolved_source.parents
+        ]
+        if matching_roots:
+            owners.setdefault(f"@service:{service_name}", max(matching_roots)[1])
     return owners, list(dict.fromkeys(service_names))
 
 
@@ -62,9 +88,37 @@ def _run_command(
     except OSError as exc:
         return f"{label} could not start: {exc}"
     if result.returncode:
-        detail = (result.stderr or result.stdout or "no output").strip()
-        return f"{label} failed with exit code {result.returncode}: {detail}"
+        return _run_command_result_failure(result, label)
     return None
+
+
+def _run_output_command(
+    command: list[str],
+    *,
+    cwd: Path,
+    runner: Callable[..., Any],
+    label: str,
+) -> tuple[str, str]:
+    """Run a command and return stdout, raising with both output streams on failure."""
+    try:
+        result = runner(command, cwd=cwd, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        raise ContainerCheckError(f"{label} could not start: {exc}") from exc
+    if result.returncode:
+        failure = _run_command_result_failure(result, label)
+        raise ContainerCheckError(failure)
+    return result.stdout or "", result.stderr or ""
+
+
+def _run_command_result_failure(result: Any, label: str) -> str:
+    """Format a failed command result without losing either output stream."""
+    output = []
+    if result.stdout:
+        output.append(f"stdout: {result.stdout.strip()}")
+    if result.stderr:
+        output.append(f"stderr: {result.stderr.strip()}")
+    detail = "\n".join(output) or "no output"
+    return f"{label} failed with exit code {result.returncode}: {detail}"
 
 
 def _run_checked_command(
@@ -91,6 +145,8 @@ def check_generated_containers(
     command_runner = command_runner or subprocess.run
     phlo = shutil.which("phlo")
     docker = shutil.which("docker")
+    if not phlo:
+        raise ContainerCheckError("required installed CLI 'phlo' is not installed or not on PATH")
     if not docker:
         raise ContainerCheckError("required tool 'docker' is not installed or not on PATH")
 
@@ -102,11 +158,9 @@ def check_generated_containers(
     with tempfile.TemporaryDirectory(prefix="phlo-container-check-", dir=project_parent) as raw:
         project = Path(raw)
         project.mkdir(exist_ok=True)
-        init_command = (
-            [phlo, "services", "init", "--no-dev"]
-            if phlo
-            else [sys.executable, "-m", "phlo.cli.main", "services", "init", "--no-dev"]
-        )
+        trivy_cache = project / ".trivy-cache"
+        trivy_cache.mkdir()
+        init_command = [phlo, "services", "init", "--no-dev"]
         _run_checked_command(
             init_command,
             cwd=project,
@@ -114,9 +168,7 @@ def check_generated_containers(
             label="phlo services init",
         )
         if discovered_service_names:
-            add_command = [phlo or sys.executable, "services", "add"]
-            if not phlo:
-                add_command = [sys.executable, "-m", "phlo.cli.main", "services", "add"]
+            add_command = [phlo, "services", "add"]
             for service_name in discovered_service_names:
                 add_command.extend(["--service", service_name])
             add_command.append("--no-start")
@@ -154,7 +206,7 @@ def check_generated_containers(
                         "--rm",
                         "-v",
                         f"{project.resolve()}:/workspace:ro",
-                        "hadolint/hadolint:latest",
+                        HADOLINT_IMAGE,
                         "/bin/hadolint",
                         f"/workspace/.phlo/{relative}",
                     ],
@@ -172,6 +224,194 @@ def check_generated_containers(
                         }
                     )
 
+        compose_file = generated_root / "docker-compose.yml"
+        compose_command = [
+            docker,
+            "compose",
+            "--profile",
+            "*",
+            "-f",
+            str(compose_file),
+            "--project-directory",
+            str(generated_root),
+            "config",
+            "--format",
+            "json",
+        ]
+        compose_stdout, _ = _run_output_command(
+            compose_command,
+            cwd=project,
+            runner=command_runner,
+            label="docker compose config",
+        )
+        try:
+            compose_config = json.loads(compose_stdout)
+            compose_services = compose_config["services"]
+            compose_project = compose_config["name"]
+        except (TypeError, KeyError, json.JSONDecodeError) as exc:
+            raise ContainerCheckError(
+                "docker compose config returned invalid service JSON"
+            ) from exc
+
+        service_owners = {
+            name.removeprefix("@service:"): package
+            for name, package in owners.items()
+            if name.startswith("@service:")
+        }
+        service_results: list[dict[str, str]] = []
+        image_ids: dict[str, str] = {}
+        resolved_image_ids: dict[str, str] = {}
+        for service_name, service in compose_services.items():
+            package = service_owners.get(service_name)
+            if not package:
+                raise ContainerCheckError(
+                    f"generated Compose service '{service_name}' has no package owner"
+                )
+            image = service.get("image")
+            locally_built = bool(service.get("build"))
+            if locally_built:
+                build_failure = _run_command(
+                    [
+                        docker,
+                        "compose",
+                        "--profile",
+                        "*",
+                        "-f",
+                        str(compose_file),
+                        "--project-directory",
+                        str(generated_root),
+                        "build",
+                        "--quiet",
+                        service_name,
+                    ],
+                    cwd=project,
+                    runner=command_runner,
+                    label=f"docker compose build {service_name}",
+                )
+                if build_failure:
+                    service_results.append(
+                        {
+                            "service": service_name,
+                            "package": package,
+                            "image": image or f"{compose_project}-{service_name}",
+                            "status": "failed",
+                            "image_scan": "not-run",
+                            "detail": build_failure,
+                        }
+                    )
+                    continue
+                image = image or f"{compose_project}-{service_name}"
+            elif not image:
+                service_results.append(
+                    {
+                        "service": service_name,
+                        "package": package,
+                        "image": "",
+                        "status": "failed",
+                        "image_scan": "not-run",
+                        "detail": "generated service has neither image nor build",
+                    }
+                )
+                continue
+            image_id = resolved_image_ids.get(image)
+            if image_id is None:
+                pull_failure = None
+                if not locally_built:
+                    pull_failure = _run_command(
+                        [docker, "pull", image],
+                        cwd=project,
+                        runner=command_runner,
+                        label=f"docker pull {service_name}",
+                    )
+                if pull_failure:
+                    service_results.append(
+                        {
+                            "service": service_name,
+                            "package": package,
+                            "image": image,
+                            "status": "failed",
+                            "image_scan": "not-run",
+                            "detail": pull_failure,
+                        }
+                    )
+                    continue
+                try:
+                    inspect_stdout, _ = _run_output_command(
+                        [docker, "image", "inspect", "--format", "{{.Id}}", image],
+                        cwd=project,
+                        runner=command_runner,
+                        label=f"docker image inspect {service_name}",
+                    )
+                except ContainerCheckError as exc:
+                    service_results.append(
+                        {
+                            "service": service_name,
+                            "package": package,
+                            "image": image,
+                            "status": "failed",
+                            "image_scan": "not-run",
+                            "detail": str(exc),
+                        }
+                    )
+                    continue
+                image_id = inspect_stdout.strip()
+            if not image_id:
+                service_results.append(
+                    {
+                        "service": service_name,
+                        "package": package,
+                        "image": image,
+                        "status": "failed",
+                        "image_scan": "not-run",
+                        "detail": "docker image inspect returned no image ID",
+                    }
+                )
+                continue
+            resolved_image_ids[image] = image_id
+            image_ids[service_name] = image_id
+            service_results.append(
+                {
+                    "service": service_name,
+                    "package": package,
+                    "image": image,
+                    "image_id": image_id,
+                    "status": "pending",
+                    "image_scan": "pending",
+                }
+            )
+
+        for image_id in dict.fromkeys(image_ids.values()):
+            image_services = [name for name, value in image_ids.items() if value == image_id]
+            trivy_image_failure = _run_command(
+                [
+                    docker,
+                    "run",
+                    "--rm",
+                    "-v",
+                    "/var/run/docker.sock:/var/run/docker.sock",
+                    "-v",
+                    f"{trivy_cache.resolve()}:/root/.cache/trivy",
+                    TRIVY_IMAGE,
+                    "image",
+                    "--exit-code",
+                    "1",
+                    "--scanners",
+                    "vuln",
+                    "--severity",
+                    "HIGH,CRITICAL",
+                    image_id,
+                ],
+                cwd=project,
+                runner=command_runner,
+                label=f"trivy image {image_id}",
+            )
+            for result in service_results:
+                if result.get("service") in image_services:
+                    result["status"] = "failed" if trivy_image_failure else "passed"
+                    result["image_scan"] = "failed" if trivy_image_failure else "passed"
+                    if trivy_image_failure:
+                        result["detail"] = trivy_image_failure
+
         trivy_failure = _run_command(
             [
                 docker,
@@ -179,7 +419,9 @@ def check_generated_containers(
                 "--rm",
                 "-v",
                 f"{project.resolve()}:/workspace:ro",
-                "aquasec/trivy:latest",
+                "-v",
+                f"{trivy_cache.resolve()}:/root/.cache/trivy",
+                TRIVY_IMAGE,
                 "config",
                 "--exit-code",
                 "1",
@@ -200,8 +442,44 @@ def check_generated_containers(
                     "detail": trivy_failure,
                 }
             )
+        reported_image_failures: set[str] = set()
+        for result in service_results:
+            if result["status"] == "passed":
+                continue
+            failure_key = result.get("image_id", result["service"])
+            if failure_key in reported_image_failures:
+                continue
+            reported_image_failures.add(failure_key)
+            failures.append(
+                {
+                    "tool": "trivy image",
+                    "package": result["package"],
+                    "target": result["service"],
+                    "detail": result.get("detail", "image scan failed"),
+                }
+            )
+        missing_results = [
+            result["service"]
+            for result in service_results
+            if result.get("image_scan") not in {"passed", "failed"}
+        ]
+        if missing_results:
+            failures.append(
+                {
+                    "tool": "trivy image",
+                    "package": "unknown",
+                    "target": ", ".join(missing_results),
+                    "detail": "generated service has no image-scan result",
+                }
+            )
         if failures:
             lines = ["Generated container checks failed:"]
+            lines.extend(
+                f"- service [{result['package']}] {result['service']}: "
+                f"{result['image'] or '<no image>'} -> {result['status']} "
+                f"(image scan: {result.get('image_scan', 'missing')})"
+                for result in service_results
+            )
             lines.extend(
                 f"- {failure['tool']} [{failure['package']}] {failure['target']}: "
                 f"{failure['detail']}"
@@ -214,6 +492,7 @@ def check_generated_containers(
         "owners": dockerfile_owners,
         "hadolint": "passed" if dockerfiles else "skipped (no generated Dockerfiles)",
         "trivy": "passed",
+        "services": service_results,
     }
 
 
@@ -287,6 +566,11 @@ def check_cmd(output_json: bool, containers: bool):
                     f"\n[green]Generated container checks passed:[/green] "
                     f"{len(checked['dockerfiles'])} Dockerfile(s)"
                 )
+                for service in checked["services"]:
+                    console.print(
+                        f"  [green]✓[/green] {service['package']} / {service['service']} "
+                        f"→ {service['image']} ({service['status']})"
+                    )
 
     except SystemExit:
         raise
