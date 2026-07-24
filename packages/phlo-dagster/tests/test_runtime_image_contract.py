@@ -7,7 +7,7 @@ from pathlib import Path
 def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -> None:
     dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
 
-    assert dockerfile.startswith("FROM python:3.12-slim")
+    assert dockerfile.startswith("FROM python:3.12-alpine")
     assert (
         'uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"'
         in dockerfile

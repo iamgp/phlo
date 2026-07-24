@@ -1,11 +1,11 @@
-FROM python:3.12-slim-bookworm AS phlo-build-context
+FROM python:3.12-alpine AS phlo-build-context
 
 WORKDIR /opt/phlo-build-context
 
 COPY . .
 RUN mkdir -p /opt/phlo-build-context/wheelhouse
 
-FROM python:3.12-slim-bookworm
+FROM python:3.12-alpine
 
 WORKDIR /opt/dagster
 
@@ -13,14 +13,13 @@ ARG PHLO_VERSION=""
 ARG PHLO_DBT_VERSION=""
 ARG PHLO_WHEELHOUSE=""
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
 # Install system dependencies and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl="$(apt-cache policy curl | awk '/Candidate:/ {print $2}')" \
-    git="$(apt-cache policy git | awk '/Candidate:/ {print $2}')" \
-    && rm -rf /var/lib/apt/lists/* \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache bash ca-certificates curl git \
+    && apk add --no-cache --virtual .build-deps gcc musl-dev \
     && pip install --no-cache-dir "uv==0.8.13"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Copy only the artifact directory from the context stage; normal generated builds receive an
 # empty directory and retain the existing PyPI installation path.
@@ -46,7 +45,7 @@ RUN \
     fi; \
     else \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
-    fi
+    fi && apk del .build-deps
 
 # Do not retain uv's downloaded archives in the runtime image; they are not needed to run Phlo.
 RUN rm -rf /root/.cache/uv
@@ -54,8 +53,8 @@ RUN rm -rf /root/.cache/uv
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
 COPY dagster/entrypoint.sh /usr/local/bin/phlo-dagster-entrypoint.sh
 RUN chmod +x /usr/local/bin/phlo-dagster-entrypoint.sh \
-    && groupadd --system phlo \
-    && useradd --system --gid phlo --home-dir /opt/dagster --no-create-home phlo \
+    && addgroup -S phlo \
+    && adduser -S -G phlo -h /opt/dagster -H phlo \
     && chown -R phlo:phlo /opt/dagster
 
 USER phlo
