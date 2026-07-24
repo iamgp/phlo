@@ -28,6 +28,8 @@ HADOLINT_IMAGE = (
 TRIVY_IMAGE = (
     "aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
 )
+MAX_TOOL_OUTPUT_CHARS = 64 * 1024
+_REAL_SUBPROCESS_RUN = subprocess.run
 
 
 class ContainerCheckError(RuntimeError):
@@ -84,7 +86,7 @@ def _run_command(
 ) -> str | None:
     """Run one external command and return a failure detail, if any."""
     try:
-        result = runner(command, cwd=cwd, capture_output=True, text=True, check=False)
+        result = _run_with_capture(command, cwd=cwd, runner=runner)
     except OSError as exc:
         return f"{label} could not start: {exc}"
     if result.returncode:
@@ -101,7 +103,7 @@ def _run_output_command(
 ) -> tuple[str, str]:
     """Run a command and return stdout, raising with both output streams on failure."""
     try:
-        result = runner(command, cwd=cwd, capture_output=True, text=True, check=False)
+        result = _run_with_capture(command, cwd=cwd, runner=runner)
     except OSError as exc:
         raise ContainerCheckError(f"{label} could not start: {exc}") from exc
     if result.returncode:
@@ -114,11 +116,73 @@ def _run_command_result_failure(result: Any, label: str) -> str:
     """Format a failed command result without losing either output stream."""
     output = []
     if result.stdout:
-        output.append(f"stdout: {result.stdout.strip()}")
+        output.append(f"stdout: {_limit_tool_output(result.stdout).strip()}")
     if result.stderr:
-        output.append(f"stderr: {result.stderr.strip()}")
+        output.append(f"stderr: {_limit_tool_output(result.stderr).strip()}")
     detail = "\n".join(output) or "no output"
     return f"{label} failed with exit code {result.returncode}: {detail}"
+
+
+def _run_with_capture(
+    command: list[str],
+    *,
+    cwd: Path,
+    runner: Callable[..., Any],
+) -> Any:
+    """Run a real command without retaining an unbounded scanner transcript."""
+    if runner is _REAL_SUBPROCESS_RUN:
+        return _run_bounded_subprocess(command, cwd=cwd)
+    return runner(command, cwd=cwd, capture_output=True, text=True, check=False)
+
+
+def _run_bounded_subprocess(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+    """Run a command through spooled files and retain useful output at bounded size."""
+    with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+        completed = _REAL_SUBPROCESS_RUN(
+            command,
+            cwd=cwd,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            check=False,
+        )
+        return subprocess.CompletedProcess(
+            command,
+            completed.returncode,
+            stdout=_read_bounded_file(stdout_file),
+            stderr=_read_bounded_file(stderr_file),
+        )
+
+
+def _read_bounded_file(file_handle: Any) -> str:
+    """Read a file's head and tail without loading a large tool report."""
+    file_handle.seek(0, 2)
+    size = file_handle.tell()
+    if size <= MAX_TOOL_OUTPUT_CHARS:
+        file_handle.seek(0)
+        return file_handle.read().decode("utf-8", errors="replace")
+
+    half_limit = MAX_TOOL_OUTPUT_CHARS // 2
+    file_handle.seek(0)
+    head = file_handle.read(half_limit)
+    file_handle.seek(-half_limit, 2)
+    tail = file_handle.read(half_limit)
+    return (
+        head.decode("utf-8", errors="replace")
+        + f"\n... [output truncated; {size} bytes total] ...\n"
+        + tail.decode("utf-8", errors="replace")
+    )
+
+
+def _limit_tool_output(value: str) -> str:
+    """Bound output from injected runners as well as real subprocesses."""
+    if len(value) <= MAX_TOOL_OUTPUT_CHARS:
+        return value
+    half_limit = MAX_TOOL_OUTPUT_CHARS // 2
+    return (
+        value[:half_limit]
+        + f"\n... [output truncated; {len(value)} characters total] ...\n"
+        + value[-half_limit:]
+    )
 
 
 def _run_checked_command(

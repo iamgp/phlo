@@ -305,6 +305,34 @@ def test_plugin_check_containers_reports_tool_failure(monkeypatch, tmp_path):
     assert "stderr: failure" in str(exc_info.value)
 
 
+def test_plugin_check_containers_bounds_large_tool_failure_output(monkeypatch, tmp_path):
+    """Large scanner reports retain both streams without exhausting memory."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    stdout = "stdout-start\n" + ("x" * (check_module.MAX_TOOL_OUTPUT_CHARS + 100)) + "\nstdout-end"
+    stderr = "stderr-start\n" + ("y" * (check_module.MAX_TOOL_OUTPUT_CHARS + 100)) + "\nstderr-end"
+
+    def fake_run(command, **kwargs):
+        return type("Result", (), {"returncode": 1, "stdout": stdout, "stderr": stderr})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(check_module.subprocess, "run", fake_run)
+
+    with pytest.raises(check_module.ContainerCheckError) as exc_info:
+        check_module.check_generated_containers(
+            project_parent=tmp_path,
+            service_files={"dagster/Dockerfile": "phlo-dagster"},
+        )
+
+    message = str(exc_info.value)
+    assert "stdout-start" in message
+    assert "stdout-end" in message
+    assert "stderr-start" in message
+    assert "stderr-end" in message
+    assert "output truncated" in message
+    assert len(message) < check_module.MAX_TOOL_OUTPUT_CHARS * 3
+
+
 def test_plugin_check_containers_requires_installed_cli(monkeypatch, tmp_path):
     from phlo.cli.commands.plugin import check as check_module
 
