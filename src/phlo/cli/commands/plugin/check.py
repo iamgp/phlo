@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -239,8 +240,13 @@ def check_generated_containers(
     with tempfile.TemporaryDirectory(prefix="phlo-container-check-", dir=project_parent) as raw:
         project = Path(raw)
         project.mkdir(exist_ok=True)
-        trivy_cache = project / ".trivy-cache"
-        trivy_cache.mkdir()
+        configured_trivy_cache = os.environ.get("PHLO_TRIVY_CACHE_DIR")
+        trivy_cache = (
+            Path(configured_trivy_cache).expanduser().resolve()
+            if configured_trivy_cache
+            else project / ".trivy-cache"
+        )
+        trivy_cache.mkdir(parents=True, exist_ok=True)
         init_command = [phlo, "services", "init", "--no-dev"]
         _run_checked_command(
             init_command,

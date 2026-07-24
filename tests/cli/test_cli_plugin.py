@@ -369,6 +369,48 @@ def test_plugin_check_containers_keeps_large_compose_config_parseable(monkeypatc
     assert result["services"][0]["status"] == "passed"
 
 
+def test_plugin_check_containers_reuses_configured_trivy_cache(monkeypatch, tmp_path):
+    """A configured cache survives the generated project cleanup for reuse."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    cache_dir = tmp_path / "trivy-cache"
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[:3] == ["/bin/docker", "compose", "--profile"]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {"name": "test-project", "services": {"one": {"image": "example/one:1"}}}
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            return type("Result", (), {"returncode": 0, "stdout": "sha256:test\n", "stderr": ""})()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setenv("PHLO_TRIVY_CACHE_DIR", str(cache_dir))
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={"@service:one": "package-one"},
+        command_runner=fake_run,
+    )
+
+    assert cache_dir.is_dir()
+    assert any(
+        f"{cache_dir.resolve()}:/root/.cache/trivy" in command
+        for command in calls
+        if command[0] == "/bin/docker"
+    )
+
+
 def test_plugin_check_containers_requires_installed_cli(monkeypatch, tmp_path):
     from phlo.cli.commands.plugin import check as check_module
 

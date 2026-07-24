@@ -28,12 +28,12 @@
     "services": [
       {"name": "dagster", "image_reference": "build:context=.;dockerfile=dagster/Dockerfile"},
       {"name": "dagster-daemon", "image_reference": "build:context=.;dockerfile=dagster/Dockerfile"},
-      {"name": "postgres", "image_reference": "postgres:16-alpine"},
+      {"name": "postgres", "image_reference": "postgres:18-alpine"},
       {"name": "postgres-volume-setup", "image_reference": "alpine:3.20"},
       {"name": "minio", "image_reference": "minio/minio:RELEASE.2025-09-07T16-13-09Z"},
       {"name": "minio-setup", "image_reference": "minio/mc:RELEASE.2025-08-13T08-35-41Z"},
-      {"name": "nessie", "image_reference": "ghcr.io/projectnessie/nessie:0.107.2"},
-      {"name": "trino", "image_reference": "trinodb/trino:467"},
+      {"name": "nessie", "image_reference": "ghcr.io/projectnessie/nessie:0.108.3"},
+      {"name": "trino", "image_reference": "trinodb/trino:483"},
       {"name": "phlo-api", "image_reference": "build:context=.;dockerfile=phlo-api/Dockerfile"},
       {"name": "observatory", "image_reference": "build:context=source;dockerfile=Dockerfile"}
     ],
