@@ -75,7 +75,10 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
             if resolved_source == root or root in resolved_source.parents
         ]
         if matching_roots:
-            owners.setdefault(f"@service:{service_name}", max(matching_roots)[1])
+            package = max(matching_roots)[1]
+            owners.setdefault(f"@service:{service_name}", package)
+            if definition.image:
+                owners.setdefault(f"images/{service_name}/Dockerfile", package)
     return owners, list(dict.fromkeys(service_names))
 
 

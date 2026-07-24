@@ -97,6 +97,24 @@ def test_conditional_environment_creates_an_absent_environment(tmp_path) -> None
     assert data["services"]["conditional"]["environment"] == {"CONDITIONAL_VALUE": "enabled"}
 
 
+def test_image_services_generate_phlo_owned_hardening_wrappers(tmp_path) -> None:
+    service = _service("postgres", default=True)
+    service.image = "postgres:18-alpine"
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery({service.name: service})))
+
+    data = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+    copied = generator.copy_service_files([service], tmp_path)
+
+    assert data["services"]["postgres"]["image"] == "postgres:18-alpine"
+    assert data["services"]["postgres"]["build"] == {
+        "context": ".",
+        "dockerfile": "images/postgres/Dockerfile",
+        "args": {"BASE_IMAGE": "postgres:18-alpine"},
+    }
+    assert copied == ["images/postgres/Dockerfile"]
+    assert "apt-get dist-upgrade" in (tmp_path / "images" / "postgres" / "Dockerfile").read_text()
+
+
 def test_conditional_environment_supports_list_environment_and_user_overrides(tmp_path) -> None:
     service = ServiceDefinition(
         name="conditional",
