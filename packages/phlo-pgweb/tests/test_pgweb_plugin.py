@@ -9,6 +9,8 @@ def test_pgweb_service_definition():
     defn = plugin.service_definition
 
     assert defn["name"] == "pgweb"
+    assert defn["build"] == {"context": ".", "dockerfile": "pgweb/Dockerfile"}
+    assert defn["files"] == [{"source": "Dockerfile", "dest": "pgweb/Dockerfile"}]
 
 
 def test_pgweb_plugin_metadata():

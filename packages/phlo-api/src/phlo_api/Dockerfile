@@ -17,8 +17,10 @@ ARG PHLO_API_VERSION=
 ARG PHLO_WHEELHOUSE=
 
 RUN apk upgrade --no-cache \
-    && apk add --no-cache ca-certificates \
-    && apk add --no-cache --virtual .build-deps gcc musl-dev \
+    && apk add --no-cache ca-certificates=20260611-r0 \
+    && apk add --no-cache --virtual .build-deps \
+        gcc=15.2.0-r5 \
+        musl-dev=1.2.6-r2 \
     && pip install --no-cache-dir \
         "setuptools==83.0.0" \
         "wheel==0.47.0" \

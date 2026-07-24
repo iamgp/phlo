@@ -15,8 +15,14 @@ ARG PHLO_WHEELHOUSE=""
 
 # Install system dependencies and uv
 RUN apk upgrade --no-cache \
-    && apk add --no-cache bash ca-certificates curl git \
-    && apk add --no-cache --virtual .build-deps gcc musl-dev \
+    && apk add --no-cache \
+        bash=5.3.9-r1 \
+        ca-certificates=20260611-r0 \
+        curl=8.21.0-r0 \
+        git=2.54.0-r0 \
+    && apk add --no-cache --virtual .build-deps \
+        gcc=15.2.0-r5 \
+        musl-dev=1.2.6-r2 \
     && pip install --no-cache-dir "uv==0.8.13"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
