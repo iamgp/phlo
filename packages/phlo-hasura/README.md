@@ -23,7 +23,7 @@ Part of the `api` profile.
 | Variable              | Default                    | Description             |
 | --------------------- | -------------------------- | ----------------------- |
 | `HASURA_PORT`         | `8082`                     | Hasura console/API port |
-| `HASURA_VERSION`      | `v2.46.0`                  | Hasura version          |
+| `HASURA_VERSION`      | `v2.49.5`                  | Hasura version          |
 | `HASURA_ADMIN_SECRET` | `phlo-hasura-admin-secret` | Admin secret            |
 
 ## Auto-Configuration

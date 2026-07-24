@@ -4,7 +4,7 @@ category: api
 default: false
 profile: api
 
-image: hasura/graphql-engine:${HASURA_VERSION:-v2.46.0}
+image: hasura/graphql-engine:${HASURA_VERSION:-v2.49.5}
 
 depends_on:
   - postgres
@@ -32,7 +32,7 @@ compose:
 
 env_vars:
   HASURA_VERSION:
-    default: v2.46.0
+    default: v2.49.5
     description: Hasura GraphQL Engine version
   HASURA_PORT:
     default: 8082

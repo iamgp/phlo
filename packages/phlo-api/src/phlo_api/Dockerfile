@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS phlo-build-context
+FROM python:3.11-slim-bookworm AS phlo-build-context
 
 WORKDIR /opt/phlo-build-context
 
@@ -8,7 +8,7 @@ RUN set -eux; \
     install -m 0755 "$entrypoint" /opt/phlo-build-context/phlo-api-entrypoint.sh; \
     mkdir -p /opt/phlo-build-context/wheelhouse
 
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
@@ -35,6 +35,9 @@ RUN set -eux; \
     else \
         uv pip install --system phlo "$PHLO_API_REQUIREMENT"; \
     fi
+
+# Do not retain uv's downloaded archives in the runtime image; they are not needed to run Phlo.
+RUN rm -rf /root/.cache/uv
 
 COPY --from=phlo-build-context /opt/phlo-build-context/phlo-api-entrypoint.sh /usr/local/bin/phlo-api-entrypoint.sh
 

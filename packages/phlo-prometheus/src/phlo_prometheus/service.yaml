@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
+image: prom/prometheus:${PROMETHEUS_VERSION:-v3.13.1}
 
 compose:
   restart: unless-stopped
@@ -39,7 +39,7 @@ compose:
 
 env_vars:
   PROMETHEUS_VERSION:
-    default: v3.1.0
+    default: v3.13.1
     description: Prometheus version
   PROMETHEUS_PORT:
     default: 9090

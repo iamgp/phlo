@@ -3,7 +3,7 @@ description: Web-based PostgreSQL database browser
 category: admin
 default: true
 
-image: sosedoff/pgweb
+image: sosedoff/pgweb:0.17.0
 
 depends_on:
   - postgres

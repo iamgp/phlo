@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: grafana/grafana:${GRAFANA_VERSION:-11.3.1}
+image: grafana/grafana:${GRAFANA_VERSION:-13.1.1}
 
 depends_on:
   - prometheus
@@ -43,7 +43,7 @@ compose:
 
 env_vars:
   GRAFANA_VERSION:
-    default: "11.3.1"
+    default: "13.1.1"
     description: Grafana version
   GRAFANA_PORT:
     default: 3003

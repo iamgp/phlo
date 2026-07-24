@@ -4,7 +4,7 @@ category: catalog
 default: false
 profile: openmetadata
 
-image: docker.getcollate.io/openmetadata/db:${OPENMETADATA_VERSION:-1.9.7}
+image: docker.getcollate.io/openmetadata/db:${OPENMETADATA_VERSION:-1.13.1}
 
 compose:
   restart: unless-stopped

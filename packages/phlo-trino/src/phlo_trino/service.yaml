@@ -3,7 +3,7 @@ description: Distributed SQL query engine for the data lake
 category: core
 default: true
 
-image: trinodb/trino:${TRINO_VERSION:-467}
+image: trinodb/trino:${TRINO_VERSION:-483}
 
 depends_on:
   - nessie
@@ -41,7 +41,7 @@ compose:
 
 env_vars:
   TRINO_VERSION:
-    default: "467"
+    default: "483"
     description: Trino version
   TRINO_PORT:
     default: 10005

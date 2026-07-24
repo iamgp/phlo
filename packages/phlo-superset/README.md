@@ -19,7 +19,7 @@ phlo plugin install superset
 | Variable                  | Default             | Description            |
 | ------------------------- | ------------------- | ---------------------- |
 | `SUPERSET_PORT`           | `8088`              | Superset web UI port   |
-| `SUPERSET_VERSION`        | `4.0.0`             | Superset version       |
+| `SUPERSET_VERSION`        | `6.1.0`             | Superset version       |
 | `SUPERSET_SECRET_KEY`     | auto-generated      | Session encryption key |
 | `SUPERSET_ADMIN_USER`     | `admin`             | Admin username         |
 | `SUPERSET_ADMIN_PASSWORD` | `admin`             | Admin password         |

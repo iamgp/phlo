@@ -11,10 +11,10 @@ compose:
   entrypoint: /bin/sh
   command: >
     -c "
-    mkdir -p /var/lib/postgresql/data &&
-    chown -R 70:70 /var/lib/postgresql/data &&
-    chmod 700 /var/lib/postgresql/data &&
+    mkdir -p /var/lib/postgresql &&
+    chown -R 70:70 /var/lib/postgresql &&
+    chmod 700 /var/lib/postgresql &&
     echo 'Postgres data volume ownership initialized'
     "
   volumes:
-    - postgres-data:/var/lib/postgresql/data
+    - postgres-data:/var/lib/postgresql

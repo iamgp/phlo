@@ -23,7 +23,7 @@ Part of the `observability` profile.
 | Variable                 | Default  | Description         |
 | ------------------------ | -------- | ------------------- |
 | `GRAFANA_PORT`           | `3003`   | Grafana web UI port |
-| `GRAFANA_VERSION`        | `11.3.1` | Grafana version     |
+| `GRAFANA_VERSION`        | `13.1.1` | Grafana version     |
 | `GRAFANA_ADMIN_USER`     | `admin`  | Admin username      |
 | `GRAFANA_ADMIN_PASSWORD` | `admin`  | Admin password      |
 

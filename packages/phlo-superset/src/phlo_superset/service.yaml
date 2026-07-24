@@ -3,7 +3,7 @@ description: Apache Superset for business intelligence and data visualization
 category: bi
 default: true
 
-image: apache/superset:${SUPERSET_VERSION:-4.0.0}
+image: apache/superset:${SUPERSET_VERSION:-6.1.0}
 
 depends_on:
   - postgres
@@ -46,7 +46,7 @@ compose:
 
 env_vars:
   SUPERSET_VERSION:
-    default: "4.0.0"
+    default: "6.1.0"
     description: Apache Superset version
   SUPERSET_PORT:
     default: 8088

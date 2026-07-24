@@ -23,7 +23,7 @@ Part of the `observability` profile.
 | Variable       | Default | Description   |
 | -------------- | ------- | ------------- |
 | `LOKI_PORT`    | `3100`  | Loki API port |
-| `LOKI_VERSION` | `3.2.1` | Loki version  |
+| `LOKI_VERSION` | `3.7.4` | Loki version  |
 
 ## Auto-Configuration
 

@@ -9,7 +9,7 @@ depends_on:
   - openmetadata-elasticsearch
   - openmetadata-setup
 
-image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.9.7}
+image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.13.1}
 
 compose:
   restart: unless-stopped
@@ -51,7 +51,7 @@ compose:
 
 env_vars:
   OPENMETADATA_VERSION:
-    default: "1.9.7"
+    default: "1.13.1"
     description: OpenMetadata version
   OPENMETADATA_PORT:
     default: 8585

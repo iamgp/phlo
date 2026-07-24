@@ -333,6 +333,42 @@ def test_plugin_check_containers_bounds_large_tool_failure_output(monkeypatch, t
     assert len(message) < check_module.MAX_TOOL_OUTPUT_CHARS * 3
 
 
+def test_plugin_check_containers_keeps_large_compose_config_parseable(monkeypatch, tmp_path):
+    """The generated service inventory is bounded separately from tool transcripts."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    compose_config = {
+        "name": "test-project",
+        "services": {
+            "one": {
+                "image": "example/one:1",
+                "labels": {"padding": "x" * check_module.MAX_TOOL_OUTPUT_CHARS},
+            }
+        },
+    }
+
+    def fake_run(command, **kwargs):
+        if command[:3] == ["/bin/docker", "compose", "--profile"]:
+            return type(
+                "Result",
+                (),
+                {"returncode": 0, "stdout": json.dumps(compose_config), "stderr": ""},
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            return type("Result", (), {"returncode": 0, "stdout": "sha256:test\n", "stderr": ""})()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    result = check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={"@service:one": "package-one"},
+        command_runner=fake_run,
+    )
+
+    assert result["services"][0]["status"] == "passed"
+
+
 def test_plugin_check_containers_requires_installed_cli(monkeypatch, tmp_path):
     from phlo.cli.commands.plugin import check as check_module
 

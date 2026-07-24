@@ -27,7 +27,7 @@ from phlo.config.network import resolve_host
 class NessieSettings(BaseConfig):
     """Nessie catalog configuration."""
 
-    nessie_version: str = Field(default="0.107.2", description="Nessie version")
+    nessie_version: str = Field(default="0.108.3", description="Nessie version")
     nessie_port: int = Field(default=19120, description="Nessie REST API port")
     nessie_host: str = Field(default="nessie", description="Nessie service hostname")
     nessie_api_version: str = Field(default="v1", description="Nessie API version")

@@ -23,7 +23,7 @@ Part of the `api` profile.
 | Variable            | Default   | Description        |
 | ------------------- | --------- | ------------------ |
 | `POSTGREST_PORT`    | `3002`    | PostgREST API port |
-| `POSTGREST_VERSION` | `v12.2.3` | PostgREST version  |
+| `POSTGREST_VERSION` | `v14.15` | PostgREST version  |
 | `POSTGRES_USER`     | `phlo`    | Database user      |
 | `POSTGRES_PASSWORD` | `phlo`    | Database password  |
 | `POSTGRES_DB`       | `phlo`    | Database name      |

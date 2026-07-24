@@ -3,7 +3,7 @@ description: Git-like catalog for Iceberg tables with branch/merge support
 category: core
 default: true
 
-image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.107.2}
+image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.108.3}
 
 depends_on:
   - postgres
@@ -51,7 +51,7 @@ compose:
 
 env_vars:
   NESSIE_VERSION:
-    default: "0.107.2"
+    default: "0.108.3"
     description: Nessie version
   NESSIE_PORT:
     default: 10003

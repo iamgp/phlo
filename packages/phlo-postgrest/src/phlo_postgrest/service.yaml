@@ -4,7 +4,7 @@ category: api
 default: false
 profile: api
 
-image: postgrest/postgrest:${POSTGREST_VERSION:-v12.2.3}
+image: postgrest/postgrest:${POSTGREST_VERSION:-v14.15}
 
 depends_on:
   - postgres
@@ -26,7 +26,7 @@ compose:
 
 env_vars:
   POSTGREST_VERSION:
-    default: v12.2.3
+    default: v14.15
     description: PostgREST version
   POSTGREST_PORT:
     default: 3002

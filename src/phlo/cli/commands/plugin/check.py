@@ -29,6 +29,7 @@ TRIVY_IMAGE = (
     "aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
 )
 MAX_TOOL_OUTPUT_CHARS = 64 * 1024
+MAX_COMPOSE_CONFIG_CHARS = 4 * 1024 * 1024
 _REAL_SUBPROCESS_RUN = subprocess.run
 
 
@@ -100,10 +101,16 @@ def _run_output_command(
     cwd: Path,
     runner: Callable[..., Any],
     label: str,
+    max_output_chars: int = MAX_TOOL_OUTPUT_CHARS,
 ) -> tuple[str, str]:
     """Run a command and return stdout, raising with both output streams on failure."""
     try:
-        result = _run_with_capture(command, cwd=cwd, runner=runner)
+        result = _run_with_capture(
+            command,
+            cwd=cwd,
+            runner=runner,
+            max_output_chars=max_output_chars,
+        )
     except OSError as exc:
         raise ContainerCheckError(f"{label} could not start: {exc}") from exc
     if result.returncode:
@@ -128,14 +135,24 @@ def _run_with_capture(
     *,
     cwd: Path,
     runner: Callable[..., Any],
+    max_output_chars: int = MAX_TOOL_OUTPUT_CHARS,
 ) -> Any:
     """Run a real command without retaining an unbounded scanner transcript."""
     if runner is _REAL_SUBPROCESS_RUN:
-        return _run_bounded_subprocess(command, cwd=cwd)
+        return _run_bounded_subprocess(
+            command,
+            cwd=cwd,
+            max_output_chars=max_output_chars,
+        )
     return runner(command, cwd=cwd, capture_output=True, text=True, check=False)
 
 
-def _run_bounded_subprocess(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+def _run_bounded_subprocess(
+    command: list[str],
+    *,
+    cwd: Path,
+    max_output_chars: int = MAX_TOOL_OUTPUT_CHARS,
+) -> subprocess.CompletedProcess[str]:
     """Run a command through spooled files and retain useful output at bounded size."""
     with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
         completed = _REAL_SUBPROCESS_RUN(
@@ -148,20 +165,20 @@ def _run_bounded_subprocess(command: list[str], *, cwd: Path) -> subprocess.Comp
         return subprocess.CompletedProcess(
             command,
             completed.returncode,
-            stdout=_read_bounded_file(stdout_file),
-            stderr=_read_bounded_file(stderr_file),
+            stdout=_read_bounded_file(stdout_file, max_output_chars=max_output_chars),
+            stderr=_read_bounded_file(stderr_file, max_output_chars=max_output_chars),
         )
 
 
-def _read_bounded_file(file_handle: Any) -> str:
+def _read_bounded_file(file_handle: Any, *, max_output_chars: int = MAX_TOOL_OUTPUT_CHARS) -> str:
     """Read a file's head and tail without loading a large tool report."""
     file_handle.seek(0, 2)
     size = file_handle.tell()
-    if size <= MAX_TOOL_OUTPUT_CHARS:
+    if size <= max_output_chars:
         file_handle.seek(0)
         return file_handle.read().decode("utf-8", errors="replace")
 
-    half_limit = MAX_TOOL_OUTPUT_CHARS // 2
+    half_limit = max_output_chars // 2
     file_handle.seek(0)
     head = file_handle.read(half_limit)
     file_handle.seek(-half_limit, 2)
@@ -307,6 +324,7 @@ def check_generated_containers(
             cwd=project,
             runner=command_runner,
             label="docker compose config",
+            max_output_chars=MAX_COMPOSE_CONFIG_CHARS,
         )
         try:
             compose_config = json.loads(compose_stdout)

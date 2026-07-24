@@ -1,11 +1,11 @@
-FROM python:3.12-slim AS phlo-build-context
+FROM python:3.12-slim-bookworm AS phlo-build-context
 
 WORKDIR /opt/phlo-build-context
 
 COPY . .
 RUN mkdir -p /opt/phlo-build-context/wheelhouse
 
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /opt/dagster
 
@@ -47,6 +47,9 @@ RUN \
     else \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi
+
+# Do not retain uv's downloaded archives in the runtime image; they are not needed to run Phlo.
+RUN rm -rf /root/.cache/uv
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
 COPY dagster/entrypoint.sh /usr/local/bin/phlo-dagster-entrypoint.sh

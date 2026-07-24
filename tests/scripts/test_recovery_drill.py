@@ -22,9 +22,10 @@ def test_compose_uses_isolated_ports_and_supported_stack_images(tmp_path):
 
     compose = recovery_drill.compose_yaml(stack)
 
-    assert "postgres:16-alpine" in compose
+    assert "postgres:18-alpine" in compose
     assert "minio/minio:RELEASE.2025-09-07T16-13-09Z" in compose
-    assert "ghcr.io/projectnessie/nessie:0.107.2" in compose
+    assert "ghcr.io/projectnessie/nessie:0.108.3" in compose
+    assert "postgres-data:/var/lib/postgresql" in compose
     assert "127.0.0.1::5432" in compose
     assert "condition: service_healthy" in compose
     assert "jdbc:postgresql://postgres:5432/phlo?currentSchema=public" in compose

@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: grafana/loki:${LOKI_VERSION:-3.2.1}
+image: grafana/loki:${LOKI_VERSION:-3.7.4}
 
 compose:
   restart: unless-stopped
@@ -35,7 +35,7 @@ compose:
 
 env_vars:
   LOKI_VERSION:
-    default: "3.2.1"
+    default: "3.7.4"
     description: Loki version
   LOKI_PORT:
     default: 3100

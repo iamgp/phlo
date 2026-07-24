@@ -87,7 +87,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "13.1.1",
       "targets": [
         {
           "datasource": {
@@ -235,7 +235,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "13.1.1",
       "targets": [
         {
           "datasource": {
@@ -371,7 +371,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "13.1.1",
       "targets": [
         {
           "datasource": {
@@ -467,7 +467,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "13.1.1",
       "targets": [
         {
           "datasource": {
@@ -567,7 +567,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "13.1.1",
       "targets": [
         {
           "datasource": {
@@ -664,7 +664,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.3.1",
+      "pluginVersion": "13.1.1",
       "targets": [
         {
           "datasource": {
