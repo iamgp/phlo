@@ -134,6 +134,11 @@ def _run_command_result_failure(result: Any, label: str) -> str:
     return f"{label} failed with exit code {result.returncode}: {detail}"
 
 
+def _join_failure_details(*details: str | None) -> str:
+    """Keep the context from multiple failed steps in the final report."""
+    return "\n".join(detail for detail in details if detail) or "no output"
+
+
 def _run_with_capture(
     command: list[str],
     *,
@@ -360,6 +365,7 @@ def check_generated_containers(
                 )
             image = service.get("image")
             locally_built = bool(service.get("build"))
+            build_failure: str | None = None
             if locally_built:
                 build_failure = _run_command(
                     [
@@ -379,18 +385,6 @@ def check_generated_containers(
                     runner=command_runner,
                     label=f"docker compose build {service_name}",
                 )
-                if build_failure:
-                    service_results.append(
-                        {
-                            "service": service_name,
-                            "package": package,
-                            "image": image or f"{compose_project}-{service_name}",
-                            "status": "failed",
-                            "image_scan": "not-run",
-                            "detail": build_failure,
-                        }
-                    )
-                    continue
                 image = image or f"{compose_project}-{service_name}"
             elif not image:
                 service_results.append(
@@ -399,7 +393,7 @@ def check_generated_containers(
                         "package": package,
                         "image": "",
                         "status": "failed",
-                        "image_scan": "not-run",
+                        "image_scan": "unavailable",
                         "detail": "generated service has neither image nor build",
                     }
                 )
@@ -407,7 +401,7 @@ def check_generated_containers(
             image_id = resolved_image_ids.get(image)
             if image_id is None:
                 pull_failure = None
-                if not locally_built:
+                if not locally_built or build_failure:
                     pull_failure = _run_command(
                         [docker, "pull", image],
                         cwd=project,
@@ -421,8 +415,8 @@ def check_generated_containers(
                             "package": package,
                             "image": image,
                             "status": "failed",
-                            "image_scan": "not-run",
-                            "detail": pull_failure,
+                            "image_scan": "unavailable",
+                            "detail": _join_failure_details(build_failure, pull_failure),
                         }
                     )
                     continue
@@ -440,8 +434,8 @@ def check_generated_containers(
                             "package": package,
                             "image": image,
                             "status": "failed",
-                            "image_scan": "not-run",
-                            "detail": str(exc),
+                            "image_scan": "unavailable",
+                            "detail": _join_failure_details(build_failure, str(exc)),
                         }
                     )
                     continue
@@ -453,8 +447,10 @@ def check_generated_containers(
                         "package": package,
                         "image": image,
                         "status": "failed",
-                        "image_scan": "not-run",
-                        "detail": "docker image inspect returned no image ID",
+                        "image_scan": "unavailable",
+                        "detail": _join_failure_details(
+                            build_failure, "docker image inspect returned no image ID"
+                        ),
                     }
                 )
                 continue
@@ -466,8 +462,9 @@ def check_generated_containers(
                     "package": package,
                     "image": image,
                     "image_id": image_id,
-                    "status": "pending",
+                    "status": "failed" if build_failure else "pending",
                     "image_scan": "pending",
+                    **({"detail": build_failure} if build_failure else {}),
                 }
             )
 
@@ -498,10 +495,16 @@ def check_generated_containers(
             )
             for result in service_results:
                 if result.get("service") in image_services:
-                    result["status"] = "failed" if trivy_image_failure else "passed"
+                    result["status"] = (
+                        "failed"
+                        if trivy_image_failure or result["status"] == "failed"
+                        else "passed"
+                    )
                     result["image_scan"] = "failed" if trivy_image_failure else "passed"
                     if trivy_image_failure:
-                        result["detail"] = trivy_image_failure
+                        result["detail"] = _join_failure_details(
+                            result.get("detail"), trivy_image_failure
+                        )
 
         trivy_failure = _run_command(
             [
@@ -552,7 +555,7 @@ def check_generated_containers(
         missing_results = [
             result["service"]
             for result in service_results
-            if result.get("image_scan") not in {"passed", "failed"}
+            if result.get("image_scan") not in {"passed", "failed", "unavailable"}
         ]
         if missing_results:
             failures.append(

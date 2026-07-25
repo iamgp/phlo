@@ -100,6 +100,7 @@ def test_conditional_environment_creates_an_absent_environment(tmp_path) -> None
 def test_image_services_generate_phlo_owned_hardening_wrappers(tmp_path) -> None:
     service = _service("postgres", default=True)
     service.image = "postgres:18-alpine"
+    service.compose["user"] = "0"
     generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery({service.name: service})))
 
     data = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
@@ -112,7 +113,11 @@ def test_image_services_generate_phlo_owned_hardening_wrappers(tmp_path) -> None
         "args": {"BASE_IMAGE": "postgres:18-alpine"},
     }
     assert copied == ["images/postgres/Dockerfile"]
-    assert "apt-get dist-upgrade" in (tmp_path / "images" / "postgres" / "Dockerfile").read_text()
+    dockerfile = (tmp_path / "images" / "postgres" / "Dockerfile").read_text()
+    assert "apt-get dist-upgrade" in dockerfile
+    assert "hadolint ignore=DL3002" in dockerfile
+    assert "USER 0" in dockerfile
+    assert "Non-root upstream image" in dockerfile
 
 
 def test_conditional_environment_supports_list_environment_and_user_overrides(tmp_path) -> None:

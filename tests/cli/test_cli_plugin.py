@@ -502,6 +502,72 @@ def test_plugin_check_containers_reports_all_package_failures(monkeypatch, tmp_p
     assert [command[0] for command in calls].count("/bin/docker") >= 5
 
 
+def test_plugin_check_containers_scans_original_after_wrapper_build_failure(monkeypatch, tmp_path):
+    """A wrapper failure still gets an attributed scan of the resolved base image."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    def fake_run(command, **kwargs):
+        if command[0] == "/bin/phlo":
+            dockerfile = kwargs["cwd"] / ".phlo" / "one" / "Dockerfile"
+            dockerfile.parent.mkdir(parents=True, exist_ok=True)
+            dockerfile.write_text("FROM python:3.11\n")
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "one": {
+                                    "image": "example/one:1",
+                                    "build": {"context": "."},
+                                }
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if "build" in command and command[-1] == "one":
+            return type(
+                "Result", (), {"returncode": 1, "stdout": "build output", "stderr": "build failed"}
+            )()
+        if command[:2] == ["/bin/docker", "pull"]:
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            return type("Result", (), {"returncode": 0, "stdout": "sha256:base\n", "stderr": ""})()
+        if "image" in command:
+            return type(
+                "Result", (), {"returncode": 1, "stdout": "trivy output", "stderr": "trivy error"}
+            )()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    with pytest.raises(check_module.ContainerCheckError) as exc_info:
+        check_module.check_generated_containers(
+            project_parent=tmp_path,
+            service_files={
+                "one/Dockerfile": "package-one",
+                "@service:one": "package-one",
+            },
+            command_runner=fake_run,
+        )
+
+    message = str(exc_info.value)
+    assert "service [package-one] one: example/one:1 -> failed (image scan: failed)" in message
+    assert "build output" in message
+    assert "trivy error" in message
+    assert "no image-scan result" not in message
+
+
 def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, setup_registry):
     """The public check command exposes generated-container results as JSON."""
     from phlo.cli.commands.plugin import check as check_module
