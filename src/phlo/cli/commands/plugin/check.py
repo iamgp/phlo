@@ -30,6 +30,7 @@ TRIVY_IMAGE = (
     "aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
 )
 MAX_TOOL_OUTPUT_CHARS = 64 * 1024
+MAX_TRIVY_JSON_CHARS = 8 * 1024 * 1024
 MAX_COMPOSE_CONFIG_CHARS = 4 * 1024 * 1024
 _REAL_SUBPROCESS_RUN = subprocess.run
 
@@ -279,7 +280,12 @@ def _run_trivy_image_scan(
 ) -> tuple[str | None, dict[str, Any] | None]:
     """Run Trivy once, preserving failure streams and returning structured findings."""
     try:
-        result = _run_with_capture(command, cwd=cwd, runner=runner)
+        result = _run_with_capture(
+            command,
+            cwd=cwd,
+            runner=runner,
+            max_output_chars=MAX_TRIVY_JSON_CHARS,
+        )
     except OSError as exc:
         return f"{label} could not start: {exc}", None
 

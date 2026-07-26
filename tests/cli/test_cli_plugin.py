@@ -380,6 +380,35 @@ def test_plugin_check_containers_bounds_large_tool_failure_output(monkeypatch, t
     assert len(message) < check_module.MAX_TOOL_OUTPUT_CHARS * 3
 
 
+def test_trivy_image_scan_retains_a_parseable_bounded_json_report(monkeypatch, tmp_path):
+    """Trivy JSON gets a larger bounded capture than human-readable tool failures."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    capture: dict[str, int] = {}
+
+    def fake_capture(command, **kwargs):
+        capture["max_output_chars"] = kwargs["max_output_chars"]
+        return type(
+            "Result",
+            (),
+            {"returncode": 1, "stdout": '{"Results": []}', "stderr": "findings"},
+        )()
+
+    monkeypatch.setattr(check_module, "_run_with_capture", fake_capture)
+
+    failure, evidence = check_module._run_trivy_image_scan(
+        ["docker", "run", "trivy", "image"],
+        cwd=tmp_path,
+        runner=object(),
+        label="trivy image test",
+    )
+
+    assert capture["max_output_chars"] == check_module.MAX_TRIVY_JSON_CHARS
+    assert capture["max_output_chars"] > check_module.MAX_TOOL_OUTPUT_CHARS
+    assert failure is not None
+    assert evidence == {"high_count": 0, "critical_count": 0, "vulnerable_components": []}
+
+
 def test_plugin_check_containers_keeps_large_compose_config_parseable(monkeypatch, tmp_path):
     """The generated service inventory is bounded separately from tool transcripts."""
     from phlo.cli.commands.plugin import check as check_module
@@ -755,6 +784,37 @@ def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, se
     assert result.exit_code == 0
     assert json.loads(result.output)["containers"]["owners"] == {
         "dagster/Dockerfile": "phlo-dagster"
+    }
+
+
+def test_plugin_check_containers_forwards_exact_vulnerability_waiver(
+    monkeypatch, setup_registry
+) -> None:
+    """The public CLI must pass an exact image waiver to the container checker."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    received: dict[str, object] = {}
+
+    def fake_check_generated_containers(**kwargs):
+        received.update(kwargs)
+        return {"dockerfiles": [], "owners": {}, "services": []}
+
+    monkeypatch.setattr(check_module, "check_generated_containers", fake_check_generated_containers)
+
+    result = CliRunner().invoke(
+        plugin_group,
+        [
+            "check",
+            "--containers",
+            "--json",
+            "--allow-vulnerable-image",
+            "alloy=phlo/alloy:v1.18.0-go1.26.5=no compatible upstream fix",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert received["vulnerability_waivers"] == {
+        ("alloy", "phlo/alloy:v1.18.0-go1.26.5"): "no compatible upstream fix"
     }
 
 
