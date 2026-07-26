@@ -416,6 +416,12 @@ def test_plugin_check_containers_reuses_configured_trivy_cache(monkeypatch, tmp_
         for command in calls
         if command[0] == "/bin/docker"
     )
+    trivy_image_command = next(
+        command for command in calls if check_module.TRIVY_IMAGE in command and "image" in command
+    )
+    assert trivy_image_command[
+        trivy_image_command.index("--timeout") : trivy_image_command.index("--timeout") + 2
+    ] == ["--timeout", "15m"]
 
 
 def test_plugin_check_containers_requires_installed_cli(monkeypatch, tmp_path):

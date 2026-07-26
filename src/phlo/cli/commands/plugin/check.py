@@ -561,6 +561,8 @@ def check_generated_containers(
                     f"{trivy_cache.resolve()}:/root/.cache/trivy",
                     TRIVY_IMAGE,
                     "image",
+                    "--timeout",
+                    "15m",
                     "--exit-code",
                     "1",
                     "--scanners",
