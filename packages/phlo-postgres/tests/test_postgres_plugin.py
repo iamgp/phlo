@@ -1,5 +1,7 @@
 """Tests for Postgres service and resource plugins."""
 
+from importlib import resources
+
 from phlo.capabilities import PublishTargetSpec
 from phlo_postgres.plugin import (
     PostgresExporterServicePlugin,
@@ -23,6 +25,13 @@ def test_postgres_service_builds_pinned_hardened_image() -> None:
 
     assert service_definition["image"] == "phlo/postgres:18.4-alpine3.24-gosu1.19"
     assert service_definition["build"]["dockerfile"] == "postgres/Dockerfile"
+
+
+def test_postgres_image_runs_as_postgres_after_volume_setup() -> None:
+    """The setup service owns the data volume before the database starts non-root."""
+    dockerfile = resources.files("phlo_postgres").joinpath("Dockerfile").read_text()
+
+    assert dockerfile.rstrip().endswith("USER postgres")
 
 
 def test_postgres_exporter_builds_pinned_hardened_image() -> None:

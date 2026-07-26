@@ -11,3 +11,5 @@ RUN CGO_ENABLED=0 go build -trimpath \
 FROM quay.io/prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
 
 COPY --from=build /out/postgres_exporter /bin/postgres_exporter
+
+USER nobody

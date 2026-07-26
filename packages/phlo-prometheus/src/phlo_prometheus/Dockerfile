@@ -13,3 +13,5 @@ FROM prom/prometheus:v3.13.1@sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da
 
 COPY --from=build /out/prometheus /bin/prometheus
 COPY --from=build /out/promtool /bin/promtool
+
+USER nobody

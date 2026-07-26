@@ -10,3 +10,5 @@ FROM postgres:18.4-alpine3.24@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293
 
 RUN apk upgrade --no-cache
 COPY --from=gosu-build /out/gosu /usr/local/bin/gosu
+
+USER postgres
