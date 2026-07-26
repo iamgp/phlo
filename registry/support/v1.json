@@ -32,8 +32,8 @@
       {"name": "postgres-volume-setup", "image_reference": "alpine:3.24.1"},
       {"name": "minio", "image_reference": "phlo/minio:7aac2a2c5b7c"},
       {"name": "minio-setup", "image_reference": "phlo/minio-mc:77f82e18b540"},
-      {"name": "nessie", "image_reference": "ghcr.io/projectnessie/nessie:0.108.3"},
-      {"name": "trino", "image_reference": "trinodb/trino:483"},
+      {"name": "nessie", "image_reference": "phlo/nessie:0.108.3-netty4.2.16"},
+      {"name": "trino", "image_reference": "phlo/trino:483-launcher318-go1.26.5"},
       {"name": "phlo-api", "image_reference": "build:context=.;dockerfile=phlo-api/Dockerfile"},
       {"name": "observatory", "image_reference": "build:context=source;dockerfile=Dockerfile"}
     ],

@@ -337,7 +337,7 @@ jobs:
             fi
             local_wheels+=("${matches[0]}")
           done
-          uvx --from pip==26.2 pip download \
+          uvx --from pip==26.1.2 pip download \
             --dest "$wheelhouse" \
             --find-links "$wheelhouse" \
             "${local_wheels[@]}"
