@@ -29,6 +29,17 @@ def test_openmetadata_mysql_builds_the_updated_stable_database_image() -> None:
     }
 
 
+def test_openmetadata_setup_uses_the_patched_server_image() -> None:
+    raw = resources.files("phlo_openmetadata").joinpath("openmetadata-setup.yaml").read_text()
+    definition = yaml.safe_load(raw)
+
+    assert definition["image"] == "phlo/openmetadata:1.13.1-java-patches"
+    assert definition["build"] == {
+        "context": ".",
+        "dockerfile": "openmetadata/Dockerfile",
+    }
+
+
 def test_openmetadata_elasticsearch_builds_the_patched_compatible_image() -> None:
     raw = (
         resources.files("phlo_openmetadata")

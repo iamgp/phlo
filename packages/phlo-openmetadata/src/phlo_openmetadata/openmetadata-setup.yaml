@@ -8,7 +8,13 @@ depends_on:
   - openmetadata-mysql
   - openmetadata-elasticsearch
 
-image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.13.1}
+image: phlo/openmetadata:1.13.1-java-patches
+build:
+  context: .
+  dockerfile: openmetadata/Dockerfile
+files:
+  - source: Dockerfile
+    dest: openmetadata/Dockerfile
 
 compose:
   restart: "no"

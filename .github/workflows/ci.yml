@@ -361,18 +361,13 @@ jobs:
           PHLO_TRIVY_CACHE_DIR: ${{ runner.temp }}/phlo-trivy-cache
         run: |
           phlo --no-color plugin check --containers \
-            --allow-vulnerable-image "alloy=grafana/alloy:v1.18.0=Upstream image contains vulnerable embedded Go dependencies" \
-            --allow-vulnerable-image "clickstack=docker.hyperdx.io/hyperdx/hyperdx-all-in-one=Upstream image contains vulnerable Alpine, Node, and Go dependencies" \
-            --allow-vulnerable-image "grafana=grafana/grafana:13.1.1=Upstream image contains vulnerable embedded Go dependencies" \
-            --allow-vulnerable-image "loki=grafana/loki:3.7.4=Upstream image contains a vulnerable embedded Go dependency" \
+            --allow-vulnerable-image "alloy=phlo/alloy:v1.18.0-go1.26.5=Alloy 1.18.0 retains two Docker module advisories without fixes and one whose fix requires an incompatible Docker client major" \
+            --allow-vulnerable-image "clickstack=phlo/clickstack:2.31.0-security-patches=Stable 2.31.0 still requires legacy MongoDB OpenSSL 1.1, root orchestration, rebuild-only Next changes, and unreleased OTel binary fixes" \
+            --allow-vulnerable-image "grafana=phlo/grafana:13.1.1-go1.26.5=Trivy reports a stale Tempo pseudo-version although the image rebuilds exact Tempo 2.10.7 source containing both fixes" \
             --allow-vulnerable-image "minio=phlo/minio:7aac2a2c5b7c=Archived public source still has six MinIO-module advisories without public patches; OS, standard library, and third-party Go findings are remediated" \
-            --allow-vulnerable-image "nessie=ghcr.io/projectnessie/nessie:0.108.3=Upstream image contains vulnerable Java and Red Hat dependencies" \
-            --allow-vulnerable-image "openmetadata=docker.getcollate.io/openmetadata/server:1.13.1=Upstream image contains vulnerable Java dependencies" \
-            --allow-vulnerable-image "openmetadata-elasticsearch=docker.elastic.co/elasticsearch/elasticsearch:8.11.4=Upstream image contains vulnerable Java dependencies" \
-            --allow-vulnerable-image "openmetadata-mysql=docker.getcollate.io/openmetadata/db:1.13.1=Upstream image contains vulnerable Oracle Linux and Python dependencies" \
-            --allow-vulnerable-image "openmetadata-setup=docker.getcollate.io/openmetadata/server:1.13.1=Upstream image contains vulnerable Java dependencies" \
-            --allow-vulnerable-image "superset=apache/superset:6.1.0=Upstream image contains vulnerable Debian, Python, and Rust dependencies" \
-            --allow-vulnerable-image "trino=trinodb/trino:483=Upstream image contains vulnerable Go and Java dependencies"
+            --allow-vulnerable-image "openmetadata-elasticsearch=phlo/openmetadata-elasticsearch:8.11.4-java-patches=Elasticsearch 8.11.4 shades three old Jackson versions, requires Tika 2.x, and has one unpublished and one unfixed LZ4 advisory" \
+            --allow-vulnerable-image "superset=phlo/superset:6.1.0-security-patches=Superset requires three vulnerable Python versions and Debian 12 has no fixed packages for the remaining operating system advisories" \
+            --allow-vulnerable-image "trino=phlo/trino:483-launcher318-go1.26.5=Trino 483 requires Jetty 11 while the remaining HTTP advisory is fixed only in incompatible Jetty 12"
 
   release-golden-path:
     name: python / release golden path
