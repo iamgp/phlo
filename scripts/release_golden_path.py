@@ -740,6 +740,19 @@ def verify_run_report(config: RunConfig, wap_run: WapRun) -> None:
 def verify_rejected_wap_report(config: RunConfig, wap_run: WapRun) -> None:
     """Require durable rejected-quality evidence and prove that run was not promoted."""
     payload = fetch_run_report(config, wap_run, config.rejection_report_token)
+    deadline = time.monotonic() + RUN_REPORT_TIMEOUT_SECONDS
+    while True:
+        catalog_changes = payload.get("catalog_changes")
+        if isinstance(catalog_changes, list) and any(
+            isinstance(change, dict) and change.get("merge_outcome") == "rejected_quality"
+            for change in catalog_changes
+        ):
+            break
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(1)
+        payload = fetch_run_report(config, wap_run, config.rejection_report_token)
+
     quality = payload.get("quality")
     if not isinstance(quality, list) or not any(
         isinstance(result, dict)
@@ -750,7 +763,6 @@ def verify_rejected_wap_report(config: RunConfig, wap_run: WapRun) -> None:
         raise RuntimeError(
             f"rejected WAP report lacks a blocking failed quality result: {payload!r}"
         )
-    catalog_changes = payload.get("catalog_changes")
     if not isinstance(catalog_changes, list) or not any(
         isinstance(change, dict) and change.get("merge_outcome") == "rejected_quality"
         for change in catalog_changes
