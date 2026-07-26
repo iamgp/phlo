@@ -502,6 +502,144 @@ def test_plugin_check_containers_builds_a_shared_exact_image_once(monkeypatch, t
     assert [service["status"] for service in result["services"]] == ["passed", "passed"]
 
 
+def test_plugin_check_containers_scans_each_build_before_starting_the_next(monkeypatch, tmp_path):
+    """Generated builds use disposable cache and get scanned before disk use accumulates."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls: list[list[str]] = []
+    inspect_counts: dict[str, int] = {}
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "one": {
+                                    "image": "example/one:1",
+                                    "build": {"context": "one"},
+                                },
+                                "two": {
+                                    "image": "example/two:1",
+                                    "build": {"context": "two"},
+                                },
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            image = command[-1]
+            inspect_counts[image] = inspect_counts.get(image, 0) + 1
+            if inspect_counts[image] == 1:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "missing"})()
+            return type(
+                "Result",
+                (),
+                {"returncode": 0, "stdout": f"sha256:{image.split('/')[1][:-2]}\n", "stderr": ""},
+            )()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={
+            "@service:one": "package-one",
+            "@service:two": "package-two",
+        },
+        command_runner=fake_run,
+    )
+
+    build_calls = [command for command in calls if "compose" in command and "build" in command]
+    assert len(build_calls) == 2
+    assert all("--builder" in command for command in build_calls)
+    first_scan = next(
+        index
+        for index, command in enumerate(calls)
+        if check_module.TRIVY_IMAGE in command and "sha256:one" in command
+    )
+    second_build = calls.index(build_calls[1])
+    assert first_scan < second_build
+    create_call = next(command for command in calls if command[1:3] == ["buildx", "create"])
+    remove_call = next(command for command in calls if command[1:3] == ["buildx", "rm"])
+    assert create_call[create_call.index("--name") + 1] == remove_call[-1]
+
+
+def test_plugin_check_containers_removes_only_images_created_for_the_check(monkeypatch, tmp_path):
+    """Temporary validation images are removed without touching pre-existing tags."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls: list[list[str]] = []
+    new_image_inspects = 0
+
+    def fake_run(command, **kwargs):
+        nonlocal new_image_inspects
+        calls.append(command)
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "new": {
+                                    "image": "example/new:1",
+                                    "build": {"context": "."},
+                                },
+                                "existing": {"image": "example/existing:1"},
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            image = command[-1]
+            if image == "example/new:1":
+                new_image_inspects += 1
+                if new_image_inspects == 1:
+                    return type(
+                        "Result", (), {"returncode": 1, "stdout": "", "stderr": "missing"}
+                    )()
+                image_id = "sha256:new"
+            else:
+                image_id = "sha256:existing"
+            return type("Result", (), {"returncode": 0, "stdout": f"{image_id}\n", "stderr": ""})()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={
+            "@service:new": "package-new",
+            "@service:existing": "package-existing",
+        },
+        command_runner=fake_run,
+    )
+
+    remove_calls = [command for command in calls if command[1:3] == ["image", "rm"]]
+    assert ["/bin/docker", "image", "rm", "example/new:1"] in remove_calls
+    assert ["/bin/docker", "image", "rm", "example/existing:1"] not in remove_calls
+
+
 def test_plugin_check_containers_reuses_configured_trivy_cache(monkeypatch, tmp_path):
     """A configured cache survives the generated project cleanup for reuse."""
     from phlo.cli.commands.plugin import check as check_module
