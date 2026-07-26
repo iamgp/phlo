@@ -315,6 +315,33 @@ jobs:
       - name: Build Phlo and service wheels
         run: uv build --all-packages --wheel --out-dir "$RUNNER_TEMP/phlo-container-wheelhouse"
 
+      - name: Hydrate the container wheelhouse
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheelhouse="$RUNNER_TEMP/phlo-container-wheelhouse"
+          distributions=(
+            phlo phlo-alloy phlo-api phlo-clickhouse phlo-clickstack phlo-dagster
+            phlo-grafana phlo-hasura phlo-loki phlo-minio phlo-nessie phlo-oauth2-proxy
+            phlo-openmetadata phlo-observatory phlo-pgweb phlo-postgres phlo-postgrest
+            phlo-prometheus phlo-rustfs phlo-superset phlo-traefik phlo-trino
+          )
+          local_wheels=()
+          shopt -s nullglob
+          for distribution in "${distributions[@]}"; do
+            normalized="${distribution//-/_}"
+            matches=("$wheelhouse"/"$normalized"-*.whl)
+            if [ "${#matches[@]}" -ne 1 ]; then
+              echo "Expected one wheel for $distribution, found ${#matches[@]}" >&2
+              exit 1
+            fi
+            local_wheels+=("${matches[0]}")
+          done
+          uvx --from pip==26.2 pip download \
+            --dest "$wheelhouse" \
+            --find-links "$wheelhouse" \
+            "${local_wheels[@]}"
+
       - name: Cache Trivy vulnerability and scan data
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
