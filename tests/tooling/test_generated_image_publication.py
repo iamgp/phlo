@@ -42,8 +42,14 @@ def test_publication_workflow_publishes_only_on_release_or_manual_dispatch() -> 
     assert "PUBLISH_SERVICES" in workflow
     assert "packages: write" in workflow
     assert "docker/build-push-action@" in workflow
-    assert "push: true" in workflow
-    assert "linux/amd64,linux/arm64" in workflow
+    assert "ubuntu-24.04-arm" in workflow
+    assert "platform: linux/amd64" in workflow
+    assert "platform: linux/arm64" in workflow
+    assert "setup-qemu-action@" not in workflow
+    assert "push-by-digest=true" in workflow
+    assert "docker buildx imagetools create" in workflow
+    assert "timeout-minutes: 45" in workflow
+    assert "max-parallel: 8" in workflow
     assert "org.opencontainers.image.source=https://github.com/${{ github.repository }}" in workflow
 
 

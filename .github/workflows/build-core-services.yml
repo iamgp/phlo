@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      targets: ${{ steps.matrix.outputs.targets }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -75,7 +75,7 @@ jobs:
               "$GITHUB_WORKSPACE" \
               "${matrix_args[@]}"
           )"
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "targets=$(jq -c '.include' <<< "$matrix")" >> "$GITHUB_OUTPUT"
 
       - name: Upload generated build contexts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -85,16 +85,26 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-  publish:
-    name: Publish ${{ matrix.service }}
+  build:
+    name: Build ${{ matrix.target.service }} (${{ matrix.architecture.name }})
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.architecture.runner }}
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      max-parallel: 8
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+        architecture:
+          - name: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - name: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -106,9 +116,6 @@ jobs:
         with:
           name: generated-service-build-contexts
           path: generated
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
@@ -123,7 +130,7 @@ jobs:
       - name: Render build arguments
         id: args
         env:
-          BUILD_ARGS_JSON: ${{ toJSON(matrix.build_args) }}
+          BUILD_ARGS_JSON: ${{ toJSON(matrix.target.build_args) }}
         shell: bash
         run: |
           {
@@ -132,30 +139,101 @@ jobs:
             echo EOF
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build and publish immutable service image
+      - name: Build and publish native architecture image
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
-          context: ${{ matrix.root }}/${{ matrix.context }}
-          file: ${{ matrix.root }}/${{ matrix.dockerfile }}
+          context: ${{ matrix.target.root }}/${{ matrix.target.context }}
+          file: ${{ matrix.target.root }}/${{ matrix.target.dockerfile }}
           build-args: ${{ steps.args.outputs.value }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ matrix.image }}
+          platforms: ${{ matrix.architecture.platform }}
+          outputs: type=image,name=${{ matrix.target.image }},push-by-digest=true,name-canonical=true,push=true
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           provenance: mode=max
           sbom: true
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          cache-from: type=gha,scope=${{ matrix.target.service }}-${{ matrix.architecture.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target.service }}-${{ matrix.architecture.name }}
+
+      - name: Record architecture digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          hex="${DIGEST#sha256:}"
+          [[ "$hex" =~ ^[0-9a-f]{64}$ ]]
+          mkdir -p digests
+          touch "digests/$hex"
+
+      - name: Upload architecture digest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: digest-${{ matrix.target.service }}-${{ matrix.architecture.name }}
+          path: digests/*
+          if-no-files-found: error
+
+  merge:
+    name: Publish ${{ matrix.target.service }} manifest
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+    steps:
+      - name: Download architecture digests
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: digest-${{ matrix.target.service }}-*
+          path: digests
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-architecture manifest
+        id: manifest
+        env:
+          IMAGE: ${{ matrix.target.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          refs=()
+          for digest_file in digests/*; do
+            refs+=("$IMAGE@sha256:${digest_file##*/}")
+          done
+          if [[ "${#refs[@]}" -ne 2 ]]; then
+            echo "expected two architecture digests, found ${#refs[@]}" >&2
+            exit 1
+          fi
+          docker buildx imagetools create --tag "$IMAGE" "${refs[@]}"
+          digest="$(
+            docker buildx imagetools inspect \
+              --format '{{json .Manifest.Digest}}' \
+              "$IMAGE" | jq -r .
+          )"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Record published digest
         env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-          IMAGE: ${{ matrix.image }}
-          SERVICE: ${{ matrix.service }}
-          SERVICES: ${{ toJSON(matrix.services) }}
+          DIGEST: ${{ steps.manifest.outputs.digest }}
+          IMAGE: ${{ matrix.target.image }}
+          SERVICE: ${{ matrix.target.service }}
+          SERVICES: ${{ toJSON(matrix.target.services) }}
         shell: bash
         run: |
           jq -n \
@@ -168,14 +246,14 @@ jobs:
       - name: Upload published digest
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: published-${{ matrix.service }}
-          path: published-${{ matrix.service }}.json
+          name: published-${{ matrix.target.service }}
+          path: published-${{ matrix.target.service }}.json
           if-no-files-found: error
 
   manifest:
     name: Published image digest manifest
-    needs: publish
-    if: always() && needs.publish.result == 'success'
+    needs: merge
+    if: always() && needs.merge.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
