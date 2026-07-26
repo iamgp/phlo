@@ -396,7 +396,7 @@ def test_trivy_image_scan_retains_a_parseable_bounded_json_report(monkeypatch, t
 
     monkeypatch.setattr(check_module, "_run_with_capture", fake_capture)
 
-    failure, evidence = check_module._run_trivy_image_scan(
+    failure, evidence, waivable = check_module._run_trivy_image_scan(
         ["docker", "run", "trivy", "image"],
         cwd=tmp_path,
         runner=object(),
@@ -407,6 +407,7 @@ def test_trivy_image_scan_retains_a_parseable_bounded_json_report(monkeypatch, t
     assert capture["max_output_chars"] > check_module.MAX_TOOL_OUTPUT_CHARS
     assert failure is not None
     assert evidence == {"high_count": 0, "critical_count": 0, "vulnerable_components": []}
+    assert waivable is False
 
 
 def test_plugin_check_containers_keeps_large_compose_config_parseable(monkeypatch, tmp_path):
@@ -542,7 +543,9 @@ def test_plugin_check_containers_scans_each_build_before_starting_the_next(monke
             image = command[-1]
             inspect_counts[image] = inspect_counts.get(image, 0) + 1
             if inspect_counts[image] == 1:
-                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "missing"})()
+                return type(
+                    "Result", (), {"returncode": 1, "stdout": "", "stderr": "No such image"}
+                )()
             return type(
                 "Result",
                 (),
@@ -631,7 +634,7 @@ def test_plugin_check_containers_removes_only_images_created_for_the_check(monke
                 new_image_inspects += 1
                 if new_image_inspects == 1:
                     return type(
-                        "Result", (), {"returncode": 1, "stdout": "", "stderr": "missing"}
+                        "Result", (), {"returncode": 1, "stdout": "", "stderr": "No such image"}
                     )()
                 image_id = "sha256:new"
             else:
@@ -653,6 +656,83 @@ def test_plugin_check_containers_removes_only_images_created_for_the_check(monke
     remove_calls = [command for command in calls if command[1:3] == ["image", "rm"]]
     assert ["/bin/docker", "image", "rm", "example/new:1"] in remove_calls
     assert ["/bin/docker", "image", "rm", "example/existing:1"] not in remove_calls
+
+
+def test_plugin_check_containers_restores_preexisting_local_image_tag(monkeypatch, tmp_path):
+    """A validation build cannot replace an image tag that the operator already had."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls: list[list[str]] = []
+    inspect_count = 0
+
+    def fake_run(command, **kwargs):
+        nonlocal inspect_count
+        calls.append(command)
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "existing": {
+                                    "image": "example/existing:1",
+                                    "build": {"context": "."},
+                                }
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            inspect_count += 1
+            image_id = "sha256:original" if inspect_count == 1 else "sha256:validation"
+            return type("Result", (), {"returncode": 0, "stdout": f"{image_id}\n", "stderr": ""})()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={"@service:existing": "package-existing"},
+        command_runner=fake_run,
+    )
+
+    assert [
+        "/bin/docker",
+        "image",
+        "tag",
+        "sha256:original",
+        "example/existing:1",
+    ] in calls
+    assert ["/bin/docker", "image", "rm", "sha256:validation"] in calls
+
+
+def test_existing_image_lookup_fails_closed_on_inspect_error(tmp_path) -> None:
+    """A Docker inspect outage cannot be mistaken for an absent operator image."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    def fake_run(command, **kwargs):
+        return type(
+            "Result",
+            (),
+            {"returncode": 1, "stdout": "", "stderr": "daemon unavailable"},
+        )()
+
+    with pytest.raises(check_module.ContainerCheckError, match="daemon unavailable"):
+        check_module._existing_image_id(
+            "/bin/docker",
+            "example/operator:1",
+            cwd=tmp_path,
+            runner=fake_run,
+        )
 
 
 def test_plugin_check_containers_reuses_configured_trivy_cache(monkeypatch, tmp_path):
@@ -916,7 +996,7 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
                             ]
                         }
                     ),
-                    "stderr": "scanner detail",
+                    "stderr": "",
                 },
             )()
         return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
@@ -927,7 +1007,10 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
         project_parent=tmp_path,
         service_files={"@service:one": "package-one"},
         vulnerability_waivers={
-            ("one", "example/one:1"): "No patched upstream release is available"
+            ("one", "example/one:1"): check_module.VulnerabilityWaiver(
+                evidence_sha256="8f315d5e0ddd6c0d0c830665f6b519de3c1ace3cc7386651ebb0bee566fcad61",
+                reason="No patched upstream release is available",
+            )
         },
         command_runner=fake_run,
     )
@@ -956,23 +1039,25 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
                 }
             ],
             "vulnerability_waiver": "No patched upstream release is available",
+            "vulnerability_evidence_sha256": (
+                "8f315d5e0ddd6c0d0c830665f6b519de3c1ace3cc7386651ebb0bee566fcad61"
+            ),
             "detail": (
                 "trivy image sha256:one failed with exit code 1: "
                 'stdout: {"Results": [{"Target": "one-binary", "Class": "lang-pkgs", '
                 '"Type": "gobinary", "Vulnerabilities": [{"VulnerabilityID": "CVE-TEST", '
                 '"PkgName": "example/component", "InstalledVersion": "1.0.0", '
-                '"FixedVersion": "1.0.1", "Severity": "HIGH"}]}]}\n'
-                "stderr: scanner detail"
+                '"FixedVersion": "1.0.1", "Severity": "HIGH"}]}]}'
             ),
         }
     ]
 
 
 def test_plugin_check_rejects_ambiguous_vulnerability_waiver() -> None:
-    """Waivers must identify a service, exact image, and human-readable reason."""
+    """Waivers must bind a service and image to exact vulnerability evidence."""
     from phlo.cli.commands.plugin import check as check_module
 
-    with pytest.raises(click.BadParameter, match="SERVICE=IMAGE=REASON"):
+    with pytest.raises(click.BadParameter, match="SERVICE=IMAGE=EVIDENCE_SHA256=REASON"):
         check_module._parse_vulnerability_waivers(("one=example/one:1",))
 
 
@@ -1018,13 +1103,18 @@ def test_plugin_check_containers_forwards_exact_vulnerability_waiver(
             "--containers",
             "--json",
             "--allow-vulnerable-image",
-            "alloy=phlo/alloy:v1.18.0-go1.26.5=no compatible upstream fix",
+            "alloy=phlo/alloy:v1.18.0-go1.26.5="
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa="
+            "no compatible upstream fix",
         ],
     )
 
     assert result.exit_code == 0
     assert received["vulnerability_waivers"] == {
-        ("alloy", "phlo/alloy:v1.18.0-go1.26.5"): "no compatible upstream fix"
+        ("alloy", "phlo/alloy:v1.18.0-go1.26.5"): check_module.VulnerabilityWaiver(
+            evidence_sha256="a" * 64,
+            reason="no compatible upstream fix",
+        )
     }
 
 

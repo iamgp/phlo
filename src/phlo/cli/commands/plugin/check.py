@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.metadata
 import json
 import os
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +39,14 @@ _REAL_SUBPROCESS_RUN = subprocess.run
 
 class ContainerCheckError(RuntimeError):
     """Raised when generated container checks cannot complete."""
+
+
+@dataclass(frozen=True)
+class VulnerabilityWaiver:
+    """A waiver bound to one exact normalized Trivy finding set."""
+
+    evidence_sha256: str
+    reason: str
 
 
 def _plugin_package(plugin: Any) -> str:
@@ -142,24 +152,33 @@ def _join_failure_details(*details: str | None) -> str:
     return "\n".join(detail for detail in details if detail) or "no output"
 
 
-def _parse_vulnerability_waivers(values: tuple[str, ...]) -> dict[tuple[str, str], str]:
-    """Parse explicit SERVICE=IMAGE=REASON vulnerability waivers."""
-    waivers: dict[tuple[str, str], str] = {}
+def _parse_vulnerability_waivers(
+    values: tuple[str, ...],
+) -> dict[tuple[str, str], VulnerabilityWaiver]:
+    """Parse waivers bound to an exact service, image, and finding fingerprint."""
+    waivers: dict[tuple[str, str], VulnerabilityWaiver] = {}
     for value in values:
-        parts = [part.strip() for part in value.split("=", 2)]
-        if len(parts) != 3 or not all(parts):
+        parts = [part.strip() for part in value.split("=", 3)]
+        if len(parts) != 4 or not all(parts):
             raise click.BadParameter(
-                "expected SERVICE=IMAGE=REASON",
+                "expected SERVICE=IMAGE=EVIDENCE_SHA256=REASON",
                 param_hint="--allow-vulnerable-image",
             )
-        service, image, reason = parts
+        service, image, evidence_sha256, reason = parts
+        if len(evidence_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in evidence_sha256.lower()
+        ):
+            raise click.BadParameter(
+                "EVIDENCE_SHA256 must be a 64-character hexadecimal digest",
+                param_hint="--allow-vulnerable-image",
+            )
         key = (service, image)
         if key in waivers:
             raise click.BadParameter(
                 f"duplicate waiver for {service} using {image}",
                 param_hint="--allow-vulnerable-image",
             )
-        waivers[key] = reason
+        waivers[key] = VulnerabilityWaiver(evidence_sha256.lower(), reason)
     return waivers
 
 
@@ -271,13 +290,23 @@ def _trivy_vulnerability_evidence(stdout: str) -> dict[str, Any] | None:
     }
 
 
+def _vulnerability_evidence_sha256(evidence: dict[str, Any]) -> str:
+    """Fingerprint the exact vulnerability IDs and components, including duplicates."""
+    normalized = sorted(
+        [finding["vulnerability_id"], finding["component"]]
+        for finding in evidence["vulnerable_components"]
+    )
+    payload = json.dumps(normalized, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _run_trivy_image_scan(
     command: list[str],
     *,
     cwd: Path,
     runner: Callable[..., Any],
     label: str,
-) -> tuple[str | None, dict[str, Any] | None]:
+) -> tuple[str | None, dict[str, Any] | None, bool]:
     """Run Trivy once, preserving failure streams and returning structured findings."""
     try:
         result = _run_with_capture(
@@ -287,16 +316,27 @@ def _run_trivy_image_scan(
             max_output_chars=MAX_TRIVY_JSON_CHARS,
         )
     except OSError as exc:
-        return f"{label} could not start: {exc}", None
+        return f"{label} could not start: {exc}", None, False
 
     evidence = _trivy_vulnerability_evidence(result.stdout or "")
     if result.returncode:
-        return _run_command_result_failure(result, label), evidence
-    return None, evidence or {
-        "high_count": 0,
-        "critical_count": 0,
-        "vulnerable_components": [],
-    }
+        waivable = bool(
+            result.returncode == 1
+            and evidence
+            and evidence["vulnerable_components"]
+            and not (result.stderr or "").strip()
+        )
+        return _run_command_result_failure(result, label), evidence, waivable
+    return (
+        None,
+        evidence
+        or {
+            "high_count": 0,
+            "critical_count": 0,
+            "vulnerable_components": [],
+        },
+        False,
+    )
 
 
 def _run_checked_command(
@@ -326,10 +366,15 @@ def _existing_image_id(
             cwd=cwd,
             runner=runner,
         )
-    except OSError:
-        return None
+    except OSError as exc:
+        raise ContainerCheckError(f"docker image inspect {image} could not start: {exc}") from exc
     if result.returncode:
-        return None
+        detail = f"{result.stdout or ''}\n{result.stderr or ''}".lower()
+        if "no such image" in detail:
+            return None
+        raise ContainerCheckError(
+            _run_command_result_failure(result, f"docker image inspect {image}")
+        )
     return (result.stdout or "").strip() or None
 
 
@@ -338,7 +383,7 @@ def check_generated_containers(
     project_parent: Path | None = None,
     service_files: dict[str, str] | None = None,
     service_names: list[str] | None = None,
-    vulnerability_waivers: dict[tuple[str, str], str] | None = None,
+    vulnerability_waivers: dict[tuple[str, str], VulnerabilityWaiver] | None = None,
     command_runner: Callable[..., Any] | None = None,
 ) -> dict[str, Any]:
     """Generate a disposable user project and check only its generated files."""
@@ -467,8 +512,8 @@ def check_generated_containers(
         }
         service_results: list[dict[str, Any]] = []
         resolved_image_ids: dict[str, str] = {}
-        image_existed_before: dict[str, bool] = {}
-        image_scan_results: dict[str, tuple[str | None, dict[str, Any] | None]] = {}
+        previous_image_ids: dict[str, str | None] = {}
+        image_scan_results: dict[str, tuple[str | None, dict[str, Any] | None, bool]] = {}
         builder_name = f"phlo-check-{project.name.rsplit('-', 1)[-1]}"
         uses_local_builds = any(service.get("build") for service in compose_services.values())
         builder_created = False
@@ -550,15 +595,25 @@ def check_generated_containers(
                 image_id = resolved_image_ids.get(image)
                 first_resolution = image_id is None
                 if first_resolution:
-                    image_existed_before[image] = (
-                        _existing_image_id(
+                    try:
+                        previous_image_ids[image] = _existing_image_id(
                             docker,
                             image,
                             cwd=project,
                             runner=command_runner,
                         )
-                        is not None
-                    )
+                    except ContainerCheckError as exc:
+                        service_results.append(
+                            {
+                                "service": service_name,
+                                "package": package,
+                                "image": image,
+                                "status": "failed",
+                                "image_scan": "unavailable",
+                                "detail": str(exc),
+                            }
+                        )
+                        continue
                 if locally_built and first_resolution:
                     build_failure = _run_command(
                         [
@@ -660,6 +715,7 @@ def check_generated_containers(
                             f"{trivy_cache.resolve()}:/root/.cache/trivy",
                             TRIVY_IMAGE,
                             "image",
+                            "--quiet",
                             "--timeout",
                             "15m",
                             "--exit-code",
@@ -676,14 +732,23 @@ def check_generated_containers(
                         runner=command_runner,
                         label=f"trivy image {image_id}",
                     )
-                trivy_image_failure, vulnerability_evidence = image_scan_results[image_id]
+                trivy_image_failure, vulnerability_evidence, waiver_eligible = image_scan_results[
+                    image_id
+                ]
                 if vulnerability_evidence is not None:
                     result.update(vulnerability_evidence)
+                    if vulnerability_evidence["vulnerable_components"]:
+                        result["vulnerability_evidence_sha256"] = _vulnerability_evidence_sha256(
+                            vulnerability_evidence
+                        )
                 waiver = vulnerability_waivers.get((service_name, image))
                 build_failed = result["status"] == "failed"
-                if trivy_image_failure and waiver and vulnerability_evidence is not None:
+                waiver_matches = bool(
+                    waiver and result.get("vulnerability_evidence_sha256") == waiver.evidence_sha256
+                )
+                if trivy_image_failure and waiver and waiver_eligible and waiver_matches:
                     result["image_scan"] = "waived"
-                    result["vulnerability_waiver"] = waiver
+                    result["vulnerability_waiver"] = waiver.reason
                     result["detail"] = _join_failure_details(
                         result.get("detail"), trivy_image_failure
                     )
@@ -695,15 +760,43 @@ def check_generated_containers(
                         result["detail"] = _join_failure_details(
                             result.get("detail"), trivy_image_failure
                         )
+                        if waiver and waiver_eligible and not waiver_matches:
+                            result["detail"] = _join_failure_details(
+                                result.get("detail"),
+                                "vulnerability waiver evidence does not match: "
+                                f"expected {waiver.evidence_sha256}, observed "
+                                f"{result.get('vulnerability_evidence_sha256', '<none>')}",
+                            )
 
-                if first_resolution and not image_existed_before[image]:
-                    image_cleanup_failure = _run_command(
-                        [docker, "image", "rm", image],
-                        cwd=project,
-                        runner=command_runner,
-                        label=f"docker image rm {service_name}",
-                    )
-                    if image_cleanup_failure:
+                if first_resolution:
+                    previous_image_id = previous_image_ids[image]
+                    cleanup_commands: list[tuple[list[str], str]] = []
+                    if locally_built and previous_image_id and previous_image_id != image_id:
+                        cleanup_commands.extend(
+                            [
+                                (
+                                    [docker, "image", "tag", previous_image_id, image],
+                                    f"docker image restore {service_name}",
+                                ),
+                                (
+                                    [docker, "image", "rm", image_id],
+                                    f"docker image rm {service_name}",
+                                ),
+                            ]
+                        )
+                    elif previous_image_id is None:
+                        cleanup_commands.append(
+                            ([docker, "image", "rm", image], f"docker image rm {service_name}")
+                        )
+                    for cleanup_command, cleanup_label in cleanup_commands:
+                        image_cleanup_failure = _run_command(
+                            cleanup_command,
+                            cwd=project,
+                            runner=command_runner,
+                            label=cleanup_label,
+                        )
+                        if not image_cleanup_failure:
+                            continue
                         failures.append(
                             {
                                 "tool": "docker cleanup",
@@ -712,6 +805,7 @@ def check_generated_containers(
                                 "detail": image_cleanup_failure,
                             }
                         )
+                        break
             prune_builder_cache()
         finally:
             if builder_created:
@@ -836,8 +930,8 @@ def check_generated_containers(
     "--allow-vulnerable-image",
     "vulnerability_waiver_values",
     multiple=True,
-    metavar="SERVICE=IMAGE=REASON",
-    help="Explicitly waive HIGH/CRITICAL findings for one exact generated service image.",
+    metavar="SERVICE=IMAGE=EVIDENCE_SHA256=REASON",
+    help="Waive one exact HIGH/CRITICAL finding set for one generated service image.",
 )
 def check_cmd(
     output_json: bool,
@@ -853,7 +947,8 @@ def check_cmd(
         phlo plugin check           # Check all plugins
         phlo plugin check --json    # Output as JSON
         phlo plugin check --containers  # Check generated container files
-        phlo plugin check --containers --allow-vulnerable-image SERVICE=IMAGE=REASON
+        phlo plugin check --containers \\
+          --allow-vulnerable-image SERVICE=IMAGE=EVIDENCE_SHA256=REASON
     """
     try:
         if not output_json:
