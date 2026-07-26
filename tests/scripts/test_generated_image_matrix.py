@@ -90,3 +90,51 @@ def test_publication_matrix_accepts_checked_out_source_context(tmp_path: Path) -
 
     assert target["root"] == "source"
     assert target["context"] == "packages/observatory"
+
+
+def test_publication_matrix_selects_only_requested_shared_image(tmp_path: Path) -> None:
+    build = {"context": str(tmp_path), "dockerfile": "Dockerfile"}
+    (tmp_path / "Dockerfile").touch()
+    compose = {
+        "services": {
+            "dagster": {
+                "image": "ghcr.io/phlohouse/phlo-dagster:1",
+                "build": build,
+            },
+            "dagster-daemon": {
+                "image": "ghcr.io/phlohouse/phlo-dagster:1",
+                "build": build,
+            },
+            "postgres": {
+                "image": "ghcr.io/phlohouse/phlo-postgres:1",
+                "build": build,
+            },
+        }
+    }
+
+    matrix = generated_image_matrix.publication_matrix(
+        compose,
+        tmp_path,
+        selected_services={"dagster-daemon"},
+    )
+
+    assert [target["service"] for target in matrix["include"]] == ["dagster"]
+
+
+def test_publication_matrix_rejects_unknown_selected_service(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").touch()
+    compose = {
+        "services": {
+            "postgres": {
+                "image": "ghcr.io/phlohouse/phlo-postgres:1",
+                "build": {"context": str(tmp_path)},
+            }
+        }
+    }
+
+    with pytest.raises(ValueError, match="unknown"):
+        generated_image_matrix.publication_matrix(
+            compose,
+            tmp_path,
+            selected_services={"unknown"},
+        )

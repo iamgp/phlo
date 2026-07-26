@@ -32,10 +32,14 @@ def test_every_generated_build_uses_a_versioned_ghcr_image() -> None:
         assert not image.endswith(":latest"), service_file
 
 
-def test_publication_workflow_pushes_without_building_pull_requests() -> None:
+def test_publication_workflow_publishes_only_on_release_or_manual_dispatch() -> None:
     workflow = (REPO_ROOT / ".github/workflows/build-core-services.yml").read_text(encoding="utf-8")
 
     assert "pull_request:" not in workflow
+    assert "\n  push:" not in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "release:" in workflow
+    assert "PUBLISH_SERVICES" in workflow
     assert "packages: write" in workflow
     assert "docker/build-push-action@" in workflow
     assert "push: true" in workflow

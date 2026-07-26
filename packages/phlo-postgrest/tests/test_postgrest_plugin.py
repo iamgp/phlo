@@ -18,5 +18,6 @@ def test_postgrest_builds_a_minimal_stable_runtime_image() -> None:
 
     dockerfile = resources.files("phlo_postgrest").joinpath("Dockerfile").read_text()
     assert "postgrest/postgrest:v14.15@sha256:" in dockerfile
+    assert "COPY --from=upstream /bin/postgrest /usr/bin/postgrest" in dockerfile
     assert "rm -f /usr/bin/pebble" in dockerfile
     assert dockerfile.rstrip().endswith('CMD ["postgrest"]')

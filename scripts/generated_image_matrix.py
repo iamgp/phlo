@@ -10,7 +10,10 @@ from typing import Any
 
 
 def publication_matrix(
-    compose: dict[str, Any], project_root: Path, source_root: Path | None = None
+    compose: dict[str, Any],
+    project_root: Path,
+    source_root: Path | None = None,
+    selected_services: set[str] | None = None,
 ) -> dict[str, Any]:
     """Return one build target per unique published image."""
     services = compose.get("services")
@@ -66,7 +69,17 @@ def publication_matrix(
         existing["services"].append(service_name)
     if not published:
         raise ValueError("Compose JSON has no published build services")
-    return {"include": list(published.values())}
+    targets = list(published.values())
+    if selected_services:
+        known_services = {service for target in targets for service in target["services"]}
+        unknown_services = selected_services - known_services
+        if unknown_services:
+            unknown = ", ".join(sorted(unknown_services))
+            raise ValueError(f"selected services are not published build services: {unknown}")
+        targets = [
+            target for target in targets if selected_services.intersection(target["services"])
+        ]
+    return {"include": targets}
 
 
 def main() -> int:
@@ -74,11 +87,17 @@ def main() -> int:
     parser.add_argument("compose_json", type=Path)
     parser.add_argument("project_root", type=Path)
     parser.add_argument("source_root", type=Path)
+    parser.add_argument("--services", default="")
     args = parser.parse_args()
     compose = json.loads(args.compose_json.read_text(encoding="utf-8"))
     print(
         json.dumps(
-            publication_matrix(compose, args.project_root, args.source_root),
+            publication_matrix(
+                compose,
+                args.project_root,
+                args.source_root,
+                {service.strip() for service in args.services.split(",") if service.strip()},
+            ),
             separators=(",", ":"),
         )
     )

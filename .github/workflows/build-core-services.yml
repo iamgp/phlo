@@ -2,16 +2,11 @@ name: Publish Generated Service Images
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      # Bootstrap PR #621. Remove after the first digest manifest is published.
-      - GWP/generated-container-checks
-    paths:
-      - "packages/**/Dockerfile"
-      - "packages/**/*.yaml"
-      - "scripts/generated_image_matrix.py"
-      - ".github/workflows/build-core-services.yml"
+    inputs:
+      services:
+        description: Optional comma-separated generated services to republish
+        required: false
+        type: string
   release:
     types: [published]
 
@@ -45,6 +40,8 @@ jobs:
 
       - name: Render every installed service through the public CLI
         id: matrix
+        env:
+          PUBLISH_SERVICES: ${{ inputs.services || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -66,12 +63,17 @@ jobs:
             -f "$project/.phlo/docker-compose.yml" \
             --project-directory "$project/.phlo" \
             config --format json > "$RUNNER_TEMP/generated-compose.json"
+          matrix_args=()
+          if [[ -n "$PUBLISH_SERVICES" ]]; then
+            matrix_args+=(--services "$PUBLISH_SERVICES")
+          fi
           matrix="$(
             uv --project "$GITHUB_WORKSPACE" run python \
               "$GITHUB_WORKSPACE/scripts/generated_image_matrix.py" \
               "$RUNNER_TEMP/generated-compose.json" \
               "$project" \
-              "$GITHUB_WORKSPACE"
+              "$GITHUB_WORKSPACE" \
+              "${matrix_args[@]}"
           )"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 

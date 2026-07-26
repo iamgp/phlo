@@ -14,7 +14,7 @@ RUN apt-get update && \
     rm -f /usr/bin/pebble && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=upstream /usr/bin/postgrest /usr/bin/postgrest
+COPY --from=upstream /bin/postgrest /usr/bin/postgrest
 
 USER "1000"
 EXPOSE 3000
