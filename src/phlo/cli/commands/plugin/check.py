@@ -456,7 +456,10 @@ def check_generated_containers(
             image = service.get("image")
             locally_built = bool(service.get("build"))
             build_failure: str | None = None
-            if locally_built:
+            if locally_built and not image:
+                image = f"{compose_project}-{service_name}"
+            image_id = resolved_image_ids.get(image) if image else None
+            if locally_built and image_id is None:
                 build_failure = _run_command(
                     [
                         docker,
@@ -475,7 +478,6 @@ def check_generated_containers(
                     runner=command_runner,
                     label=f"docker compose build {service_name}",
                 )
-                image = image or f"{compose_project}-{service_name}"
             elif not image:
                 service_results.append(
                     {
@@ -488,7 +490,6 @@ def check_generated_containers(
                     }
                 )
                 continue
-            image_id = resolved_image_ids.get(image)
             if image_id is None:
                 pull_failure = None
                 if not locally_built or build_failure:

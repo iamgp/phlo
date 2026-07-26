@@ -445,6 +445,63 @@ def test_plugin_check_containers_keeps_large_compose_config_parseable(monkeypatc
     assert result["services"][0]["status"] == "passed"
 
 
+def test_plugin_check_containers_builds_a_shared_exact_image_once(monkeypatch, tmp_path):
+    """Services sharing one exact build tag must retain the image ID that gets scanned."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "server": {
+                                    "image": "example/server:1",
+                                    "build": {"context": "."},
+                                },
+                                "setup": {
+                                    "image": "example/server:1",
+                                    "build": {"context": "."},
+                                },
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            return type(
+                "Result", (), {"returncode": 0, "stdout": "sha256:shared\n", "stderr": ""}
+            )()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    result = check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={
+            "@service:server": "package-server",
+            "@service:setup": "package-server",
+        },
+        command_runner=fake_run,
+    )
+
+    build_calls = [command for command in calls if "build" in command]
+    assert len(build_calls) == 1
+    assert [service["status"] for service in result["services"]] == ["passed", "passed"]
+
+
 def test_plugin_check_containers_reuses_configured_trivy_cache(monkeypatch, tmp_path):
     """A configured cache survives the generated project cleanup for reuse."""
     from phlo.cli.commands.plugin import check as check_module
