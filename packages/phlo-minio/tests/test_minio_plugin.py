@@ -1,5 +1,7 @@
 """Tests for MinIO service plugin."""
 
+from importlib import resources
+
 from phlo_minio.plugin import MinioResourceProvider, MinioServicePlugin, MinioSetupServicePlugin
 
 
@@ -32,6 +34,13 @@ def test_minio_services_build_pinned_phlo_images() -> None:
     assert server["build"]["dockerfile"] == "minio/Dockerfile"
     assert setup["image"] == "phlo/minio-mc:77f82e18b540"
     assert setup["build"]["dockerfile"] == "minio-mc/Dockerfile"
+
+
+def test_minio_server_image_includes_the_public_cli_runtime_client() -> None:
+    """Release maintenance commands execute `mc` inside the MinIO server container."""
+    dockerfile = resources.files("phlo_minio").joinpath("Dockerfile").read_text()
+
+    assert "COPY --from=mc-build /out/mc /usr/bin/mc" in dockerfile
 
 
 def test_minio_resource_provider_exposes_object_store(monkeypatch) -> None:
