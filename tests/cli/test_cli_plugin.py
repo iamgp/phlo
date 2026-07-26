@@ -269,6 +269,9 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             "image_id": "sha256:test",
             "status": "passed",
             "image_scan": "passed",
+            "high_count": 0,
+            "critical_count": 0,
+            "vulnerable_components": [],
         },
         {
             "service": "observatory",
@@ -277,6 +280,9 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             "image_id": "sha256:test",
             "status": "passed",
             "image_scan": "passed",
+            "high_count": 0,
+            "critical_count": 0,
+            "vulnerable_components": [],
         },
     ]
 
@@ -603,7 +609,30 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
             return type(
                 "Result",
                 (),
-                {"returncode": 1, "stdout": "CVE-TEST HIGH", "stderr": "scanner detail"},
+                {
+                    "returncode": 1,
+                    "stdout": json.dumps(
+                        {
+                            "Results": [
+                                {
+                                    "Target": "one-binary",
+                                    "Class": "lang-pkgs",
+                                    "Type": "gobinary",
+                                    "Vulnerabilities": [
+                                        {
+                                            "VulnerabilityID": "CVE-TEST",
+                                            "PkgName": "example/component",
+                                            "InstalledVersion": "1.0.0",
+                                            "FixedVersion": "1.0.1",
+                                            "Severity": "HIGH",
+                                        }
+                                    ],
+                                }
+                            ]
+                        }
+                    ),
+                    "stderr": "scanner detail",
+                },
             )()
         return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
 
@@ -627,10 +656,28 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
             "image_id": "sha256:one",
             "status": "waived",
             "image_scan": "waived",
+            "high_count": 1,
+            "critical_count": 0,
+            "vulnerable_components": [
+                {
+                    "target": "one-binary",
+                    "class": "lang-pkgs",
+                    "type": "gobinary",
+                    "component": "example/component",
+                    "installed_version": "1.0.0",
+                    "fixed_version": "1.0.1",
+                    "vulnerability_id": "CVE-TEST",
+                    "severity": "HIGH",
+                }
+            ],
             "vulnerability_waiver": "No patched upstream release is available",
             "detail": (
                 "trivy image sha256:one failed with exit code 1: "
-                "stdout: CVE-TEST HIGH\nstderr: scanner detail"
+                'stdout: {"Results": [{"Target": "one-binary", "Class": "lang-pkgs", '
+                '"Type": "gobinary", "Vulnerabilities": [{"VulnerabilityID": "CVE-TEST", '
+                '"PkgName": "example/component", "InstalledVersion": "1.0.0", '
+                '"FixedVersion": "1.0.1", "Severity": "HIGH"}]}]}\n'
+                "stderr: scanner detail"
             ),
         }
     ]
@@ -663,6 +710,29 @@ def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, se
     assert json.loads(result.output)["containers"]["owners"] == {
         "dagster/Dockerfile": "phlo-dagster"
     }
+
+
+def test_plugin_check_containers_preserves_package_owner_in_failure_output(
+    monkeypatch, setup_registry
+) -> None:
+    """Rich output must not consume bracketed package ownership as markup."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    monkeypatch.setattr(
+        check_module,
+        "check_generated_containers",
+        lambda **_: (_ for _ in ()).throw(
+            check_module.ContainerCheckError(
+                "Generated container checks failed:\n"
+                "- service [package-one] one: example/one:1 -> failed"
+            )
+        ),
+    )
+
+    result = CliRunner().invoke(plugin_group, ["check", "--containers"])
+
+    assert result.exit_code == 1
+    assert "[package-one]" in result.output
 
 
 def test_plugin_list_all_json(setup_registry, monkeypatch):

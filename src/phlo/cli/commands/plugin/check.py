@@ -230,6 +230,65 @@ def _limit_tool_output(value: str) -> str:
     )
 
 
+def _trivy_vulnerability_evidence(stdout: str) -> dict[str, Any] | None:
+    """Extract exact HIGH/CRITICAL findings from Trivy JSON output."""
+    if not stdout.strip():
+        return None
+    try:
+        report = json.loads(stdout)
+    except json.JSONDecodeError:
+        return None
+
+    vulnerable_components: list[dict[str, str]] = []
+    for result in report.get("Results") or []:
+        for finding in result.get("Vulnerabilities") or []:
+            severity = str(finding.get("Severity") or "").upper()
+            if severity not in {"HIGH", "CRITICAL"}:
+                continue
+            vulnerable_components.append(
+                {
+                    "target": str(result.get("Target") or ""),
+                    "class": str(result.get("Class") or ""),
+                    "type": str(result.get("Type") or ""),
+                    "component": str(finding.get("PkgName") or ""),
+                    "installed_version": str(finding.get("InstalledVersion") or ""),
+                    "fixed_version": str(finding.get("FixedVersion") or ""),
+                    "vulnerability_id": str(finding.get("VulnerabilityID") or ""),
+                    "severity": severity,
+                }
+            )
+    return {
+        "high_count": sum(finding["severity"] == "HIGH" for finding in vulnerable_components),
+        "critical_count": sum(
+            finding["severity"] == "CRITICAL" for finding in vulnerable_components
+        ),
+        "vulnerable_components": vulnerable_components,
+    }
+
+
+def _run_trivy_image_scan(
+    command: list[str],
+    *,
+    cwd: Path,
+    runner: Callable[..., Any],
+    label: str,
+) -> tuple[str | None, dict[str, Any] | None]:
+    """Run Trivy once, preserving failure streams and returning structured findings."""
+    try:
+        result = _run_with_capture(command, cwd=cwd, runner=runner)
+    except OSError as exc:
+        return f"{label} could not start: {exc}", None
+
+    evidence = _trivy_vulnerability_evidence(result.stdout or "")
+    if result.returncode:
+        return _run_command_result_failure(result, label), evidence
+    return None, evidence or {
+        "high_count": 0,
+        "critical_count": 0,
+        "vulnerable_components": [],
+    }
+
+
 def _run_checked_command(
     command: list[str],
     *,
@@ -375,7 +434,7 @@ def check_generated_containers(
             for name, package in owners.items()
             if name.startswith("@service:")
         }
-        service_results: list[dict[str, str]] = []
+        service_results: list[dict[str, Any]] = []
         image_ids: dict[str, str] = {}
         resolved_image_ids: dict[str, str] = {}
         for service_name, service in compose_services.items():
@@ -491,7 +550,7 @@ def check_generated_containers(
 
         for image_id in dict.fromkeys(image_ids.values()):
             image_services = [name for name, value in image_ids.items() if value == image_id]
-            trivy_image_failure = _run_command(
+            trivy_image_failure, vulnerability_evidence = _run_trivy_image_scan(
                 [
                     docker,
                     "run",
@@ -508,6 +567,8 @@ def check_generated_containers(
                     "vuln",
                     "--severity",
                     "HIGH,CRITICAL",
+                    "--format",
+                    "json",
                     image_id,
                 ],
                 cwd=project,
@@ -516,9 +577,11 @@ def check_generated_containers(
             )
             for result in service_results:
                 if result.get("service") in image_services:
+                    if vulnerability_evidence is not None:
+                        result.update(vulnerability_evidence)
                     waiver = vulnerability_waivers.get((result["service"], result["image"]))
                     build_failed = result["status"] == "failed"
-                    if trivy_image_failure and waiver:
+                    if trivy_image_failure and waiver and vulnerability_evidence is not None:
                         result["image_scan"] = "waived"
                         result["vulnerability_waiver"] = waiver
                         result["detail"] = _join_failure_details(
@@ -723,5 +786,5 @@ def check_cmd(
         raise
     except Exception as e:
         logger.exception("plugin_check_failed", output_json=output_json)
-        console.print(f"[red]Error validating plugins: {e}[/red]")
+        console.print(f"Error validating plugins: {e}", style="red", markup=False)
         sys.exit(1)
