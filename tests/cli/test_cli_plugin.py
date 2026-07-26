@@ -572,7 +572,22 @@ def test_plugin_check_containers_scans_each_build_before_starting_the_next(monke
     second_build = calls.index(build_calls[1])
     assert first_scan < second_build
     create_call = next(command for command in calls if command[1:3] == ["buildx", "create"])
+    prune_calls = [command for command in calls if command[1:3] == ["buildx", "prune"]]
     remove_call = next(command for command in calls if command[1:3] == ["buildx", "rm"])
+    assert len(prune_calls) == 2
+    assert first_scan < calls.index(prune_calls[0]) < second_build
+    assert all(
+        command
+        == [
+            "/bin/docker",
+            "buildx",
+            "prune",
+            "--builder",
+            create_call[create_call.index("--name") + 1],
+            "--force",
+        ]
+        for command in prune_calls
+    )
     assert create_call[create_call.index("--name") + 1] == remove_call[-1]
 
 

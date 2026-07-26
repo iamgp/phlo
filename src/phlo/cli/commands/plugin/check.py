@@ -490,8 +490,40 @@ def check_generated_containers(
             builder_created = True
 
         builder_cleanup_failure: str | None = None
+        builder_cache_owner: tuple[str, str] | None = None
+
+        def prune_builder_cache() -> None:
+            nonlocal builder_cache_owner
+            if builder_cache_owner is None:
+                return
+            package, image = builder_cache_owner
+            cache_cleanup_failure = _run_command(
+                [
+                    docker,
+                    "buildx",
+                    "prune",
+                    "--builder",
+                    builder_name,
+                    "--force",
+                ],
+                cwd=project,
+                runner=command_runner,
+                label="docker buildx prune",
+            )
+            if cache_cleanup_failure:
+                failures.append(
+                    {
+                        "tool": "docker cleanup",
+                        "package": package,
+                        "target": image,
+                        "detail": cache_cleanup_failure,
+                    }
+                )
+            builder_cache_owner = None
+
         try:
             for service_name, service in compose_services.items():
+                prune_builder_cache()
                 package = service_owners.get(service_name)
                 if not package:
                     raise ContainerCheckError(
@@ -548,6 +580,7 @@ def check_generated_containers(
                         runner=command_runner,
                         label=f"docker compose build {service_name}",
                     )
+                    builder_cache_owner = (package, image)
                 if first_resolution:
                     pull_failure = None
                     if not locally_built or build_failure:
@@ -679,6 +712,7 @@ def check_generated_containers(
                                 "detail": image_cleanup_failure,
                             }
                         )
+            prune_builder_cache()
         finally:
             if builder_created:
                 builder_cleanup_failure = _run_command(
