@@ -44,6 +44,7 @@ def test_publication_workflow_publishes_only_on_release_or_manual_dispatch() -> 
     assert "docker/build-push-action@" in workflow
     assert "push: true" in workflow
     assert "linux/amd64,linux/arm64" in workflow
+    assert "org.opencontainers.image.source=https://github.com/${{ github.repository }}" in workflow
 
 
 def test_ci_scans_published_images_remotely() -> None:
