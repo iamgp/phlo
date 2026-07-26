@@ -1,5 +1,7 @@
 """Tests for ClickStack service plugin."""
 
+from importlib import resources
+
 from click.testing import CliRunner
 
 from phlo_clickstack.cli import clickstack_group
@@ -19,6 +21,17 @@ def test_clickstack_service_definition() -> None:
     assert not any("4317" in port or "4318" in port for port in defn["compose"]["ports"])
     assert "clickstack-data:/var/lib/clickhouse" in defn["compose"]["volumes"]
     assert "./volumes/clickstack:/var/lib/clickhouse" not in defn["compose"]["volumes"]
+
+
+def test_clickstack_builds_the_patched_stable_image() -> None:
+    """The generated service builds the audited stable derivative."""
+    definition = ClickStackServicePlugin().service_definition
+    dockerfile = resources.files("phlo_clickstack").joinpath("Dockerfile").read_text()
+
+    assert definition["image"] == "phlo/clickstack:2.31.0-security-patches"
+    assert definition["build"] == {"context": ".", "dockerfile": "clickstack/Dockerfile"}
+    assert "2.31.0@sha256:b01cc48" in dockerfile
+    assert "CLICKSTACK_IMAGE" not in definition["env_vars"]
 
 
 def test_clickstack_plugin_metadata() -> None:
