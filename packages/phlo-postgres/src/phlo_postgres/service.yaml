@@ -6,7 +6,10 @@ default: true
 depends_on:
   - postgres-volume-setup
 
-image: postgres:18-alpine
+image: phlo/postgres:18.4-alpine3.24-gosu1.19
+build:
+  context: .
+  dockerfile: postgres/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -47,6 +50,7 @@ env_vars:
   POSTGRES_PORT:
     default: 10000
     description: PostgreSQL host port
+
   # SSL/TLS
   POSTGRES_SSL_MODE:
     default: "prefer"
@@ -60,3 +64,7 @@ env_vars:
   POSTGRES_SSL_CA_FILE:
     default: ""
     description: "Path to SSL CA certificate file"
+
+files:
+  - source: Dockerfile
+    dest: postgres/Dockerfile

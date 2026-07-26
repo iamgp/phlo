@@ -3,7 +3,7 @@ description: ClickHouse analytical database for data plane
 category: data
 default: false
 
-image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-latest}
+image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.5.6.64-alpine}
 
 compose:
   restart: unless-stopped

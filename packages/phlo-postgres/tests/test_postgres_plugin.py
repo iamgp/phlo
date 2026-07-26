@@ -14,6 +14,13 @@ def test_postgres_service_definition():
     assert service_definition["category"] == "core"
 
 
+def test_postgres_service_builds_pinned_hardened_image() -> None:
+    service_definition = PostgresServicePlugin().service_definition
+
+    assert service_definition["image"] == "phlo/postgres:18.4-alpine3.24-gosu1.19"
+    assert service_definition["build"]["dockerfile"] == "postgres/Dockerfile"
+
+
 def test_postgres_resource_provider():
     """Validate Postgres resource provider output."""
     provider = PostgresResourceProvider()

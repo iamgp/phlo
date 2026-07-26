@@ -628,6 +628,10 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
             "status": "waived",
             "image_scan": "waived",
             "vulnerability_waiver": "No patched upstream release is available",
+            "detail": (
+                "trivy image sha256:one failed with exit code 1: "
+                "stdout: CVE-TEST HIGH\nstderr: scanner detail"
+            ),
         }
     ]
 

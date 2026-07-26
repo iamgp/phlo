@@ -3,7 +3,7 @@ description: Initialize PostgreSQL data volume permissions
 category: core
 default: false
 
-image: alpine:3.20
+image: alpine:3.24.1
 
 compose:
   restart: "no"

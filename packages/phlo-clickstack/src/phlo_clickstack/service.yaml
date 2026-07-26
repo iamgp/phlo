@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: ${CLICKSTACK_IMAGE:-docker.hyperdx.io/hyperdx/hyperdx-all-in-one}
+image: ${CLICKSTACK_IMAGE:-docker.hyperdx.io/hyperdx/hyperdx-all-in-one@sha256:b01cc48cb5aaf30d630865a88217c826ab86fb9828374201f6cd7c539d5beed1}
 
 compose:
   restart: unless-stopped

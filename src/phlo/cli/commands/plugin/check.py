@@ -521,6 +521,9 @@ def check_generated_containers(
                     if trivy_image_failure and waiver:
                         result["image_scan"] = "waived"
                         result["vulnerability_waiver"] = waiver
+                        result["detail"] = _join_failure_details(
+                            result.get("detail"), trivy_image_failure
+                        )
                         result["status"] = "failed" if build_failed else "waived"
                         continue
                     result["status"] = "failed" if trivy_image_failure or build_failed else "passed"
@@ -709,6 +712,7 @@ def check_cmd(
                             f"{service['service']} → {service['image']}: "
                             f"{service['vulnerability_waiver']}"
                         )
+                        console.print(f"    [yellow]{service['detail']}[/yellow]")
                         continue
                     console.print(
                         f"  [green]✓[/green] {service['package']} / {service['service']} "

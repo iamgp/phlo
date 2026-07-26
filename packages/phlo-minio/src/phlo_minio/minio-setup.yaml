@@ -4,7 +4,10 @@ description: Initialize MinIO buckets for data lake
 category: core
 default: true
 
-image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+image: phlo/minio-mc:77f82e18b540
+build:
+  context: .
+  dockerfile: minio-mc/Dockerfile
 
 depends_on:
   - minio
@@ -23,3 +26,7 @@ compose:
     mc mb --ignore-existing myminio/lake/stage &&
     echo 'Buckets created successfully'
     "
+
+files:
+  - source: mc.Dockerfile
+    dest: minio-mc/Dockerfile

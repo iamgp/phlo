@@ -365,19 +365,15 @@ jobs:
             --allow-vulnerable-image "clickstack=docker.hyperdx.io/hyperdx/hyperdx-all-in-one=Upstream image contains vulnerable Alpine, Node, and Go dependencies" \
             --allow-vulnerable-image "grafana=grafana/grafana:13.1.1=Upstream image contains vulnerable embedded Go dependencies" \
             --allow-vulnerable-image "loki=grafana/loki:3.7.4=Upstream image contains a vulnerable embedded Go dependency" \
-            --allow-vulnerable-image "minio=minio/minio:RELEASE.2025-09-07T16-13-09Z=Upstream image contains vulnerable embedded Go and Red Hat dependencies" \
-            --allow-vulnerable-image "minio-setup=minio/mc:RELEASE.2025-08-13T08-35-41Z=Upstream image contains vulnerable embedded Go dependencies" \
+            --allow-vulnerable-image "minio=phlo/minio:7aac2a2c5b7c=Archived public source still has six MinIO-module advisories without public patches; OS, standard library, and third-party Go findings are remediated" \
             --allow-vulnerable-image "nessie=ghcr.io/projectnessie/nessie:0.108.3=Upstream image contains vulnerable Java and Red Hat dependencies" \
             --allow-vulnerable-image "oauth2-proxy=quay.io/oauth2-proxy/oauth2-proxy:v7.15.3=Upstream image contains vulnerable embedded Go dependencies" \
             --allow-vulnerable-image "openmetadata=docker.getcollate.io/openmetadata/server:1.13.1=Upstream image contains vulnerable Java dependencies" \
             --allow-vulnerable-image "openmetadata-elasticsearch=docker.elastic.co/elasticsearch/elasticsearch:8.11.4=Upstream image contains vulnerable Java dependencies" \
             --allow-vulnerable-image "openmetadata-mysql=docker.getcollate.io/openmetadata/db:1.13.1=Upstream image contains vulnerable Oracle Linux and Python dependencies" \
             --allow-vulnerable-image "openmetadata-setup=docker.getcollate.io/openmetadata/server:1.13.1=Upstream image contains vulnerable Java dependencies" \
-            --allow-vulnerable-image "postgres=postgres:18-alpine=Upstream image contains vulnerable Go dependencies" \
             --allow-vulnerable-image "postgres-exporter=quay.io/prometheuscommunity/postgres-exporter:v0.20.1=Upstream image contains a vulnerable embedded Go dependency" \
-            --allow-vulnerable-image "prometheus=prom/prometheus:v3.13.1=Upstream image contains vulnerable embedded Go dependencies" \
             --allow-vulnerable-image "superset=apache/superset:6.1.0=Upstream image contains vulnerable Debian, Python, and Rust dependencies" \
-            --allow-vulnerable-image "traefik=traefik:v3.7.8=Upstream image contains a vulnerable embedded Go dependency" \
             --allow-vulnerable-image "trino=trinodb/trino:483=Upstream image contains vulnerable Go and Java dependencies"
 
   release-golden-path:

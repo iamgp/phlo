@@ -4,7 +4,7 @@ description: Initialize ClickHouse databases for data plane
 category: data
 default: false
 
-image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-latest}
+image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.5.6.64-alpine}
 
 depends_on:
   - clickhouse
