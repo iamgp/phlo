@@ -139,6 +139,17 @@ jobs:
             echo EOF
           } >> "$GITHUB_OUTPUT"
 
+      - name: Resolve digest repository
+        id: image
+        env:
+          IMAGE: ${{ matrix.target.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="${IMAGE%@*}"
+          repository="${repository%:*}"
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+
       - name: Build and publish native architecture image
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
@@ -147,7 +158,7 @@ jobs:
           file: ${{ matrix.target.root }}/${{ matrix.target.dockerfile }}
           build-args: ${{ steps.args.outputs.value }}
           platforms: ${{ matrix.architecture.platform }}
-          outputs: type=image,name=${{ matrix.target.image }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ steps.image.outputs.repository }},push-by-digest=true,name-canonical=true,push=true
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
