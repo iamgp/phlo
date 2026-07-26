@@ -4,7 +4,11 @@ category: catalog
 default: false
 profile: openmetadata
 
-image: docker.elastic.co/elasticsearch/elasticsearch:8.11.4
+image: phlo/openmetadata-elasticsearch:8.11.4-java-patches
+
+build:
+  context: .
+  dockerfile: openmetadata-elasticsearch/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -29,3 +33,9 @@ env_vars:
   OPENMETADATA_ES_JAVA_OPTS:
     default: "-Xms256m -Xmx256m"
     description: JVM heap settings for the bundled OpenMetadata Elasticsearch service
+
+files:
+  - source: es.Dockerfile
+    dest: openmetadata-elasticsearch/Dockerfile
+  - source: es-libraries.sha256
+    dest: openmetadata-elasticsearch/libraries.sha256

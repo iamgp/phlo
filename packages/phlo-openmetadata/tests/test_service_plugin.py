@@ -27,3 +27,22 @@ def test_openmetadata_mysql_builds_the_updated_stable_database_image() -> None:
         "context": ".",
         "dockerfile": "openmetadata-mysql/Dockerfile",
     }
+
+
+def test_openmetadata_elasticsearch_builds_the_patched_compatible_image() -> None:
+    raw = (
+        resources.files("phlo_openmetadata")
+        .joinpath("openmetadata-elasticsearch-setup.yaml")
+        .read_text()
+    )
+    definition = yaml.safe_load(raw)
+
+    assert definition["image"] == "phlo/openmetadata-elasticsearch:8.11.4-java-patches"
+    assert definition["build"] == {
+        "context": ".",
+        "dockerfile": "openmetadata-elasticsearch/Dockerfile",
+    }
+    assert {
+        "source": "es-libraries.sha256",
+        "dest": "openmetadata-elasticsearch/libraries.sha256",
+    } in definition["files"]
