@@ -4,7 +4,11 @@ category: observability
 default: false
 profile: observability
 
-image: grafana/grafana:${GRAFANA_VERSION:-13.1.1}
+image: phlo/grafana:13.1.1-go1.26.5
+
+build:
+  context: ./grafana
+  dockerfile: Dockerfile
 
 depends_on:
   - prometheus
@@ -12,12 +16,12 @@ depends_on:
 
 compose:
   restart: unless-stopped
-  user: "0"
   labels:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "grafana:3000"
     phlo.metrics.path: "/metrics"
   environment:
+    GF_PLUGINS_PREINSTALL_DISABLED: "true"
     GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
     GF_USERS_ALLOW_SIGN_UP: "false"
@@ -67,3 +71,5 @@ files:
     dest: grafana/provisioning
   - source: dashboards
     dest: grafana/dashboards
+  - source: Dockerfile
+    dest: grafana/Dockerfile
