@@ -44,7 +44,7 @@ compose:
 
 env_vars:
   CLICKHOUSE_VERSION:
-    default: "latest"
+    default: "26.5.6.64-alpine"
     description: ClickHouse server version tag
   CLICKHOUSE_HTTP_PORT:
     default: 8123
