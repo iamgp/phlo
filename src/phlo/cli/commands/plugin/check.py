@@ -77,6 +77,10 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
         if matching_roots:
             package = max(matching_roots)[1]
             owners.setdefault(f"@service:{service_name}", package)
+            for file_spec in definition.files:
+                destination = file_spec.get("dest")
+                if destination:
+                    owners.setdefault(destination, package)
     return owners, list(dict.fromkeys(service_names))
 
 

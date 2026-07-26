@@ -287,6 +287,46 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
     ]
 
 
+def test_service_inventory_attributes_companion_service_files(monkeypatch, tmp_path):
+    """Files declared by companion service YAMLs retain package ownership."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    package_root = tmp_path / "phlo_openmetadata"
+    package_root.mkdir()
+    plugin = type("Plugin", (), {"service_definition": {"name": "openmetadata"}})()
+    plugin.get_files = list
+    companion = type(
+        "Definition",
+        (),
+        {
+            "source_path": package_root / "openmetadata-elasticsearch-setup.yaml",
+            "files": [
+                {
+                    "source": "es.Dockerfile",
+                    "dest": "openmetadata-elasticsearch/Dockerfile",
+                }
+            ],
+        },
+    )()
+
+    monkeypatch.setattr(check_module, "discover_plugins", lambda **_: {"service": [plugin]})
+    monkeypatch.setattr(check_module, "_plugin_package", lambda _: "phlo-openmetadata")
+    monkeypatch.setattr(check_module, "resolve_plugin_source_path", lambda _: package_root)
+    monkeypatch.setattr(
+        check_module,
+        "ServiceDiscovery",
+        lambda: type(
+            "Discovery",
+            (),
+            {"discover": lambda self: {"openmetadata-elasticsearch": companion}},
+        )(),
+    )
+
+    owners, _ = check_module._service_inventory()
+
+    assert owners["openmetadata-elasticsearch/Dockerfile"] == "phlo-openmetadata"
+
+
 def test_plugin_check_containers_reports_tool_failure(monkeypatch, tmp_path):
     """A generated-container tool failure is reported as a CLI failure."""
     from phlo.cli.commands.plugin import check as check_module
