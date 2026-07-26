@@ -6,6 +6,7 @@ import hashlib
 import importlib.metadata
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -378,6 +379,168 @@ def _existing_image_id(
     return (result.stdout or "").strip() or None
 
 
+def _remote_image_reference(
+    docker: str,
+    image: str,
+    *,
+    cwd: Path,
+    runner: Callable[..., Any],
+) -> str:
+    """Resolve a registry image tag to an immutable manifest digest without pulling it."""
+    if "@sha256:" in image:
+        return image
+    stdout, _ = _run_output_command(
+        [
+            docker,
+            "buildx",
+            "imagetools",
+            "inspect",
+            "--format",
+            "{{json .Manifest.Digest}}",
+            image,
+        ],
+        cwd=cwd,
+        runner=runner,
+        label=f"docker buildx imagetools inspect {image}",
+    )
+    try:
+        digest = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        raise ContainerCheckError(f"registry returned an invalid digest for {image}") from exc
+    if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+        raise ContainerCheckError(f"registry returned an invalid digest for {image}: {digest!r}")
+    registry_path, separator, image_name = image.rpartition("/")
+    repository_name = image_name.rsplit(":", 1)[0]
+    repository = f"{registry_path}/{repository_name}" if separator else repository_name
+    return f"{repository}@{digest}"
+
+
+def _check_remote_service_images(
+    *,
+    compose_services: dict[str, Any],
+    service_owners: dict[str, str],
+    docker: str,
+    project: Path,
+    trivy_cache: Path,
+    vulnerability_waivers: dict[tuple[str, str], VulnerabilityWaiver],
+    runner: Callable[..., Any],
+) -> list[dict[str, Any]]:
+    """Resolve and scan every rendered image remotely without building or pulling it."""
+    service_results: list[dict[str, Any]] = []
+    scan_results: dict[str, tuple[str | None, dict[str, Any] | None, bool]] = {}
+    docker_config = Path.home() / ".docker" / "config.json"
+    auth_mount = (
+        ["-v", f"{docker_config.resolve()}:/root/.docker/config.json:ro"]
+        if docker_config.is_file()
+        else []
+    )
+    for service_name, service in compose_services.items():
+        package = service_owners.get(service_name)
+        if not package:
+            raise ContainerCheckError(
+                f"generated Compose service '{service_name}' has no package owner"
+            )
+        image = service.get("image")
+        if not image:
+            service_results.append(
+                {
+                    "service": service_name,
+                    "package": package,
+                    "image": "",
+                    "status": "failed",
+                    "image_scan": "unavailable",
+                    "detail": "remote image scan requires an explicit published image",
+                }
+            )
+            continue
+        try:
+            image_id = _remote_image_reference(
+                docker,
+                image,
+                cwd=project,
+                runner=runner,
+            )
+        except ContainerCheckError as exc:
+            service_results.append(
+                {
+                    "service": service_name,
+                    "package": package,
+                    "image": image,
+                    "status": "failed",
+                    "image_scan": "unavailable",
+                    "detail": str(exc),
+                }
+            )
+            continue
+
+        result: dict[str, Any] = {
+            "service": service_name,
+            "package": package,
+            "image": image,
+            "image_id": image_id,
+            "status": "pending",
+            "image_scan": "pending",
+        }
+        service_results.append(result)
+        if image_id not in scan_results:
+            scan_results[image_id] = _run_trivy_image_scan(
+                [
+                    docker,
+                    "run",
+                    "--rm",
+                    *auth_mount,
+                    "-v",
+                    f"{trivy_cache.resolve()}:/root/.cache/trivy",
+                    TRIVY_IMAGE,
+                    "image",
+                    "--image-src",
+                    "remote",
+                    "--quiet",
+                    "--timeout",
+                    "15m",
+                    "--exit-code",
+                    "1",
+                    "--scanners",
+                    "vuln",
+                    "--severity",
+                    "HIGH,CRITICAL",
+                    "--format",
+                    "json",
+                    image_id,
+                ],
+                cwd=project,
+                runner=runner,
+                label=f"trivy image {image_id}",
+            )
+        trivy_failure, evidence, waiver_eligible = scan_results[image_id]
+        if evidence is not None:
+            result.update(evidence)
+            if evidence["vulnerable_components"]:
+                result["vulnerability_evidence_sha256"] = _vulnerability_evidence_sha256(evidence)
+        waiver = vulnerability_waivers.get((service_name, image))
+        waiver_matches = bool(
+            waiver and result.get("vulnerability_evidence_sha256") == waiver.evidence_sha256
+        )
+        if trivy_failure and waiver and waiver_eligible and waiver_matches:
+            result["status"] = "waived"
+            result["image_scan"] = "waived"
+            result["vulnerability_waiver"] = waiver.reason
+            result["detail"] = trivy_failure
+        else:
+            result["status"] = "failed" if trivy_failure else "passed"
+            result["image_scan"] = "failed" if trivy_failure else "passed"
+            if trivy_failure:
+                result["detail"] = trivy_failure
+                if waiver and waiver_eligible and not waiver_matches:
+                    result["detail"] = _join_failure_details(
+                        result["detail"],
+                        "vulnerability waiver evidence does not match: "
+                        f"expected {waiver.evidence_sha256}, observed "
+                        f"{result.get('vulnerability_evidence_sha256', '<none>')}",
+                    )
+    return service_results
+
+
 def check_generated_containers(
     *,
     project_parent: Path | None = None,
@@ -385,6 +548,7 @@ def check_generated_containers(
     service_names: list[str] | None = None,
     vulnerability_waivers: dict[tuple[str, str], VulnerabilityWaiver] | None = None,
     command_runner: Callable[..., Any] | None = None,
+    remote_images: bool = False,
 ) -> dict[str, Any]:
     """Generate a disposable user project and check only its generated files."""
     command_runner = command_runner or subprocess.run
@@ -515,7 +679,9 @@ def check_generated_containers(
         previous_image_ids: dict[str, str | None] = {}
         image_scan_results: dict[str, tuple[str | None, dict[str, Any] | None, bool]] = {}
         builder_name = f"phlo-check-{project.name.rsplit('-', 1)[-1]}"
-        uses_local_builds = any(service.get("build") for service in compose_services.values())
+        uses_local_builds = not remote_images and any(
+            service.get("build") for service in compose_services.values()
+        )
         builder_created = False
         if uses_local_builds:
             _run_checked_command(
@@ -566,8 +732,19 @@ def check_generated_containers(
                 )
             builder_cache_owner = None
 
+        if remote_images:
+            service_results = _check_remote_service_images(
+                compose_services=compose_services,
+                service_owners=service_owners,
+                docker=docker,
+                project=project,
+                trivy_cache=trivy_cache,
+                vulnerability_waivers=vulnerability_waivers,
+                runner=command_runner,
+            )
         try:
-            for service_name, service in compose_services.items():
+            services_to_build = () if remote_images else compose_services.items()
+            for service_name, service in services_to_build:
                 prune_builder_cache()
                 package = service_owners.get(service_name)
                 if not package:
@@ -927,6 +1104,11 @@ def check_generated_containers(
     help="Generate a temporary user project and check its generated container files.",
 )
 @click.option(
+    "--remote-images",
+    is_flag=True,
+    help="Resolve and scan rendered registry images without building or pulling them.",
+)
+@click.option(
     "--allow-vulnerable-image",
     "vulnerability_waiver_values",
     multiple=True,
@@ -936,6 +1118,7 @@ def check_generated_containers(
 def check_cmd(
     output_json: bool,
     containers: bool,
+    remote_images: bool,
     vulnerability_waiver_values: tuple[str, ...],
 ):
     """Validate installed plugins.
@@ -951,6 +1134,8 @@ def check_cmd(
           --allow-vulnerable-image SERVICE=IMAGE=EVIDENCE_SHA256=REASON
     """
     try:
+        if remote_images and not containers:
+            raise click.UsageError("--remote-images requires --containers")
         if not output_json:
             console.print("Validating plugins...")
 
@@ -962,7 +1147,8 @@ def check_cmd(
 
         if containers:
             validation_results["containers"] = check_generated_containers(
-                vulnerability_waivers=_parse_vulnerability_waivers(vulnerability_waiver_values)
+                vulnerability_waivers=_parse_vulnerability_waivers(vulnerability_waiver_values),
+                remote_images=remote_images,
             )
 
         if output_json:

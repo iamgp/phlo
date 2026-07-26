@@ -4,7 +4,7 @@ category: catalog
 default: false
 profile: openmetadata
 
-image: phlo/openmetadata-db:1.13.1-ol8.10
+image: ghcr.io/phlohouse/phlo-openmetadata-db:1.13.1-ol8.10
 build:
   context: .
   dockerfile: openmetadata-mysql/Dockerfile

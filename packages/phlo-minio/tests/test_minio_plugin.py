@@ -30,9 +30,9 @@ def test_minio_services_build_pinned_phlo_images() -> None:
     server = MinioServicePlugin().service_definition
     setup = MinioSetupServicePlugin().service_definition
 
-    assert server["image"] == "phlo/minio:7aac2a2c5b7c"
+    assert server["image"] == "ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c"
     assert server["build"]["dockerfile"] == "minio/Dockerfile"
-    assert setup["image"] == "phlo/minio-mc:77f82e18b540"
+    assert setup["image"] == "ghcr.io/phlohouse/phlo-minio-mc:77f82e18b540"
     assert setup["build"]["dockerfile"] == "minio-mc/Dockerfile"
 
 

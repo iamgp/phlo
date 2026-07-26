@@ -8,7 +8,7 @@ depends_on:
   - openmetadata-mysql
   - openmetadata-elasticsearch
 
-image: phlo/openmetadata:1.13.1-java-patches
+image: ghcr.io/phlohouse/phlo-openmetadata:1.13.1-java-patches
 build:
   context: .
   dockerfile: openmetadata/Dockerfile

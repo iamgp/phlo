@@ -21,7 +21,7 @@ def test_nessie_service_definition():
 def test_nessie_service_builds_the_patched_stable_image() -> None:
     definition = NessieServicePlugin().service_definition
 
-    assert definition["image"] == "phlo/nessie:0.108.3-netty4.2.16"
+    assert definition["image"] == "ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16"
     assert definition["build"] == {"context": ".", "dockerfile": "nessie/Dockerfile"}
     assert "NESSIE_VERSION" not in definition["env_vars"]
     assert {

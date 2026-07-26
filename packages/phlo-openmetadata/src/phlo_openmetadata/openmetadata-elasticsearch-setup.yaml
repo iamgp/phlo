@@ -4,7 +4,7 @@ category: catalog
 default: false
 profile: openmetadata
 
-image: phlo/openmetadata-elasticsearch:8.11.4-java-patches
+image: ghcr.io/phlohouse/phlo-openmetadata-elasticsearch:8.11.4-java-patches
 
 build:
   context: .

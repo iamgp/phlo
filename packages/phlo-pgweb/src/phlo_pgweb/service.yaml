@@ -3,6 +3,7 @@ description: Web-based PostgreSQL database browser
 category: admin
 default: true
 
+image: ghcr.io/phlohouse/phlo-pgweb:0.17.0-security-patches
 build:
   context: .
   dockerfile: pgweb/Dockerfile

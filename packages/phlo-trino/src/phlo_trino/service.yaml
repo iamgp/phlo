@@ -3,7 +3,7 @@ description: Distributed SQL query engine for the data lake
 category: core
 default: true
 
-image: phlo/trino:483-launcher318-go1.26.5
+image: ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5
 
 build:
   context: ./trino

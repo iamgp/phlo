@@ -594,6 +594,64 @@ def test_plugin_check_containers_scans_each_build_before_starting_the_next(monke
     assert create_call[create_call.index("--name") + 1] == remove_call[-1]
 
 
+def test_plugin_check_containers_remote_mode_never_builds_or_pulls(monkeypatch, tmp_path) -> None:
+    """Published images resolve to immutable digests and scan without local image storage."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[:3] == ["/bin/docker", "compose", "--profile"]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {
+                                "one": {
+                                    "image": "ghcr.io/phlohouse/phlo-one:1.2.3",
+                                    "build": {"context": "one"},
+                                }
+                            },
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[1:4] == ["buildx", "imagetools", "inspect"]:
+            return type(
+                "Result",
+                (),
+                {"returncode": 0, "stdout": f'"sha256:{"a" * 64}"\n', "stderr": ""},
+            )()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    result = check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={"@service:one": "package-one"},
+        command_runner=fake_run,
+        remote_images=True,
+    )
+
+    assert not any("build" in command for command in calls if "compose" in command)
+    assert not any(command[1:2] == ["pull"] for command in calls)
+    assert not any(command[1:3] == ["image", "inspect"] for command in calls)
+    remote_scan = next(
+        command
+        for command in calls
+        if check_module.TRIVY_IMAGE in command and "--image-src" in command
+    )
+    assert remote_scan[remote_scan.index("--image-src") + 1] == "remote"
+    assert remote_scan[-1] == f"ghcr.io/phlohouse/phlo-one@sha256:{'a' * 64}"
+    assert result["services"][0]["image_id"] == remote_scan[-1]
+
+
 def test_plugin_check_containers_removes_only_images_created_for_the_check(monkeypatch, tmp_path):
     """Temporary validation images are removed without touching pre-existing tags."""
     from phlo.cli.commands.plugin import check as check_module
@@ -1168,6 +1226,27 @@ def test_plugin_check_containers_forwards_exact_vulnerability_waiver(
             reason="no compatible upstream fix",
         )
     }
+
+
+def test_plugin_check_containers_forwards_remote_image_mode(monkeypatch, setup_registry) -> None:
+    """CI can scan published image digests without rebuilding generated services."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    received: dict[str, object] = {}
+
+    def fake_check_generated_containers(**kwargs):
+        received.update(kwargs)
+        return {"dockerfiles": [], "owners": {}, "services": []}
+
+    monkeypatch.setattr(check_module, "check_generated_containers", fake_check_generated_containers)
+
+    result = CliRunner().invoke(
+        plugin_group,
+        ["check", "--containers", "--remote-images", "--json"],
+    )
+
+    assert result.exit_code == 0
+    assert received["remote_images"] is True
 
 
 def test_plugin_check_containers_preserves_package_owner_in_failure_output(

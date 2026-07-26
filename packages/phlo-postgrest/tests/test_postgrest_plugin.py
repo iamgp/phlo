@@ -8,7 +8,7 @@ from phlo_postgrest.plugin import PostgrestServicePlugin
 def test_postgrest_builds_a_minimal_stable_runtime_image() -> None:
     definition = PostgrestServicePlugin().service_definition
 
-    assert definition["image"] == "phlo/postgrest:14.15-security-patches"
+    assert definition["image"] == "ghcr.io/phlohouse/phlo-postgrest:14.15-security-patches"
     assert definition["build"] == {
         "context": ".",
         "dockerfile": "postgrest/Dockerfile",

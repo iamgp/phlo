@@ -1,110 +1,194 @@
-name: Build Core Services
+name: Publish Generated Service Images
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      # Bootstrap PR #621. Remove after the first digest manifest is published.
+      - GWP/generated-container-checks
     paths:
-      - "packages/phlo-observatory/**"
-      - "packages/phlo-api/**"
+      - "packages/**/Dockerfile"
+      - "packages/**/*.yaml"
+      - "scripts/generated_image_matrix.py"
       - ".github/workflows/build-core-services.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "packages/phlo-observatory/**"
-      - "packages/phlo-api/**"
   release:
     types: [published]
 
-env:
-  REGISTRY: ghcr.io
+concurrency:
+  group: generated-service-images-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-observatory:
-    name: Build Observatory
+  prepare:
+    name: Prepare generated build contexts
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-
-      - name: Log in to Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          version: "0.10.10"
+          enable-cache: false
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+      - name: Install workspace service plugins
+        run: |
+          uv python install 3.11
+          uv sync --python 3.11 --all-packages
+
+      - name: Render every installed service through the public CLI
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/generated-service-project"
+          mkdir -p "$project"
+          cd "$project"
+          uv --project "$GITHUB_WORKSPACE" run phlo services init --no-dev --force
+          mapfile -t services < <(
+            uv --project "$GITHUB_WORKSPACE" run phlo services list --all --json |
+              jq -r '.[].name'
+          )
+          add_args=()
+          for service in "${services[@]}"; do
+            add_args+=(--service "$service")
+          done
+          uv --project "$GITHUB_WORKSPACE" run phlo services add "${add_args[@]}" --no-start
+          docker compose \
+            --profile '*' \
+            -f "$project/.phlo/docker-compose.yml" \
+            --project-directory "$project/.phlo" \
+            config --format json > "$RUNNER_TEMP/generated-compose.json"
+          matrix="$(
+            uv --project "$GITHUB_WORKSPACE" run python \
+              "$GITHUB_WORKSPACE/scripts/generated_image_matrix.py" \
+              "$RUNNER_TEMP/generated-compose.json" \
+              "$project" \
+              "$GITHUB_WORKSPACE"
+          )"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Upload generated build contexts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/phlo-observatory
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+          name: generated-service-build-contexts
+          path: ${{ runner.temp }}/generated-service-project
+          include-hidden-files: true
+          if-no-files-found: error
 
-      - name: Build and push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: packages/phlo-observatory/src/phlo_observatory
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-phlo-api:
-    name: Build phlo-api
+  publish:
+    name: Publish ${{ matrix.service }}
+    needs: prepare
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          path: source
           persist-credentials: false
+
+      - name: Download generated build contexts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: generated-service-build-contexts
+          path: generated
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
-      - name: Log in to Container Registry
-        if: github.event_name != 'pull_request'
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/phlo-api
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Render build arguments
+        id: args
+        env:
+          BUILD_ARGS_JSON: ${{ toJSON(matrix.build_args) }}
+        shell: bash
+        run: |
+          {
+            echo 'value<<EOF'
+            jq -r 'to_entries[] | "\(.key)=\(.value)"' <<< "$BUILD_ARGS_JSON"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      - name: Build and publish immutable service image
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
-          context: packages/phlo-api/src/phlo_api
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          context: ${{ matrix.root }}/${{ matrix.context }}
+          file: ${{ matrix.root }}/${{ matrix.dockerfile }}
+          build-args: ${{ steps.args.outputs.value }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ matrix.image }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Record published digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ${{ matrix.image }}
+          SERVICE: ${{ matrix.service }}
+          SERVICES: ${{ toJSON(matrix.services) }}
+        shell: bash
+        run: |
+          jq -n \
+            --arg image "$IMAGE" \
+            --arg digest "$DIGEST" \
+            --argjson services "$SERVICES" \
+            '{image: $image, digest: $digest, services: $services}' \
+            > "published-${SERVICE}.json"
+
+      - name: Upload published digest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: published-${{ matrix.service }}
+          path: published-${{ matrix.service }}.json
+          if-no-files-found: error
+
+  manifest:
+    name: Published image digest manifest
+    needs: publish
+    if: always() && needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download published digests
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: published-*
+          path: published
+          merge-multiple: true
+
+      - name: Assemble digest manifest
+        shell: bash
+        run: jq -s 'sort_by(.image)' published/*.json > generated-service-images.json
+
+      - name: Upload digest manifest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: generated-service-images
+          path: generated-service-images.json
+          if-no-files-found: error

@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: phlo/loki:3.7.4-grpc1.82.1
+image: ghcr.io/phlohouse/phlo-loki:3.7.4-grpc1.82.1
 build:
   context: .
   dockerfile: loki/Dockerfile

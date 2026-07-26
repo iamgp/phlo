@@ -3,7 +3,7 @@ description: Apache Superset for business intelligence and data visualization
 category: bi
 default: true
 
-image: phlo/superset:6.1.0-security-patches
+image: ghcr.io/phlohouse/phlo-superset:6.1.0-security-patches
 build:
   context: .
   dockerfile: superset/Dockerfile

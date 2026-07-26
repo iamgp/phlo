@@ -3,7 +3,7 @@ description: Git-like catalog for Iceberg tables with branch/merge support
 category: core
 default: true
 
-image: phlo/nessie:0.108.3-netty4.2.16
+image: ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16
 build:
   context: .
   dockerfile: nessie/Dockerfile

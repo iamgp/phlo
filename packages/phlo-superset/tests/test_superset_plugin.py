@@ -19,7 +19,7 @@ def test_superset_builds_a_patched_runtime_image():
     definition = SupersetServicePlugin().service_definition
     dockerfile = resources.files("phlo_superset").joinpath("Dockerfile").read_text()
 
-    assert definition["image"] == "phlo/superset:6.1.0-security-patches"
+    assert definition["image"] == "ghcr.io/phlohouse/phlo-superset:6.1.0-security-patches"
     assert definition["build"] == {"context": ".", "dockerfile": "superset/Dockerfile"}
     assert definition["compose"]["user"] == "1000:1000"
     assert 'USER "1000"' in dockerfile

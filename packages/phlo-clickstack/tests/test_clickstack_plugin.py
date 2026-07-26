@@ -28,7 +28,7 @@ def test_clickstack_builds_the_patched_stable_image() -> None:
     definition = ClickStackServicePlugin().service_definition
     dockerfile = resources.files("phlo_clickstack").joinpath("Dockerfile").read_text()
 
-    assert definition["image"] == "phlo/clickstack:2.31.0-security-patches"
+    assert definition["image"] == "ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches"
     assert definition["build"] == {"context": ".", "dockerfile": "clickstack/Dockerfile"}
     assert "2.31.0@sha256:b01cc48" in dockerfile
     assert "CLICKSTACK_IMAGE" not in definition["env_vars"]

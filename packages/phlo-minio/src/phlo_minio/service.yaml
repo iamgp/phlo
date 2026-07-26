@@ -3,7 +3,7 @@ description: S3-compatible object storage for data lake
 category: core
 default: true
 
-image: phlo/minio:7aac2a2c5b7c
+image: ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c
 build:
   context: .
   dockerfile: minio/Dockerfile

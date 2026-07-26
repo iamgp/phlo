@@ -4,6 +4,7 @@ category: orchestration
 default: false
 profile: api
 
+image: ghcr.io/phlohouse/phlo-observatory:0.7.0
 build:
   context: source
   dockerfile: Dockerfile
