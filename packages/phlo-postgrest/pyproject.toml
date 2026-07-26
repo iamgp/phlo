@@ -49,6 +49,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_postgrest = [
+    "Dockerfile",
     "service.yaml",
     "sql/*.sql",
     "conf/*.conf",
