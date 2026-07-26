@@ -7,6 +7,7 @@ from phlo_postgres.plugin import (
     PostgresExporterServicePlugin,
     PostgresResourceProvider,
     PostgresServicePlugin,
+    PostgresVolumeSetupServicePlugin,
 )
 from phlo_postgres.publish_target import PostgresPublishTarget
 
@@ -32,6 +33,14 @@ def test_postgres_image_runs_as_postgres_after_volume_setup() -> None:
     dockerfile = resources.files("phlo_postgres").joinpath("Dockerfile").read_text()
 
     assert dockerfile.rstrip().endswith("USER postgres")
+
+
+def test_postgres_volume_setup_rejects_pre_18_data_layout() -> None:
+    command = PostgresVolumeSetupServicePlugin().service_definition["compose"]["command"]
+
+    assert "/var/lib/postgresql/PG_VERSION" in command
+    assert "PostgreSQL 16 data volume detected" in command
+    assert "exit 1" in command
 
 
 def test_postgres_exporter_builds_pinned_hardened_image() -> None:
