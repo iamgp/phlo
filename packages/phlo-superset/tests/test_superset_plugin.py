@@ -1,5 +1,7 @@
 """Tests for Superset service plugin."""
 
+from importlib import resources
+
 from phlo_superset.plugin import SupersetServicePlugin
 from phlo_superset.settings import SupersetSettings
 
@@ -10,6 +12,17 @@ def test_superset_service_definition():
     defn = plugin.service_definition
 
     assert defn["name"] == "superset"
+
+
+def test_superset_builds_a_patched_runtime_image():
+    """The generated service builds the audited runtime derivative."""
+    definition = SupersetServicePlugin().service_definition
+    dockerfile = resources.files("phlo_superset").joinpath("Dockerfile").read_text()
+
+    assert definition["image"] == "phlo/superset:6.1.0-security-patches"
+    assert definition["build"] == {"context": ".", "dockerfile": "superset/Dockerfile"}
+    assert definition["compose"]["user"] == "1000:1000"
+    assert 'USER "1000"' in dockerfile
 
 
 def test_superset_plugin_metadata():
