@@ -3,6 +3,7 @@
 import json
 import sys
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -568,6 +569,77 @@ def test_plugin_check_containers_scans_original_after_wrapper_build_failure(monk
     assert "no image-scan result" not in message
 
 
+def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkeypatch, tmp_path):
+    """An exact service/image waiver is visible and does not hide other failures."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    def fake_run(command, **kwargs):
+        if command[0] == "/bin/phlo":
+            (kwargs["cwd"] / ".phlo").mkdir(parents=True, exist_ok=True)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {"one": {"image": "example/one:1"}},
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:2] == ["/bin/docker", "pull"]:
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            return type("Result", (), {"returncode": 0, "stdout": "sha256:one\n", "stderr": ""})()
+        if "image" in command:
+            return type(
+                "Result",
+                (),
+                {"returncode": 1, "stdout": "CVE-TEST HIGH", "stderr": "scanner detail"},
+            )()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    result = check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={"@service:one": "package-one"},
+        vulnerability_waivers={
+            ("one", "example/one:1"): "No patched upstream release is available"
+        },
+        command_runner=fake_run,
+    )
+
+    assert result["trivy"] == "passed with explicit vulnerability waiver(s)"
+    assert result["services"] == [
+        {
+            "service": "one",
+            "package": "package-one",
+            "image": "example/one:1",
+            "image_id": "sha256:one",
+            "status": "waived",
+            "image_scan": "waived",
+            "vulnerability_waiver": "No patched upstream release is available",
+        }
+    ]
+
+
+def test_plugin_check_rejects_ambiguous_vulnerability_waiver() -> None:
+    """Waivers must identify a service, exact image, and human-readable reason."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    with pytest.raises(click.BadParameter, match="SERVICE=IMAGE=REASON"):
+        check_module._parse_vulnerability_waivers(("one=example/one:1",))
+
+
 def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, setup_registry):
     """The public check command exposes generated-container results as JSON."""
     from phlo.cli.commands.plugin import check as check_module
@@ -575,7 +647,7 @@ def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, se
     monkeypatch.setattr(
         check_module,
         "check_generated_containers",
-        lambda: {
+        lambda **_: {
             "dockerfiles": ["dagster/Dockerfile"],
             "owners": {"dagster/Dockerfile": "phlo-dagster"},
         },

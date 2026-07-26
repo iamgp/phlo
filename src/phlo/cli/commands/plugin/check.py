@@ -77,8 +77,6 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
         if matching_roots:
             package = max(matching_roots)[1]
             owners.setdefault(f"@service:{service_name}", package)
-            if definition.image:
-                owners.setdefault(f"images/{service_name}/Dockerfile", package)
     return owners, list(dict.fromkeys(service_names))
 
 
@@ -137,6 +135,27 @@ def _run_command_result_failure(result: Any, label: str) -> str:
 def _join_failure_details(*details: str | None) -> str:
     """Keep the context from multiple failed steps in the final report."""
     return "\n".join(detail for detail in details if detail) or "no output"
+
+
+def _parse_vulnerability_waivers(values: tuple[str, ...]) -> dict[tuple[str, str], str]:
+    """Parse explicit SERVICE=IMAGE=REASON vulnerability waivers."""
+    waivers: dict[tuple[str, str], str] = {}
+    for value in values:
+        parts = [part.strip() for part in value.split("=", 2)]
+        if len(parts) != 3 or not all(parts):
+            raise click.BadParameter(
+                "expected SERVICE=IMAGE=REASON",
+                param_hint="--allow-vulnerable-image",
+            )
+        service, image, reason = parts
+        key = (service, image)
+        if key in waivers:
+            raise click.BadParameter(
+                f"duplicate waiver for {service} using {image}",
+                param_hint="--allow-vulnerable-image",
+            )
+        waivers[key] = reason
+    return waivers
 
 
 def _run_with_capture(
@@ -229,10 +248,12 @@ def check_generated_containers(
     project_parent: Path | None = None,
     service_files: dict[str, str] | None = None,
     service_names: list[str] | None = None,
+    vulnerability_waivers: dict[tuple[str, str], str] | None = None,
     command_runner: Callable[..., Any] | None = None,
 ) -> dict[str, Any]:
     """Generate a disposable user project and check only its generated files."""
     command_runner = command_runner or subprocess.run
+    vulnerability_waivers = vulnerability_waivers or {}
     phlo = shutil.which("phlo")
     docker = shutil.which("docker")
     if not phlo:
@@ -495,11 +516,14 @@ def check_generated_containers(
             )
             for result in service_results:
                 if result.get("service") in image_services:
-                    result["status"] = (
-                        "failed"
-                        if trivy_image_failure or result["status"] == "failed"
-                        else "passed"
-                    )
+                    waiver = vulnerability_waivers.get((result["service"], result["image"]))
+                    build_failed = result["status"] == "failed"
+                    if trivy_image_failure and waiver:
+                        result["image_scan"] = "waived"
+                        result["vulnerability_waiver"] = waiver
+                        result["status"] = "failed" if build_failed else "waived"
+                        continue
+                    result["status"] = "failed" if trivy_image_failure or build_failed else "passed"
                     result["image_scan"] = "failed" if trivy_image_failure else "passed"
                     if trivy_image_failure:
                         result["detail"] = _join_failure_details(
@@ -538,7 +562,7 @@ def check_generated_containers(
             )
         reported_image_failures: set[str] = set()
         for result in service_results:
-            if result["status"] == "passed":
+            if result["status"] in {"passed", "waived"}:
                 continue
             failure_key = result.get("image_id", result["service"])
             if failure_key in reported_image_failures:
@@ -555,7 +579,7 @@ def check_generated_containers(
         missing_results = [
             result["service"]
             for result in service_results
-            if result.get("image_scan") not in {"passed", "failed", "unavailable"}
+            if result.get("image_scan") not in {"passed", "failed", "unavailable", "waived"}
         ]
         if missing_results:
             failures.append(
@@ -585,7 +609,11 @@ def check_generated_containers(
         "dockerfiles": relative_dockerfiles,
         "owners": dockerfile_owners,
         "hadolint": "passed" if dockerfiles else "skipped (no generated Dockerfiles)",
-        "trivy": "passed",
+        "trivy": (
+            "passed with explicit vulnerability waiver(s)"
+            if any(result.get("image_scan") == "waived" for result in service_results)
+            else "passed"
+        ),
         "services": service_results,
     }
 
@@ -603,7 +631,18 @@ def check_generated_containers(
     is_flag=True,
     help="Generate a temporary user project and check its generated container files.",
 )
-def check_cmd(output_json: bool, containers: bool):
+@click.option(
+    "--allow-vulnerable-image",
+    "vulnerability_waiver_values",
+    multiple=True,
+    metavar="SERVICE=IMAGE=REASON",
+    help="Explicitly waive HIGH/CRITICAL findings for one exact generated service image.",
+)
+def check_cmd(
+    output_json: bool,
+    containers: bool,
+    vulnerability_waiver_values: tuple[str, ...],
+):
     """Validate installed plugins.
 
     Checks that all plugins comply with their interface requirements
@@ -613,6 +652,7 @@ def check_cmd(output_json: bool, containers: bool):
         phlo plugin check           # Check all plugins
         phlo plugin check --json    # Output as JSON
         phlo plugin check --containers  # Check generated container files
+        phlo plugin check --containers --allow-vulnerable-image SERVICE=IMAGE=REASON
     """
     try:
         if not output_json:
@@ -625,7 +665,9 @@ def check_cmd(output_json: bool, containers: bool):
         validation_results = validate_plugins()
 
         if containers:
-            validation_results["containers"] = check_generated_containers()
+            validation_results["containers"] = check_generated_containers(
+                vulnerability_waivers=_parse_vulnerability_waivers(vulnerability_waiver_values)
+            )
 
         if output_json:
             click.echo(json.dumps(validation_results, indent=2))
@@ -661,6 +703,13 @@ def check_cmd(output_json: bool, containers: bool):
                     f"{len(checked['dockerfiles'])} Dockerfile(s)"
                 )
                 for service in checked["services"]:
+                    if service["status"] == "waived":
+                        console.print(
+                            f"  [yellow]⚠ WAIVED[/yellow] {service['package']} / "
+                            f"{service['service']} → {service['image']}: "
+                            f"{service['vulnerability_waiver']}"
+                        )
+                        continue
                     console.print(
                         f"  [green]✓[/green] {service['package']} / {service['service']} "
                         f"→ {service['image']} ({service['status']})"

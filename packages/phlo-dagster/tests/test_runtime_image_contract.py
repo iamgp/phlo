@@ -46,6 +46,12 @@ def test_dagster_runtime_image_keeps_dbt_unpinned_when_provider_version_is_empty
     assert '"phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver' in dockerfile
 
 
+def test_dagster_runtime_image_removes_all_python_build_caches() -> None:
+    dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
+
+    assert "rm -rf /root/.cache/uv /root/.cache/puccinialin" in dockerfile
+
+
 def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:
     entrypoint = resources.files("phlo_dagster").joinpath("entrypoint.sh").read_text()
 

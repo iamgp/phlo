@@ -53,8 +53,9 @@ RUN \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi && apk del .build-deps
 
-# Do not retain uv's downloaded archives in the runtime image; they are not needed to run Phlo.
-RUN rm -rf /root/.cache/uv
+# Build caches contain package manifests that vulnerability scanners treat as runtime
+# dependencies. They are unnecessary after installation and must not ship in the image.
+RUN rm -rf /root/.cache/uv /root/.cache/puccinialin
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
 COPY dagster/entrypoint.sh /usr/local/bin/phlo-dagster-entrypoint.sh

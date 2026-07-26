@@ -97,27 +97,18 @@ def test_conditional_environment_creates_an_absent_environment(tmp_path) -> None
     assert data["services"]["conditional"]["environment"] == {"CONDITIONAL_VALUE": "enabled"}
 
 
-def test_image_services_generate_phlo_owned_hardening_wrappers(tmp_path) -> None:
+def test_image_services_use_exact_upstream_image_without_fake_wrapper(tmp_path) -> None:
     service = _service("postgres", default=True)
     service.image = "postgres:18-alpine"
-    service.compose["user"] = "0"
     generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery({service.name: service})))
 
     data = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
     copied = generator.copy_service_files([service], tmp_path)
 
     assert data["services"]["postgres"]["image"] == "postgres:18-alpine"
-    assert data["services"]["postgres"]["build"] == {
-        "context": ".",
-        "dockerfile": "images/postgres/Dockerfile",
-        "args": {"BASE_IMAGE": "postgres:18-alpine"},
-    }
-    assert copied == ["images/postgres/Dockerfile"]
-    dockerfile = (tmp_path / "images" / "postgres" / "Dockerfile").read_text()
-    assert "apt-get dist-upgrade" in dockerfile
-    assert "hadolint ignore=DL3002" in dockerfile
-    assert "USER 0" in dockerfile
-    assert "Non-root upstream image" in dockerfile
+    assert "build" not in data["services"]["postgres"]
+    assert copied == []
+    assert not (tmp_path / "images" / "postgres" / "Dockerfile").exists()
 
 
 def test_conditional_environment_supports_list_environment_and_user_overrides(tmp_path) -> None:
