@@ -22,7 +22,6 @@ pip install 'phlo-nessie[trino]'
 | Variable               | Default   | Description                |
 | ---------------------- | --------- | -------------------------- |
 | `NESSIE_PORT`          | `10003`   | Nessie API host port       |
-| `NESSIE_VERSION`       | `0.108.3` | Nessie version             |
 | `NESSIE_OIDC_ENABLED`  | `false`   | Enable OIDC authentication |
 | `NESSIE_AUTHZ_ENABLED` | `false`   | Enable authorization       |
 
