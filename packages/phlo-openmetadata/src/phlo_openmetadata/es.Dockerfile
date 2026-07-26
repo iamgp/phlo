@@ -41,7 +41,7 @@ RUN for artifact in \
     curl --fail --silent --show-error --location \
       https://repo1.maven.org/maven2/commons-io/commons-io/2.14.0/commons-io-2.14.0.jar \
       --output commons-io-2.14.0.jar
-COPY es-libraries.sha256 libraries.sha256
+COPY openmetadata-elasticsearch/libraries.sha256 libraries.sha256
 RUN sha256sum -c libraries.sha256
 
 FROM docker.elastic.co/elasticsearch/elasticsearch:8.11.4@sha256:8425bc28027fd667d9a29cde58bed4050a64a854d973d8d1ad4152ecec52bfdb

@@ -57,3 +57,6 @@ def test_openmetadata_elasticsearch_builds_the_patched_compatible_image() -> Non
         "source": "es-libraries.sha256",
         "dest": "openmetadata-elasticsearch/libraries.sha256",
     } in definition["files"]
+
+    dockerfile = resources.files("phlo_openmetadata").joinpath("es.Dockerfile").read_text()
+    assert "COPY openmetadata-elasticsearch/libraries.sha256 libraries.sha256" in dockerfile

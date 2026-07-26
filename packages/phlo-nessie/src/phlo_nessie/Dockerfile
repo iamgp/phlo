@@ -20,7 +20,7 @@ RUN mkdir /patches && \
     curl --fail --silent --show-error --location \
       "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.22.1/jackson-core-2.22.1.jar" \
       --output /patches/com.fasterxml.jackson.core.jackson-core-2.22.1.jar
-COPY libraries.sha256 /patches/libraries.sha256
+COPY nessie/libraries.sha256 /patches/libraries.sha256
 WORKDIR /patches
 RUN sha256sum --check libraries.sha256 && \
     for artifact in io.netty.*-4.1.136.Final.jar; do \

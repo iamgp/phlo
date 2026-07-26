@@ -1,5 +1,7 @@
 """Tests for Nessie service plugin."""
 
+from importlib import resources
+
 from phlo.capabilities import CapabilitySupport
 from phlo_nessie.plugin import NessieServicePlugin
 from phlo_nessie.resource import NessieResource
@@ -26,6 +28,9 @@ def test_nessie_service_builds_the_patched_stable_image() -> None:
         "source": "libraries.sha256",
         "dest": "nessie/libraries.sha256",
     } in definition["files"]
+
+    dockerfile = resources.files("phlo_nessie").joinpath("Dockerfile").read_text()
+    assert "COPY nessie/libraries.sha256 /patches/libraries.sha256" in dockerfile
 
 
 def test_nessie_resource_provider_registers_catalog_capability() -> None:
