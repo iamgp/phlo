@@ -9,7 +9,10 @@ depends_on:
   - openmetadata-elasticsearch
   - openmetadata-setup
 
-image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.13.1}
+image: phlo/openmetadata:1.13.1-java-patches
+build:
+  context: .
+  dockerfile: openmetadata/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -50,9 +53,6 @@ compose:
     retries: 10
 
 env_vars:
-  OPENMETADATA_VERSION:
-    default: "1.13.1"
-    description: OpenMetadata version
   OPENMETADATA_PORT:
     default: 8585
     description: OpenMetadata API port
@@ -71,3 +71,7 @@ env_vars:
   OPENMETADATA_PASSWORD:
     default: admin
     description: OpenMetadata admin password
+
+files:
+  - source: Dockerfile
+    dest: openmetadata/Dockerfile
