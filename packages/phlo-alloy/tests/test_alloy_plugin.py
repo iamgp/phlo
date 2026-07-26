@@ -12,6 +12,14 @@ def test_alloy_service_definition():
     assert defn["profile"] == "observability"
 
 
+def test_alloy_service_builds_patched_release_image() -> None:
+    """Generated Alloy uses the stable release with fixed embedded Go dependencies."""
+    definition = AlloyServicePlugin().service_definition
+
+    assert definition["image"] == "phlo/alloy:v1.18.0-go1.26.5"
+    assert definition["build"] == {"context": ".", "dockerfile": "alloy/Dockerfile"}
+
+
 def test_alloy_plugin_metadata():
     """Validate Alloy plugin metadata."""
     plugin = AlloyServicePlugin()

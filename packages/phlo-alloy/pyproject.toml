@@ -41,6 +41,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_alloy = [
+    "Dockerfile",
     "service.yaml",
     "config.alloy",
 ]
