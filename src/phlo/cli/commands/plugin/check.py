@@ -771,7 +771,7 @@ def check_generated_containers(
                 if first_resolution:
                     previous_image_id = previous_image_ids[image]
                     cleanup_commands: list[tuple[list[str], str]] = []
-                    if locally_built and previous_image_id and previous_image_id != image_id:
+                    if previous_image_id and previous_image_id != image_id:
                         cleanup_commands.extend(
                             [
                                 (

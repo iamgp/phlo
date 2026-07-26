@@ -715,6 +715,58 @@ def test_plugin_check_containers_restores_preexisting_local_image_tag(monkeypatc
     assert ["/bin/docker", "image", "rm", "sha256:validation"] in calls
 
 
+def test_plugin_check_containers_restores_preexisting_pulled_image_tag(monkeypatch, tmp_path):
+    """A validation pull cannot refresh an image tag that the operator already had."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    calls: list[list[str]] = []
+    inspect_count = 0
+
+    def fake_run(command, **kwargs):
+        nonlocal inspect_count
+        calls.append(command)
+        if command[:3] == ["/bin/docker", "compose", "--profile"] and command[-2:] == [
+            "--format",
+            "json",
+        ]:
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": json.dumps(
+                        {
+                            "name": "test-project",
+                            "services": {"remote": {"image": "example/remote:latest"}},
+                        }
+                    ),
+                    "stderr": "",
+                },
+            )()
+        if command[:3] == ["/bin/docker", "image", "inspect"]:
+            inspect_count += 1
+            image_id = "sha256:original" if inspect_count == 1 else "sha256:pulled"
+            return type("Result", (), {"returncode": 0, "stdout": f"{image_id}\n", "stderr": ""})()
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(check_module.shutil, "which", lambda name: f"/bin/{name}")
+
+    check_module.check_generated_containers(
+        project_parent=tmp_path,
+        service_files={"@service:remote": "package-remote"},
+        command_runner=fake_run,
+    )
+
+    assert [
+        "/bin/docker",
+        "image",
+        "tag",
+        "sha256:original",
+        "example/remote:latest",
+    ] in calls
+    assert ["/bin/docker", "image", "rm", "sha256:pulled"] in calls
+
+
 def test_existing_image_lookup_fails_closed_on_inspect_error(tmp_path) -> None:
     """A Docker inspect outage cannot be mistaken for an absent operator image."""
     from phlo.cli.commands.plugin import check as check_module
