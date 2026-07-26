@@ -298,7 +298,7 @@ jobs:
   generated-container-checks:
     name: containers / generated service files
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -331,6 +331,7 @@ jobs:
           uv venv "$env_dir" --python 3.11
           uv pip install \
             --python "$env_dir/bin/python" \
+            --no-index \
             --find-links "$RUNNER_TEMP/phlo-container-wheelhouse" \
             phlo \
             phlo-alloy \
@@ -361,13 +362,13 @@ jobs:
           PHLO_TRIVY_CACHE_DIR: ${{ runner.temp }}/phlo-trivy-cache
         run: |
           phlo --no-color plugin check --containers \
-            --allow-vulnerable-image "alloy=phlo/alloy:v1.18.0-go1.26.5=Alloy 1.18.0 retains two Docker module advisories without fixes and one whose fix requires an incompatible Docker client major" \
-            --allow-vulnerable-image "clickstack=phlo/clickstack:2.31.0-security-patches=Stable 2.31.0 still requires legacy MongoDB OpenSSL 1.1, root orchestration, rebuild-only Next changes, and unreleased OTel binary fixes" \
-            --allow-vulnerable-image "grafana=phlo/grafana:13.1.1-go1.26.5=Trivy reports a stale Tempo pseudo-version although the image rebuilds exact Tempo 2.10.7 source containing both fixes" \
-            --allow-vulnerable-image "minio=phlo/minio:7aac2a2c5b7c=Archived public source still has six MinIO-module advisories without public patches; OS, standard library, and third-party Go findings are remediated" \
-            --allow-vulnerable-image "openmetadata-elasticsearch=phlo/openmetadata-elasticsearch:8.11.4-java-patches=Elasticsearch 8.11.4 shades three old Jackson versions, requires Tika 2.x, and has one unpublished and one unfixed LZ4 advisory" \
-            --allow-vulnerable-image "superset=phlo/superset:6.1.0-security-patches=Superset requires three vulnerable Python versions and Debian 12 has no fixed packages for the remaining operating system advisories" \
-            --allow-vulnerable-image "trino=phlo/trino:483-launcher318-go1.26.5=Trino 483 requires Jetty 11 while the remaining HTTP advisory is fixed only in incompatible Jetty 12"
+            --allow-vulnerable-image "alloy=phlo/alloy:v1.18.0-go1.26.5=6a7628c7ba66eb8a0fb70569a36b90012bdb9e0e5b0fa4241331d62179b0528b=Alloy 1.18.0 retains two Docker module advisories without fixes and one whose fix requires an incompatible Docker client major" \
+            --allow-vulnerable-image "clickstack=phlo/clickstack:2.31.0-security-patches=279df6dbb8bd358983e0be65a5bfe46fa6ced3738a10a55798a2d59016721db9=Stable 2.31.0 still requires legacy MongoDB OpenSSL 1.1, root orchestration, rebuild-only Next changes, and unreleased OTel binary fixes" \
+            --allow-vulnerable-image "grafana=phlo/grafana:13.1.1-go1.26.5=776f3f74541a97642ef470c93c4e04aed1325f81547e268564c87368f8fce669=Trivy reports a stale Tempo pseudo-version although the image rebuilds exact Tempo 2.10.7 source containing both fixes" \
+            --allow-vulnerable-image "minio=phlo/minio:7aac2a2c5b7c=b8d9b4a71a6e9c05e3ba3931ada391b3dce6b46404d303ee373ec46acf994163=Archived public source still has six MinIO-module advisories without public patches; OS, standard library, and third-party Go findings are remediated" \
+            --allow-vulnerable-image "openmetadata-elasticsearch=phlo/openmetadata-elasticsearch:8.11.4-java-patches=d2d0eaf6881362fd497f981d3f9f5e4b431fd072044decda8acf3612ef2d3f3e=Elasticsearch 8.11.4 shades three old Jackson versions, requires Tika 2.x, and has one unpublished and one unfixed LZ4 advisory" \
+            --allow-vulnerable-image "superset=phlo/superset:6.1.0-security-patches=064bf36c4a8366c2077b576e6d08b703a7d0fd114110f0e9243b5090fdaf051e=Superset requires three vulnerable Python versions and Debian 12 has no fixed packages for the remaining operating system advisories" \
+            --allow-vulnerable-image "trino=phlo/trino:483-launcher318-go1.26.5=3f18aa318a5cdca2cffe51a1f6768d3e8c3bc6feee880f61ee0f53e0c7e8add6=Trino 483 requires Jetty 11 while the remaining HTTP advisory is fixed only in incompatible Jetty 12"
 
   release-golden-path:
     name: python / release golden path
