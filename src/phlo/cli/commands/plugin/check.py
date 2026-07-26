@@ -335,7 +335,7 @@ def check_generated_containers(
             else project / ".trivy-cache"
         )
         trivy_cache.mkdir(parents=True, exist_ok=True)
-        init_command = [phlo, "services", "init", "--no-dev"]
+        init_command = [phlo, "services", "init", "--no-dev", "--force"]
         _run_checked_command(
             init_command,
             cwd=project,

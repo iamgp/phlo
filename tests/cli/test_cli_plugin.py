@@ -232,7 +232,7 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
 
     assert result["dockerfiles"] == ["dagster/Dockerfile"]
     assert result["owners"] == {"dagster/Dockerfile": "phlo-dagster"}
-    assert calls[0][0][0] == "/bin/phlo"
+    assert calls[0][0] == ["/bin/phlo", "services", "init", "--no-dev", "--force"]
     assert calls[1][0] == [
         "/bin/phlo",
         "services",
