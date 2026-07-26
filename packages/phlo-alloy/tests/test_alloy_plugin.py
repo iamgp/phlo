@@ -1,5 +1,7 @@
 """Tests for Alloy service plugin."""
 
+from importlib import resources
+
 from phlo_alloy.plugin import AlloyServicePlugin
 
 
@@ -18,6 +20,13 @@ def test_alloy_service_builds_patched_release_image() -> None:
 
     assert definition["image"] == "phlo/alloy:v1.18.0-go1.26.5"
     assert definition["build"] == {"context": ".", "dockerfile": "alloy/Dockerfile"}
+
+
+def test_alloy_runtime_image_sets_the_upstream_non_root_user() -> None:
+    """The generated Dockerfile keeps Alloy's upstream runtime identity explicit."""
+    dockerfile = resources.files("phlo_alloy").joinpath("Dockerfile").read_text()
+
+    assert dockerfile.rstrip().endswith('USER "473"')
 
 
 def test_alloy_plugin_metadata():
