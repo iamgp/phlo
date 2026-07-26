@@ -1,7 +1,11 @@
 """Tests for Postgres service and resource plugins."""
 
 from phlo.capabilities import PublishTargetSpec
-from phlo_postgres.plugin import PostgresResourceProvider, PostgresServicePlugin
+from phlo_postgres.plugin import (
+    PostgresExporterServicePlugin,
+    PostgresResourceProvider,
+    PostgresServicePlugin,
+)
 from phlo_postgres.publish_target import PostgresPublishTarget
 
 
@@ -19,6 +23,13 @@ def test_postgres_service_builds_pinned_hardened_image() -> None:
 
     assert service_definition["image"] == "phlo/postgres:18.4-alpine3.24-gosu1.19"
     assert service_definition["build"]["dockerfile"] == "postgres/Dockerfile"
+
+
+def test_postgres_exporter_builds_pinned_hardened_image() -> None:
+    service_definition = PostgresExporterServicePlugin().service_definition
+
+    assert service_definition["image"] == "phlo/postgres-exporter:v0.20.1-go1.26.5"
+    assert service_definition["build"]["dockerfile"] == "postgres-exporter/Dockerfile"
 
 
 def test_postgres_resource_provider():
