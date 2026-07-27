@@ -61,14 +61,14 @@ def test_publication_workflow_publishes_only_on_release_or_manual_dispatch() -> 
 
 def test_ci_scans_published_images_remotely() -> None:
     workflow = (REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    checker = (REPO_ROOT / "src/phlo/cli/commands/plugin/check.py").read_text(encoding="utf-8")
 
     command = re.search(r"phlo --no-color plugin check --containers[^\n]*", workflow)
     assert command
     assert "--remote-images" in command.group(0)
-    trivy_pull = (
-        "docker pull "
-        "aquasec/trivy@sha256:cffe3fda952b5a6d4a59ce86e6af99e3108c774d9f7295a05a816f92eaccdd6f"
-    )
+    trivy_image = re.search(r'TRIVY_IMAGE = \(\n\s+"([^"]+)"', checker)
+    assert trivy_image
+    trivy_pull = f"docker pull {trivy_image.group(1)}"
     assert trivy_pull in workflow
     assert workflow.index(trivy_pull) < workflow.index(command.group(0))
     clickstack_waiver = (
