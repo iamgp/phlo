@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import click
+from rich.text import Text
 
 from phlo.cli.commands.plugin.utils import console
 from phlo.logging import get_logger
@@ -1186,12 +1187,14 @@ def check_cmd(
                 )
                 for service in checked["services"]:
                     if service["status"] == "waived":
-                        console.print(
-                            f"  [yellow]⚠ WAIVED[/yellow] {service['package']} / "
-                            f"{service['service']} → {service['image']}: "
-                            f"{service['vulnerability_waiver']}"
+                        waiver_line = Text("  ")
+                        waiver_line.append("⚠ WAIVED", style="yellow")
+                        waiver_line.append(
+                            f" {service['package']} / {service['service']} → "
+                            f"{service['image']}: {service['vulnerability_waiver']}"
                         )
-                        console.print(f"    [yellow]{service['detail']}[/yellow]")
+                        console.print(waiver_line)
+                        console.print(Text(f"    {service['detail']}", style="yellow"))
                         continue
                     console.print(
                         f"  [green]✓[/green] {service['package']} / {service['service']} "

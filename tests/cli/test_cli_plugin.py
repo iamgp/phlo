@@ -1272,6 +1272,37 @@ def test_plugin_check_containers_preserves_package_owner_in_failure_output(
     assert "[package-one]" in result.output
 
 
+def test_plugin_check_containers_prints_waived_scanner_detail_without_markup(
+    monkeypatch, setup_registry
+) -> None:
+    """Scanner paths that resemble Rich closing tags must print literally."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    monkeypatch.setattr(
+        check_module,
+        "check_generated_containers",
+        lambda **_: {
+            "dockerfiles": [],
+            "owners": {},
+            "services": [
+                {
+                    "status": "waived",
+                    "package": "phlo-clickstack",
+                    "service": "clickstack",
+                    "image": "example/clickstack:1",
+                    "vulnerability_waiver": "No compatible upstream fix",
+                    "detail": "scanner target [/var/lib/clickhouse]",
+                }
+            ],
+        },
+    )
+
+    result = CliRunner().invoke(plugin_group, ["check", "--containers"])
+
+    assert result.exit_code == 0
+    assert "scanner target [/var/lib/clickhouse]" in result.output
+
+
 def test_plugin_list_all_json(setup_registry, monkeypatch):
     """List command includes registry plugins when --all is set."""
     registry_plugins = [
