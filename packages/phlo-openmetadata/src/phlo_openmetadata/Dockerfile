@@ -36,7 +36,7 @@ RUN curl --fail --location --silent --show-error \
         --output postgresql-42.7.13.jar && \
     echo "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93  postgresql-42.7.13.jar" | sha256sum -c -
 
-FROM docker.getcollate.io/openmetadata/server:1.13.1@sha256:eaa318584c52d4a492a2c56c95818b5564c6ea28b2e9695ac532c856b2c61bc9
+FROM docker.io/openmetadata/server:1.13.1@sha256:eaa318584c52d4a492a2c56c95818b5564c6ea28b2e9695ac532c856b2c61bc9
 
 USER root
 RUN rm /opt/openmetadata/libs/netty-*-4.1.135.Final.jar \

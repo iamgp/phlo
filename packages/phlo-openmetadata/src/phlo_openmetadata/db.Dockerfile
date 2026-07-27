@@ -1,4 +1,4 @@
-FROM docker.getcollate.io/openmetadata/db:1.13.1@sha256:6659446dba183f1e9364602839dd999c06a83f7d2e905d1c3fb22a74f3e27288
+FROM docker.io/openmetadata/db:1.13.1@sha256:6659446dba183f1e9364602839dd999c06a83f7d2e905d1c3fb22a74f3e27288
 
 RUN microdnf update -y --disablerepo=mysql-tools-community && \
     python3.9 -m pip install --no-cache-dir --upgrade \

@@ -49,6 +49,7 @@ def test_publication_workflow_publishes_only_on_release_or_manual_dispatch() -> 
     assert "push-by-digest=true" in workflow
     assert "name=${{ steps.image.outputs.repository }},push-by-digest=true" in workflow
     assert "name=${{ matrix.target.image }},push-by-digest=true" not in workflow
+    assert "if: always() && needs.prepare.result == 'success'" in workflow
     assert "docker buildx imagetools create" in workflow
     assert "timeout-minutes: 45" in workflow
     assert "max-parallel: 8" in workflow

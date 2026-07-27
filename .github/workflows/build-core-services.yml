@@ -188,6 +188,7 @@ jobs:
   merge:
     name: Publish ${{ matrix.target.service }} manifest
     needs: [prepare, build]
+    if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
