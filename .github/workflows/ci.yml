@@ -398,9 +398,10 @@ jobs:
         env:
           PHLO_TRIVY_CACHE_DIR: ${{ runner.temp }}/phlo-trivy-cache
         run: |
+          docker pull aquasec/trivy@sha256:cffe3fda952b5a6d4a59ce86e6af99e3108c774d9f7295a05a816f92eaccdd6f
           phlo --no-color plugin check --containers --remote-images \
             --allow-vulnerable-image "alloy=ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5=6a7628c7ba66eb8a0fb70569a36b90012bdb9e0e5b0fa4241331d62179b0528b=Alloy 1.18.0 retains two Docker module advisories without fixes and one whose fix requires an incompatible Docker client major" \
-            --allow-vulnerable-image "clickstack=ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches=279df6dbb8bd358983e0be65a5bfe46fa6ced3738a10a55798a2d59016721db9=Stable 2.31.0 still requires legacy MongoDB OpenSSL 1.1, root orchestration, rebuild-only Next changes, and unreleased OTel binary fixes" \
+            --allow-vulnerable-image "clickstack=ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches=adc46e9eb99e4f3c0ea11a6cab55ebf0d720c844128a33b5bb8c7c7efae79224=HyperDX 2.31.0 bundles source-built OTel binaries with grpc 1.81.1 and Go 1.26.4; replacing them requires rebuilding the upstream OCB distribution, while its legacy MongoDB OpenSSL, root orchestration, and Next findings remain" \
             --allow-vulnerable-image "grafana=ghcr.io/phlohouse/phlo-grafana:13.1.1-go1.26.5=776f3f74541a97642ef470c93c4e04aed1325f81547e268564c87368f8fce669=Trivy reports a stale Tempo pseudo-version although the image rebuilds exact Tempo 2.10.7 source containing both fixes" \
             --allow-vulnerable-image "minio=ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c=b8d9b4a71a6e9c05e3ba3931ada391b3dce6b46404d303ee373ec46acf994163=Archived public source still has six MinIO-module advisories without public patches; OS, standard library, and third-party Go findings are remediated" \
             --allow-vulnerable-image "openmetadata-elasticsearch=ghcr.io/phlohouse/phlo-openmetadata-elasticsearch:8.11.4-java-patches=d2d0eaf6881362fd497f981d3f9f5e4b431fd072044decda8acf3612ef2d3f3e=Elasticsearch 8.11.4 shades three old Jackson versions, requires Tika 2.x, and has one unpublished and one unfixed LZ4 advisory" \

@@ -65,3 +65,14 @@ def test_ci_scans_published_images_remotely() -> None:
     command = re.search(r"phlo --no-color plugin check --containers[^\n]*", workflow)
     assert command
     assert "--remote-images" in command.group(0)
+    trivy_pull = (
+        "docker pull "
+        "aquasec/trivy@sha256:cffe3fda952b5a6d4a59ce86e6af99e3108c774d9f7295a05a816f92eaccdd6f"
+    )
+    assert trivy_pull in workflow
+    assert workflow.index(trivy_pull) < workflow.index(command.group(0))
+    clickstack_waiver = (
+        "clickstack=ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches="
+        "adc46e9eb99e4f3c0ea11a6cab55ebf0d720c844128a33b5bb8c7c7efae79224"
+    )
+    assert clickstack_waiver in workflow
