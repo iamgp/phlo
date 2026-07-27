@@ -1626,14 +1626,14 @@ wheels = [
 
 [[package]]
 name = "gitpython"
-version = "3.1.53"
+version = "3.1.55"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "gitdb" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/24/0e0c12cb6f7cb864779a9d2fefee9ca91838f6db402c8780c9d28a8d7ebe/gitpython-3.1.53.tar.gz", hash = "sha256:06ae8d9623b0ed0d67b8adeac5c7008d0a5a404b087a9e0d0c7163bdd3a6b497", size = 224597, upload-time = "2026-07-20T13:41:52.839Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/ab/ba0d29f2fa2277ed6256b2ac09003494045355f3a10bf32f351761287870/gitpython-3.1.55.tar.gz", hash = "sha256:781e3b1624dad81b24e9524bf0297b69786a0706db2cbceec1e2b05c38e5152f", size = 225071, upload-time = "2026-07-23T02:52:43.246Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cf/a6/bff12b3238885eeef7d28ef908b24e0cba91c476c31cb876a00a0986ce2c/gitpython-3.1.53-py3-none-any.whl", hash = "sha256:187885556b64ab357bd4ea84e2c4cce2861a613a7f4268b3f7f7ba05f2ce4ab0", size = 216237, upload-time = "2026-07-20T13:41:51.473Z" },
+    { url = "https://files.pythonhosted.org/packages/20/6a/d3b8208d2f8aac66abe8ccc1c23fa2c89464ec42cc71a601e95d05902428/gitpython-3.1.55-py3-none-any.whl", hash = "sha256:7c9ec1e69c158c081632ab35c41471e302c96db2ae42165036a5d2403378812e", size = 216590, upload-time = "2026-07-23T02:52:41.932Z" },
 ]
 
 [[package]]
@@ -3664,7 +3664,8 @@ source = { editable = "packages/phlo-iceberg" }
 dependencies = [
     { name = "pandera" },
     { name = "phlo" },
-    { name = "pyiceberg", extra = ["pyarrow", "s3fs"] },
+    { name = "pyarrow" },
+    { name = "pyiceberg", extra = ["s3fs"] },
 ]
 
 [package.optional-dependencies]
@@ -3685,7 +3686,8 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "phlo-minio", marker = "extra == 'minio'", editable = "packages/phlo-minio" },
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
-    { name = "pyiceberg", extras = ["s3fs", "pyarrow"], specifier = ">=0.11.0" },
+    { name = "pyarrow", specifier = ">=21.0.0" },
+    { name = "pyiceberg", extras = ["s3fs"], specifier = ">=0.11.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
@@ -4773,25 +4775,8 @@ wheels = [
 ]
 
 [package.optional-dependencies]
-pyarrow = [
-    { name = "pyarrow" },
-    { name = "pyiceberg-core" },
-]
 s3fs = [
     { name = "s3fs" },
-]
-
-[[package]]
-name = "pyiceberg-core"
-version = "0.8.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9c/a0/0bcedbbe901484aacb6c605505f8574fd65954826e592fdb163e1cfb09f2/pyiceberg_core-0.8.0.tar.gz", hash = "sha256:59021ca5bc7ca95f2b06fb0730280fb3f60ed898060bcd874c156d093853b5f3", size = 618882, upload-time = "2026-01-20T00:50:40.076Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/e0/9a8fa537d29d34e3265682056d6517b926975107b5b1af6057d1713557d6/pyiceberg_core-0.8.0-cp310-abi3-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:d60c75a741a1d9199277a9e50fc3adbc84ab286a881f9b1f721fa120e7197912", size = 24733948, upload-time = "2026-01-20T00:50:20.566Z" },
-    { url = "https://files.pythonhosted.org/packages/6d/3e/f5522c1e9c20c3e89bfd76b2f54ba38e57389e5a2872233e49e60a131e04/pyiceberg_core-0.8.0-cp310-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:1d71e566b2d56141760ff8734667eede5a5d60963dfbcdce80c2dd3cf2edb39d", size = 11682041, upload-time = "2026-01-20T00:50:22.843Z" },
-    { url = "https://files.pythonhosted.org/packages/95/4b/f799e5c7a2b2ede75514e64901503358a7a134ca1ea217fd86535af533b6/pyiceberg_core-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:82782d1b974200c5526d069391ba2bc235a868b5d0d6ac17ca406df735ab89a3", size = 13835428, upload-time = "2026-01-20T00:50:25.021Z" },
-    { url = "https://files.pythonhosted.org/packages/0b/ff/2dbd6f7c99a2f782f908be2cc997371de45cc1df61abeeff1fc0165c05b6/pyiceberg_core-0.8.0-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:0e14b2aea26293ba5878c398adc880fff0f1ce5d989e00d4b1a930c143541114", size = 14580807, upload-time = "2026-01-20T00:50:27.158Z" },
-    { url = "https://files.pythonhosted.org/packages/bc/13/176c2b00a9b804af79d8b697ba1a2525f4390e959be777076972071ca069/pyiceberg_core-0.8.0-cp310-abi3-win_amd64.whl", hash = "sha256:a5726cc62f9ac2582a0d5dde92e4140b711b5e29ec0c6c636d6d2782d984031b", size = 13354110, upload-time = "2026-01-20T00:50:29.785Z" },
 ]
 
 [[package]]

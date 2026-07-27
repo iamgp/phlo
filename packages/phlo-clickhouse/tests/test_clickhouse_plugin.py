@@ -19,6 +19,16 @@ def test_clickhouse_service_definition():
     assert "clickhouse-logs:/var/log/clickhouse-server" in service_definition["compose"]["volumes"]
 
 
+def test_clickhouse_service_pins_generated_image_version() -> None:
+    """The generated environment must not replace the pinned image tag with latest."""
+    service_definition = ClickHouseServicePlugin().service_definition
+
+    assert service_definition["image"] == (
+        "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.5.6.64-alpine}"
+    )
+    assert service_definition["env_vars"]["CLICKHOUSE_VERSION"]["default"] == ("26.5.6.64-alpine")
+
+
 def test_clickhouse_service_metadata():
     """Validate ClickHouse service plugin metadata."""
 

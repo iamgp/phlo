@@ -4,7 +4,10 @@ category: catalog
 default: false
 profile: openmetadata
 
-image: docker.getcollate.io/openmetadata/db:${OPENMETADATA_VERSION:-1.9.7}
+image: ghcr.io/phlohouse/phlo-openmetadata-db:1.13.1-ol8.10
+build:
+  context: .
+  dockerfile: openmetadata-mysql/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -25,3 +28,7 @@ compose:
     interval: 15s
     timeout: 10s
     retries: 10
+
+files:
+  - source: db.Dockerfile
+    dest: openmetadata-mysql/Dockerfile

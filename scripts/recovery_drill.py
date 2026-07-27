@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-POSTGRES_IMAGE = "postgres:16-alpine"
+POSTGRES_IMAGE = "postgres:18-alpine"
 MINIO_IMAGE = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
-NESSIE_IMAGE = "ghcr.io/projectnessie/nessie:0.107.2"
-NESSIE_ADMIN_IMAGE = "ghcr.io/projectnessie/nessie-server-admin@sha256:94e67d471380e6da17680e166e3111819058a64c6717c96beafd1f3df6ec5876"
+NESSIE_IMAGE = "ghcr.io/projectnessie/nessie:0.108.3"
+NESSIE_ADMIN_IMAGE = "ghcr.io/projectnessie/nessie-server-admin@sha256:ffccc83adc048ae9c069205b2b7c79c8c72604574558f915b730f2266262c159"
 MC_IMAGE = "minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727"
 HELPER_IMAGE = "python@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93"
 OWNER_MARKER = ".phlo-recovery-drill-owner.json"
@@ -77,7 +77,7 @@ def compose_yaml(stack: Stack) -> str:
       POSTGRES_PASSWORD: phlo
       POSTGRES_DB: phlo
     ports: [\"127.0.0.1::5432\"]
-    volumes: [postgres-data:/var/lib/postgresql/data]
+    volumes: [postgres-data:/var/lib/postgresql]
     healthcheck:
       test: [\"CMD-SHELL\", \"pg_isready -U phlo\"]
       interval: 2s

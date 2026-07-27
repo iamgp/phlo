@@ -4,7 +4,10 @@ category: observability
 default: false
 profile: observability
 
-image: grafana/loki:${LOKI_VERSION:-3.2.1}
+image: ghcr.io/phlohouse/phlo-loki:3.7.4-grpc1.82.1
+build:
+  context: .
+  dockerfile: loki/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -34,9 +37,6 @@ compose:
     retries: 5
 
 env_vars:
-  LOKI_VERSION:
-    default: "3.2.1"
-    description: Loki version
   LOKI_PORT:
     default: 3100
     description: Loki API port
@@ -48,5 +48,7 @@ env_vars:
     description: Path used to build Loki log query links
 
 files:
+  - source: Dockerfile
+    dest: loki/Dockerfile
   - source: loki-config.yml
     dest: loki/loki-config.yml

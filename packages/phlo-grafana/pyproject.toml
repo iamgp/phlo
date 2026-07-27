@@ -41,6 +41,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_grafana = [
+    "Dockerfile",
     "service.yaml",
     "provisioning/datasources/datasources.yml",
     "provisioning/dashboards/dashboards.yml",

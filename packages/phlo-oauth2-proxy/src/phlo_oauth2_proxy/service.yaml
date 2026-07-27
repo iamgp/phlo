@@ -4,7 +4,10 @@ category: auth
 default: false
 profile: proxy
 
-image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+image: ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1
+build:
+  context: .
+  dockerfile: oauth2-proxy/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -61,3 +64,7 @@ env_vars:
   OAUTH2_PROXY_EMAIL_DOMAINS:
     default: "*"
     description: Comma-separated list of allowed email domains (use * for any)
+
+files:
+  - source: Dockerfile
+    dest: oauth2-proxy/Dockerfile

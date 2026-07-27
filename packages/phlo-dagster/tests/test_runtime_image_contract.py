@@ -7,16 +7,16 @@ from pathlib import Path
 def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -> None:
     dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
 
-    assert dockerfile.startswith("FROM python:3.12-slim")
+    assert dockerfile.startswith("FROM python:3.12-alpine")
     assert (
         'uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"'
         in dockerfile
     )
     assert "PHLO_PRERELEASE_REQUIREMENTS" in dockerfile
     assert (
-        'uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION"'
-        in dockerfile
+        'base_requirements=("phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT"' in dockerfile
     )
+    assert 'uv pip install --system --prerelease explicit "${base_requirements[@]}"' in dockerfile
     assert 'dagster-postgres "psycopg[binary]"' in dockerfile
 
 
@@ -44,6 +44,12 @@ def test_dagster_runtime_image_keeps_dbt_unpinned_when_provider_version_is_empty
     assert 'PHLO_DBT_REQUIREMENT="phlo-dbt";' in dockerfile
     assert '"phlo-dbt==$PHLO_DBT_VERSION" dagster-webserver' not in dockerfile
     assert '"phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver' in dockerfile
+
+
+def test_dagster_runtime_image_removes_all_python_build_caches() -> None:
+    dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
+
+    assert "rm -rf /root/.cache/uv /root/.cache/puccinialin" in dockerfile
 
 
 def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:

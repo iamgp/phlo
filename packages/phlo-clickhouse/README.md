@@ -41,7 +41,7 @@ The following environment variables can be used to configure ClickHouse:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CLICKHOUSE_VERSION` | `latest` | ClickHouse server version tag |
+| `CLICKHOUSE_VERSION` | `26.5.6.64-alpine` | ClickHouse server version tag |
 | `CLICKHOUSE_HTTP_PORT` | `8123` | ClickHouse HTTP interface port |
 | `CLICKHOUSE_NATIVE_PORT` | `19000` | ClickHouse native protocol port |
 | `CLICKHOUSE_METRICS_PORT` | `9363` | ClickHouse Prometheus metrics port |

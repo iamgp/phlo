@@ -3,7 +3,10 @@ description: Git-like catalog for Iceberg tables with branch/merge support
 category: core
 default: true
 
-image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.107.2}
+image: ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16
+build:
+  context: .
+  dockerfile: nessie/Dockerfile
 
 depends_on:
   - postgres
@@ -50,9 +53,6 @@ compose:
     start_period: 30s
 
 env_vars:
-  NESSIE_VERSION:
-    default: "0.107.2"
-    description: Nessie version
   NESSIE_PORT:
     default: 10003
     description: Nessie API host port
@@ -94,3 +94,9 @@ hooks:
         - phlo_nessie.hooks
         - init-branches
       timeout_seconds: 60
+
+files:
+  - source: Dockerfile
+    dest: nessie/Dockerfile
+  - source: libraries.sha256
+    dest: nessie/libraries.sha256

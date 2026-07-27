@@ -1,11 +1,11 @@
-FROM python:3.12-slim AS phlo-build-context
+FROM python:3.12-alpine AS phlo-build-context
 
 WORKDIR /opt/phlo-build-context
 
 COPY . .
 RUN mkdir -p /opt/phlo-build-context/wheelhouse
 
-FROM python:3.12-slim
+FROM python:3.12-alpine
 
 WORKDIR /opt/dagster
 
@@ -14,11 +14,18 @@ ARG PHLO_DBT_VERSION=""
 ARG PHLO_WHEELHOUSE=""
 
 # Install system dependencies and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install uv
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
+        bash=5.3.9-r1 \
+        ca-certificates=20260611-r0 \
+        curl=8.21.0-r0 \
+        git=2.54.0-r0 \
+    && apk add --no-cache --virtual .build-deps \
+        gcc=15.2.0-r5 \
+        musl-dev=1.2.6-r2 \
+    && pip install --no-cache-dir "uv==0.8.13"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Copy only the artifact directory from the context stage; normal generated builds receive an
 # empty directory and retain the existing PyPI installation path.
@@ -38,15 +45,26 @@ RUN \
     else \
         uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"; \
         PHLO_PRERELEASE_REQUIREMENTS="$(python -c 'import importlib.metadata as md, re; print(" ".join(req.split(";")[0].strip() for req in (md.metadata("phlo").get_all("Requires-Dist") or []) if "extra == '\''defaults'\''" in req and re.search(r"(a|b|rc|dev)[0-9]+", req)))')"; \
-        uv pip install --system --prerelease explicit "phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" $PHLO_PRERELEASE_REQUIREMENTS dagster-webserver dagster-postgres "psycopg[binary]"; \
+        base_requirements=("phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"); \
+        if [ -n "$PHLO_PRERELEASE_REQUIREMENTS" ]; then read -r -a prerelease_requirements <<< "$PHLO_PRERELEASE_REQUIREMENTS"; base_requirements+=("${prerelease_requirements[@]}"); fi; \
+        uv pip install --system --prerelease explicit "${base_requirements[@]}"; \
     fi; \
     else \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
-    fi
+    fi && apk del .build-deps
+
+# Build caches contain package manifests that vulnerability scanners treat as runtime
+# dependencies. They are unnecessary after installation and must not ship in the image.
+RUN rm -rf /root/.cache/uv /root/.cache/puccinialin
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
 COPY dagster/entrypoint.sh /usr/local/bin/phlo-dagster-entrypoint.sh
-RUN chmod +x /usr/local/bin/phlo-dagster-entrypoint.sh
+RUN chmod +x /usr/local/bin/phlo-dagster-entrypoint.sh \
+    && addgroup -S phlo \
+    && adduser -S -G phlo -h /opt/dagster -H phlo \
+    && chown -R phlo:phlo /opt/dagster
+
+USER phlo
 
 # Copy workspace configuration
 COPY dagster/workspace.yaml /opt/dagster/workspace.yaml

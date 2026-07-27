@@ -40,7 +40,7 @@ target-version = "py311"
 include-package-data = true
 
 [tool.setuptools.package-data]
-phlo_oauth2_proxy = ["service.yaml"]
+phlo_oauth2_proxy = ["Dockerfile", "service.yaml"]
 
 [tool.setuptools.package-dir]
 "" = "src"

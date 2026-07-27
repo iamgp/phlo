@@ -4,7 +4,10 @@ category: api
 default: false
 profile: api
 
-image: postgrest/postgrest:${POSTGREST_VERSION:-v12.2.3}
+image: ghcr.io/phlohouse/phlo-postgrest:14.15-security-patches
+build:
+  context: .
+  dockerfile: postgrest/Dockerfile
 
 depends_on:
   - postgres
@@ -25,9 +28,6 @@ compose:
     retries: 5
 
 env_vars:
-  POSTGREST_VERSION:
-    default: v12.2.3
-    description: PostgREST version
   POSTGREST_PORT:
     default: 3002
     description: PostgREST API port
@@ -36,6 +36,8 @@ env_vars:
     description: Comma-separated list of schemas to expose (auto-configured by hook)
 
 files:
+  - source: Dockerfile
+    dest: postgrest/Dockerfile
   - source: conf
     dest: postgrest/conf
 

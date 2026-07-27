@@ -4,7 +4,10 @@ category: observability
 default: false
 profile: observability
 
-image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
+image: ${PROMETHEUS_IMAGE:-ghcr.io/phlohouse/phlo-prometheus:v3.13.1-grpc1.82.1}
+build:
+  context: .
+  dockerfile: prometheus/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -38,8 +41,11 @@ compose:
     retries: 5
 
 env_vars:
+  PROMETHEUS_IMAGE:
+    default: ghcr.io/phlohouse/phlo-prometheus:v3.13.1-grpc1.82.1
+    description: Pinned Prometheus image to build or run
   PROMETHEUS_VERSION:
-    default: v3.1.0
+    default: v3.13.1
     description: Prometheus version
   PROMETHEUS_PORT:
     default: 9090
@@ -52,5 +58,7 @@ env_vars:
     description: Path used to build Prometheus query links
 
 files:
+  - source: Dockerfile
+    dest: prometheus/Dockerfile
   - source: prometheus.yml
     dest: prometheus/prometheus.yml

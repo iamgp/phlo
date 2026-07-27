@@ -62,6 +62,8 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_nessie = [
+    "Dockerfile",
+    "libraries.sha256",
     "service.yaml",
     "observatory_assets/*",
 ]

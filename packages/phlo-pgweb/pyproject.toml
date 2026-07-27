@@ -42,7 +42,7 @@ target-version = "py311"
 include-package-data = true
 
 [tool.setuptools.package-data]
-phlo_pgweb = ["service.yaml"]
+phlo_pgweb = ["service.yaml", "Dockerfile"]
 
 [tool.setuptools.package-dir]
 "" = "src"

@@ -26,16 +26,16 @@
       {"name": "phlo-trino", "version": "0.5.0"}
     ],
     "services": [
-      {"name": "dagster", "image_reference": "build:context=.;dockerfile=dagster/Dockerfile"},
-      {"name": "dagster-daemon", "image_reference": "build:context=.;dockerfile=dagster/Dockerfile"},
-      {"name": "postgres", "image_reference": "postgres:16-alpine"},
-      {"name": "postgres-volume-setup", "image_reference": "alpine:3.20"},
-      {"name": "minio", "image_reference": "minio/minio:RELEASE.2025-09-07T16-13-09Z"},
-      {"name": "minio-setup", "image_reference": "minio/mc:RELEASE.2025-08-13T08-35-41Z"},
-      {"name": "nessie", "image_reference": "ghcr.io/projectnessie/nessie:0.107.2"},
-      {"name": "trino", "image_reference": "trinodb/trino:467"},
-      {"name": "phlo-api", "image_reference": "build:context=.;dockerfile=phlo-api/Dockerfile"},
-      {"name": "observatory", "image_reference": "build:context=source;dockerfile=Dockerfile"}
+      {"name": "dagster", "image_reference": "ghcr.io/phlohouse/phlo-dagster:0.6.0"},
+      {"name": "dagster-daemon", "image_reference": "ghcr.io/phlohouse/phlo-dagster:0.6.0"},
+      {"name": "postgres", "image_reference": "ghcr.io/phlohouse/phlo-postgres:18.4-alpine3.24-gosu1.19"},
+      {"name": "postgres-volume-setup", "image_reference": "alpine:3.24.1"},
+      {"name": "minio", "image_reference": "ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c"},
+      {"name": "minio-setup", "image_reference": "ghcr.io/phlohouse/phlo-minio-mc:77f82e18b540"},
+      {"name": "nessie", "image_reference": "ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16"},
+      {"name": "trino", "image_reference": "ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5"},
+      {"name": "phlo-api", "image_reference": "ghcr.io/phlohouse/phlo-api:0.7.0"},
+      {"name": "observatory", "image_reference": "ghcr.io/phlohouse/phlo-observatory:0.7.0"}
     ],
     "schemas": {
       "configuration": {

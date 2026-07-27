@@ -59,6 +59,10 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_openmetadata = [
+    "Dockerfile",
+    "db.Dockerfile",
+    "es.Dockerfile",
+    "es-libraries.sha256",
     "service.yaml",
     "openmetadata-setup.yaml",
     "openmetadata-mysql-setup.yaml",

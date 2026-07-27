@@ -57,6 +57,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_trino = [
+    "Dockerfile",
     "service.yaml",
     "jvm.config",
     "config.properties",

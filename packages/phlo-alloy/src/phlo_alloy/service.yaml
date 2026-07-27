@@ -4,7 +4,10 @@ category: observability
 default: false
 profile: observability
 
-image: grafana/alloy:v1.4.2
+image: ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5
+build:
+  context: .
+  dockerfile: alloy/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -36,5 +39,7 @@ env_vars:
     description: Alloy HTTP port
 
 files:
+  - source: Dockerfile
+    dest: alloy/Dockerfile
   - source: config.alloy
     dest: alloy/config.alloy

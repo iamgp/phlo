@@ -3,7 +3,10 @@ description: Web-based PostgreSQL database browser
 category: admin
 default: true
 
-image: sosedoff/pgweb
+image: ghcr.io/phlohouse/phlo-pgweb:0.17.0-security-patches
+build:
+  context: .
+  dockerfile: pgweb/Dockerfile
 
 depends_on:
   - postgres
@@ -21,3 +24,7 @@ env_vars:
   PGWEB_PORT:
     default: 8081
     description: pgweb UI port
+
+files:
+  - source: Dockerfile
+    dest: pgweb/Dockerfile

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from typing import cast
 
 import click
@@ -16,6 +17,24 @@ from phlo.plugins.compose.env import generate_env, generate_env_local
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 from tests.helpers import FakeDiscovery, _service
+
+
+def test_bundled_service_images_have_explicit_default_versions() -> None:
+    """Generated service defaults must never rely on an implicit or moving latest tag."""
+    repository = Path(__file__).parents[2]
+    unpinned: list[str] = []
+
+    for service_file in sorted(repository.glob("packages/phlo-*/src/**/*.yaml")):
+        image = yaml.safe_load(service_file.read_text()).get("image")
+        if not image:
+            continue
+        default_image = re.sub(r"^\$\{[^:}]+:-([^}]+)\}$", r"\1", image)
+        if (
+            ":" not in default_image.rsplit("/", 1)[-1] and "@sha256:" not in default_image
+        ) or default_image.endswith(":latest"):
+            unpinned.append(f"{service_file.relative_to(repository)}: {image}")
+
+    assert unpinned == []
 
 
 def test_production_credentials_reject_defaults_and_require_safe_usernames() -> None:
@@ -95,6 +114,20 @@ def test_conditional_environment_creates_an_absent_environment(tmp_path) -> None
     )
 
     assert data["services"]["conditional"]["environment"] == {"CONDITIONAL_VALUE": "enabled"}
+
+
+def test_image_services_use_exact_upstream_image_without_fake_wrapper(tmp_path) -> None:
+    service = _service("postgres", default=True)
+    service.image = "postgres:18-alpine"
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery({service.name: service})))
+
+    data = yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))
+    copied = generator.copy_service_files([service], tmp_path)
+
+    assert data["services"]["postgres"]["image"] == "postgres:18-alpine"
+    assert "build" not in data["services"]["postgres"]
+    assert copied == []
+    assert not (tmp_path / "images" / "postgres" / "Dockerfile").exists()
 
 
 def test_conditional_environment_supports_list_environment_and_user_overrides(tmp_path) -> None:

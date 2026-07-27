@@ -21,7 +21,8 @@ FROM node:24-alpine AS runner
 WORKDIR /app
 
 # Required for service discovery/status code paths that run `docker ps`.
-RUN apk add --no-cache docker-cli
+RUN apk upgrade --no-cache \
+    && apk add --no-cache docker-cli=29.5.3-r0
 
 # Install only the runtime dependency graph. The build-only Vite, Nitro, and
 # scaffolding packages remain in the builder stage.
@@ -30,6 +31,9 @@ RUN npm ci --omit=dev --ignore-scripts
 
 # Copy built application
 COPY --from=builder /app/.output /app/.output
+
+# npm is a build tool; its bundled CLI dependencies are not needed at runtime.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Set environment
 ENV NODE_ENV=production

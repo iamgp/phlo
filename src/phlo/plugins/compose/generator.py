@@ -227,7 +227,7 @@ class ComposeGenerator:
         # Image or build
         if service.image:
             config["image"] = service.image
-        elif service.build:
+        if service.build:
             # Determine build context
             context = service.build.get("context", ".")
             if context == "source" and service.source_path:

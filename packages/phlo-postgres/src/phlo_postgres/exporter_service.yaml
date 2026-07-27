@@ -4,7 +4,10 @@ category: observability
 default: false
 profile: observability
 
-image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+image: ghcr.io/phlohouse/phlo-postgres-exporter:v0.20.1-go1.26.5
+build:
+  context: .
+  dockerfile: postgres-exporter/Dockerfile
 
 depends_on:
   - postgres
@@ -37,3 +40,7 @@ env_vars:
   POSTGRES_EXPORTER_PORT:
     default: 9187
     description: Postgres exporter metrics port
+
+files:
+  - source: exporter.Dockerfile
+    dest: postgres-exporter/Dockerfile

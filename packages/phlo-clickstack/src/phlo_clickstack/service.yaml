@@ -4,7 +4,13 @@ category: observability
 default: false
 profile: observability
 
-image: ${CLICKSTACK_IMAGE:-docker.hyperdx.io/hyperdx/hyperdx-all-in-one}
+image: ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches
+build:
+  context: .
+  dockerfile: clickstack/Dockerfile
+files:
+  - source: Dockerfile
+    dest: clickstack/Dockerfile
 
 compose:
   restart: unless-stopped
@@ -32,9 +38,6 @@ compose:
     retries: 10
 
 env_vars:
-  CLICKSTACK_IMAGE:
-    default: "docker.hyperdx.io/hyperdx/hyperdx-all-in-one"
-    description: Official ClickStack all-in-one image reference
   CLICKSTACK_PORT:
     default: 18080
     description: ClickStack UI port

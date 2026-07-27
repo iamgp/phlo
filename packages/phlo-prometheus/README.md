@@ -23,7 +23,7 @@ Part of the `observability` profile.
 | Variable             | Default  | Description            |
 | -------------------- | -------- | ---------------------- |
 | `PROMETHEUS_PORT`    | `9090`   | Prometheus web UI port |
-| `PROMETHEUS_VERSION` | `v3.1.0` | Prometheus version     |
+| `PROMETHEUS_VERSION` | `v3.13.1` | Prometheus version     |
 
 ## Auto-Configuration
 

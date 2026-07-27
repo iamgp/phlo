@@ -1,110 +1,294 @@
-name: Build Core Services
+name: Publish Generated Service Images
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "packages/phlo-observatory/**"
-      - "packages/phlo-api/**"
-      - ".github/workflows/build-core-services.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "packages/phlo-observatory/**"
-      - "packages/phlo-api/**"
+  workflow_dispatch:
+    inputs:
+      services:
+        description: Optional comma-separated generated services to republish
+        required: false
+        type: string
   release:
     types: [published]
 
-env:
-  REGISTRY: ghcr.io
+concurrency:
+  group: generated-service-images-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-observatory:
-    name: Build Observatory
+  prepare:
+    name: Prepare generated build contexts
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-
+    outputs:
+      targets: ${{ steps.matrix.outputs.targets }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-
-      - name: Log in to Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          version: "0.10.10"
+          enable-cache: false
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+      - name: Install workspace service plugins
+        run: |
+          uv python install 3.11
+          uv sync --python 3.11 --all-packages
+
+      - name: Render every installed service through the public CLI
+        id: matrix
+        env:
+          PUBLISH_SERVICES: ${{ inputs.services || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/generated-service-project"
+          mkdir -p "$project"
+          cd "$project"
+          uv --project "$GITHUB_WORKSPACE" run phlo services init --no-dev --force
+          mapfile -t services < <(
+            uv --project "$GITHUB_WORKSPACE" run phlo services list --all --json |
+              jq -r '.[].name'
+          )
+          add_args=()
+          for service in "${services[@]}"; do
+            add_args+=(--service "$service")
+          done
+          uv --project "$GITHUB_WORKSPACE" run phlo services add "${add_args[@]}" --no-start
+          docker compose \
+            --profile '*' \
+            -f "$project/.phlo/docker-compose.yml" \
+            --project-directory "$project/.phlo" \
+            config --format json > "$RUNNER_TEMP/generated-compose.json"
+          matrix_args=()
+          if [[ -n "$PUBLISH_SERVICES" ]]; then
+            matrix_args+=(--services "$PUBLISH_SERVICES")
+          fi
+          matrix="$(
+            uv --project "$GITHUB_WORKSPACE" run python \
+              "$GITHUB_WORKSPACE/scripts/generated_image_matrix.py" \
+              "$RUNNER_TEMP/generated-compose.json" \
+              "$project" \
+              "$GITHUB_WORKSPACE" \
+              "${matrix_args[@]}"
+          )"
+          echo "targets=$(jq -c '.include' <<< "$matrix")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload generated build contexts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/phlo-observatory
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+          name: generated-service-build-contexts
+          path: ${{ runner.temp }}/generated-service-project
+          include-hidden-files: true
+          if-no-files-found: error
 
-      - name: Build and push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: packages/phlo-observatory/src/phlo_observatory
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-phlo-api:
-    name: Build phlo-api
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.target.service }} (${{ matrix.architecture.name }})
+    needs: prepare
+    runs-on: ${{ matrix.architecture.runner }}
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
-
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+        architecture:
+          - name: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - name: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          path: source
           persist-credentials: false
+
+      - name: Download generated build contexts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: generated-service-build-contexts
+          path: generated
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
-      - name: Log in to Container Registry
-        if: github.event_name != 'pull_request'
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/phlo-api
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Render build arguments
+        id: args
+        env:
+          BUILD_ARGS_JSON: ${{ toJSON(matrix.target.build_args) }}
+        shell: bash
+        run: |
+          {
+            echo 'value<<EOF'
+            jq -r 'to_entries[] | "\(.key)=\(.value)"' <<< "$BUILD_ARGS_JSON"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      - name: Resolve digest repository
+        id: image
+        env:
+          IMAGE: ${{ matrix.target.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="${IMAGE%@*}"
+          repository="${repository%:*}"
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish native architecture image
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
-          context: packages/phlo-api/src/phlo_api
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          context: ${{ matrix.target.root }}/${{ matrix.target.context }}
+          file: ${{ matrix.target.root }}/${{ matrix.target.dockerfile }}
+          build-args: ${{ steps.args.outputs.value }}
+          platforms: ${{ matrix.architecture.platform }}
+          outputs: type=image,name=${{ steps.image.outputs.repository }},push-by-digest=true,name-canonical=true,push=true
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.target.service }}-${{ matrix.architecture.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target.service }}-${{ matrix.architecture.name }}
+
+      - name: Record architecture digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          hex="${DIGEST#sha256:}"
+          [[ "$hex" =~ ^[0-9a-f]{64}$ ]]
+          mkdir -p digests
+          touch "digests/$hex"
+
+      - name: Upload architecture digest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: digest-${{ matrix.target.service }}-${{ matrix.architecture.name }}
+          path: digests/*
+          if-no-files-found: error
+
+  merge:
+    name: Publish ${{ matrix.target.service }} manifest
+    needs: [prepare, build]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+    steps:
+      - name: Download amd64 digest
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: digest-${{ matrix.target.service }}-amd64
+          path: digests
+
+      - name: Download arm64 digest
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: digest-${{ matrix.target.service }}-arm64
+          path: digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-architecture manifest
+        id: manifest
+        env:
+          IMAGE: ${{ matrix.target.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          refs=()
+          for digest_file in digests/*; do
+            refs+=("$IMAGE@sha256:${digest_file##*/}")
+          done
+          if [[ "${#refs[@]}" -ne 2 ]]; then
+            echo "expected two architecture digests, found ${#refs[@]}" >&2
+            exit 1
+          fi
+          docker buildx imagetools create --tag "$IMAGE" "${refs[@]}"
+          digest="$(
+            docker buildx imagetools inspect \
+              --format '{{json .Manifest.Digest}}' \
+              "$IMAGE" | jq -r .
+          )"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Record published digest
+        env:
+          DIGEST: ${{ steps.manifest.outputs.digest }}
+          IMAGE: ${{ matrix.target.image }}
+          SERVICE: ${{ matrix.target.service }}
+          SERVICES: ${{ toJSON(matrix.target.services) }}
+        shell: bash
+        run: |
+          jq -n \
+            --arg image "$IMAGE" \
+            --arg digest "$DIGEST" \
+            --argjson services "$SERVICES" \
+            '{image: $image, digest: $digest, services: $services}' \
+            > "published-${SERVICE}.json"
+
+      - name: Upload published digest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: published-${{ matrix.target.service }}
+          path: published-${{ matrix.target.service }}.json
+          if-no-files-found: error
+
+  manifest:
+    name: Published image digest manifest
+    needs: merge
+    if: always() && needs.merge.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download published digests
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: published-*
+          path: published
+          merge-multiple: true
+
+      - name: Assemble digest manifest
+        shell: bash
+        run: jq -s 'sort_by(.image)' published/*.json > generated-service-images.json
+
+      - name: Upload digest manifest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: generated-service-images
+          path: generated-service-images.json
+          if-no-files-found: error

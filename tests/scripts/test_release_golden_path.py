@@ -407,6 +407,37 @@ def test_run_report_requires_the_wap_logical_run_id(tmp_path: Path, monkeypatch)
     assert requests[1].get_header("Authorization") == f"Bearer {config.report_token}"
 
 
+def test_rejected_wap_report_waits_for_rejection_projection(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    wap_run = release_golden_path.WapRun("rejected", "dagster-rejected")
+    reports = iter(
+        (
+            {
+                "run_id": "rejected",
+                "quality": [{"blocking": True, "passed": False}],
+                "catalog_changes": [],
+            },
+            {
+                "run_id": "rejected",
+                "quality": [{"blocking": True, "passed": False}],
+                "catalog_changes": [{"merge_outcome": "rejected_quality"}],
+            },
+        )
+    )
+    monkeypatch.setattr(release_golden_path, "fetch_run_report", lambda *_: next(reports))
+    monkeypatch.setattr(release_golden_path.time, "sleep", lambda _: None)
+    monkeypatch.setattr(release_golden_path, "service_url", lambda *_: "http://dagster/graphql")
+    monkeypatch.setattr(release_golden_path, "service_token", lambda *_: "service-token")
+    monkeypatch.setattr(release_golden_path, "wap_service_secret", lambda _: "secret")
+    monkeypatch.setattr(
+        release_golden_path,
+        "graphql",
+        lambda *_: {"data": {"pipelineRunOrError": {"tags": []}}},
+    )
+
+    release_golden_path.verify_rejected_wap_report(config, wap_run)
+
+
 def test_rejected_wap_report_requires_failed_quality_and_rejection_evidence(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -763,7 +794,7 @@ def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:
     assert "PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}" in service
     assert "PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}" in daemon
     assert 'ARG PHLO_WHEELHOUSE=""' in dockerfile
-    assert "FROM python:3.12-slim AS phlo-build-context" in dockerfile
+    assert "FROM python:3.12-alpine AS phlo-build-context" in dockerfile
     assert "COPY . ." in dockerfile
     assert "RUN mkdir -p /opt/phlo-build-context/wheelhouse" in dockerfile
     assert (
@@ -790,6 +821,15 @@ def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:
         in api_dockerfile
     )
     assert "--no-index --no-deps --reinstall --find-links" in api_dockerfile
+
+
+def test_dagster_stable_version_install_keeps_base_requirements_unconditional() -> None:
+    dockerfile = (REPO_ROOT / "packages/phlo-dagster/src/phlo_dagster/Dockerfile").read_text()
+
+    assert 'base_requirements=("phlo[defaults]==$PHLO_VERSION"' in dockerfile
+    assert 'base_requirements+=("${prerelease_requirements[@]}")' in dockerfile
+    assert 'uv pip install --system --prerelease explicit "${base_requirements[@]}"' in dockerfile
+    assert 'if [ -n "$PHLO_PRERELEASE_REQUIREMENTS" ]; then' in dockerfile
 
 
 def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, monkeypatch) -> None:
