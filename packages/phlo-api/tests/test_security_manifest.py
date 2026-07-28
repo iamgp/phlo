@@ -128,6 +128,24 @@ def test_read_surfaces_use_their_specific_canonical_actions() -> None:
     )
 
 
+def test_loki_routes_keep_auth_and_reject_override_parameter() -> None:
+    """Loki routes remain classified; request loki_url is not part of auth identity."""
+    resolved = {spec.operation_name: spec for spec in validate_manifest(app)}
+    for name in (
+        "check_connection",
+        "query_logs",
+        "query_run_logs",
+        "stream_run_logs",
+        "query_asset_logs",
+        "get_log_labels",
+    ):
+        spec = resolved[name]
+        assert "loki_url" not in spec.resource_keys
+        assert spec.action in {"observability.read", "audit.read"}
+        assert spec.path is not None
+        assert spec.path.startswith("/api/loki")
+
+
 def test_authoring_writes_are_honestly_project_scoped() -> None:
     for name in ("create_workflow", "validate_workflow", "validate_schema", "lint_project"):
         spec = HTTP_ROUTE_MANIFEST[name]

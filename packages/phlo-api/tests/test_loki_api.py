@@ -1,10 +1,17 @@
-"""Tests for Loki response normalization."""
+"""Tests for Loki response normalization and URL override rejection."""
 
 from __future__ import annotations
 
 import json
 
-from phlo_api.observatory_api.loki import parse_loki_response
+import pytest
+from fastapi import HTTPException
+
+from phlo_api.observatory_api.loki import (
+    parse_loki_response,
+    reject_request_loki_url,
+    resolve_loki_url,
+)
 
 
 def test_parse_loki_response_emits_function_and_legacy_fn_metadata() -> None:
@@ -57,3 +64,28 @@ def test_parse_loki_response_reads_legacy_fn_metadata() -> None:
 
     assert entries[0].metadata["function"] == "run_step"
     assert entries[0].metadata["fn"] == "run_step"
+
+
+def test_reject_request_loki_url_override() -> None:
+    reject_request_loki_url(None)
+
+    with pytest.raises(HTTPException) as exc:
+        reject_request_loki_url("http://169.254.169.254/latest/meta-data/#")
+
+    assert exc.value.status_code == 422
+    assert exc.value.detail["error"] == "loki_url_override_not_allowed"
+
+
+def test_resolve_loki_url_uses_server_configuration_only(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.loki.resolve_url",
+        lambda url, *, port_env_var=None: url,
+    )
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.loki.project_env_value",
+        lambda key, default=None: "http://loki.internal:3100" if key == "LOKI_URL" else default,
+    )
+
+    assert resolve_loki_url() == "http://loki.internal:3100"
+    with pytest.raises(TypeError):
+        resolve_loki_url("http://attacker.example")  # type: ignore[call-arg]
