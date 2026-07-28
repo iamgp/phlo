@@ -9,11 +9,13 @@ from phlo_api.observatory_api import (
     extension_settings,
     extensions,
     iceberg,
+    loki,
     nessie,
     search,
     settings,
 )
 from phlo_api.observatory_api.trino import QueryExecutionError
+from security_test_support import authenticated_client
 
 
 class _Response:
@@ -25,6 +27,10 @@ class _Response:
 
     def json(self) -> object:
         return self._payload
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
 
 
 class _AsyncClient:
@@ -244,3 +250,64 @@ async def test_extension_settings_handlers_use_manifest_scope_and_defaults(monke
     assert (await extension_settings.put_extension_settings("demo", payload)).settings == {
         "theme": "light"
     }
+
+
+_SSRF_LOKI_OVERRIDE = "http://169.254.169.254/latest/meta-data/#"
+
+_LOKI_OVERRIDE_ROUTES: tuple[tuple[str, dict[str, str]], ...] = (
+    ("/api/loki/connection", {}),
+    (
+        "/api/loki/query",
+        {"start": "2026-01-01T00:00:00Z", "end": "2026-01-01T01:00:00Z"},
+    ),
+    ("/api/loki/runs/run-1", {}),
+    ("/api/loki/runs/run-1/stream", {"timeout_seconds": "1", "interval_seconds": "0.25"}),
+    ("/api/loki/assets/demo/orders", {}),
+    ("/api/loki/labels", {}),
+)
+
+
+def test_loki_routes_reject_url_override_before_transport(monkeypatch) -> None:
+    """Caller-supplied loki_url must 422 before DNS or outbound HTTP."""
+    monkeypatch.setattr(loki.httpx, "AsyncClient", _AsyncClient)
+    monkeypatch.setattr(loki, "resolve_loki_url", lambda: "http://configured-loki:3100")
+
+    def fail_dns(_host: str) -> str:
+        raise AssertionError("DNS resolution must not run for request-controlled loki_url")
+
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", fail_dns)
+
+    client = authenticated_client("viewer")
+    for path, params in _LOKI_OVERRIDE_ROUTES:
+        _AsyncClient.calls = []
+        response = client.get(path, params={**params, "loki_url": _SSRF_LOKI_OVERRIDE})
+        assert response.status_code == 422, path
+        detail = response.json()["detail"]
+        assert detail["error"] == "loki_url_override_not_allowed"
+        assert _AsyncClient.calls == [], path
+
+
+def test_loki_labels_uses_configured_url_without_override(monkeypatch) -> None:
+    """Normal path still talks to the operator-configured Loki endpoint."""
+    monkeypatch.setattr(loki.httpx, "AsyncClient", _AsyncClient)
+    monkeypatch.setattr(loki, "resolve_loki_url", lambda: "http://configured-loki:3100")
+    _AsyncClient.responses = [_Response(200, {"data": ["level", "job"]})]
+
+    client = authenticated_client("viewer")
+    response = client.get("/api/loki/labels")
+
+    assert response.status_code == 200
+    assert response.json() == {"labels": ["level", "job"]}
+    assert _AsyncClient.calls == [("GET", "http://configured-loki:3100/loki/api/v1/labels", None)]
+
+
+@pytest.mark.anyio
+async def test_loki_internal_helpers_ignore_request_override_parameter() -> None:
+    """resolve_loki_url no longer accepts a caller override argument."""
+    with pytest.raises(TypeError):
+        loki.resolve_loki_url("http://attacker.example")  # type: ignore[call-arg]
+
+    with pytest.raises(HTTPException) as exc:
+        loki.reject_request_loki_url(_SSRF_LOKI_OVERRIDE)
+    assert exc.value.status_code == 422
+    assert exc.value.detail["error"] == "loki_url_override_not_allowed"
