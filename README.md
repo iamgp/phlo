@@ -159,4 +159,12 @@ phlo doctor --verbose
 
 ## Contributing
 
-Issues and pull requests are welcome. Run `make check` locally before opening a PR, and please open an issue first for larger changes so the design can be discussed up front.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution terms. Run `make check` locally before opening a PR, and please open an issue first for larger changes so the design can be discussed up front.
+
+## Licence
+
+Phlo is open-source software licensed under the GNU Affero General Public
+License, version 3 or later (AGPL-3.0-or-later). See [LICENSE](LICENSE).
+
+If you wish to use Phlo in a proprietary product or service without complying
+with the AGPL, please contact us about commercial licensing.
