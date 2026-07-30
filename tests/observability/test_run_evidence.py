@@ -2163,6 +2163,7 @@ def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres() -> None:
                     "002_create_run_evidence.sql",
                     "003_reconcile_run_evidence.sql",
                     "004_run_evidence_instrumentation.sql",
+                    "005_run_evidence_resource_identity.sql",
                 )
             )
 
@@ -2182,6 +2183,11 @@ def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres() -> None:
         store._initialize_schema()
         store._initialized = False
         store._initialize_schema()
+        with store._transaction() as (_, cursor):
+            cursor.execute(
+                'SELECT version FROM "' + schema + '".run_evidence_schema_version ORDER BY version'
+            )
+            assert [row[0] for row in cursor.fetchall()] == [1, 2, 3, 4]
         assert _fixture_checksums(store) == before_checksums
         assert store.list_events(fixture["project_id"], fixture["run_id"])[0]["payload"] == {
             "legacy": True
