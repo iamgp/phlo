@@ -228,6 +228,89 @@ jobs:
             exit 1
           fi
 
+  postgres-concurrency-gates:
+    name: postgres / concurrency gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: phlo_test
+          POSTGRES_PASSWORD: phlo_test
+          POSTGRES_USER: phlo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U phlo_test -d phlo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN: postgresql://phlo_test:phlo_test@localhost:5432/phlo_test
+      PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN: postgresql://phlo_test:phlo_test@localhost:5432/phlo_test
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Preflight PostgreSQL concurrency gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --locked python - <<'PY'
+          import os
+          import psycopg2
+
+          dsn_names = (
+              "PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN",
+              "PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN",
+          )
+          dsns = [os.environ[name] for name in dsn_names]
+          if not all(dsns):
+              raise RuntimeError("PostgreSQL concurrency gate DSNs must be set")
+          if len(set(dsns)) != 1:
+              raise RuntimeError("PostgreSQL concurrency gate DSNs must target one database")
+          with psycopg2.connect(dsns[0]):
+              pass
+          PY
+
+      - name: Run PostgreSQL concurrency gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          junit_path="${RUNNER_TEMP}/postgres-concurrency-gates.xml"
+          uv run --locked pytest --import-mode=importlib \
+            tests/unit/phlo/security/test_service_identity.py::test_postgres_nonce_store_rejects_one_of_two_simultaneous_consumers \
+            tests/observability/test_run_evidence.py::test_postgres_concurrent_duplicate_replay_does_not_apply_loser_run_metadata \
+            tests/observability/test_run_evidence.py::test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres \
+            -q --junitxml "${junit_path}"
+          uv run --locked python - "${junit_path}" <<'PY'
+          import sys
+          from xml.etree import ElementTree
+
+          root = ElementTree.parse(sys.argv[1]).getroot()
+          cases = root.findall(".//testcase")
+          skipped = root.findall(".//skipped")
+          failures = root.findall(".//failure")
+          errors = root.findall(".//error")
+          if len(cases) != 3 or skipped or failures or errors:
+              raise RuntimeError(
+                  "PostgreSQL concurrency gates must report exactly 3 passed, 0 skipped"
+              )
+          PY
+
   quickstart-smoke:
     name: python / quickstart smoke
     runs-on: ubuntu-latest
