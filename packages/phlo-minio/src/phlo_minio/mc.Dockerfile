@@ -6,7 +6,7 @@ RUN git clone https://github.com/minio/mc.git . && \
     git checkout 77f82e18b5401a65958f1619df6ebb994634bd88 && \
     go get \
         github.com/prometheus/prometheus@v0.311.3 \
-        golang.org/x/crypto@v0.52.0 \
+        golang.org/x/crypto@v0.53.0 \
         golang.org/x/net@v0.56.0 \
         golang.org/x/text@v0.39.0 \
         google.golang.org/grpc@v1.82.1 && \
