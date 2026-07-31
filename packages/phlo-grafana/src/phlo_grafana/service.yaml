@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: ghcr.io/phlohouse/phlo-grafana:13.1.1-go1.26.5
+image: ghcr.io/phlohouse/phlo-grafana:13.1.1-go1.26.5-xtext0.39.0
 
 build:
   context: ./grafana

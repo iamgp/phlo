@@ -30,10 +30,10 @@
       {"name": "dagster-daemon", "image_reference": "ghcr.io/phlohouse/phlo-dagster:0.6.0"},
       {"name": "postgres", "image_reference": "ghcr.io/phlohouse/phlo-postgres:18.4-alpine3.24-gosu1.19"},
       {"name": "postgres-volume-setup", "image_reference": "alpine:3.24.1"},
-      {"name": "minio", "image_reference": "ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c"},
-      {"name": "minio-setup", "image_reference": "ghcr.io/phlohouse/phlo-minio-mc:77f82e18b540"},
+      {"name": "minio", "image_reference": "ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c-xtext0.39.0"},
+      {"name": "minio-setup", "image_reference": "ghcr.io/phlohouse/phlo-minio-mc:77f82e18b540-xtext0.39.0"},
       {"name": "nessie", "image_reference": "ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16"},
-      {"name": "trino", "image_reference": "ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5"},
+      {"name": "trino", "image_reference": "ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5-xtext0.39.0"},
       {"name": "phlo-api", "image_reference": "ghcr.io/phlohouse/phlo-api:0.7.0"},
       {"name": "observatory", "image_reference": "ghcr.io/phlohouse/phlo-observatory:0.7.0"}
     ],

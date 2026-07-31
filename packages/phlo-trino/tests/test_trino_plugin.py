@@ -20,7 +20,10 @@ def test_trino_service_definition():
 def test_trino_rebuilds_the_launcher_with_current_go():
     service_definition = TrinoServicePlugin().service_definition
 
-    assert service_definition["image"] == "ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5"
+    assert (
+        service_definition["image"]
+        == "ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5-xtext0.39.0"
+    )
     assert service_definition["build"] == {
         "context": "./trino",
         "dockerfile": "Dockerfile",

@@ -18,7 +18,7 @@ def test_alloy_service_builds_patched_release_image() -> None:
     """Generated Alloy uses the stable release with fixed embedded Go dependencies."""
     definition = AlloyServicePlugin().service_definition
 
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5"
+    assert definition["image"] == "ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5-xtext0.39.0"
     assert definition["build"] == {"context": ".", "dockerfile": "alloy/Dockerfile"}
 
 

@@ -4,7 +4,7 @@ RUN apk add --no-cache git=2.54.0-r0
 RUN git clone https://github.com/grafana/loki.git /src/loki && \
     git -C /src/loki checkout b318f2829f0ae2094ab3a1e90780450e9e4b03be
 WORKDIR /src/loki
-RUN go get google.golang.org/grpc@v1.82.1 && go mod tidy
+RUN go get golang.org/x/text@v0.39.0 google.golang.org/grpc@v1.82.1 && go mod tidy
 RUN CGO_ENABLED=0 go build -mod=mod -trimpath -tags netgo \
     -ldflags="-s -w \
         -X github.com/grafana/loki/v3/pkg/util/build.Branch=release-3.7.x \

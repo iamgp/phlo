@@ -8,7 +8,7 @@ RUN git init /src/alloy && \
 WORKDIR /src/alloy
 # hadolint ignore=DL3062
 RUN export GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod && \
-    go get google.golang.org/grpc@v1.82.1 && \
+    go get golang.org/x/text@v0.39.0 google.golang.org/grpc@v1.82.1 && \
     go mod tidy && \
     npm --prefix internal/web/ui ci --no-audit --no-fund && \
     npm --prefix internal/web/ui run build && \

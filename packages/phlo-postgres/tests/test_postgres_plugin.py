@@ -49,7 +49,7 @@ def test_postgres_exporter_builds_pinned_hardened_image() -> None:
     service_definition = PostgresExporterServicePlugin().service_definition
 
     assert service_definition["image"] == (
-        "ghcr.io/phlohouse/phlo-postgres-exporter:v0.20.1-go1.26.5"
+        "ghcr.io/phlohouse/phlo-postgres-exporter:v0.20.1-go1.26.5-xtext0.39.0"
     )
     assert service_definition["build"]["dockerfile"] == "postgres-exporter/Dockerfile"
 

@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5
+image: ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5-xtext0.39.0
 build:
   context: .
   dockerfile: alloy/Dockerfile

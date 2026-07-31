@@ -3,7 +3,8 @@ FROM golang:1.26.5-alpine3.24@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1
 RUN apk add --no-cache git=2.54.0-r0
 WORKDIR /src
 RUN git clone https://github.com/prometheus-community/postgres_exporter.git . && \
-    git checkout 867fbcac31cd18c143e244190ea9168cca069827
+    git checkout 867fbcac31cd18c143e244190ea9168cca069827 && \
+    go get golang.org/x/text@v0.39.0
 RUN CGO_ENABLED=0 go build -trimpath \
     -ldflags="-s -w -X github.com/prometheus/common/version.Version=0.20.1 -X github.com/prometheus/common/version.Revision=867fbcac31cd18c143e244190ea9168cca069827" \
     -o /out/postgres_exporter ./cmd/postgres_exporter

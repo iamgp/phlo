@@ -4,7 +4,7 @@ category: auth
 default: false
 profile: proxy
 
-image: ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1
+image: ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1-xtext0.39.0
 build:
   context: .
   dockerfile: oauth2-proxy/Dockerfile

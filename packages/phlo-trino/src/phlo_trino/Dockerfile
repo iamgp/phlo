@@ -5,7 +5,8 @@ WORKDIR /src
 RUN git clone https://github.com/airlift/launcher.git . && \
     git checkout e0e239b162b4dd45f60aacd5c58394d2832d0d13
 WORKDIR /src/src/main/go
-RUN CGO_ENABLED=0 go build -buildvcs=false -trimpath \
+RUN go get golang.org/x/text@v0.39.0 && \
+    CGO_ENABLED=0 go build -buildvcs=false -trimpath \
       -ldflags="-s -w -extldflags=-static -X launcher/args.Version=318" \
       -o /out/launcher .
 

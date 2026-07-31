@@ -31,7 +31,7 @@ def test_grafana_uses_rebuilt_image():
 
     service_def = GrafanaServicePlugin().service_definition
 
-    assert service_def["image"] == "ghcr.io/phlohouse/phlo-grafana:13.1.1-go1.26.5"
+    assert service_def["image"] == "ghcr.io/phlohouse/phlo-grafana:13.1.1-go1.26.5-xtext0.39.0"
     assert service_def["build"] == {
         "context": "./grafana",
         "dockerfile": "Dockerfile",

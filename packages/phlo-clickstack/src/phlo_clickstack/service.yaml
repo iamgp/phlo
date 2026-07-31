@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches
+image: ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches-xtext0.39.0
 build:
   context: .
   dockerfile: clickstack/Dockerfile

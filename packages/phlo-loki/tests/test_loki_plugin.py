@@ -19,7 +19,7 @@ def test_loki_service_builds_patched_release_image() -> None:
     """Generated Loki uses the stable release with its fixed gRPC dependency."""
     definition = LokiServicePlugin().service_definition
 
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-loki:3.7.4-grpc1.82.1"
+    assert definition["image"] == "ghcr.io/phlohouse/phlo-loki:3.7.4-grpc1.82.1-xtext0.39.0"
     assert definition["build"] == {"context": ".", "dockerfile": "loki/Dockerfile"}
     assert "LOKI_VERSION" not in definition["env_vars"]
 

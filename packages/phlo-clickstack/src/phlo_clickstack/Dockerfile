@@ -21,7 +21,8 @@ RUN apk add --no-cache git=2.54.0-r0
 WORKDIR /src
 RUN git clone --branch v0.25.1 --depth 1 https://github.com/evanw/esbuild.git
 WORKDIR /src/esbuild
-RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /esbuild ./cmd/esbuild
+RUN go get golang.org/x/text@v0.39.0 && \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /esbuild ./cmd/esbuild
 WORKDIR /src
 RUN git clone --branch v4.3.3 --depth 1 https://github.com/hairyhenderson/gomplate.git
 WORKDIR /src/gomplate
@@ -33,6 +34,7 @@ RUN go get \
       go.opentelemetry.io/otel/sdk@v1.43.0 \
       golang.org/x/crypto@v0.52.0 \
       golang.org/x/net@v0.55.0 \
+      golang.org/x/text@v0.39.0 \
       google.golang.org/grpc@v1.82.1 \
     && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /gomplate ./cmd/gomplate
 

@@ -4,7 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: ${PROMETHEUS_IMAGE:-ghcr.io/phlohouse/phlo-prometheus:v3.13.1-grpc1.82.1}
+image: ${PROMETHEUS_IMAGE:-ghcr.io/phlohouse/phlo-prometheus:v3.13.1-grpc1.82.1-xtext0.39.0}
 build:
   context: .
   dockerfile: prometheus/Dockerfile
@@ -42,7 +42,7 @@ compose:
 
 env_vars:
   PROMETHEUS_IMAGE:
-    default: ghcr.io/phlohouse/phlo-prometheus:v3.13.1-grpc1.82.1
+    default: ghcr.io/phlohouse/phlo-prometheus:v3.13.1-grpc1.82.1-xtext0.39.0
     description: Pinned Prometheus image to build or run
   PROMETHEUS_VERSION:
     default: v3.13.1

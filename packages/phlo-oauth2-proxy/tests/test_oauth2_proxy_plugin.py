@@ -38,5 +38,5 @@ def test_oauth2_proxy_image_pinned():
     plugin = Oauth2ProxyServicePlugin()
     defn = plugin.service_definition
 
-    assert defn["image"] == "ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1"
+    assert defn["image"] == "ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1-xtext0.39.0"
     assert defn["build"]["dockerfile"] == "oauth2-proxy/Dockerfile"
