@@ -24,7 +24,7 @@ RUN git clone https://github.com/grafana/grafana-elasticsearch-datasource.git . 
 WORKDIR /src/zipkin
 RUN git clone https://github.com/grafana/grafana-zipkin-datasource.git . && \
     git checkout daafdfe11421dd2cacc8bfdb9ab604da1875b671 && \
-    go get golang.org/x/net@v0.55.0 golang.org/x/text@v0.39.0 google.golang.org/grpc@v1.82.1 && \
+    go get golang.org/x/net@v0.56.0 golang.org/x/text@v0.39.0 google.golang.org/grpc@v1.82.1 && \
     CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags="-s -w" \
       -o /out/zipkin ./pkg
 
