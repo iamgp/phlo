@@ -10,6 +10,8 @@ def test_traefik_service_definition():
 
     assert defn["name"] == "traefik"
     assert defn["profile"] == "proxy"
+    assert defn["image"] == "ghcr.io/phlohouse/phlo-traefik:v3.7.10-xtext0.40.0"
+    assert defn["build"] == {"context": ".", "dockerfile": "traefik/Dockerfile"}
 
 
 def test_traefik_plugin_metadata():

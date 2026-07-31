@@ -38,6 +38,32 @@ RUN go get \
       google.golang.org/grpc@v1.82.1 \
     && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /gomplate ./cmd/gomplate
 
+# HyperDX packages its OpenTelemetry collector inside the all-in-one image. Build
+# the exact collector source used by the 2.32.0 release with patched Go modules,
+# then replace only that embedded binary in the final image.
+FROM otel/opentelemetry-collector-builder:0.155.0 AS otel-builder
+
+FROM golang:1.26.5-alpine3.24@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS hyperdx-otel-patches
+
+RUN apk add --no-cache git=2.54.0-r0
+COPY --from=otel-builder /usr/local/bin/ocb /usr/local/bin/ocb
+WORKDIR /src
+RUN git clone --depth 1 https://github.com/hyperdxio/hyperdx.git hyperdx && \
+    git -C hyperdx fetch --depth 1 origin 31a461db46d23439c4b72c80be02d6991e924921 && \
+    git -C hyperdx checkout --detach 31a461db46d23439c4b72c80be02d6991e924921
+WORKDIR /build
+RUN cp /src/hyperdx/packages/otel-collector/builder-config.yaml . && \
+    sed -i 's/__OTEL_COLLECTOR_VERSION__/0.155.0/g; s/__OTEL_COLLECTOR_CORE_VERSION__/1.61.0/g' builder-config.yaml && \
+    CGO_ENABLED=0 ocb --config=builder-config.yaml && \
+    cd output && \
+    go get \
+      golang.org/x/crypto@v0.53.0 \
+      golang.org/x/net@v0.56.0 \
+      golang.org/x/text@v0.39.0 \
+      google.golang.org/grpc@v1.82.1 && \
+    go mod tidy && \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /otelcontribcol .
+
 FROM docker.io/hyperdx/hyperdx-all-in-one:2.32.0@sha256:54a0a805d761d6fef76122736a0d62400b78f69bd00394fe15086c8eda39b6c7
 
 RUN apk update \
@@ -46,6 +72,7 @@ RUN apk update \
 
 COPY --from=go-patches /esbuild /tmp/esbuild
 COPY --from=go-patches /gomplate /usr/local/bin/gomplate
+COPY --from=hyperdx-otel-patches /otelcontribcol /otelcontribcol
 RUN find /app/packages/app/node_modules/@esbuild -path '*/bin/esbuild' \
       -exec install -m 0755 /tmp/esbuild {} \; \
     && rm /tmp/esbuild
