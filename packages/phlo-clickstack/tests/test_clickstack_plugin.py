@@ -30,10 +30,10 @@ def test_clickstack_builds_the_patched_stable_image() -> None:
 
     assert (
         definition["image"]
-        == "ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches-xtext0.39.0"
+        == "ghcr.io/phlohouse/phlo-clickstack:2.32.0-security-patches-xtext0.39.0"
     )
     assert definition["build"] == {"context": ".", "dockerfile": "clickstack/Dockerfile"}
-    assert "FROM docker.io/hyperdx/hyperdx-all-in-one:2.31.0@sha256:b01cc48" in dockerfile
+    assert "FROM docker.io/hyperdx/hyperdx-all-in-one:2.32.0@sha256:54a0a805" in dockerfile
     assert "docker.hyperdx.io" not in dockerfile
     assert "CLICKSTACK_IMAGE" not in definition["env_vars"]
 

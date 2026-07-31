@@ -38,7 +38,7 @@ RUN go get \
       google.golang.org/grpc@v1.82.1 \
     && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /gomplate ./cmd/gomplate
 
-FROM docker.io/hyperdx/hyperdx-all-in-one:2.31.0@sha256:b01cc48cb5aaf30d630865a88217c826ab86fb9828374201f6cd7c539d5beed1
+FROM docker.io/hyperdx/hyperdx-all-in-one:2.32.0@sha256:54a0a805d761d6fef76122736a0d62400b78f69bd00394fe15086c8eda39b6c7
 
 RUN apk update \
     && apk upgrade --no-cache --available \
