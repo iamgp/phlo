@@ -54,9 +54,9 @@ RUN git clone --depth 1 https://github.com/hyperdxio/hyperdx.git hyperdx && \
 WORKDIR /build
 RUN cp /src/hyperdx/packages/otel-collector/builder-config.yaml . && \
     sed -i 's/__OTEL_COLLECTOR_VERSION__/0.155.0/g; s/__OTEL_COLLECTOR_CORE_VERSION__/1.61.0/g' builder-config.yaml && \
-    CGO_ENABLED=0 ocb --config=builder-config.yaml && \
-    cd output && \
-    go get \
+    CGO_ENABLED=0 ocb --config=builder-config.yaml
+WORKDIR /build/output
+RUN go get \
       golang.org/x/crypto@v0.53.0 \
       golang.org/x/net@v0.56.0 \
       golang.org/x/text@v0.39.0 \
