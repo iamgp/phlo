@@ -37,6 +37,7 @@ def test_publication_workflow_publishes_attested_images_after_digest_scans() -> 
 
     assert "pull_request:" not in workflow
     assert "\n  push:" in workflow
+    assert "fetch-depth: 0" in workflow
     assert "workflow_dispatch:" in workflow
     assert "release:" in workflow
     assert "PUBLISH_SERVICES" in workflow
