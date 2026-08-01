@@ -15,3 +15,6 @@ def test_container_workflows_use_pinned_tools_and_digest_rescans() -> None:
     assert "aquasec/trivy" not in pr
     assert "generated-service-images" in nightly
     assert '"$image@$digest"' in nightly
+    assert "--limit 100" in nightly
+    assert "No successful image publication run with a digest manifest was found." in nightly
+    assert "docker build" not in nightly

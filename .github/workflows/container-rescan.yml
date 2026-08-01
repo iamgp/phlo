@@ -29,9 +29,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          run_id="$(gh run list --workflow build-core-services.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          test -n "$run_id"
-          gh run download "$run_id" --name generated-service-images --dir published
+          manifest=""
+          mapfile -t run_ids < <(
+            gh run list --workflow build-core-services.yml --status success --limit 100 \
+              --json databaseId --jq '.[].databaseId'
+          )
+          for run_id in "${run_ids[@]}"; do
+            candidate="$RUNNER_TEMP/published-$run_id/generated-service-images.json"
+            if gh run download "$run_id" --name generated-service-images \
+              --dir "$RUNNER_TEMP/published-$run_id" && test -s "$candidate"; then
+              manifest="$candidate"
+              break
+            fi
+          done
+          test -n "$manifest" || {
+            echo "No successful image publication run with a digest manifest was found." >&2
+            exit 1
+          }
+          mkdir -p published
+          cp "$manifest" published/generated-service-images.json
       - name: Rescan immutable images with fresh Trivy data
         shell: bash
         run: |
