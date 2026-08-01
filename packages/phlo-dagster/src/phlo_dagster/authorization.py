@@ -417,6 +417,7 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         "mutation",
         (
             "logTelemetry",
+            "refreshComponentState",
             "setNuxSeen",
         ),
         ACTION_ADMIN_MANAGE,
@@ -485,7 +486,9 @@ _OPTIONAL_DAGSTER_FIELDS: dict[str, frozenset[str]] = {
             "componentTypesForLocationOrError",
         }
     ),
-    "mutation": frozenset({"deleteAppManagedComponent", "setAppManagedComponent"}),
+    "mutation": frozenset(
+        {"deleteAppManagedComponent", "refreshComponentState", "setAppManagedComponent"}
+    ),
 }
 
 

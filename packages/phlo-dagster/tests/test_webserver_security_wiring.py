@@ -64,15 +64,27 @@ def test_installed_dagster_schema_is_fully_classified() -> None:
     validate_graphql_schema(create_schema().graphql_schema)
 
 
-def test_schema_registry_accepts_components_for_location_query_when_present(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("operation", "field", "root_name"),
+    [
+        ("query", "componentsForLocationOrError", "Query"),
+        ("mutation", "refreshComponentState", "Mutation"),
+    ],
+)
+def test_schema_registry_accepts_optional_component_fields_when_present(
+    monkeypatch,
+    operation,
+    field,
+    root_name,
+) -> None:
     query_fields = {
-        field: SimpleNamespace()
-        for operation, field in authorization._GRAPHQL_OPERATION_INDEX
-        if operation == "query"
+        registered_field: SimpleNamespace()
+        for registered_operation, registered_field in authorization._GRAPHQL_OPERATION_INDEX
+        if registered_operation == operation
     }
-    query_fields["componentsForLocationOrError"] = SimpleNamespace()
+    query_fields[field] = SimpleNamespace()
     schema = SimpleNamespace(
-        get_type=lambda name: SimpleNamespace(fields=query_fields) if name == "Query" else None
+        get_type=lambda name: SimpleNamespace(fields=query_fields) if name == root_name else None
     )
     monkeypatch.setattr(authorization, "validate_graphql_resource_bindings", lambda _schema: None)
 
