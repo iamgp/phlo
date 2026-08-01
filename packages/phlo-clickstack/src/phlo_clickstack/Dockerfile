@@ -31,8 +31,8 @@ RUN go get \
       github.com/go-jose/go-jose/v4@v4.1.4 \
       go.opentelemetry.io/otel@v1.43.0 \
       go.opentelemetry.io/otel/sdk@v1.43.0 \
-      golang.org/x/crypto@v0.52.0 \
-      golang.org/x/net@v0.55.0 \
+      golang.org/x/crypto@v0.53.0 \
+      golang.org/x/net@v0.56.0 \
       golang.org/x/text@v0.39.0 \
       google.golang.org/grpc@v1.82.1 \
     && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /gomplate ./cmd/gomplate

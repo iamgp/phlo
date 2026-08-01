@@ -4,7 +4,7 @@ RUN apk add --no-cache git=2.54.0-r0
 WORKDIR /src
 RUN git clone --depth 1 --branch v0.17.0 https://github.com/sosedoff/pgweb.git . && \
     git checkout 6b0b0244d1aefd6971999b03481eeeaa4ec7cf55 && \
-    go get github.com/sirupsen/logrus@v1.9.3 golang.org/x/crypto@v0.52.0 golang.org/x/net@v0.55.0 golang.org/x/text@v0.39.0 && \
+    go get github.com/sirupsen/logrus@v1.9.3 golang.org/x/crypto@v0.53.0 golang.org/x/net@v0.56.0 golang.org/x/text@v0.39.0 && \
     go mod tidy
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/pgweb .
 
