@@ -93,3 +93,22 @@ jobs:
             hadolint.txt
             reports/trivy.json
           if-no-files-found: warn
+
+  generated-files:
+    name: containers / generated files
+    needs: affected
+    if: needs.affected.outputs.has_images == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+      - name: Validate generated Dockerfiles and Compose configuration
+        run: |
+          uv python install 3.11
+          uv sync --python 3.11 --all-packages
+          phlo --no-color plugin check --containers

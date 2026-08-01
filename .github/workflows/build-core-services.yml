@@ -29,6 +29,7 @@ jobs:
       contents: read
     outputs:
       targets: ${{ steps.matrix.outputs.targets }}
+      has_targets: ${{ steps.matrix.outputs.has_targets }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -49,9 +50,20 @@ jobs:
         id: matrix
         env:
           PUBLISH_SERVICES: ${{ inputs.services || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            changed="$(uv run --no-project --with pyyaml==6.0.3 python "$GITHUB_WORKSPACE/scripts/container_security.py" affected-images --base "$BEFORE")"
+            PUBLISH_SERVICES="$(jq -r '.include[].service' <<< "$changed" | paste -sd, -)"
+          fi
+          if [[ "$EVENT_NAME" == "push" && -z "$PUBLISH_SERVICES" ]]; then
+            echo 'targets=[]' >> "$GITHUB_OUTPUT"
+            echo 'has_targets=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           project="$RUNNER_TEMP/generated-service-project"
           mkdir -p "$project"
           cd "$project"
@@ -83,6 +95,7 @@ jobs:
               "${matrix_args[@]}"
           )"
           echo "targets=$(jq -c '.include' <<< "$matrix")" >> "$GITHUB_OUTPUT"
+          echo 'has_targets=true' >> "$GITHUB_OUTPUT"
 
       - name: Upload generated build contexts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -95,6 +108,7 @@ jobs:
   build:
     name: Build ${{ matrix.target.service }} (${{ matrix.architecture.name }})
     needs: prepare
+    if: needs.prepare.outputs.has_targets == 'true'
     runs-on: ${{ matrix.architecture.runner }}
     timeout-minutes: 45
     permissions:
@@ -219,7 +233,7 @@ jobs:
   merge:
     name: Publish ${{ matrix.target.service }} manifest
     needs: [prepare, build]
-    if: always() && needs.prepare.result == 'success'
+    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.has_targets == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -301,7 +315,7 @@ jobs:
   manifest:
     name: Published image digest manifest
     needs: merge
-    if: always() && needs.merge.result == 'success'
+    if: always() && needs.merge.result == 'success' && needs.prepare.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
