@@ -314,7 +314,7 @@ jobs:
 
   manifest:
     name: Published image digest manifest
-    needs: merge
+    needs: [prepare, merge]
     if: always() && needs.merge.result == 'success' && needs.prepare.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
     permissions:

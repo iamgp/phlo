@@ -153,7 +153,7 @@ def render_waivers(waivers: list[dict[str, Any]], today: dt.date | None = None) 
                 )
             )
         lines.append("")
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines)
 
 
 def _image_default(value: str) -> str:
