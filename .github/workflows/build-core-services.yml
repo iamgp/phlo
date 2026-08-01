@@ -1,6 +1,13 @@
 name: Publish Generated Service Images
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "scripts/generated_image_matrix.py"
   workflow_dispatch:
     inputs:
       services:
@@ -22,6 +29,7 @@ jobs:
       contents: read
     outputs:
       targets: ${{ steps.matrix.outputs.targets }}
+      has_targets: ${{ steps.matrix.outputs.has_targets }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -42,9 +50,20 @@ jobs:
         id: matrix
         env:
           PUBLISH_SERVICES: ${{ inputs.services || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            changed="$(uv run --no-project --with pyyaml==6.0.3 python "$GITHUB_WORKSPACE/scripts/container_security.py" affected-images --base "$BEFORE")"
+            PUBLISH_SERVICES="$(jq -r '.include[].service' <<< "$changed" | paste -sd, -)"
+          fi
+          if [[ "$EVENT_NAME" == "push" && -z "$PUBLISH_SERVICES" ]]; then
+            echo 'targets=[]' >> "$GITHUB_OUTPUT"
+            echo 'has_targets=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           project="$RUNNER_TEMP/generated-service-project"
           mkdir -p "$project"
           cd "$project"
@@ -76,6 +95,7 @@ jobs:
               "${matrix_args[@]}"
           )"
           echo "targets=$(jq -c '.include' <<< "$matrix")" >> "$GITHUB_OUTPUT"
+          echo 'has_targets=true' >> "$GITHUB_OUTPUT"
 
       - name: Upload generated build contexts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -88,6 +108,7 @@ jobs:
   build:
     name: Build ${{ matrix.target.service }} (${{ matrix.architecture.name }})
     needs: prepare
+    if: needs.prepare.outputs.has_targets == 'true'
     runs-on: ${{ matrix.architecture.runner }}
     timeout-minutes: 45
     permissions:
@@ -178,6 +199,30 @@ jobs:
           mkdir -p digests
           touch "digests/$hex"
 
+      # Buildx has produced this immutable architecture digest exactly once.
+      # Scan that digest before it can be assembled into a published manifest.
+      - name: Scan immutable architecture digest
+        env:
+          IMAGE: ${{ steps.image.outputs.repository }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p security-reports
+          docker run --rm aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+            image --format json --output /tmp/trivy.json --scanners vuln "$IMAGE@$DIGEST"
+          cp /tmp/trivy.json "security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"
+          uv --project source run --no-project --with pyyaml==6.0.3 python source/scripts/container_security.py \
+            apply-policy --register source/security/container-waivers.yml --image "$IMAGE@$DIGEST" --report /tmp/trivy.json
+
+      - name: Upload immutable digest scan report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: security-${{ matrix.target.service }}-${{ matrix.architecture.name }}
+          path: security-reports
+          if-no-files-found: warn
+
       - name: Upload architecture digest
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
@@ -188,7 +233,7 @@ jobs:
   merge:
     name: Publish ${{ matrix.target.service }} manifest
     needs: [prepare, build]
-    if: always() && needs.prepare.result == 'success'
+    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.has_targets == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -269,8 +314,8 @@ jobs:
 
   manifest:
     name: Published image digest manifest
-    needs: merge
-    if: always() && needs.merge.result == 'success'
+    needs: [prepare, merge]
+    if: always() && needs.merge.result == 'success' && needs.prepare.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

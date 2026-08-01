@@ -295,119 +295,6 @@ jobs:
             exit 1
           fi
 
-  generated-container-checks:
-    name: containers / generated service files
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
-        with:
-          version: "0.10.10"
-
-      - name: Set up Python
-        run: uv python install 3.11
-
-      - name: Build Phlo and service wheels
-        run: uv build --all-packages --wheel --out-dir "$RUNNER_TEMP/phlo-container-wheelhouse"
-
-      - name: Hydrate the container wheelhouse
-        shell: bash
-        run: |
-          set -euo pipefail
-          wheelhouse="$RUNNER_TEMP/phlo-container-wheelhouse"
-          distributions=(
-            phlo phlo-alloy phlo-api phlo-clickhouse phlo-clickstack phlo-dagster
-            phlo-grafana phlo-hasura phlo-loki phlo-minio phlo-nessie phlo-oauth2-proxy
-            phlo-openmetadata phlo-observatory phlo-pgweb phlo-postgres phlo-postgrest
-            phlo-prometheus phlo-rustfs phlo-superset phlo-traefik phlo-trino
-          )
-          local_wheels=()
-          shopt -s nullglob
-          for distribution in "${distributions[@]}"; do
-            normalized="${distribution//-/_}"
-            matches=("$wheelhouse"/"$normalized"-*.whl)
-            if [ "${#matches[@]}" -ne 1 ]; then
-              echo "Expected one wheel for $distribution, found ${#matches[@]}" >&2
-              exit 1
-            fi
-            local_wheels+=("${matches[0]}")
-          done
-          uvx --from pip==26.1.2 pip download \
-            --dest "$wheelhouse" \
-            --find-links "$wheelhouse" \
-            "${local_wheels[@]}"
-
-      - name: Cache Trivy vulnerability and scan data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ${{ runner.temp }}/phlo-trivy-cache
-          key: trivy-${{ runner.os }}-v2-${{ github.run_number }}
-          restore-keys: |
-            trivy-${{ runner.os }}-v2-
-
-      - name: Install wheels into a clean environment
-        shell: bash
-        run: |
-          set -euo pipefail
-          env_dir="$RUNNER_TEMP/phlo-container-env"
-          uv venv "$env_dir" --python 3.11
-          uv pip install \
-            --python "$env_dir/bin/python" \
-            --no-index \
-            --find-links "$RUNNER_TEMP/phlo-container-wheelhouse" \
-            phlo \
-            phlo-alloy \
-            phlo-api \
-            phlo-clickhouse \
-            phlo-clickstack \
-            phlo-dagster \
-            phlo-grafana \
-            phlo-hasura \
-            phlo-loki \
-            phlo-minio \
-            phlo-nessie \
-            phlo-oauth2-proxy \
-            phlo-openmetadata \
-            phlo-observatory \
-            phlo-pgweb \
-            phlo-postgres \
-            phlo-postgrest \
-            phlo-prometheus \
-            phlo-rustfs \
-            phlo-superset \
-            phlo-traefik \
-            phlo-trino
-          echo "$env_dir/bin" >> "$GITHUB_PATH"
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check generated service containers
-        env:
-          PHLO_TRIVY_CACHE_DIR: ${{ runner.temp }}/phlo-trivy-cache
-        run: |
-          docker pull aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f
-          phlo --no-color plugin check --containers --remote-images \
-            --allow-vulnerable-image "alloy=ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5=6a7628c7ba66eb8a0fb70569a36b90012bdb9e0e5b0fa4241331d62179b0528b=Alloy 1.18.0 retains two Docker module advisories without fixes and one whose fix requires an incompatible Docker client major" \
-            --allow-vulnerable-image "clickstack=ghcr.io/phlohouse/phlo-clickstack:2.31.0-security-patches=adc46e9eb99e4f3c0ea11a6cab55ebf0d720c844128a33b5bb8c7c7efae79224=HyperDX 2.31.0 bundles source-built OTel binaries with grpc 1.81.1 and Go 1.26.4; replacing them requires rebuilding the upstream OCB distribution, while its legacy MongoDB OpenSSL, root orchestration, and Next findings remain" \
-            --allow-vulnerable-image "grafana=ghcr.io/phlohouse/phlo-grafana:13.1.1-go1.26.5=776f3f74541a97642ef470c93c4e04aed1325f81547e268564c87368f8fce669=Trivy reports a stale Tempo pseudo-version although the image rebuilds exact Tempo 2.10.7 source containing both fixes" \
-            --allow-vulnerable-image "minio=ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c=b8d9b4a71a6e9c05e3ba3931ada391b3dce6b46404d303ee373ec46acf994163=Archived public source still has six MinIO-module advisories without public patches; OS, standard library, and third-party Go findings are remediated" \
-            --allow-vulnerable-image "openmetadata-elasticsearch=ghcr.io/phlohouse/phlo-openmetadata-elasticsearch:8.11.4-java-patches=d2d0eaf6881362fd497f981d3f9f5e4b431fd072044decda8acf3612ef2d3f3e=Elasticsearch 8.11.4 shades three old Jackson versions, requires Tika 2.x, and has one unpublished and one unfixed LZ4 advisory" \
-            --allow-vulnerable-image "superset=ghcr.io/phlohouse/phlo-superset:6.1.0-security-patches=064bf36c4a8366c2077b576e6d08b703a7d0fd114110f0e9243b5090fdaf051e=Superset requires three vulnerable Python versions and Debian 12 has no fixed packages for the remaining operating system advisories" \
-            --allow-vulnerable-image "trino=ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5=3f18aa318a5cdca2cffe51a1f6768d3e8c3bc6feee880f61ee0f53e0c7e8add6=Trino 483 requires Jetty 11 while the remaining HTTP advisory is fixed only in incompatible Jetty 12"
-
   release-golden-path:
     name: python / release golden path
     runs-on: ubuntu-latest
@@ -609,7 +496,6 @@ jobs:
       - python-quality
       - python-core-tests
       - quickstart-smoke
-      - generated-container-checks
       - release-golden-path
       - recovery-continuity-drill
       - windows-release-contract
@@ -623,7 +509,6 @@ jobs:
           PYTHON_QUALITY: ${{ needs.python-quality.result }}
           PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
           QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
-          GENERATED_CONTAINER_CHECKS: ${{ needs.generated-container-checks.result }}
           RELEASE_GOLDEN_PATH: ${{ needs.release-golden-path.result }}
           RECOVERY_CONTINUITY_DRILL: ${{ needs.recovery-continuity-drill.result }}
           WINDOWS_RELEASE_CONTRACT: ${{ needs.windows-release-contract.result }}
@@ -641,7 +526,6 @@ jobs:
             echo "| python / quality | ${PYTHON_QUALITY} |"
             echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
             echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
-            echo "| containers / generated service files | ${GENERATED_CONTAINER_CHECKS} |"
             echo "| python / release golden path | ${RELEASE_GOLDEN_PATH} |"
             echo "| python / recovery continuity drill | ${RECOVERY_CONTINUITY_DRILL} |"
             echo "| windows / release golden path contract | ${WINDOWS_RELEASE_CONTRACT} |"
@@ -654,7 +538,6 @@ jobs:
             "${PYTHON_QUALITY}" \
             "${PYTHON_CORE_TESTS}" \
             "${QUICKSTART_SMOKE}" \
-            "${GENERATED_CONTAINER_CHECKS}" \
             "${RELEASE_GOLDEN_PATH}" \
             "${RECOVERY_CONTINUITY_DRILL}" \
             "${WINDOWS_RELEASE_CONTRACT}" \

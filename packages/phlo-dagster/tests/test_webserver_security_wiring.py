@@ -25,6 +25,7 @@ from phlo_dagster.authorization import (
     resolve_graphql_operation,
     validate_graphql_schema,
 )
+import phlo_dagster.authorization as authorization
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.webserver import (
     DagsterHTTPAuthenticationASGI,
@@ -61,6 +62,33 @@ def _websocket(
 
 def test_installed_dagster_schema_is_fully_classified() -> None:
     validate_graphql_schema(create_schema().graphql_schema)
+
+
+@pytest.mark.parametrize(
+    ("operation", "field", "root_name"),
+    [
+        ("query", "componentsForLocationOrError", "Query"),
+        ("mutation", "refreshComponentState", "Mutation"),
+    ],
+)
+def test_schema_registry_accepts_optional_component_fields_when_present(
+    monkeypatch,
+    operation,
+    field,
+    root_name,
+) -> None:
+    query_fields = {
+        registered_field: SimpleNamespace()
+        for registered_operation, registered_field in authorization._GRAPHQL_OPERATION_INDEX
+        if registered_operation == operation
+    }
+    query_fields[field] = SimpleNamespace()
+    schema = SimpleNamespace(
+        get_type=lambda name: SimpleNamespace(fields=query_fields) if name == root_name else None
+    )
+    monkeypatch.setattr(authorization, "validate_graphql_resource_bindings", lambda _schema: None)
+
+    validate_graphql_schema(schema)
 
 
 def test_development_webserver_omits_graphql_authorization_middleware(monkeypatch) -> None:

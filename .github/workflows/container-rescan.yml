@@ -1,0 +1,70 @@
+name: Container Rescan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 4 * * *"
+
+permissions:
+  actions: read
+  contents: read
+  packages: read
+
+jobs:
+  rescan:
+    name: containers / published digest rescan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+      - name: Validate waiver expiry
+        run: uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py validate-waivers
+      - name: Download latest published digest manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=""
+          mapfile -t run_ids < <(
+            gh run list --workflow build-core-services.yml --status success --limit 100 \
+              --json databaseId --jq '.[].databaseId'
+          )
+          for run_id in "${run_ids[@]}"; do
+            candidate="$RUNNER_TEMP/published-$run_id/generated-service-images.json"
+            if gh run download "$run_id" --name generated-service-images \
+              --dir "$RUNNER_TEMP/published-$run_id" && test -s "$candidate"; then
+              manifest="$candidate"
+              break
+            fi
+          done
+          test -n "$manifest" || {
+            echo "No successful image publication run with a digest manifest was found." >&2
+            exit 1
+          }
+          mkdir -p published
+          cp "$manifest" published/generated-service-images.json
+      - name: Rescan immutable images with fresh Trivy data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          jq -c '.[]' published/generated-service-images.json | while read -r target; do
+            image="$(jq -r .image <<< "$target")"
+            digest="$(jq -r .digest <<< "$target")"
+            safe="$(tr '/:@' '___' <<< "$image")"
+            docker run --rm aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f image --format json --output "/tmp/trivy.json" --scanners vuln "$image@$digest"
+            cp /tmp/trivy.json "reports/${safe}.json"
+            uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py apply-policy --image "$image@$digest" --report "/tmp/trivy.json"
+          done
+      - name: Upload rescan reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: container-rescan-${{ github.run_id }}
+          path: reports
+          if-no-files-found: warn

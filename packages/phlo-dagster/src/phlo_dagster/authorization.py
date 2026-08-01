@@ -243,6 +243,7 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
             "autoMaterializeTicks",
             "appManagedComponentsForLocationOrError",
             "canBulkTerminate",
+            "componentsForLocationOrError",
             "componentTypesForLocationOrError",
             "instance",
             "isPipelineConfigValid",
@@ -416,6 +417,7 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         "mutation",
         (
             "logTelemetry",
+            "refreshComponentState",
             "setNuxSeen",
         ),
         ACTION_ADMIN_MANAGE,
@@ -480,10 +482,13 @@ _OPTIONAL_DAGSTER_FIELDS: dict[str, frozenset[str]] = {
     "query": frozenset(
         {
             "appManagedComponentsForLocationOrError",
+            "componentsForLocationOrError",
             "componentTypesForLocationOrError",
         }
     ),
-    "mutation": frozenset({"deleteAppManagedComponent", "setAppManagedComponent"}),
+    "mutation": frozenset(
+        {"deleteAppManagedComponent", "refreshComponentState", "setAppManagedComponent"}
+    ),
 }
 
 
