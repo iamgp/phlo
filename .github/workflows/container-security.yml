@@ -58,14 +58,14 @@ jobs:
 
   scan:
     name: containers / ${{ matrix.target.service }}
-    needs: [waivers, affected]
-    if: needs.affected.outputs.has_images == 'true'
+    needs: [waivers, generated-files]
+    if: needs.generated-files.outputs.has_images == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJSON(needs.affected.outputs.matrix).include }}
+        target: ${{ fromJSON(needs.generated-files.outputs.matrix).include }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -73,10 +73,15 @@ jobs:
       - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "0.10.10"
+      - name: Download generated build contexts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: focused-generated-service-build-contexts
+          path: generated
       - name: Lint changed Dockerfile
-        run: docker run --rm -i hadolint/hadolint@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "${{ matrix.target.package }}/${{ matrix.target.dockerfile }}" | tee hadolint.txt
+        run: docker run --rm -i hadolint/hadolint@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "${{ matrix.target.root }}/${{ matrix.target.dockerfile }}" | tee hadolint.txt
       - name: Build affected image
-        run: docker build --tag "local/${{ matrix.target.service }}:${{ github.sha }}" --file "${{ matrix.target.package }}/${{ matrix.target.dockerfile }}" "${{ matrix.target.context }}"
+        run: docker build --tag "local/${{ matrix.target.service }}:${{ github.sha }}" --file "${{ matrix.target.root }}/${{ matrix.target.dockerfile }}" "${{ matrix.target.root }}/${{ matrix.target.context }}"
       - name: Scan affected image
         shell: bash
         run: |
@@ -100,6 +105,9 @@ jobs:
     if: needs.affected.outputs.has_images == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      has_images: ${{ steps.matrix.outputs.has_images }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -108,7 +116,29 @@ jobs:
         with:
           version: "0.10.10"
       - name: Validate generated Dockerfiles and Compose configuration
+        id: matrix
+        env:
+          TARGETS: ${{ needs.affected.outputs.matrix }}
         run: |
+          set -euo pipefail
           uv python install 3.11
           uv sync --python 3.11 --all-packages
-          phlo --no-color plugin check --containers
+          mapfile -t services < <(jq -r '.include[].service' <<< "$TARGETS")
+          project="$RUNNER_TEMP/generated-service-project"
+          mkdir -p "$project"
+          cd "$project"
+          uv --project "$GITHUB_WORKSPACE" run phlo services init --no-dev --force
+          add_args=()
+          for service in "${services[@]}"; do add_args+=(--service "$service"); done
+          uv --project "$GITHUB_WORKSPACE" run phlo services add "${add_args[@]}" --no-start
+          docker compose --profile '*' -f "$project/.phlo/docker-compose.yml" --project-directory "$project/.phlo" config --format json > "$RUNNER_TEMP/generated-compose.json"
+          matrix="$(uv --project "$GITHUB_WORKSPACE" run python "$GITHUB_WORKSPACE/scripts/generated_image_matrix.py" "$RUNNER_TEMP/generated-compose.json" "$project" "$GITHUB_WORKSPACE" --services "$(IFS=,; echo "${services[*]}")")"
+          echo "matrix=$(jq -c . <<< "$matrix")" >> "$GITHUB_OUTPUT"
+          echo 'has_images=true' >> "$GITHUB_OUTPUT"
+      - name: Upload generated build contexts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: focused-generated-service-build-contexts
+          path: ${{ runner.temp }}/generated-service-project
+          include-hidden-files: true
+          if-no-files-found: error
