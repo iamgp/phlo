@@ -1,0 +1,95 @@
+name: Container Security
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: container-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  waivers:
+    name: containers / waiver register
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+      - name: Validate register and generated report
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py validate-waivers
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py render-waivers --output "$RUNNER_TEMP/container-waivers.md"
+          diff -u security/container-waivers.md "$RUNNER_TEMP/container-waivers.md"
+
+  affected:
+    name: containers / affected images
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.images.outputs.matrix }}
+      has_images: ${{ steps.images.outputs.has_images }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+      - id: images
+        name: Detect affected images
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix="$(uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py affected-images --base "$BASE")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          if [ "$(jq '.include | length' <<< "$matrix")" -gt 0 ]; then echo "has_images=true" >> "$GITHUB_OUTPUT"; else echo "has_images=false" >> "$GITHUB_OUTPUT"; fi
+
+  scan:
+    name: containers / ${{ matrix.target.service }}
+    needs: [waivers, affected]
+    if: needs.affected.outputs.has_images == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.affected.outputs.matrix).include }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.10.10"
+      - name: Lint changed Dockerfile
+        run: docker run --rm -i hadolint/hadolint@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "${{ matrix.target.package }}/${{ matrix.target.dockerfile }}" | tee hadolint.txt
+      - name: Build affected image
+        run: docker build --tag "local/${{ matrix.target.service }}:${{ github.sha }}" --file "${{ matrix.target.package }}/${{ matrix.target.dockerfile }}" "${{ matrix.target.context }}"
+      - name: Scan affected image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f image --format json --output reports/trivy.json --scanners vuln "local/${{ matrix.target.service }}:${{ github.sha }}"
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py apply-policy --image "${{ matrix.target.image }}" --report reports/trivy.json
+      - name: Upload container reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: container-security-${{ matrix.target.service }}
+          path: |
+            hadolint.txt
+            reports/trivy.json
+          if-no-files-found: warn

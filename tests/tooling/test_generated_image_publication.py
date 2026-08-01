@@ -32,11 +32,11 @@ def test_every_generated_build_uses_a_versioned_ghcr_image() -> None:
         assert not image.endswith(":latest"), service_file
 
 
-def test_publication_workflow_publishes_only_on_release_or_manual_dispatch() -> None:
+def test_publication_workflow_publishes_attested_images_after_digest_scans() -> None:
     workflow = (REPO_ROOT / ".github/workflows/build-core-services.yml").read_text(encoding="utf-8")
 
     assert "pull_request:" not in workflow
-    assert "\n  push:" not in workflow
+    assert "\n  push:" in workflow
     assert "workflow_dispatch:" in workflow
     assert "release:" in workflow
     assert "PUBLISH_SERVICES" in workflow
@@ -57,6 +57,8 @@ def test_publication_workflow_publishes_only_on_release_or_manual_dispatch() -> 
     assert "timeout-minutes: 45" in workflow
     assert "max-parallel: 8" in workflow
     assert "org.opencontainers.image.source=https://github.com/${{ github.repository }}" in workflow
+    assert "Scan immutable architecture digest" in workflow
+    assert "apply-policy" in workflow
 
 
 def test_ci_scans_published_images_remotely() -> None:

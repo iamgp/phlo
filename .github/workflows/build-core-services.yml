@@ -1,6 +1,13 @@
 name: Publish Generated Service Images
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "scripts/generated_image_matrix.py"
   workflow_dispatch:
     inputs:
       services:
@@ -177,6 +184,30 @@ jobs:
           [[ "$hex" =~ ^[0-9a-f]{64}$ ]]
           mkdir -p digests
           touch "digests/$hex"
+
+      # Buildx has produced this immutable architecture digest exactly once.
+      # Scan that digest before it can be assembled into a published manifest.
+      - name: Scan immutable architecture digest
+        env:
+          IMAGE: ${{ steps.image.outputs.repository }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p security-reports
+          docker run --rm aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+            image --format json --output /tmp/trivy.json --scanners vuln "$IMAGE@$DIGEST"
+          cp /tmp/trivy.json "security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"
+          uv --project source run --no-project --with pyyaml==6.0.3 python source/scripts/container_security.py \
+            apply-policy --register source/security/container-waivers.yml --image "$IMAGE@$DIGEST" --report /tmp/trivy.json
+
+      - name: Upload immutable digest scan report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: security-${{ matrix.target.service }}-${{ matrix.architecture.name }}
+          path: security-reports
+          if-no-files-found: warn
 
       - name: Upload architecture digest
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
