@@ -302,6 +302,17 @@ def _vulnerability_evidence_sha256(evidence: dict[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _with_vulnerability_evidence_detail(detail: str, result: dict[str, Any]) -> str:
+    """Attach the exact waiver fingerprint to a failed eligible image scan."""
+    evidence_sha256 = result.get("vulnerability_evidence_sha256")
+    if not evidence_sha256:
+        return detail
+    return _join_failure_details(
+        detail,
+        f"vulnerability evidence sha256: {evidence_sha256}",
+    )
+
+
 def _run_trivy_image_scan(
     command: list[str],
     *,
@@ -531,7 +542,7 @@ def _check_remote_service_images(
             result["status"] = "failed" if trivy_failure else "passed"
             result["image_scan"] = "failed" if trivy_failure else "passed"
             if trivy_failure:
-                result["detail"] = trivy_failure
+                result["detail"] = _with_vulnerability_evidence_detail(trivy_failure, result)
                 if waiver and waiver_eligible and not waiver_matches:
                     result["detail"] = _join_failure_details(
                         result["detail"],
@@ -937,6 +948,9 @@ def check_generated_containers(
                     if trivy_image_failure:
                         result["detail"] = _join_failure_details(
                             result.get("detail"), trivy_image_failure
+                        )
+                        result["detail"] = _with_vulnerability_evidence_detail(
+                            result["detail"], result
                         )
                         if waiver and waiver_eligible and not waiver_matches:
                             result["detail"] = _join_failure_details(

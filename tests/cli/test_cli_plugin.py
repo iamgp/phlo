@@ -1163,6 +1163,20 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
     ]
 
 
+def test_plugin_check_containers_reports_evidence_hash_without_waiver() -> None:
+    """A failed scan exposes its exact evidence fingerprint for safe remediation."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    detail = check_module._with_vulnerability_evidence_detail(
+        "trivy image sha256:one failed with exit code 1",
+        {"vulnerability_evidence_sha256": "a" * 64},
+    )
+
+    assert detail == (
+        f"trivy image sha256:one failed with exit code 1\nvulnerability evidence sha256: {'a' * 64}"
+    )
+
+
 def test_plugin_check_rejects_ambiguous_vulnerability_waiver() -> None:
     """Waivers must bind a service and image to exact vulnerability evidence."""
     from phlo.cli.commands.plugin import check as check_module
