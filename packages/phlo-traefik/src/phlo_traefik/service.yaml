@@ -4,7 +4,7 @@ category: networking
 default: false
 profile: proxy
 
-image: traefik:v3.7.9
+image: traefik:v3.7.10
 
 compose:
   restart: unless-stopped

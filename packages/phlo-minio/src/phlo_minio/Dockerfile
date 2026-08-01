@@ -12,6 +12,7 @@ RUN git clone https://github.com/minio/minio.git . && \
         go.opentelemetry.io/otel/sdk@v1.43.0 \
         golang.org/x/crypto@v0.52.0 \
         golang.org/x/net@v0.55.0 \
+        golang.org/x/text@v0.39.0 \
         google.golang.org/grpc@v1.82.1 && \
     go mod tidy -e
 # hadolint ignore=DL3062
@@ -28,6 +29,7 @@ RUN git clone https://github.com/minio/mc.git . && \
         github.com/prometheus/prometheus@v0.311.3 \
         golang.org/x/crypto@v0.52.0 \
         golang.org/x/net@v0.55.0 \
+        golang.org/x/text@v0.39.0 \
         google.golang.org/grpc@v1.82.1 && \
     go mod tidy
 # hadolint ignore=DL3062

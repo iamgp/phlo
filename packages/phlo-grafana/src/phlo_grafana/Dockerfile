@@ -8,7 +8,8 @@ RUN git clone https://github.com/grafana/grafana.git . && \
 RUN go get \
       github.com/getkin/kin-openapi@v0.144.0 \
       github.com/grafana/tempo@8100f5a7b8f0986edf1fcd2ff6552d174b25ec18 \
-      google.golang.org/grpc@v1.82.1 && \
+      google.golang.org/grpc@v1.82.1 \
+      golang.org/x/text@v0.39.0 && \
     CGO_ENABLED=0 go build -buildvcs=false -trimpath \
       -ldflags="-s -w -X main.version=13.1.1 -X main.commit=a9cee6e1724a455676bb6c05eef7fc54aa4b19f4" \
       -o /out/grafana ./pkg/cmd/grafana
@@ -16,14 +17,14 @@ RUN go get \
 WORKDIR /src/elasticsearch
 RUN git clone https://github.com/grafana/grafana-elasticsearch-datasource.git . && \
     git checkout 525671446900cf0c7c5d696f931b95c2cec81d9c && \
-    go get google.golang.org/grpc@v1.82.1 && \
+    go get google.golang.org/grpc@v1.82.1 golang.org/x/text@v0.39.0 && \
     CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags="-s -w" \
       -o /out/elasticsearch ./pkg
 
 WORKDIR /src/zipkin
 RUN git clone https://github.com/grafana/grafana-zipkin-datasource.git . && \
     git checkout daafdfe11421dd2cacc8bfdb9ab604da1875b671 && \
-    go get golang.org/x/net@v0.55.0 google.golang.org/grpc@v1.82.1 && \
+    go get golang.org/x/net@v0.55.0 golang.org/x/text@v0.39.0 google.golang.org/grpc@v1.82.1 && \
     CGO_ENABLED=0 go build -buildvcs=false -trimpath -ldflags="-s -w" \
       -o /out/zipkin ./pkg
 

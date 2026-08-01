@@ -4,7 +4,8 @@ RUN apk add --no-cache git=2.54.0-r0
 WORKDIR /src
 RUN git clone https://github.com/prometheus-community/postgres_exporter.git . && \
     git checkout 867fbcac31cd18c143e244190ea9168cca069827
-RUN CGO_ENABLED=0 go build -trimpath \
+RUN go get golang.org/x/text@v0.39.0 && \
+    CGO_ENABLED=0 go build -trimpath \
     -ldflags="-s -w -X github.com/prometheus/common/version.Version=0.20.1 -X github.com/prometheus/common/version.Revision=867fbcac31cd18c143e244190ea9168cca069827" \
     -o /out/postgres_exporter ./cmd/postgres_exporter
 

@@ -9,6 +9,19 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+GO_TEXT_PATCHED_DOCKERFILES = (
+    "packages/phlo-alloy/src/phlo_alloy/Dockerfile",
+    "packages/phlo-clickstack/src/phlo_clickstack/Dockerfile",
+    "packages/phlo-grafana/src/phlo_grafana/Dockerfile",
+    "packages/phlo-loki/src/phlo_loki/Dockerfile",
+    "packages/phlo-minio/src/phlo_minio/Dockerfile",
+    "packages/phlo-oauth2-proxy/src/phlo_oauth2_proxy/Dockerfile",
+    "packages/phlo-pgweb/src/phlo_pgweb/Dockerfile",
+    "packages/phlo-postgres/src/phlo_postgres/exporter.Dockerfile",
+    "packages/phlo-prometheus/src/phlo_prometheus/Dockerfile",
+    "packages/phlo-trino/src/phlo_trino/Dockerfile",
+)
+
 
 def _published_image(raw_image: str) -> str:
     match = re.fullmatch(r"\$\{[^:}]+:-(.+)}", raw_image)
@@ -76,3 +89,9 @@ def test_ci_scans_published_images_remotely() -> None:
         "adc46e9eb99e4f3c0ea11a6cab55ebf0d720c844128a33b5bb8c7c7efae79224"
     )
     assert clickstack_waiver in workflow
+
+
+def test_rebuilt_go_images_pin_the_fixed_x_text_version() -> None:
+    for relative_path in GO_TEXT_PATCHED_DOCKERFILES:
+        dockerfile = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "golang.org/x/text@v0.39.0" in dockerfile, relative_path

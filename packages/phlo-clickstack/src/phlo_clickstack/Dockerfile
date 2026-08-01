@@ -33,6 +33,7 @@ RUN go get \
       go.opentelemetry.io/otel/sdk@v1.43.0 \
       golang.org/x/crypto@v0.52.0 \
       golang.org/x/net@v0.55.0 \
+      golang.org/x/text@v0.39.0 \
       google.golang.org/grpc@v1.82.1 \
     && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /gomplate ./cmd/gomplate
 

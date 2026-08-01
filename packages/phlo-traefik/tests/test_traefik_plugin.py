@@ -10,6 +10,7 @@ def test_traefik_service_definition():
 
     assert defn["name"] == "traefik"
     assert defn["profile"] == "proxy"
+    assert defn["image"] == "traefik:v3.7.10"
 
 
 def test_traefik_plugin_metadata():

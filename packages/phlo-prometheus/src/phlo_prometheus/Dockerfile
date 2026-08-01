@@ -4,7 +4,7 @@ RUN apk add --no-cache git=2.54.0-r0
 WORKDIR /src
 RUN git clone https://github.com/prometheus/prometheus.git . && \
     git checkout 73ff57ce2b8161059ac7fe5188f03f1c3d22b29a && \
-    go get google.golang.org/grpc@v1.82.1
+    go get google.golang.org/grpc@v1.82.1 golang.org/x/text@v0.39.0
 RUN LDFLAGS="-s -w -X github.com/prometheus/common/version.Version=3.13.1 -X github.com/prometheus/common/version.Revision=73ff57ce2b8161059ac7fe5188f03f1c3d22b29a" && \
     CGO_ENABLED=0 go build -trimpath -ldflags="$LDFLAGS" -o /out/prometheus ./cmd/prometheus && \
     CGO_ENABLED=0 go build -trimpath -ldflags="$LDFLAGS" -o /out/promtool ./cmd/promtool
