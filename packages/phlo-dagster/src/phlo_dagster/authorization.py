@@ -480,6 +480,7 @@ _OPTIONAL_DAGSTER_FIELDS: dict[str, frozenset[str]] = {
     "query": frozenset(
         {
             "appManagedComponentsForLocationOrError",
+            "componentsForLocationOrError",
             "componentTypesForLocationOrError",
         }
     ),
