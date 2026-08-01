@@ -167,7 +167,7 @@ def affected_images(changed: Iterable[str], root: Path) -> dict[str, list[dict[s
     service_files = sorted((root / "packages").glob("*/src/*/service.yaml"))
     targets: list[dict[str, str]] = []
     broad_change = any(
-        path in {"pyproject.toml", "uv.lock"} or path.startswith("scripts/") for path in paths
+        path in {"pyproject.toml", "uv.lock", "scripts/generated_image_matrix.py"} for path in paths
     )
     for service_file in service_files:
         service = yaml.safe_load(service_file.read_text(encoding="utf-8"))
