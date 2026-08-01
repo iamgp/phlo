@@ -3528,7 +3528,7 @@ quality = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dbt-core", specifier = ">=1.10.8" },
+    { name = "dbt-core", specifier = ">=1.10.8,<1.12" },
     { name = "dbt-postgres", specifier = ">=1.9.1" },
     { name = "dbt-trino", specifier = ">=1.9.3" },
     { name = "phlo", editable = "." },
