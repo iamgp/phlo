@@ -64,6 +64,24 @@ RUN go get \
     go mod tidy && \
     CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /otelcontribcol .
 
+# The upstream all-in-one image also includes the OTel opamp supervisor. Rebuild
+# it from the matching collector release so its embedded Go modules match the
+# patched collector binary.
+FROM golang:1.26.5-alpine3.24@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS hyperdx-opamp-patches
+
+RUN apk add --no-cache git=2.54.0-r0
+WORKDIR /src
+RUN git clone --depth 1 --branch v0.155.0 https://github.com/open-telemetry/opentelemetry-collector-contrib.git collector && \
+    git -C collector checkout --detach aaf5045a24c0a6f000225c97ad5449e69aeb5835
+WORKDIR /src/collector/cmd/opampsupervisor
+RUN go get \
+      golang.org/x/crypto@v0.53.0 \
+      golang.org/x/net@v0.56.0 \
+      golang.org/x/text@v0.39.0 \
+      google.golang.org/grpc@v1.82.1 && \
+    go mod tidy && \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /opampsupervisor .
+
 FROM docker.io/hyperdx/hyperdx-all-in-one:2.32.0@sha256:54a0a805d761d6fef76122736a0d62400b78f69bd00394fe15086c8eda39b6c7
 
 RUN apk update \
@@ -73,6 +91,7 @@ RUN apk update \
 COPY --from=go-patches /esbuild /tmp/esbuild
 COPY --from=go-patches /gomplate /usr/local/bin/gomplate
 COPY --from=hyperdx-otel-patches /otelcontribcol /otelcontribcol
+COPY --from=hyperdx-opamp-patches /opampsupervisor /usr/local/bin/opampsupervisor
 RUN find /app/packages/app/node_modules/@esbuild -path '*/bin/esbuild' \
       -exec install -m 0755 /tmp/esbuild {} \; \
     && rm /tmp/esbuild
