@@ -314,7 +314,7 @@ def _with_vulnerability_evidence_detail(detail: str, result: dict[str, Any]) -> 
     findings = sorted(
         {
             f"{finding['vulnerability_id']} ({finding['component']})"
-            for finding in result["vulnerable_components"]
+            for finding in result.get("vulnerable_components", [])
         }
     )
     return _join_failure_details(
