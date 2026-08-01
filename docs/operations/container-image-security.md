@@ -1,9 +1,10 @@
 # Container image security operations
 
-Pull requests run Hadolint and build/scan only images affected by changes under
-their service package. Documentation-only changes therefore do not trigger
-container builds. The CI workflow stores Hadolint and Trivy JSON reports as
-artifacts and applies the policy in [the security policy](../../SECURITY.md).
+Pull requests run only cheap checks: waiver/report validation, Hadolint for
+affected Dockerfiles, and generated Compose/Dockerfile validation. They do not
+build or scan images; documentation-only changes do not trigger container work.
+Build, exact-digest vulnerability scanning, SBOM/provenance, and publication
+run only after a merge to `main`.
 
 Published image digests are collected as workflow artifacts. The nightly
 container scan downloads that manifest from the most recent successful image
