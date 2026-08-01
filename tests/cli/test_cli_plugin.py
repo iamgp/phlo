@@ -1173,7 +1173,9 @@ def test_plugin_check_containers_reports_evidence_hash_without_waiver() -> None:
     )
 
     assert detail == (
-        f"trivy image sha256:one failed with exit code 1\nvulnerability evidence sha256: {'a' * 64}"
+        "trivy image sha256:one failed with exit code 1\n"
+        f"vulnerability evidence sha256: {'a' * 64}\n"
+        "vulnerability evidence findings: CVE-TEST (example/component)"
     )
 
 

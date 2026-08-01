@@ -303,13 +303,23 @@ def _vulnerability_evidence_sha256(evidence: dict[str, Any]) -> str:
 
 
 def _with_vulnerability_evidence_detail(detail: str, result: dict[str, Any]) -> str:
-    """Attach the exact waiver fingerprint to a failed eligible image scan."""
+    """Attach a compact, exact finding summary to a failed eligible image scan."""
     evidence_sha256 = result.get("vulnerability_evidence_sha256")
     if not evidence_sha256:
         return detail
-    return _join_failure_details(
+    detail = _join_failure_details(
         detail,
         f"vulnerability evidence sha256: {evidence_sha256}",
+    )
+    findings = sorted(
+        {
+            f"{finding['vulnerability_id']} ({finding['component']})"
+            for finding in result["vulnerable_components"]
+        }
+    )
+    return _join_failure_details(
+        detail,
+        f"vulnerability evidence findings: {', '.join(findings)}",
     )
 
 
