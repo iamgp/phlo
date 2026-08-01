@@ -25,6 +25,7 @@ from phlo_dagster.authorization import (
     resolve_graphql_operation,
     validate_graphql_schema,
 )
+import phlo_dagster.authorization as authorization
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.webserver import (
     DagsterHTTPAuthenticationASGI,
@@ -61,6 +62,21 @@ def _websocket(
 
 def test_installed_dagster_schema_is_fully_classified() -> None:
     validate_graphql_schema(create_schema().graphql_schema)
+
+
+def test_schema_registry_accepts_components_for_location_query_when_present(monkeypatch) -> None:
+    query_fields = {
+        field: SimpleNamespace()
+        for operation, field in authorization._GRAPHQL_OPERATION_INDEX
+        if operation == "query"
+    }
+    query_fields["componentsForLocationOrError"] = SimpleNamespace()
+    schema = SimpleNamespace(
+        get_type=lambda name: SimpleNamespace(fields=query_fields) if name == "Query" else None
+    )
+    monkeypatch.setattr(authorization, "validate_graphql_resource_bindings", lambda _schema: None)
+
+    validate_graphql_schema(schema)
 
 
 def test_development_webserver_omits_graphql_authorization_middleware(monkeypatch) -> None:

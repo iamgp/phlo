@@ -243,6 +243,7 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
             "autoMaterializeTicks",
             "appManagedComponentsForLocationOrError",
             "canBulkTerminate",
+            "componentsForLocationOrError",
             "componentTypesForLocationOrError",
             "instance",
             "isPipelineConfigValid",
