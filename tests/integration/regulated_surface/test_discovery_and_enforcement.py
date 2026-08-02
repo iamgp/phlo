@@ -10,6 +10,8 @@ Tests the full pipeline:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -19,14 +21,18 @@ import yaml
 
 from phlo.capabilities import (
     RegulatedSurfaceSpec,
+    clear_capabilities,
     get_capability_registry,
     register_capability,
 )
+from phlo.capabilities import discovery as capability_discovery
 from phlo.capabilities.interfaces import (
     AuthPrincipal,
     Principal,
     ResourceRef,
 )
+from phlo.capabilities.registry import CAPABILITY_FAMILIES
+from phlo.identity.bridge import create_regulated_bridge
 from phlo.security.adapters import SurfaceOperation
 from phlo.security.enforcement import EnforcementContext
 from phlo.security.validation import (
@@ -56,6 +62,29 @@ class MockRegulatedSurfaceAdapter:
 
     def install(self) -> None:
         pass
+
+
+@contextmanager
+def isolated_authorization_policy_backend() -> Iterator[None]:
+    """Temporarily remove only the authorization backend capability family."""
+    registry = get_capability_registry()
+    previous_specs = registry.list("authorization_policy_backend")
+    clear_capabilities("authorization_policy_backend")
+    EnforcementContext.reset_instance()
+
+    isolated_context = EnforcementContext()
+    isolated_context._identity_bridge = create_regulated_bridge()
+    EnforcementContext._instance = isolated_context
+
+    try:
+        with patch.object(capability_discovery, "discover_capabilities", lambda: None):
+            yield
+    finally:
+        clear_capabilities("authorization_policy_backend")
+        EnforcementContext.reset_instance()
+        for spec in previous_specs:
+            register_capability("authorization_policy_backend", spec)
+        EnforcementContext.reset_instance()
 
 
 class TestRegulatedSurfaceDiscovery:
@@ -154,10 +183,10 @@ class TestEnforceFunction:
         bridge.canonicalize.assert_not_called()
 
     def test_enforce_returns_error_when_no_backend(self) -> None:
-        """enforce() returns error result when no authorization backend is registered."""
+        """Discovery and no-backend enforcement remain isolated and reversible."""
         EnforcementContext.reset_instance()
-        EnforcementContext._instance = None
 
+        from phlo.capabilities.discovery import discover_capabilities
         from phlo.security.enforcement import enforce
 
         auth_principal = AuthPrincipal(
@@ -168,14 +197,57 @@ class TestEnforceFunction:
         )
         resource = ResourceRef(resource_type="dataset", resource_id="test-ds")
 
-        result = enforce(
+        clear_capabilities("authorization_policy_backend")
+        discover_capabilities()
+
+        normal_result = enforce(
             principal=auth_principal,
             action="dataset.read",
             resource=resource,
             surface="test",
         )
-        assert result.variant == "error"
-        assert result.reason_code == "backend_unavailable"
+        assert normal_result.variant == "deny"
+        assert normal_result.reason_code == "default_deny"
+        registry = get_capability_registry()
+        discovered_specs = registry.list("authorization_policy_backend")
+        assert [spec.name for spec in discovered_specs] == ["default"]
+        other_family_specs = {
+            family: registry.list(family)
+            for family in CAPABILITY_FAMILIES
+            if family != "authorization_policy_backend"
+        }
+
+        with isolated_authorization_policy_backend():
+            assert registry.list("authorization_policy_backend") == []
+            assert {
+                family: registry.list(family)
+                for family in CAPABILITY_FAMILIES
+                if family != "authorization_policy_backend"
+            } == other_family_specs
+            isolated_result = enforce(
+                principal=auth_principal,
+                action="dataset.read",
+                resource=resource,
+                surface="test",
+            )
+            assert isolated_result.variant == "error"
+            assert isolated_result.reason_code == "backend_unavailable"
+
+        restored_specs = registry.list("authorization_policy_backend")
+        assert restored_specs == discovered_specs
+        assert {
+            family: registry.list(family)
+            for family in CAPABILITY_FAMILIES
+            if family != "authorization_policy_backend"
+        } == other_family_specs
+        restored_result = enforce(
+            principal=auth_principal,
+            action="dataset.read",
+            resource=resource,
+            surface="test",
+        )
+        assert restored_result.variant == "deny"
+        assert restored_result.reason_code == "default_deny"
 
 
 class TestValidation:
