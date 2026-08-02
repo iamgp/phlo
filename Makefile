@@ -41,10 +41,10 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-trino/src
 CHECK_CMD := scripts/run-parallel \
 	"support manifest" "python3 scripts/validate_support_manifest.py" \
-	"py lint" "uv run ruff check ." \
-	"py format" "uv run ruff format --check ." \
-	"py typecheck" "uv run ty check $(TY_CHECK_SCOPE)" \
-	"py test" "uv run pytest -m 'not integration'" \
+	"py lint" "uv run --locked ruff check ." \
+	"py format" "uv run --locked ruff format --check ." \
+	"py typecheck" "uv run --locked ty check $(TY_CHECK_SCOPE)" \
+	"py test" "uv run --locked pytest -m 'not integration'" \
 	"ts lint" "$(NPM_OBSERVATORY) run lint" \
 	"ts format" "$(NPM_OBSERVATORY) run format -- --check ." \
 	"ts typecheck" "$(NPM_OBSERVATORY) exec tsc -- -p $(OBSERVATORY_DIR)/tsconfig.json --noEmit"
@@ -117,16 +117,16 @@ venv:
 	uv venv
 
 install:
-	uv sync
+	uv sync --locked
 
 test:
-	uv run pytest
+	uv run --locked pytest
 
 test-core-regression:
-	uv run pytest $(CORE_REGRESSION_TEST_PATHS) -m core_regression $(CORE_REGRESSION_PYTEST_ARGS)
+	uv run --locked pytest $(CORE_REGRESSION_TEST_PATHS) -m core_regression $(CORE_REGRESSION_PYTEST_ARGS)
 
 test-quickstart-smoke:
-	uv run pytest tests/cli/test_quickstart_smoke.py $(QUICKSTART_SMOKE_PYTEST_ARGS)
+	uv run --locked pytest tests/cli/test_quickstart_smoke.py $(QUICKSTART_SMOKE_PYTEST_ARGS)
 
 dagster:
 	@open http://localhost:$${DAGSTER_PORT:-10006}
@@ -197,18 +197,18 @@ up-all:
 	$(COMPOSE) up -d $(PROFILE_ALL)
 
 docs-generate:
-	uv run pymdx generate src/phlo --docs docs --output $(PYMDX_DOCS_DIR)
+	uv run --locked pymdx generate src/phlo --docs docs --output $(PYMDX_DOCS_DIR)
 
 docs-dev: docs-generate
-	uv run pymdx dev $(PYMDX_DOCS_DIR) --port $(PYMDX_DOCS_PORT)
+	uv run --locked pymdx dev $(PYMDX_DOCS_DIR) --port $(PYMDX_DOCS_PORT)
 
 docs-build: docs-generate
-	uv run pymdx build $(PYMDX_DOCS_DIR)
+	uv run --locked pymdx build $(PYMDX_DOCS_DIR)
 
 docs-serve: docs-dev
 
 docs-clean:
-	uv run pymdx clean $(PYMDX_DOCS_DIR)
+	uv run --locked pymdx clean $(PYMDX_DOCS_DIR)
 
 # Health check target
 health:
@@ -330,13 +330,13 @@ nessie-shell:
 lint: lint-python lint-sql
 
 lint-python:
-	uv run ruff check .
+	uv run --locked ruff check .
 
 format-python:
-	uv run ruff format --check .
+	uv run --locked ruff format --check .
 
 typecheck-python:
-	uv run ty check $(TY_CHECK_SCOPE)
+	uv run --locked ty check $(TY_CHECK_SCOPE)
 
 dependency-refresh:
 	python3 scripts/dependency_refresh_plan.py --lane $(LANE)
@@ -360,10 +360,10 @@ check:
 	@$(CHECK_CMD)
 
 lint-sql:
-	uv run sqlfluff lint workflows/transforms/dbt
+	uv run --locked sqlfluff lint workflows/transforms/dbt
 
 fix-sql:
-	uv run sqlfluff fix workflows/transforms/dbt
+	uv run --locked sqlfluff fix workflows/transforms/dbt
 
 prek-install:
 	uvx prek install

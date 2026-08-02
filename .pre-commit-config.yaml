@@ -16,13 +16,6 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=1024"]
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.1
-    hooks:
-      - id: ruff
-        args: ["--fix"]
-      - id: ruff-format
-
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.37.1
     hooks:
@@ -56,6 +49,16 @@ repos:
 
   - repo: local
     hooks:
+      - id: ruff
+        name: ruff (locked project tool)
+        entry: uv run --locked ruff check --fix
+        language: system
+        types_or: [python, pyi, jupyter]
+      - id: ruff-format
+        name: ruff format (locked project tool)
+        entry: uv run --locked ruff format
+        language: system
+        types_or: [python, pyi, jupyter]
       - id: prettier-observatory
         name: prettier (Observatory)
         entry: npx prettier --cache --write
@@ -68,24 +71,24 @@ repos:
         files: ^\.github/(workflows/.*\.(yml|yaml)|dependabot\.yml)$
       - id: sqlfluff-dbt
         name: sqlfluff (dbt models)
-        entry: uv run sqlfluff lint
+        entry: uv run --locked sqlfluff lint
         language: system
         files: ^workflows/transforms/dbt/.*\.sql$
       - id: sqlfluff-dbt-fix
         name: sqlfluff fix (dbt models)
-        entry: uv run sqlfluff fix workflows/transforms/dbt
+        entry: uv run --locked sqlfluff fix workflows/transforms/dbt
         language: system
         pass_filenames: false
         stages: [manual]
       - id: ty-check
         name: ty check (repo scope)
-        entry: uv run ty check src/phlo packages
+        entry: uv run --locked ty check src/phlo packages
         language: system
         pass_filenames: false
         stages: [pre-push]
       - id: pytest-unit
         name: pytest (not integration)
-        entry: uv run pytest -m "not integration"
+        entry: uv run --locked pytest -m "not integration"
         language: system
         pass_filenames: false
         stages: [pre-push]
