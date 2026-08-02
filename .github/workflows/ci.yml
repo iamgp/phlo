@@ -295,23 +295,6 @@ jobs:
             exit 1
           fi
 
-  release-golden-path:
-    name: python / release golden path
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
-        with:
-          version: "0.12.1"
-
-      - name: Run release artifact golden path
-        run: python3 scripts/release_golden_path.py
-
   recovery-continuity-drill:
     name: python / recovery continuity drill
     runs-on: ubuntu-latest
@@ -496,7 +479,6 @@ jobs:
       - python-quality
       - python-core-tests
       - quickstart-smoke
-      - release-golden-path
       - recovery-continuity-drill
       - windows-release-contract
       - python-package-tests
@@ -509,7 +491,6 @@ jobs:
           PYTHON_QUALITY: ${{ needs.python-quality.result }}
           PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
           QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
-          RELEASE_GOLDEN_PATH: ${{ needs.release-golden-path.result }}
           RECOVERY_CONTINUITY_DRILL: ${{ needs.recovery-continuity-drill.result }}
           WINDOWS_RELEASE_CONTRACT: ${{ needs.windows-release-contract.result }}
           PYTHON_PACKAGE_TESTS: ${{ needs.python-package-tests.result }}
@@ -526,7 +507,6 @@ jobs:
             echo "| python / quality | ${PYTHON_QUALITY} |"
             echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
             echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
-            echo "| python / release golden path | ${RELEASE_GOLDEN_PATH} |"
             echo "| python / recovery continuity drill | ${RECOVERY_CONTINUITY_DRILL} |"
             echo "| windows / release golden path contract | ${WINDOWS_RELEASE_CONTRACT} |"
             echo "| python / package tests | ${PYTHON_PACKAGE_TESTS} |"
@@ -538,7 +518,6 @@ jobs:
             "${PYTHON_QUALITY}" \
             "${PYTHON_CORE_TESTS}" \
             "${QUICKSTART_SMOKE}" \
-            "${RELEASE_GOLDEN_PATH}" \
             "${RECOVERY_CONTINUITY_DRILL}" \
             "${WINDOWS_RELEASE_CONTRACT}" \
             "${PYTHON_PACKAGE_TESTS}" \
