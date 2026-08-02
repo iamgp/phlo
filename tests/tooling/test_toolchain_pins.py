@@ -5,7 +5,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_ROOT = REPO_ROOT / ".github" / "workflows"
-EXPECTED_UV_VERSION = "0.10.10"
+EXPECTED_UV_VERSION = "0.12.1"
 
 
 def _workflow_texts() -> list[str]:
@@ -72,3 +72,10 @@ def test_workflow_project_validation_commands_require_the_lockfile() -> None:
                 )
             else:
                 assert "--locked" in line, f"{workflow_path}: {line}"
+
+
+def test_security_audit_uses_the_stable_pinned_uv_command() -> None:
+    security = (WORKFLOW_ROOT / "security.yml").read_text(encoding="utf-8")
+
+    assert "run: uv audit --locked" in security
+    assert "--preview-features audit-command" not in security
