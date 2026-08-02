@@ -163,7 +163,9 @@ class NessieResource:
                     time.sleep(_BACKOFF_SCHEDULE[attempt - 1])
                     continue
                 raise
-        raise last_exc  # type: ignore[misc]
+        if last_exc is None:
+            raise RuntimeError("Nessie request retries exhausted without an exception")
+        raise last_exc
 
     def list_branches(self) -> list[BranchInfo]:
         """List all branch references from Nessie.
