@@ -40,7 +40,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
-          version: "latest"
+          version: "0.10.10"
           enable-cache: false
 
       - uses: iamgp/ReleaseX@0f77cbd306b3e726e3a44d8546ae01548af40829
@@ -66,7 +66,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
-          version: "latest"
+          version: "0.10.10"
           enable-cache: false
 
       - uses: iamgp/ReleaseX@0f77cbd306b3e726e3a44d8546ae01548af40829
@@ -123,7 +123,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
-          version: "latest"
+          version: "0.10.10"
           enable-cache: false
 
       - name: Set up Python

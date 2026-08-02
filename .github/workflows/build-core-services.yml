@@ -45,7 +45,7 @@ jobs:
       - name: Install workspace service plugins
         run: |
           uv python install 3.11
-          uv sync --python 3.11 --all-packages
+          uv sync --python 3.11 --all-packages --locked
 
       - name: Render every installed service through the public CLI
         id: matrix
@@ -68,16 +68,16 @@ jobs:
           project="$RUNNER_TEMP/generated-service-project"
           mkdir -p "$project"
           cd "$project"
-          uv --project "$GITHUB_WORKSPACE" run phlo services init --no-dev --force
+          uv --project "$GITHUB_WORKSPACE" run --locked phlo services init --no-dev --force
           mapfile -t services < <(
-            uv --project "$GITHUB_WORKSPACE" run phlo services list --all --json |
+            uv --project "$GITHUB_WORKSPACE" run --locked phlo services list --all --json |
               jq -r '.[].name'
           )
           add_args=()
           for service in "${services[@]}"; do
             add_args+=(--service "$service")
           done
-          uv --project "$GITHUB_WORKSPACE" run phlo services add "${add_args[@]}" --no-start
+          uv --project "$GITHUB_WORKSPACE" run --locked phlo services add "${add_args[@]}" --no-start
           docker compose \
             --profile '*' \
             -f "$project/.phlo/docker-compose.yml" \
@@ -88,7 +88,7 @@ jobs:
             matrix_args+=(--services "$PUBLISH_SERVICES")
           fi
           matrix="$(
-            uv --project "$GITHUB_WORKSPACE" run python \
+            uv --project "$GITHUB_WORKSPACE" run --locked python \
               "$GITHUB_WORKSPACE/scripts/generated_image_matrix.py" \
               "$RUNNER_TEMP/generated-compose.json" \
               "$project" \

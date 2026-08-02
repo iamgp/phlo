@@ -90,13 +90,13 @@ jobs:
         run: |
           set -euo pipefail
           uv python install 3.11
-          uv sync --python 3.11 --all-packages
+          uv sync --python 3.11 --all-packages --locked
           mapfile -t services < <(jq -r '.include[].service' <<< "$TARGETS")
           project="$RUNNER_TEMP/generated-service-project"
           mkdir -p "$project"
           cd "$project"
-          uv --project "$GITHUB_WORKSPACE" run phlo services init --no-dev --force
+          uv --project "$GITHUB_WORKSPACE" run --locked phlo services init --no-dev --force
           add_args=()
           for service in "${services[@]}"; do add_args+=(--service "$service"); done
-          uv --project "$GITHUB_WORKSPACE" run phlo services add "${add_args[@]}" --no-start
+          uv --project "$GITHUB_WORKSPACE" run --locked phlo services add "${add_args[@]}" --no-start
           docker compose --profile '*' -f "$project/.phlo/docker-compose.yml" --project-directory "$project/.phlo" config --format json > "$RUNNER_TEMP/generated-compose.json"

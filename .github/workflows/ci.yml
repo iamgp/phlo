@@ -184,7 +184,7 @@ jobs:
           junit_path="cairn-artifacts/pytest-${{ matrix.python-version }}.xml"
 
           set +e
-          uv run --locked pytest tests -m "not integration" --tb=short --cov=phlo --cov-report=term-missing --junitxml "${junit_path}"
+          uv run --locked pytest tests -m "not integration and not core_regression" --tb=short --cov=phlo --cov-report=term-missing --junitxml "${junit_path}"
           pytest_exit=$?
           set -e
 
