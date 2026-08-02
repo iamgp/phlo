@@ -1,0 +1,788 @@
+[
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/lineage.py",
+    "location": "366:13",
+    "message": "Argument is incorrect: Expected `list[RowLineageInfo]`, found `list[RowLineageInfo | None]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/lineage.py",
+    "location": "367:13",
+    "message": "Argument is incorrect: Expected `list[RowLineageInfo]`, found `list[RowLineageInfo | None]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "1372:9",
+    "message": "Argument is incorrect: Expected `Literal[\"pass\", \"fail\", \"warning\", \"unknown\", \"not_applicable\"]`, found `str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "1440:13",
+    "message": "Argument is incorrect: Expected `Literal[\"pass\", \"fail\", \"warning\", \"unknown\", \"not_applicable\"]`, found `str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2886:28",
+    "message": "Argument to bound method `get` is incorrect: Expected `Never`, found `Literal[\"error\"]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2910:28",
+    "message": "Argument to bound method `get` is incorrect: Expected `Never`, found `Literal[\"error\"]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/security_manifest.py",
+    "location": "549:17",
+    "message": "Argument is incorrect: Expected `bool`, found `Any | tuple[Unknown, ...] | str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/security_manifest.py",
+    "location": "549:17",
+    "message": "Argument is incorrect: Expected `str | None`, found `Any | tuple[Unknown, ...] | str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/security_manifest.py",
+    "location": "549:17",
+    "message": "Argument is incorrect: Expected `str`, found `Any | tuple[Unknown, ...] | str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/security_manifest.py",
+    "location": "549:17",
+    "message": "Argument is incorrect: Expected `tuple[str, ...]`, found `Any | tuple[Unknown, ...] | str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/security_manifest.py",
+    "location": "549:17",
+    "message": "Argument is incorrect: Expected `tuple[tuple[str, str], ...]`, found `Any | tuple[Unknown, ...] | str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-api/src/phlo_api/security_manifest.py",
+    "location": "764:41",
+    "message": "Argument to bound method `explain_decision` is incorrect: Expected `Principal`, found `Principal | None`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-dagster/src/phlo_dagster/daemon_identity.py",
+    "location": "213:41",
+    "message": "Argument to function `_infer_daemon_trigger` is incorrect: Expected `dict[str, str]`, found `Mapping[str, str]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-dagster/src/phlo_dagster/oidc_identity.py",
+    "location": "147:17",
+    "message": "Argument is incorrect: Expected `dict[str, str]`, found `dict[str, str | list[Any & str]]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-dagster/src/phlo_dagster/run_evidence.py",
+    "location": "137:46",
+    "message": "Argument to function `__new__` is incorrect: Expected `Iterable[Buffer]`, found `tuple[str, int, str, str | None, str | None, str | None, str | None] | Unknown`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-dagster/src/phlo_dagster/run_evidence.py",
+    "location": "400:25",
+    "message": "Argument is incorrect: Expected `str`, found `Literal[\"materialization\", \"check\", \"dagster_step\"] | None`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/resource.py",
+    "location": "1974:13",
+    "message": "Argument is incorrect: Expected `str | int | None`, found `object`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/resource.py",
+    "location": "1985:25",
+    "message": "Argument to function `__new__` is incorrect: Expected `str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc`, found `~AlwaysFalsy | Literal[0]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/resource.py",
+    "location": "1985:66",
+    "message": "Argument to function `__new__` is incorrect: Expected `str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc`, found `~AlwaysFalsy | Literal[0]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/settings.py",
+    "location": "212:44",
+    "message": "Argument to function `resolve_url` is incorrect: Expected `str`, found `str | None`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-mcp/src/phlo_mcp/cli.py",
+    "location": "51:16",
+    "message": "Argument to bound method `run` is incorrect: Expected `Literal[\"stdio\", \"sse\", \"streamable-http\"]`, found `str`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-openmetadata/src/phlo_openmetadata/dbt_sync.py",
+    "location": "341:55",
+    "message": "Argument to bound method `get_model_columns` is incorrect: Expected `str`, found `Any | None`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-sling/src/phlo_sling/helpers.py",
+    "location": "100:17",
+    "message": "Argument is incorrect: Expected `Literal[\"full-refresh\", \"incremental\", \"snapshot\", \"backfill\"] | None`, found `(str & ~AlwaysFalsy) | (Any & ~AlwaysFalsy) | None`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-testing/src/phlo_testing/profile_harness.py",
+    "location": "1128:34",
+    "message": "Argument is incorrect: Expected `dict[str, str | None]`, found `dict[str, str]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "packages/phlo-testing/src/phlo_testing/profile_harness.py",
+    "location": "1267:34",
+    "message": "Argument is incorrect: Expected `dict[str, str | None]`, found `dict[str, str]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "src/phlo/cli/commands/plugin/check.py",
+    "location": "1186:28",
+    "message": "Method `__getitem__` of type `Overload[(i: SupportsIndex, /) -> str, (s: slice[SupportsIndex | None, SupportsIndex | None, SupportsIndex | None], /) -> list[str]]` cannot be called with key of type `Literal[\"dockerfiles\"]` on object of type `list[str]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "src/phlo/cli/commands/plugin/check.py",
+    "location": "1188:32",
+    "message": "Method `__getitem__` of type `Overload[(i: SupportsIndex, /) -> str, (s: slice[SupportsIndex | None, SupportsIndex | None, SupportsIndex | None], /) -> list[str]]` cannot be called with key of type `Literal[\"services\"]` on object of type `list[str]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "src/phlo/cli/commands/services/remove.py",
+    "location": "154:42",
+    "message": "Argument to function `_dependent_closure` is incorrect: Expected `dict[str, object]`, found `dict[str, ServiceDefinition]`"
+  },
+  {
+    "rule": "invalid-argument-type",
+    "path": "src/phlo/compliance/governance/break_glass.py",
+    "location": "155:13",
+    "message": "Argument is incorrect: Expected `str`, found `str | None`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-alerting/src/phlo_alerting/destinations/slack.py",
+    "location": "230:13",
+    "message": "Invalid subscript assignment with key of type `Literal[\"channel\"]` and value of type `(Unknown & ~AlwaysFalsy) | (str & ~AlwaysFalsy)` on object of type `dict[str, list[dict[str, object]]]`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "27:13",
+    "message": "Object of type `None` is not assignable to `<module 'fcntl'>`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-dagster/src/phlo_dagster/maintenance_sensor.py",
+    "location": "296:28",
+    "message": "Object of type `None` is not assignable to `JobDefinition`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-dagster/src/phlo_dagster/webserver.py",
+    "location": "526:1",
+    "message": "Object of type `<class 'PhloDagsterWebserver'>` is not assignable to attribute `DagsterWebserver` of type `<class 'DagsterWebserver'>`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-hasura/src/phlo_hasura/client.py",
+    "location": "121:9",
+    "message": "Object of type `str | None` is not assignable to attribute `admin_secret` of type `str`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-hasura/src/phlo_hasura/client.py",
+    "location": "123:13",
+    "message": "Object of type `str | None` is not assignable to attribute `admin_secret` of type `str`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/evidence.py",
+    "location": "38:32",
+    "message": "Object of type `tuple[()]` is not assignable to `<class 'NoSuchTableError'>`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "packages/phlo-trino/src/phlo_trino/publishing.py",
+    "location": "53:22",
+    "message": "Object of type `None` is not assignable to `<class 'TrinoUserError'>`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "src/phlo/cli/commands/plugin/check.py",
+    "location": "1150:13",
+    "message": "Invalid subscript assignment with key of type `Literal[\"containers\"]` and value of type `dict[str, Any]` on object of type `dict[str, list[str]]`"
+  },
+  {
+    "rule": "invalid-assignment",
+    "path": "src/phlo/run_evidence/store.py",
+    "location": "1238:13",
+    "message": "Invalid subscript assignment with key of type `Literal[\"resource_ref\"]` and value of type `dict[str, Any]` on object of type `dict[str, str | None | int]`"
+  },
+  {
+    "rule": "invalid-method-override",
+    "path": "packages/phlo-core-plugins/src/phlo_core/quality/freshness_check.py",
+    "location": "99:9",
+    "message": "Invalid override of method `create_check`: Definition is incompatible with `QualityCheckPlugin.create_check`"
+  },
+  {
+    "rule": "invalid-method-override",
+    "path": "packages/phlo-core-plugins/src/phlo_core/quality/null_check.py",
+    "location": "107:9",
+    "message": "Invalid override of method `create_check`: Definition is incompatible with `QualityCheckPlugin.create_check`"
+  },
+  {
+    "rule": "invalid-method-override",
+    "path": "packages/phlo-core-plugins/src/phlo_core/quality/schema_check.py",
+    "location": "88:9",
+    "message": "Invalid override of method `create_check`: Definition is incompatible with `QualityCheckPlugin.create_check`"
+  },
+  {
+    "rule": "invalid-method-override",
+    "path": "packages/phlo-core-plugins/src/phlo_core/quality/uniqueness_check.py",
+    "location": "104:9",
+    "message": "Invalid override of method `create_check`: Definition is incompatible with `QualityCheckPlugin.create_check`"
+  },
+  {
+    "rule": "invalid-method-override",
+    "path": "packages/phlo-dlt/src/phlo_dlt/executor.py",
+    "location": "204:9",
+    "message": "Invalid override of method `run_ingestion`: Definition is incompatible with `BaseIngester.run_ingestion`"
+  },
+  {
+    "rule": "invalid-method-override",
+    "path": "packages/phlo-mcp/src/phlo_mcp/tracing.py",
+    "location": "27:9",
+    "message": "Invalid override of method `export`: Definition is incompatible with `SpanExporter.export`"
+  },
+  {
+    "rule": "invalid-method-override",
+    "path": "packages/phlo-sling/src/phlo_sling/executor.py",
+    "location": "82:9",
+    "message": "Invalid override of method `run_ingestion`: Definition is incompatible with `BaseIngester.run_ingestion`"
+  },
+  {
+    "rule": "invalid-raise",
+    "path": "packages/phlo-nessie/src/phlo_nessie/resource.py",
+    "location": "166:15",
+    "message": "Cannot raise object of type `None | ConnectionError`: Not an instance or subclass of `BaseException`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/lineage.py",
+    "location": "312:16",
+    "message": "Return type does not match returned value: expected `list[RowLineageInfo] | dict[str, str]`, found `list[RowLineageInfo | None]`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/lineage.py",
+    "location": "340:16",
+    "message": "Return type does not match returned value: expected `list[RowLineageInfo] | dict[str, str]`, found `list[RowLineageInfo | None]`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "packages/phlo-clickhouse/src/phlo_clickhouse/resource.py",
+    "location": "127:20",
+    "message": "Return type does not match returned value: expected `list[list[Any]]`, found `Sequence[Sequence[Any]]`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "packages/phlo-mcp/src/phlo_mcp/api_client.py",
+    "location": "352:16",
+    "message": "Return type does not match returned value: expected `dict[str, Any]`, found `dict[str, Any] | list[dict[str, Any]]`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "packages/phlo-mcp/src/phlo_mcp/api_client.py",
+    "location": "35:16",
+    "message": "Return type does not match returned value: expected `dict[str, Any]`, found `dict[str, Any] | list[dict[str, Any]]`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "packages/phlo-mcp/src/phlo_mcp/api_client.py",
+    "location": "389:16",
+    "message": "Return type does not match returned value: expected `dict[str, Any]`, found `dict[str, Any] | list[dict[str, Any]]`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "src/phlo/security/enforcement.py",
+    "location": "155:16",
+    "message": "Return type does not match returned value: expected `IdentityBridge`, found `IdentityBridge | None`"
+  },
+  {
+    "rule": "invalid-return-type",
+    "path": "src/phlo/security/enforcement.py",
+    "location": "164:16",
+    "message": "Return type does not match returned value: expected `AuthorizationPolicyBackend`, found `AuthorizationPolicyBackend | None`"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-alerting/src/phlo_alerting/authorization.py",
+    "location": "26:31",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-clickhouse/src/phlo_clickhouse/authorization.py",
+    "location": "26:22",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-clickstack/src/phlo_clickstack/authorization.py",
+    "location": "26:22",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-dbt/src/phlo_dbt/authorization.py",
+    "location": "29:26",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-dlt/src/phlo_dlt/authorization.py",
+    "location": "26:26",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-lineage/src/phlo_lineage/authorization.py",
+    "location": "35:30",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-minio/src/phlo_minio/authorization.py",
+    "location": "34:32",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-nessie/src/phlo_nessie/authorization.py",
+    "location": "46:33",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-nessie/src/phlo_nessie/cli_branch.py",
+    "location": "725:32",
+    "message": "Invalid subscript of object of type `Command` in a type expression"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-openmetadata/src/phlo_openmetadata/authorization.py",
+    "location": "26:35",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-pandera/src/phlo_pandera/authorization.py",
+    "location": "36:30",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-postgres/src/phlo_postgres/authorization.py",
+    "location": "40:35",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-sling/src/phlo_sling/authorization.py",
+    "location": "26:22",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "invalid-type-form",
+    "path": "packages/phlo-trino/src/phlo_trino/authorization.py",
+    "location": "26:32",
+    "message": "Variable of type `type[CliSurfaceAdapter]` is not allowed in a return type annotation"
+  },
+  {
+    "rule": "missing-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/contributing.py",
+    "location": "449:12",
+    "message": "No argument provided for required parameter `schema`"
+  },
+  {
+    "rule": "missing-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/contributing.py",
+    "location": "515:18",
+    "message": "No argument provided for required parameter `schema`"
+  },
+  {
+    "rule": "missing-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/contributing.py",
+    "location": "589:18",
+    "message": "No argument provided for required parameter `schema`"
+  },
+  {
+    "rule": "missing-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2891:18",
+    "message": "No argument provided for required parameter `schema`"
+  },
+  {
+    "rule": "missing-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2919:18",
+    "message": "No argument provided for required parameter `schema`"
+  },
+  {
+    "rule": "missing-argument",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/tables.py",
+    "location": "454:27",
+    "message": "No arguments provided for required parameters `term`, `values`"
+  },
+  {
+    "rule": "no-matching-overload",
+    "path": "packages/phlo-dagster/src/phlo_dagster/run_evidence.py",
+    "location": "137:27",
+    "message": "No overload of bound method `join` matches arguments"
+  },
+  {
+    "rule": "no-matching-overload",
+    "path": "packages/phlo-mcp/src/phlo_mcp/tracing.py",
+    "location": "42:35",
+    "message": "No overload of bound method `__init__` matches arguments"
+  },
+  {
+    "rule": "no-matching-overload",
+    "path": "packages/phlo-sling/src/phlo_sling/helpers.py",
+    "location": "107:32",
+    "message": "No overload of bound method `__init__` matches arguments"
+  },
+  {
+    "rule": "no-matching-overload",
+    "path": "packages/phlo-sling/src/phlo_sling/helpers.py",
+    "location": "108:32",
+    "message": "No overload of bound method `__init__` matches arguments"
+  },
+  {
+    "rule": "no-matching-overload",
+    "path": "packages/phlo-sling/src/phlo_sling/helpers.py",
+    "location": "111:26",
+    "message": "No overload of bound method `__init__` matches arguments"
+  },
+  {
+    "rule": "no-matching-overload",
+    "path": "packages/phlo-sling/src/phlo_sling/helpers.py",
+    "location": "112:50",
+    "message": "No overload of bound method `__init__` matches arguments"
+  },
+  {
+    "rule": "no-matching-overload",
+    "path": "src/phlo/logging.py",
+    "location": "468:22",
+    "message": "No overload of bound method `__init__` matches arguments"
+  },
+  {
+    "rule": "possibly-missing-submodule",
+    "path": "packages/phlo-dagster/src/phlo_dagster/oidc_identity.py",
+    "location": "122:21",
+    "message": "Submodule `algorithms` might not have been imported"
+  },
+  {
+    "rule": "possibly-missing-submodule",
+    "path": "packages/phlo-dagster/src/phlo_dagster/oidc_identity.py",
+    "location": "240:34",
+    "message": "Submodule `algorithms` might not have been imported"
+  },
+  {
+    "rule": "too-many-positional-arguments",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/tables.py",
+    "location": "454:30",
+    "message": "Too many positional arguments: expected 0, got 1"
+  },
+  {
+    "rule": "unknown-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/contributing.py",
+    "location": "450:9",
+    "message": "Argument `schema_name` does not match any known parameter"
+  },
+  {
+    "rule": "unknown-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/contributing.py",
+    "location": "515:35",
+    "message": "Argument `schema_name` does not match any known parameter"
+  },
+  {
+    "rule": "unknown-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/contributing.py",
+    "location": "589:35",
+    "message": "Argument `schema_name` does not match any known parameter"
+  },
+  {
+    "rule": "unknown-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2892:13",
+    "message": "Argument `schema_name` does not match any known parameter"
+  },
+  {
+    "rule": "unknown-argument",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2920:13",
+    "message": "Argument `schema_name` does not match any known parameter"
+  },
+  {
+    "rule": "unknown-argument",
+    "path": "packages/phlo-iceberg/src/phlo_iceberg/tables.py",
+    "location": "454:42",
+    "message": "Argument `literals` does not match any known parameter"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2890:15",
+    "message": "Attribute `query` is not defined on `dict[str, str]` in union `ContributingRowsQueryResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2892:25",
+    "message": "Attribute `upstream` is not defined on `dict[str, str]` in union `ContributingRowsQueryResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2893:19",
+    "message": "Attribute `upstream` is not defined on `dict[str, str]` in union `ContributingRowsQueryResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2914:14",
+    "message": "Attribute `mode` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2915:14",
+    "message": "Attribute `page` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2916:19",
+    "message": "Attribute `page_size` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2917:18",
+    "message": "Attribute `has_more` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2918:15",
+    "message": "Attribute `query` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2920:25",
+    "message": "Attribute `upstream` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2921:19",
+    "message": "Attribute `upstream` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2923:17",
+    "message": "Attribute `columns` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2924:22",
+    "message": "Attribute `column_types` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "2925:14",
+    "message": "Attribute `rows` is not defined on `dict[str, str]` in union `ContributingRowsPageResponse | dict[str, str]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "387:15",
+    "message": "Attribute `get` is not defined on `None` in union `Any | None | dict[Unknown, Unknown]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/observatory.py",
+    "location": "394:15",
+    "message": "Attribute `get` is not defined on `None` in union `Any | None | dict[Unknown, Unknown]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "159:20",
+    "message": "Attribute `id` is not defined on `str` in union `Asset | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "160:26",
+    "message": "Attribute `key_path` is not defined on `str` in union `Asset | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "161:28",
+    "message": "Attribute `group_name` is not defined on `str` in union `Asset | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "162:30",
+    "message": "Attribute `compute_kind` is not defined on `str` in union `Asset | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "170:25",
+    "message": "Attribute `catalog` is not defined on `str` in union `IcebergTable | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "171:29",
+    "message": "Attribute `schema_name` is not defined on `str` in union `IcebergTable | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "172:22",
+    "message": "Attribute `name` is not defined on `str` in union `IcebergTable | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "173:27",
+    "message": "Attribute `full_name` is not defined on `str` in union `IcebergTable | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-api/src/phlo_api/observatory_api/search.py",
+    "location": "174:23",
+    "message": "Attribute `layer` is not defined on `str` in union `IcebergTable | str`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-dagster/src/phlo_dagster/authorization.py",
+    "location": "514:29",
+    "message": "Attribute `fields` is not defined on `GraphQLNamedType` in union `(Unknown & ~None) | GraphQLNamedType`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-dagster/src/phlo_dagster/operations.py",
+    "location": "363:20",
+    "message": "Attribute `get` is not defined on `None` in union `Any | None | dict[Unknown, Unknown]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-dagster/src/phlo_dagster/operations.py",
+    "location": "366:20",
+    "message": "Attribute `get` is not defined on `None` in union `Any | None | dict[Unknown, Unknown]`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-dagster/src/phlo_dagster/webserver.py",
+    "location": "376:13",
+    "message": "Attribute `get` is not defined on `None` in union `Any | None`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-dagster/src/phlo_dagster/webserver.py",
+    "location": "468:20",
+    "message": "Attribute `value` is not defined on `None` in union `Any | None`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-dagster/src/phlo_dagster/webserver.py",
+    "location": "477:30",
+    "message": "Object of type `DefinitionNode` has no attribute `selection_set`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-pandera/src/phlo_pandera/cli_schema_codegen.py",
+    "location": "305:24",
+    "message": "Object of type `expr` has no attribute `value`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "packages/phlo-testing/src/phlo_testing/mock_trino.py",
+    "location": "88:24",
+    "message": "Attribute `columns` is not defined on `DuckDBPyConnection` in union `Unknown | DuckDBPyConnection`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "src/phlo/_flow_authoring.py",
+    "location": "69:35",
+    "message": "Object of type `(...) -> Any` has no attribute `__qualname__`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "src/phlo/cli/commands/plugin/check.py",
+    "location": "72:30",
+    "message": "Object of type `Plugin` has no attribute `service_definition`"
+  },
+  {
+    "rule": "unresolved-attribute",
+    "path": "src/phlo/cli/commands/plugin/check.py",
+    "location": "76:26",
+    "message": "Object of type `Plugin` has no attribute `get_files`"
+  },
+  {
+    "rule": "unsupported-operator",
+    "path": "packages/phlo-nessie/src/phlo_nessie/resource.py",
+    "location": "251:12",
+    "message": "Operator `>=` is not supported between objects of type `Unknown | None` and `Literal[400]`"
+  },
+  {
+    "rule": "unsupported-operator",
+    "path": "packages/phlo-nessie/src/phlo_nessie/resource.py",
+    "location": "299:19",
+    "message": "Operator `<` is not supported between objects of type `Unknown | None` and `Literal[300]`"
+  },
+  {
+    "rule": "unsupported-operator",
+    "path": "packages/phlo-nessie/src/phlo_nessie/resource.py",
+    "location": "343:12",
+    "message": "Operator `>=` is not supported between objects of type `Unknown | None` and `Literal[400]`"
+  },
+  {
+    "rule": "unsupported-operator",
+    "path": "packages/phlo-nessie/src/phlo_nessie/resource.py",
+    "location": "403:18",
+    "message": "Operator `<` is not supported between objects of type `Unknown | None` and `Literal[300]`"
+  },
+  {
+    "rule": "unsupported-operator",
+    "path": "packages/phlo-nessie/src/phlo_nessie/resource.py",
+    "location": "409:41",
+    "message": "Operator `>=` is not supported between objects of type `Unknown | None` and `Literal[400]`"
+  }
+]
