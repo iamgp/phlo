@@ -228,6 +228,112 @@ jobs:
             exit 1
           fi
 
+  postgres-concurrency-gates:
+    name: python / postgres concurrency gates
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: phlo_ci
+          POSTGRES_USER: phlo_ci
+          POSTGRES_PASSWORD: phlo_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U phlo_ci -d phlo_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN: postgresql://phlo_ci:phlo_ci_password@localhost:5432/phlo_ci
+      PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN: postgresql://phlo_ci:phlo_ci_password@localhost:5432/phlo_ci
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Preflight PostgreSQL gate dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for dsn_name in \
+            PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN \
+            PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN; do
+            if [ -z "${!dsn_name:-}" ]; then
+              echo "::error::${dsn_name} must be set for the required PostgreSQL gate"
+              exit 1
+            fi
+          done
+
+          uv run --locked python - <<'PY'
+          import os
+
+          import psycopg2
+
+          for name in (
+              "PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN",
+              "PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN",
+          ):
+              connection = psycopg2.connect(os.environ[name], connect_timeout=5)
+              try:
+                  with connection.cursor() as cursor:
+                      cursor.execute("SELECT 1")
+                      assert cursor.fetchone() == (1,)
+              finally:
+                  connection.close()
+          PY
+
+      - name: Run PostgreSQL concurrency gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          results_file="$(mktemp)"
+          trap 'rm -f "${results_file}"' EXIT
+
+          PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN="${PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN}" \
+          PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN="${PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN}" \
+          uv run --locked pytest --import-mode=importlib \
+            tests/unit/phlo/security/test_service_identity.py::test_postgres_nonce_store_rejects_one_of_two_simultaneous_consumers \
+            tests/observability/test_run_evidence.py::test_postgres_concurrent_duplicate_replay_does_not_apply_loser_run_metadata \
+            tests/observability/test_run_evidence.py::test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres \
+            -q | tee "${results_file}"
+
+          python3 - "${results_file}" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          output = Path(sys.argv[1]).read_text(encoding="utf-8")
+          summary_lines = [
+              line.strip()
+              for line in output.splitlines()
+              if re.search(r"\b(?:passed|skipped|failed|error|xfailed|xpassed)\b", line)
+          ]
+          summary = summary_lines[-1] if summary_lines else ""
+          passed_match = re.search(r"(\d+) passed\b", summary)
+          skipped_match = re.search(r"(\d+) skipped\b", summary)
+          passed = int(passed_match.group(1)) if passed_match else 0
+          skipped = int(skipped_match.group(1)) if skipped_match else 0
+          if passed != 3 or skipped != 0:
+              raise SystemExit(
+                  f"PostgreSQL concurrency gate expected exactly 3 passed, 0 skipped; got: {summary}"
+              )
+          print(f"PostgreSQL concurrency gates: {passed} passed, {skipped} skipped")
+          PY
+
   quickstart-smoke:
     name: python / quickstart smoke
     runs-on: ubuntu-latest
@@ -479,6 +585,7 @@ jobs:
       - python-quality
       - python-core-tests
       - quickstart-smoke
+      - postgres-concurrency-gates
       - recovery-continuity-drill
       - windows-release-contract
       - python-package-tests
@@ -491,6 +598,7 @@ jobs:
           PYTHON_QUALITY: ${{ needs.python-quality.result }}
           PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
           QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
+          POSTGRES_CONCURRENCY_GATES: ${{ needs.postgres-concurrency-gates.result }}
           RECOVERY_CONTINUITY_DRILL: ${{ needs.recovery-continuity-drill.result }}
           WINDOWS_RELEASE_CONTRACT: ${{ needs.windows-release-contract.result }}
           PYTHON_PACKAGE_TESTS: ${{ needs.python-package-tests.result }}
@@ -507,6 +615,7 @@ jobs:
             echo "| python / quality | ${PYTHON_QUALITY} |"
             echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
             echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
+            echo "| python / postgres concurrency gates | ${POSTGRES_CONCURRENCY_GATES} |"
             echo "| python / recovery continuity drill | ${RECOVERY_CONTINUITY_DRILL} |"
             echo "| windows / release golden path contract | ${WINDOWS_RELEASE_CONTRACT} |"
             echo "| python / package tests | ${PYTHON_PACKAGE_TESTS} |"
@@ -518,6 +627,7 @@ jobs:
             "${PYTHON_QUALITY}" \
             "${PYTHON_CORE_TESTS}" \
             "${QUICKSTART_SMOKE}" \
+            "${POSTGRES_CONCURRENCY_GATES}" \
             "${RECOVERY_CONTINUITY_DRILL}" \
             "${WINDOWS_RELEASE_CONTRACT}" \
             "${PYTHON_PACKAGE_TESTS}" \
