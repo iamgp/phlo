@@ -12,6 +12,8 @@ from urllib.parse import urlparse
 
 import httpx
 import jwt
+from jwt.algorithms import RSAAlgorithm
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from phlo.capabilities import AuthPrincipal
 from phlo.logging import get_logger
@@ -117,9 +119,12 @@ class OIDCIdentityValidator:
             key = self._key_for_kid(str(header["kid"]))
             if key is None:
                 return None
+            public_key = RSAAlgorithm.from_jwk(json.dumps(key))
+            if not isinstance(public_key, RSAPublicKey):
+                return None
             claims = jwt.decode(
                 token,
-                key=jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key)),
+                key=public_key,
                 algorithms=["RS256"],
                 audience=self.audience,
                 issuer=self.issuer,
@@ -129,11 +134,11 @@ class OIDCIdentityValidator:
             subject = claims.get("sub")
             if not isinstance(subject, str) or not subject:
                 return None
-            groups = claims.get(self.groups_claim, ())
-            if isinstance(groups, str):
-                groups = tuple(value.strip() for value in groups.split(",") if value.strip())
-            elif isinstance(groups, list):
-                groups = tuple(value for value in groups if isinstance(value, str) and value)
+            groups_claim = claims.get(self.groups_claim, ())
+            if isinstance(groups_claim, str):
+                groups = tuple(value.strip() for value in groups_claim.split(",") if value.strip())
+            elif isinstance(groups_claim, list):
+                groups = tuple(value for value in groups_claim if isinstance(value, str) and value)
             else:
                 groups = ()
             return AuthPrincipal(
@@ -237,7 +242,7 @@ class OIDCIdentityValidator:
                         raise ValueError("OIDC JWKS contains duplicate signing kid values")
                     if key.get("kty") != "RSA":
                         raise ValueError("OIDC JWKS signing key is not RSA")
-                    public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
+                    public_key = RSAAlgorithm.from_jwk(json.dumps(key))
                     if public_key.key_size < 2048:
                         raise ValueError("OIDC JWKS RSA key is smaller than 2048 bits")
                     parsed_keys[kid] = key

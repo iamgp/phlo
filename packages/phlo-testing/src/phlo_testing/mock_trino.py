@@ -85,7 +85,7 @@ class MockCursor:
             # Get column names and types
             try:
                 # Try to get columns from result
-                cols = result.columns
+                cols = getattr(result, "columns", None)
                 if cols:
                     self._description = [
                         (name, "VARCHAR")  # Simplified type mapping

@@ -31,7 +31,7 @@ See Also:
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
@@ -222,7 +222,7 @@ class SlackAlertDestination(AlertDestination):
             "fields": fields,
         }
 
-        payload = {
+        payload: dict[str, Any] = {
             "attachments": [attachment],
         }
 

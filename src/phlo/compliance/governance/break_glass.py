@@ -145,14 +145,15 @@ class BreakGlassManager:
         expires_at = datetime.now(UTC) + timedelta(hours=hours)
 
         object.__setattr__(request, "status", BreakGlassStatus.APPROVED)
-        object.__setattr__(request, "approved_at", datetime.now(UTC).isoformat())
+        approved_at = datetime.now(UTC).isoformat()
+        object.__setattr__(request, "approved_at", approved_at)
         object.__setattr__(request, "approved_by", approved_by)
         object.__setattr__(request, "expires_at", expires_at.isoformat())
 
         return BreakGlassApproval(
             request_id=request_id,
             approved_by=approved_by,
-            approved_at=request.approved_at,
+            approved_at=approved_at,
             validity_hours=hours,
             conditions=conditions,
         )

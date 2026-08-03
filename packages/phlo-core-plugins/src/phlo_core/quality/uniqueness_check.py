@@ -101,7 +101,7 @@ class UniquenessCheckPlugin(QualityCheckPlugin[Any]):
             tags=["quality", "uniqueness"],
         )
 
-    def create_check(self, columns: list[str], allow_threshold: float = 0.0) -> Any:
+    def create_check(self, *args: Any, **kwargs: Any) -> Any:
         """Create a uniqueness check instance.
 
         Creates and returns a configured UniqueCheck instance from phlo_pandera
@@ -151,6 +151,15 @@ class UniquenessCheckPlugin(QualityCheckPlugin[Any]):
                 )
 
         """
+        if len(args) > 2 or set(kwargs) - {"columns", "allow_threshold"}:
+            raise TypeError("create_check accepts columns and allow_threshold")
+        columns = kwargs.get("columns", args[0] if args else None)
+        allow_threshold = kwargs.get("allow_threshold", args[1] if len(args) > 1 else 0.0)
+        if not isinstance(columns, list) or not all(isinstance(column, str) for column in columns):
+            raise TypeError("columns must be a list of strings")
+        if not isinstance(allow_threshold, (int, float)):
+            raise TypeError("allow_threshold must be numeric")
+
         from phlo_pandera.checks import UniqueCheck
 
         return UniqueCheck(columns=columns, allow_threshold=allow_threshold)

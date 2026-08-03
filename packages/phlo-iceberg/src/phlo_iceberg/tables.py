@@ -449,9 +449,9 @@ def merge_to_table(
 
         for i in range(0, len(unique_values_list), batch_size):
             batch = unique_values_list[i : i + batch_size]
-            from pyiceberg.expressions import In
+            from pyiceberg.expressions import In, Reference
 
-            delete_expr = In(unique_key, literals=batch)  # type: ignore[arg-type]
+            delete_expr = In(term=Reference(unique_key), values=set(batch))
             try:
                 table.delete(delete_expr)
                 rows_deleted += len(batch)  # Approximation

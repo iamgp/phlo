@@ -1,5 +1,6 @@
 """Remove command for removing services from the project."""
 
+from collections.abc import Mapping
 from pathlib import Path
 from subprocess import TimeoutExpired
 
@@ -24,7 +25,7 @@ logger = get_logger(__name__)
 
 
 def _dependent_closure(
-    all_services: dict[str, object],
+    all_services: Mapping[str, object],
     service_name: str,
 ) -> list[str]:
     """Return services that directly or transitively depend on a service."""

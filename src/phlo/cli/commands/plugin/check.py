@@ -14,7 +14,7 @@ import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import click
 from rich.text import Text
@@ -22,6 +22,7 @@ from rich.text import Text
 from phlo.cli.commands.plugin.utils import console
 from phlo.logging import get_logger
 from phlo.plugins import discover_plugins, validate_plugins
+from phlo.plugins.base.service import ServicePlugin
 from phlo.plugins.discovery import ServiceDiscovery
 from phlo.plugins.discovery._service_loading import resolve_plugin_source_path
 
@@ -64,7 +65,15 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
     service_names: list[str] = []
     package_roots: dict[Path, str] = {}
     discovered = discover_plugins(plugin_type="service", auto_register=True)
-    for plugin in discovered.get("service", []):
+    for discovered_plugin in discovered.get("service", []):
+        if isinstance(discovered_plugin, ServicePlugin):
+            plugin = discovered_plugin
+        elif not hasattr(discovered_plugin, "service_definition") or not callable(
+            getattr(discovered_plugin, "get_files", None)
+        ):
+            continue
+        else:
+            plugin = cast(ServicePlugin, discovered_plugin)
         package = _plugin_package(plugin)
         source_path = resolve_plugin_source_path(plugin)
         if source_path:
@@ -1144,7 +1153,7 @@ def check_cmd(
         discover_plugins(auto_register=True)
 
         # Then validate
-        validation_results = validate_plugins()
+        validation_results: dict[str, Any] = {**validate_plugins()}
 
         if containers:
             validation_results["containers"] = check_generated_containers(
@@ -1180,7 +1189,9 @@ def check_cmd(
         else:
             console.print("\n[green]All plugins are valid![/green]")
             if containers:
-                checked = validation_results["containers"]
+                checked = validation_results.get("containers")
+                if not isinstance(checked, dict):
+                    raise RuntimeError("Container validation did not return a result mapping")
                 console.print(
                     f"\n[green]Generated container checks passed:[/green] "
                     f"{len(checked['dockerfiles'])} Dockerfile(s)"

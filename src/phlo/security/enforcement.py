@@ -152,7 +152,10 @@ class EnforcementContext:
                     if self._authorization_backend is None:
                         self._init_authorization_backend()
                     self._init_identity_bridge()
-        return self._identity_bridge
+        bridge = self._identity_bridge
+        if bridge is None:
+            raise RuntimeError("Identity bridge initialization did not produce a bridge")
+        return bridge
 
     @property
     def authorization_backend(self) -> AuthorizationPolicyBackend:
@@ -161,7 +164,10 @@ class EnforcementContext:
             with self._init_lock:
                 if self._authorization_backend is None:
                     self._init_authorization_backend()
-        return self._authorization_backend
+        backend = self._authorization_backend
+        if backend is None:
+            raise RuntimeError("Authorization backend initialization did not produce a backend")
+        return backend
 
     @property
     def audit_emitter(self) -> Any:

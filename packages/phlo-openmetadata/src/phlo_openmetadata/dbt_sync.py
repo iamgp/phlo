@@ -334,6 +334,8 @@ class DbtManifestParser:
         models = self.get_models(manifest)
         for unique_id, model in models.items():
             model_name = model.get("name")
+            if not isinstance(model_name, str) or not model_name:
+                continue
             if model_filter and model_name not in model_filter:
                 continue
 

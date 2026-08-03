@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-minio-cli"
 FRAMEWORK_TYPE = "cli"
@@ -31,5 +31,5 @@ MinioCliSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_minio_cli_adapter() -> MinioCliSurfaceAdapter:
+def get_minio_cli_adapter() -> CliSurfaceAdapter:
     return MinioCliSurfaceAdapter.get_instance()
