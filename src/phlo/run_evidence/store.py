@@ -1224,7 +1224,7 @@ class _SqlRunEvidenceStore:
     def _insert_stage(self, cursor: Any, stage: RunStage) -> None:
         self._require_id("stage_id", stage.stage_id)
         self._validate_stage_write_references(cursor, stage)
-        immutable_payload = {
+        immutable_payload: dict[str, Any] = {
             "stage_id": stage.stage_id,
             "project_id": stage.project_id,
             "run_id": stage.run_id,

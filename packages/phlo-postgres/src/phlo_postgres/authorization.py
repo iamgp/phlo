@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-postgres-cli"
 FRAMEWORK_TYPE = "cli"
@@ -37,5 +37,5 @@ PostgresCliSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_postgres_cli_adapter() -> PostgresCliSurfaceAdapter:
+def get_postgres_cli_adapter() -> CliSurfaceAdapter:
     return PostgresCliSurfaceAdapter.get_instance()

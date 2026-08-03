@@ -47,11 +47,6 @@ from typing import Any
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 
-try:
-    from trino.exceptions import TrinoUserError
-except Exception:  # noqa: BLE001 - optional dependency in lightweight test envs
-    TrinoUserError = None  # type: ignore[assignment]
-
 from phlo.hooks import (
     HookCorrelation,
     LineageEventContext,
@@ -612,7 +607,7 @@ def _is_retryable_introspection_error(exc: Exception) -> bool:
     retryable_error_types = {"external", "internal_error", "insufficient_resources"}
 
     for error in iter_exception_chain(exc):
-        if TrinoUserError is not None and isinstance(error, TrinoUserError):
+        if _is_trino_user_error(error):
             error_name = getattr(error, "error_name", None)
             if error_name and str(error_name).lower() in retryable_error_names:
                 return True
@@ -637,6 +632,15 @@ def _is_retryable_introspection_error(exc: Exception) -> bool:
         "timed out",
     )
     return any(snippet in message for snippet in retryable_snippets)
+
+
+def _is_trino_user_error(error: BaseException) -> bool:
+    """Return whether an optional Trino client exception is present."""
+    try:
+        from trino.exceptions import TrinoUserError
+    except Exception:  # noqa: BLE001 - optional dependency
+        return False
+    return isinstance(error, TrinoUserError)
 
 
 _TRINO_TO_PG_SIMPLE: dict[str, str] = {

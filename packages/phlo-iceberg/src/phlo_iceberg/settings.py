@@ -105,7 +105,7 @@ class IcebergSettings(BaseConfig):
     iceberg_default_ref: str = Field(
         default="main", description="Default catalog ref/branch for Iceberg operations"
     )
-    iceberg_s3_endpoint: str | None = Field(
+    iceberg_s3_endpoint: str = Field(
         default="http://minio:10001",
         validation_alias=AliasChoices(
             "iceberg_s3_endpoint", "PHLO_ICEBERG_S3_ENDPOINT", "ICEBERG_S3_ENDPOINT"

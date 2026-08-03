@@ -228,18 +228,19 @@ python-version = "3.11"
 root = ["./src"]
 
 [tool.ty.rules]
-invalid-argument-type = "warn"
-invalid-assignment = "warn"
-invalid-method-override = "warn"
-invalid-raise = "warn"
-invalid-return-type = "warn"
-invalid-type-form = "warn"
-missing-argument = "warn"
-no-matching-overload = "warn"
-too-many-positional-arguments = "warn"
-unknown-argument = "warn"
-unresolved-attribute = "warn"
-unsupported-operator = "warn"
+invalid-argument-type = "error"
+invalid-assignment = "error"
+invalid-method-override = "error"
+invalid-raise = "error"
+invalid-return-type = "error"
+invalid-type-form = "error"
+missing-argument = "error"
+no-matching-overload = "error"
+possibly-missing-submodule = "error"
+too-many-positional-arguments = "error"
+unknown-argument = "error"
+unresolved-attribute = "error"
+unsupported-operator = "error"
 
 [tool.ty.src]
 exclude = ["**/testing/**"]

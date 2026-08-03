@@ -465,13 +465,13 @@ def _extract_message_and_extra(
 
     event_dict: dict[str, Any] | None = None
     if isinstance(record.msg, Mapping):
-        event_dict = dict(record.msg)
+        event_dict = {str(key): value for key, value in record.msg.items()}
     elif (
         isinstance(record.msg, (list, tuple))
         and len(record.msg) == 1
         and isinstance(record.msg[0], Mapping)
     ):
-        event_dict = dict(record.msg[0])
+        event_dict = {str(key): value for key, value in record.msg[0].items()}
 
     if event_dict:
         extra.update(event_dict)

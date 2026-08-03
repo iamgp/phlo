@@ -35,9 +35,15 @@ def table_state(catalog: Any, table_name: str) -> dict[str, Any]:
         try:
             from pyiceberg.exceptions import NoSuchTableError
         except ImportError:
-            NoSuchTableError = ()  # type: ignore[assignment]
-        if NoSuchTableError and isinstance(exc, NoSuchTableError):
-            return {"state": "absent", "snapshot_id": None, "schema_hash": None, "metadata": {}}
+            pass
+        else:
+            if isinstance(exc, NoSuchTableError):
+                return {
+                    "state": "absent",
+                    "snapshot_id": None,
+                    "schema_hash": None,
+                    "metadata": {},
+                }
         return {
             "state": "unavailable",
             "snapshot_id": None,

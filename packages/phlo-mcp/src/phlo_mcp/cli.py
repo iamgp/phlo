@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from phlo_mcp.config import McpConfig, config_from_env
+from phlo_mcp.config import McpConfig, config_from_env, parse_transport
 from phlo_mcp.server import create_server
 
 
@@ -38,7 +38,7 @@ def parse_args() -> McpConfig:
         api_token=args.api_token if args.api_token is not None else env_config.api_token,
         enable_write_tools=args.enable_write_tools or env_config.enable_write_tools,
         trace_file=args.trace_file if args.trace_file is not None else env_config.trace_file,
-        transport=args.transport or env_config.transport,
+        transport=parse_transport(args.transport or env_config.transport),
         host=args.host or env_config.host,
         port=args.port if args.port is not None else env_config.port,
         streamable_http_path=args.path or env_config.streamable_http_path,

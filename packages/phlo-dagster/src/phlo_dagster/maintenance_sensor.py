@@ -46,6 +46,7 @@ import os
 import re
 import time
 from datetime import datetime, timezone
+from importlib import import_module
 from typing import Any
 
 import dagster as dg
@@ -290,10 +291,15 @@ def optimize_tables_job():
     optimize_table_files()
 
 
+expire_snapshots_job: dg.JobDefinition | None = None
 try:
-    from phlo_dagster.iceberg_maintenance import expire_snapshots_job
+    candidate_job = getattr(
+        import_module("phlo_dagster.iceberg_maintenance"), "expire_snapshots_job", None
+    )
+    if isinstance(candidate_job, dg.JobDefinition):
+        expire_snapshots_job = candidate_job
 except Exception:  # noqa: BLE001 - optional dependency integration
-    expire_snapshots_job = None
+    pass
 
 _SENSOR_TARGET_JOBS: list[dg.JobDefinition] = [optimize_tables_job]
 if expire_snapshots_job is not None:

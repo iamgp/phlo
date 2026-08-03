@@ -131,10 +131,21 @@ def _stage_id(
     check_identity: str | None,
     storage_id: Any,
 ) -> str:
-    identity = (logical_run_id, attempt, stage_type, step_key, asset, partition, check_identity)
+    identity = [
+        str(value)
+        for value in (
+            logical_run_id,
+            attempt,
+            stage_type,
+            step_key,
+            asset,
+            partition,
+            check_identity,
+        )
+    ]
     if stage_type == "materialization":
-        identity += (storage_id,)
-    return hashlib.sha256("\0".join(map(str, identity)).encode()).hexdigest()[:32]
+        identity.append(str(storage_id))
+    return hashlib.sha256("\0".join(identity).encode()).hexdigest()[:32]
 
 
 class DagsterRunEvidenceSource:
@@ -391,7 +402,7 @@ class DagsterRunEvidenceSource:
                     resource_ref=run_resource_ref,
                 )
             )
-            if stage_id is not None:
+            if stage_id is not None and stage_type is not None:
                 stages.append(
                     RunStage(
                         project_id=project_id,

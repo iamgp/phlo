@@ -447,7 +447,7 @@ async def resolve_iceberg_table(
     }
 
     return ResolveTableResult(
-        schema_name=schema,
+        schema=schema,
         table=table_name,
         full_name=".".join(
             [quote_identifier(catalog), quote_identifier(schema), quote_identifier(table_name)]
@@ -512,7 +512,7 @@ async def get_contributing_rows_query(
 
     return ContributingRowsQueryResponse(
         query=query,
-        upstream=UpstreamTableRef(schema_name=upstream.schema_name, table=upstream.table),
+        upstream=UpstreamTableRef(schema=upstream.schema_name, table=upstream.table),
     )
 
 
@@ -586,7 +586,7 @@ async def get_contributing_rows_page(
         page_size=page_size,
         has_more=has_more,
         query=query_or_error,
-        upstream=UpstreamTableRef(schema_name=upstream.schema_name, table=upstream.table),
+        upstream=UpstreamTableRef(schema=upstream.schema_name, table=upstream.table),
         columns=columns,
         column_types=column_types,
         rows=rows,

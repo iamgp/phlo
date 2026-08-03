@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import os
 from collections import deque
+from collections.abc import Iterable
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -127,6 +128,16 @@ def _row_to_lineage_info(row: dict[str, Any] | None) -> RowLineageInfo | None:
         if created_at
         else None,
     )
+
+
+def _rows_to_lineage_info(rows: Iterable[dict[str, Any]]) -> list[RowLineageInfo]:
+    """Convert provider rows while dropping malformed or absent entries."""
+    result: list[RowLineageInfo] = []
+    for row in rows:
+        info = _row_to_lineage_info(row)
+        if info is not None:
+            result.append(info)
+    return result
 
 
 def _coerce_asset_node(name: str, payload: Any) -> AssetNode:
@@ -309,7 +320,7 @@ async def get_row_ancestors(
     """
     try:
         journey = _resolve_lineage_sink().get_row_journey(row_id=row_id, depth=max_depth)
-        return [_row_to_lineage_info(row) for row in journey.get("ancestors", []) if row]
+        return _rows_to_lineage_info(journey.get("ancestors", []))
     except RuntimeError as exc:
         return {"error": str(exc)}
     except Exception as exc:
@@ -337,7 +348,7 @@ async def get_row_descendants(
     """
     try:
         journey = _resolve_lineage_sink().get_row_journey(row_id=row_id, depth=max_depth)
-        return [_row_to_lineage_info(row) for row in journey.get("descendants", []) if row]
+        return _rows_to_lineage_info(journey.get("descendants", []))
     except RuntimeError as exc:
         return {"error": str(exc)}
     except Exception as exc:
@@ -363,10 +374,8 @@ async def get_row_journey(row_id: str) -> LineageJourney | dict[str, str]:
         journey = _resolve_lineage_sink().get_row_journey(row_id=row_id, depth=10)
         return LineageJourney(
             current=_row_to_lineage_info(journey.get("current")),
-            ancestors=[_row_to_lineage_info(row) for row in journey.get("ancestors", []) if row],
-            descendants=[
-                _row_to_lineage_info(row) for row in journey.get("descendants", []) if row
-            ],
+            ancestors=_rows_to_lineage_info(journey.get("ancestors", [])),
+            descendants=_rows_to_lineage_info(journey.get("descendants", [])),
         )
     except RuntimeError as exc:
         return {"error": str(exc)}

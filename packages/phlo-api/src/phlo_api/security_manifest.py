@@ -12,7 +12,7 @@ import json
 import os
 from uuid import uuid4
 from dataclasses import dataclass, replace
-from typing import Any, Iterable
+from typing import Any, Iterable, NoReturn
 
 from fastapi import HTTPException, Request
 from starlette.routing import Match
@@ -545,12 +545,10 @@ def validate_manifest(app: Any) -> tuple[OperationSpec, ...]:
                     f"Duplicate HTTP security manifest operation for {method} {path}"
                 )
             seen_routes.add(key)
-            resolved_spec = OperationSpec(
-                **{
-                    **spec.__dict__,
-                    "methods": tuple(sorted(route.methods)),
-                    "path": path,
-                }
+            resolved_spec = replace(
+                spec,
+                methods=tuple(sorted(route.methods)),
+                path=path,
             )
             route_key_manifest[key] = resolved_spec
             resolved.append(resolved_spec)
@@ -668,7 +666,7 @@ async def resolve_resource(
     )
 
 
-def _raise_unauthorized() -> None:
+def _raise_unauthorized() -> NoReturn:
     raise HTTPException(
         status_code=401,
         detail={"error": "unauthorized", "reason": "authentication_required"},

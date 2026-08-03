@@ -202,7 +202,9 @@ class DltIngester(BaseIngester):
         self.merge_config = merge_config or {}
 
     def run_ingestion(
-        self, partition_key: str, parameters: Dict[str, Any] | None = None
+        self,
+        partition_key: str | None,
+        parameters: Dict[str, Any] | None = None,
     ) -> IngestionResult:
         """Run the full DLT -> Parquet -> table_store flow.
 
@@ -259,7 +261,8 @@ class DltIngester(BaseIngester):
             attempt = None
         correlation_attempt = attempt if attempt is not None else 1
 
-        pipeline_name = f"{self.table_config.table_name}_{partition_key.replace('-', '_')}"
+        partition_date = partition_key or "unpartitioned"
+        pipeline_name = f"{self.table_config.table_name}_{partition_date.replace('-', '_')}"
         group_name = self.table_config.group_name
 
         # Emission Setup
@@ -343,7 +346,7 @@ class DltIngester(BaseIngester):
                                     or self.table_config.full_table_name,
                                     attributes={
                                         "table_name": self.table_config.full_table_name,
-                                        "partition_key": partition_key,
+                                        "partition_key": partition_date,
                                     },
                                 ),
                                 "ref_name": branch_name,
@@ -405,7 +408,7 @@ class DltIngester(BaseIngester):
                 for parquet_path in parquet_paths:
                     inject_metadata_columns(
                         parquet_path=parquet_path,
-                        partition_date=partition_key,
+                        partition_date=partition_date,
                         run_id=run_id,
                         context=shim,
                     )
@@ -442,7 +445,7 @@ class DltIngester(BaseIngester):
                         resource_id=source_identity or self.table_config.full_table_name,
                         attributes={
                             "table_name": self.table_config.full_table_name,
-                            "partition_key": partition_key,
+                            "partition_key": partition_date,
                         },
                     ),
                     "ref_name": branch_name,
@@ -472,7 +475,7 @@ class DltIngester(BaseIngester):
                         or self.table_config.full_table_name,
                         attributes={
                             "table_name": self.table_config.full_table_name,
-                            "partition_key": partition_key,
+                            "partition_key": partition_date,
                         },
                     ),
                     "ref_name": branch_name,

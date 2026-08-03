@@ -298,14 +298,10 @@ def _ensure_imports_in_module(content: str, import_lines: list[str]) -> str:
         return "\n".join(import_lines) + "\n" + content
 
     insert_after = 0
-    if (
-        tree.body
-        and isinstance(tree.body[0], ast.Expr)
-        and isinstance(getattr(tree.body[0], "value", None), ast.Constant)
-        and isinstance(tree.body[0].value.value, str)
-        and getattr(tree.body[0], "end_lineno", None)
-    ):
-        insert_after = tree.body[0].end_lineno
+    first_node = tree.body[0] if tree.body else None
+    if isinstance(first_node, ast.Expr) and isinstance(first_node.value, ast.Constant):
+        if isinstance(first_node.value.value, str) and first_node.end_lineno is not None:
+            insert_after = first_node.end_lineno
 
     lines = content.splitlines()
     existing = set(lines)

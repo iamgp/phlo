@@ -32,7 +32,7 @@ class PhloApiClient:
         return {}
 
     def get_platform_health(self) -> dict[str, Any]:
-        return self._get_json("/api/observability/health")
+        return self._get_object("/api/observability/health")
 
     def get_config(self) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json("/api/config")
@@ -349,7 +349,7 @@ class PhloApiClient:
 
     def get_logs_query_link(self, service: str | None = None) -> dict[str, Any]:
         params = {"service": service} if service else None
-        return self._get_json("/api/observability/links/logs", params=params)
+        return self._get_object("/api/observability/links/logs", params=params)
 
     def get_trace_spans(
         self,
@@ -386,7 +386,7 @@ class PhloApiClient:
 
     def get_metrics_query_link(self, metric: str | None = None) -> dict[str, Any]:
         params = {"metric": metric} if metric else None
-        return self._get_json("/api/observability/links/metrics", params=params)
+        return self._get_object("/api/observability/links/metrics", params=params)
 
     def materialize_asset(
         self,
@@ -513,6 +513,18 @@ class PhloApiClient:
                 return response.json()
             except httpx.HTTPError as exc:
                 return {"error": map_httpx_error(exc).to_payload()}
+
+    def _get_object(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Fetch an endpoint whose response contract is a JSON object."""
+        payload = self._get_json(path, params=params)
+        if not isinstance(payload, dict):
+            raise TypeError(f"Expected JSON object from {path}, got {type(payload).__name__}")
+        return payload
 
     def _post_json(
         self,
