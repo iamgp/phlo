@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-alerting"
 FRAMEWORK_TYPE = "cli"
@@ -23,5 +23,5 @@ AlertingSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_alerting_adapter() -> AlertingSurfaceAdapter:
+def get_alerting_adapter() -> CliSurfaceAdapter:
     return AlertingSurfaceAdapter.get_instance()

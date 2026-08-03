@@ -152,6 +152,8 @@ async def get_search_index(
             return {"error": f"Failed to fetch assets: {assets_result['error']}"}
         if isinstance(tables_result, dict) and "error" in tables_result:
             return {"error": f"Failed to fetch tables: {tables_result['error']}"}
+        if not isinstance(assets_result, list) or not isinstance(tables_result, list):
+            return {"error": "Failed to fetch search index data."}
 
         # Convert assets
         assets = [

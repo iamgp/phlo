@@ -21,6 +21,7 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-iceberg/src \
 	packages/phlo-lineage/src \
 	packages/phlo-loki/src \
+	packages/phlo-mcp/src \
 	packages/phlo-minio/src \
 	packages/phlo-nessie/src \
 	packages/phlo-oauth2-proxy/src \

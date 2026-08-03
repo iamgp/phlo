@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-clickhouse"
 FRAMEWORK_TYPE = "cli"
@@ -23,5 +23,5 @@ ClickHouseSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_adapter() -> ClickHouseSurfaceAdapter:
+def get_adapter() -> CliSurfaceAdapter:
     return ClickHouseSurfaceAdapter.get_instance()

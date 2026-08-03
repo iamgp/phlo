@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-nessie-cli"
 FRAMEWORK_TYPE = "cli"
@@ -43,5 +43,5 @@ NessieCliSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_nessie_cli_adapter() -> NessieCliSurfaceAdapter:
+def get_nessie_cli_adapter() -> CliSurfaceAdapter:
     return NessieCliSurfaceAdapter.get_instance()

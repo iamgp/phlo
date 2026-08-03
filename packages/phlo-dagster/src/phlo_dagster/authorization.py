@@ -27,6 +27,8 @@ from dataclasses import dataclass
 import re
 from typing import Any
 
+from graphql import GraphQLObjectType
+
 from phlo.capabilities import (
     RegulatedSurfaceSpec,
     register_capability,
@@ -509,7 +511,7 @@ def validate_graphql_schema(schema: Any | None = None) -> None:
 
     for operation in ("query", "mutation", "subscription"):
         root = schema.get_type(operation.capitalize())
-        if root is None:
+        if not isinstance(root, GraphQLObjectType):
             continue
         actual_fields = set(root.fields)
         classified = {field for kind, field in _GRAPHQL_OPERATION_INDEX if kind == operation}

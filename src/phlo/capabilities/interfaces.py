@@ -742,7 +742,7 @@ class AuthPrincipal:
     issuer: str | None = None
     email: str | None = None
     groups: tuple[str, ...] = ()
-    claims: dict[str, str] = field(default_factory=dict)
+    claims: dict[str, Any] = field(default_factory=dict)
     attributes: dict[str, str] = field(default_factory=dict)
 
 

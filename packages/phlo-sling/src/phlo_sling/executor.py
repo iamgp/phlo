@@ -80,7 +80,7 @@ class SlingIngester(BaseIngester):
         self.overrides = overrides or {}
 
     def run_ingestion(
-        self, partition_key: str, parameters: Dict[str, Any] | None = None
+        self, partition_key: str | None, parameters: Dict[str, Any]
     ) -> IngestionResult:
         """Run the Sling replication flow.
 
@@ -209,7 +209,7 @@ class SlingIngester(BaseIngester):
             )
             raise
 
-    def _build_sling_kwargs(self, partition_key: str) -> dict[str, Any]:
+    def _build_sling_kwargs(self, partition_key: str | None) -> dict[str, Any]:
         """Build keyword arguments for the Sling constructor.
 
         Merges static configuration from the ReplicationConfig with runtime

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-trino-cli"
 FRAMEWORK_TYPE = "cli"
@@ -23,5 +23,5 @@ TrinoCliSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_trino_cli_adapter() -> TrinoCliSurfaceAdapter:
+def get_trino_cli_adapter() -> CliSurfaceAdapter:
     return TrinoCliSurfaceAdapter.get_instance()

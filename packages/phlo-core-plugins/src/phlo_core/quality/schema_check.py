@@ -85,7 +85,7 @@ class SchemaCheckPlugin(QualityCheckPlugin[Any]):
             tags=["quality", "schema"],
         )
 
-    def create_check(self, schema: Any, lazy: bool = True) -> Any:
+    def create_check(self, *args: Any, **kwargs: Any) -> Any:
         """Create a schema check instance.
 
         Creates and returns a configured SchemaCheck instance from phlo_pandera
@@ -125,6 +125,13 @@ class SchemaCheckPlugin(QualityCheckPlugin[Any]):
                 strict_check = plugin.create_check(schema=schema, lazy=False)
 
         """
+        if len(args) > 2 or set(kwargs) - {"schema", "lazy"}:
+            raise TypeError("create_check accepts schema and lazy")
+        schema = kwargs.get("schema", args[0] if args else None)
+        lazy = kwargs.get("lazy", args[1] if len(args) > 1 else True)
+        if schema is None or not isinstance(lazy, bool):
+            raise TypeError("schema is required and lazy must be boolean")
+
         from phlo_pandera.checks_extra import SchemaCheck
 
         return SchemaCheck(schema=schema, lazy=lazy)

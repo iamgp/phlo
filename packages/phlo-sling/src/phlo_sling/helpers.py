@@ -16,6 +16,30 @@ from phlo_sling.registry import SlingReplication
 SECRET_KEY_PARTS = ("password", "secret", "token", "key")
 
 
+def _coerce_replication_mode(
+    value: object,
+) -> Literal["full-refresh", "incremental", "snapshot", "backfill"] | None:
+    """Validate and narrow a replication mode from a dynamic mapping."""
+    if value is None:
+        return None
+    if value not in {"full-refresh", "incremental", "snapshot", "backfill"}:
+        raise ValueError(f"Unsupported replication mode: {value}")
+    if value == "full-refresh":
+        return "full-refresh"
+    if value == "incremental":
+        return "incremental"
+    if value == "snapshot":
+        return "snapshot"
+    return "backfill"
+
+
+def _mapping_value(value: object) -> dict[str, Any]:
+    """Return a string-keyed mapping from dynamic configuration data."""
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
 @dataclass(frozen=True)
 class ReplicationPlan:
     """A lightweight collection of Sling replication definitions."""
@@ -88,7 +112,11 @@ def build_replication_plan(
             replications.append(stream)
             continue
 
-        stream_config = {"stream_name": stream} if isinstance(stream, str) else dict(stream)
+        stream_config = (
+            {"stream_name": stream}
+            if isinstance(stream, str)
+            else {str(key): value for key, value in stream.items()}
+        )
         stream_name = str(stream_config["stream_name"])
         table_name = str(stream_config.get("table_name") or table_name_from_stream(stream_name))
         replications.append(
@@ -97,19 +125,19 @@ def build_replication_plan(
                 table_name=table_name,
                 source_conn=str(stream_config.get("source_conn") or source_conn),
                 target_conn=_coalesce_str(stream_config.get("target_conn"), target_conn),
-                mode=stream_config.get("mode") or mode,
+                mode=_coerce_replication_mode(stream_config.get("mode") or mode),
                 primary_key=stream_config.get("primary_key", primary_key),
                 update_key=_coalesce_str(stream_config.get("update_key"), update_key),
                 group_name=_coalesce_str(stream_config.get("group_name"), group_name),
                 object=_coalesce_str(stream_config.get("object"), None),
                 select=list(stream_config.get("select") or []),
                 where=_coalesce_str(stream_config.get("where"), where),
-                source_options=dict(stream_config.get("source_options") or {}),
-                target_options=dict(stream_config.get("target_options") or {}),
+                source_options=_mapping_value(stream_config.get("source_options")),
+                target_options=_mapping_value(stream_config.get("target_options")),
                 description=_coalesce_str(stream_config.get("description"), None),
                 owner=_coalesce_str(stream_config.get("owner"), None),
-                metadata=dict(stream_config.get("metadata") or {}),
-                tags={str(k): str(v) for k, v in dict(stream_config.get("tags") or {}).items()},
+                metadata=_mapping_value(stream_config.get("metadata")),
+                tags={str(k): str(v) for k, v in _mapping_value(stream_config.get("tags")).items()},
             )
         )
     return ReplicationPlan(replications=replications)

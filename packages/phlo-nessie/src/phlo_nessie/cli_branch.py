@@ -722,7 +722,7 @@ def diff(source_branch: str, target_branch: str, format: str):
 
         console.print(f"\n[bold]Differences: {source_branch} -> {target_branch}[/bold]")
 
-        differences: dict[str, list[str]] = {
+        differences: dict[str, builtins.list[str]] = {
             "added_tables": [],
             "modified_tables": [],
             "deleted_tables": [],

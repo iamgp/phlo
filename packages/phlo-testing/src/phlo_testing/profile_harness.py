@@ -33,6 +33,7 @@ import sys
 import time
 import urllib.parse
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -678,7 +679,7 @@ class BundledStackHarness:
         return _load_golden_path_module()
 
     @contextlib.contextmanager
-    def _temporary_env(self, updates: dict[str, str | None]) -> Any:
+    def _temporary_env(self, updates: Mapping[str, str | None]) -> Any:
         """Temporarily update environment variables.
 
         Args:

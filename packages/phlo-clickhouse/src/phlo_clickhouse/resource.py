@@ -124,7 +124,7 @@ class ClickHouseResource:
         client = self.get_client()
         try:
             result = client.query(sql, parameters=list(params or []))
-            return result.result_rows
+            return [list(row) for row in result.result_rows]
         finally:
             client.close()
 

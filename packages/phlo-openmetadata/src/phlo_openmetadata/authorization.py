@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-openmetadata"
 FRAMEWORK_TYPE = "cli"
@@ -23,5 +23,5 @@ OpenMetadataSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_openmetadata_adapter() -> OpenMetadataSurfaceAdapter:
+def get_openmetadata_adapter() -> CliSurfaceAdapter:
     return OpenMetadataSurfaceAdapter.get_instance()
