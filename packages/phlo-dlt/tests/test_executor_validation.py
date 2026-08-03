@@ -71,10 +71,13 @@ def test_non_strict_validation_allows_write_and_records_evaluation(monkeypatch, 
     invalid_path = tmp_path / "invalid.parquet"
     pd.DataFrame([{"name": "test", "value": "not_an_int"}]).to_parquet(invalid_path)
 
-    monkeypatch.setattr(
-        "phlo_dlt.executor.setup_dlt_pipeline",
-        lambda **_kwargs: (SimpleNamespace(), tmp_path),
-    )
+    pipeline_setup: dict[str, str] = {}
+
+    def _setup_dlt_pipeline(**kwargs):
+        pipeline_setup.update(kwargs)
+        return SimpleNamespace(), tmp_path
+
+    monkeypatch.setattr("phlo_dlt.executor.setup_dlt_pipeline", _setup_dlt_pipeline)
     monkeypatch.setattr(
         "phlo_dlt.executor.stage_to_parquet",
         lambda **_kwargs: ([invalid_path], 0.01),
@@ -105,6 +108,10 @@ def test_non_strict_validation_allows_write_and_records_evaluation(monkeypatch, 
 
     assert result.status == "success"
     assert result.metadata["pandera_evaluation"]["passed"] is False
+    assert pipeline_setup == {
+        "pipeline_name": "entries_2026_03_05",
+        "dataset_name": "entries_2026_03_05",
+    }
 
 
 def test_dlt_failure_events_carry_runtime_correlation(monkeypatch, tmp_path) -> None:

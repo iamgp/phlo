@@ -243,8 +243,8 @@ def materialize(
         host_platform = platform.system()
         backend = select_project_container_backend()
 
+        container_name = find_dagster_container(project_name)
         if not dry_run:
-            container_name = find_dagster_container(project_name)
             wait_for_dagster_runtime(container_name, backend=backend)
 
         cmd = backend.container_exec_cmd(
