@@ -1,6 +1,7 @@
 """Tests for the phlo backfill CLI command."""
 
 import json
+from types import SimpleNamespace
 from datetime import datetime
 from unittest.mock import ANY, patch
 
@@ -50,6 +51,39 @@ class TestBackfillDateGeneration:
         )
         assert result.exit_code == 1
         assert "Start date must be before end date" in result.output
+
+
+def test_wap_backfill_creates_branch_before_each_partition(monkeypatch):
+    from phlo_dagster.cli_backfill import _run_wap_backfill
+
+    launched: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.prepare_wap_launch",
+        lambda **kwargs: SimpleNamespace(
+            branch=f"pipeline-run-{kwargs['logical_run_id']}",
+            tags={"phlo/wap_branch": "branch", "phlo/ref": "branch"},
+            cleanup_if_created=lambda: None,
+        ),
+    )
+
+    async def launch(**kwargs):
+        launched.append(kwargs)
+        return SimpleNamespace(accepted=True, message="ok")
+
+    monkeypatch.setattr("phlo_dagster.cli_backfill.launch_materialize", launch)
+    _run_wap_backfill(
+        "dlt_events",
+        ["2024-01-01", "2024-01-02"],
+        dagster_url="http://dagster",
+        job_name="__ASSET_JOB",
+        repository_location_name="phlo_dagster",
+        repository_name="phlo_dagster",
+        access_token="token",
+    )
+    assert [call["partition_key"] for call in launched] == ["2024-01-01", "2024-01-02"]
+    assert all(
+        call["tags"] == {"phlo/wap_branch": "branch", "phlo/ref": "branch"} for call in launched
+    )
 
 
 class TestBackfillValidation:

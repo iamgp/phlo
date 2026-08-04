@@ -37,7 +37,9 @@ compose:
     interval: 30s
     timeout: 5s
     retries: 3
-    start_period: 15s
+    # Editable project installs and Dagster definition loading can exceed the
+    # short Docker default on a cold bundled-stack boot.
+    start_period: 120s
   labels:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "dagster:3000"

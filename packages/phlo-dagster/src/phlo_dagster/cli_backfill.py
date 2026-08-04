@@ -35,9 +35,12 @@ Example:
 """
 
 import json
+import asyncio
+import os
 import re
 import subprocess
 import sys
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -57,6 +60,8 @@ from phlo.cli.output import service_unavailable_error
 from phlo.logging import get_logger
 from phlo_dagster.cli_materialize import wait_for_dagster_runtime
 from phlo_dagster.containers import find_dagster_container
+from phlo_dagster.operations import launch_materialize
+from phlo_dagster.wap_launch import prepare_wap_launch
 
 console = Console()
 logger = get_logger(__name__)
@@ -104,6 +109,13 @@ BACKFILL_STATE_FILE = Path(".phlo/backfill_state.json")
     default=0.0,
     help="Delay between parallel executions in seconds (rate limiting)",
 )
+@click.option("--wap", is_flag=True, help="Launch partitions on isolated WAP branches.")
+@click.option("--job-name", help="Dagster job name for a WAP backfill launch.")
+@click.option("--repository-location-name", envvar="PHLO_DAGSTER_REPOSITORY_LOCATION_NAME")
+@click.option("--repository-name", envvar="PHLO_DAGSTER_REPOSITORY_NAME")
+@click.option(
+    "--dagster-url", envvar="DAGSTER_GRAPHQL_URL", default="http://localhost:3000/graphql"
+)
 def backfill(
     asset_name: str | None,
     start_date: str | None,
@@ -113,6 +125,11 @@ def backfill(
     resume: bool,
     dry_run: bool,
     delay: float,
+    wap: bool,
+    job_name: str | None,
+    repository_location_name: str | None,
+    repository_name: str | None,
+    dagster_url: str,
 ):
     """Run asset materialization across a date range with parallel execution.
 
@@ -247,6 +264,23 @@ def backfill(
         console.print("[yellow]No partitions to backfill[/yellow]")
         return
 
+    if wap:
+        access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
+        if not job_name or not repository_location_name or not repository_name or not access_token:
+            raise click.UsageError(
+                "WAP backfill requires --job-name, repository selectors, and PHLO_DAGSTER_ACCESS_TOKEN."
+            )
+        _run_wap_backfill(
+            asset_name,
+            partition_dates,
+            dagster_url=dagster_url,
+            job_name=job_name,
+            repository_location_name=repository_location_name,
+            repository_name=repository_name,
+            access_token=access_token,
+        )
+        return
+
     # Run backfill with progress tracking
     console.print()
     _run_backfill(
@@ -256,6 +290,39 @@ def backfill(
         delay=delay,
         completed_partitions=completed_partitions,
     )
+
+
+def _run_wap_backfill(
+    asset_name: str,
+    partition_dates: list[str],
+    *,
+    dagster_url: str,
+    job_name: str,
+    repository_location_name: str,
+    repository_name: str,
+    access_token: str,
+) -> None:
+    """Create a WAP branch before submitting each partitioned asset run."""
+    for partition_date in partition_dates:
+        logical_run_id = f"backfill-{uuid.uuid4().hex}"
+        launch = prepare_wap_launch(logical_run_id=logical_run_id)
+        result = asyncio.run(
+            launch_materialize(
+                dagster_url=dagster_url,
+                asset_key_path=asset_name,
+                job_name=job_name,
+                repository_location_name=repository_location_name,
+                repository_name=repository_name,
+                access_token=access_token,
+                partition_key=partition_date,
+                idempotency_key=logical_run_id,
+                tags=launch.tags,
+            )
+        )
+        if not result.accepted:
+            launch.cleanup_if_created()
+            raise click.ClickException(result.message)
+        console.print(f"Launched WAP backfill for {partition_date} on {launch.branch}")
 
 
 def _generate_partition_dates(start_date: str, end_date: str) -> list[str]:
