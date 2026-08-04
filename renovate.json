@@ -1,10 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "schedule": ["every weekend"],
+  "schedule": ["before 3am every day"],
   "prHourlyLimit": 2,
   "prConcurrentLimit": 4,
   "labels": ["dependencies"],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security"],
+    "groupName": "security dependency remediation",
+    "rangeStrategy": "update-lockfile",
+    "vulnerabilityFixStrategy": "lowest"
+  },
   "packageRules": [
     {
       "description": "Group GitHub Actions updates.",

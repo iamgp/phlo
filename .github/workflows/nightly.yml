@@ -2,6 +2,14 @@ name: Nightly
 
 on:
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      POSTGRES_PASSWORD:
+        required: true
+      MINIO_ROOT_PASSWORD:
+        required: true
+      SUPERSET_ADMIN_PASSWORD:
+        required: true
   schedule:
     - cron: "0 3 * * *"
 
