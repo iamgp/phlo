@@ -1210,6 +1210,9 @@ phlo materialize dlt_events --wap --job-name __ASSET_JOB \
   --repository-location-name phlo_dagster --repository-name phlo_dagster
 ```
 
+The direct `dagster asset materialize` command bypasses Phlo's WAP lifecycle;
+use the Phlo WAP launch path when writes must be isolated before execution.
+
 **Selection Syntax**:
 
 ```bash

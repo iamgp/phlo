@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from phlo_dagster.wap_launch import WAP_BRANCH_TAG, WAP_RUN_ID_TAG, prepare_wap_launch
+from phlo_dagster.wap_launch import WAP_BRANCH_TAG, WAP_REF_TAG, WAP_RUN_ID_TAG, prepare_wap_launch
 
 
 class _Catalog:
@@ -49,6 +49,7 @@ def test_prepare_wap_launch_creates_deterministic_branch_and_tags(monkeypatch) -
     assert launch.tags == {
         WAP_RUN_ID_TAG: "request-42",
         WAP_BRANCH_TAG: "pipeline-run-request-42",
+        WAP_REF_TAG: "pipeline-run-request-42",
     }
     assert catalog.created == [("pipeline-run-request-42", "main")]
 

@@ -1408,6 +1408,7 @@ QualityResultEventEmitter(
 
         tags: dict[str, str] = {
             "phlo/wap_branch": branch_name,
+            "phlo/ref": branch_name,
             "phlo/run_id": logical_run_id,
             "phlo/project_id": self.project_dir.name,
             "phlo/attempt": "1",

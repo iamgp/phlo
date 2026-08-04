@@ -660,32 +660,9 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                     "changed_content_keys": {"status": "unavailable"},
                 },
             )
-            cleanup_complete = _cleanup_owned_wap_branch(
-                catalog,
-                branch_name,
-                query_catalog_manager,
-            )
-            write_wap_report(
-                run.run_id,
-                status="rejected" if cleanup_complete else "rejected_cleanup_incomplete",
-                branch=branch_name,
-                source_hash=_branch_hash(catalog, branch_name),
-                cleanup_complete=cleanup_complete,
-                failure_reason=None if cleanup_complete else "branch_cleanup_incomplete",
-            )
-            _emit_wap_observation(
-                run=run,
-                status="success" if cleanup_complete else "incomplete",
-                run_status="success",
-                operation="cleanup",
-                catalog_ref=branch_name,
-                source_hash=_branch_hash(catalog, branch_name),
-                merge_outcome="deleted" if cleanup_complete else "failed",
-                metadata={"target_ref": "main", "reason": "rejected_quality"},
-            )
             blocked += 1
             logger.info(
-                "wap_promotion_blocked_quality",
+                "wap_promotion_blocked_quality_branch_retained",
                 run_id=run.run_id,
                 branch_name=branch_name,
             )

@@ -894,9 +894,19 @@ infrastructure:
       internal_host: postgres
 ```
 
-Service enablement, Compose port replacement, environment, volume, dependency,
+Service enablement, Compose port replacement, environment, volume, `extra_hosts`, dependency,
 command, and healthcheck overrides live in the top-level `services:` section, not
 under `infrastructure.services`.
+
+Use `extra_hosts` when a generated service must resolve a host-private dependency from
+inside Docker. Values use Docker Compose host mappings and replace any package default:
+
+```yaml
+services:
+  dagster:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
 
 Service packages own their default ports. When a package is selected by
 `phlo services init`, its non-secret defaults are materialized into `.phlo/.env`;

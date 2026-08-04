@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 import yaml
 
+from phlo.config_schema import ServiceOverride
 from phlo.logging import get_logger
 from phlo.plugins.compose.env import (
     generate_env as _generate_env,
@@ -398,6 +399,10 @@ class ComposeGenerator:
         if not user_override:
             return
 
+        # `services init` reads raw project YAML, so validate it here as well as
+        # in `phlo config validate` before it reaches Docker Compose.
+        user_override = ServiceOverride.model_validate(user_override).model_dump(exclude_none=True)
+
         # Ports: replace
         if user_override.get("ports"):
             config["ports"] = user_override["ports"]
@@ -416,6 +421,10 @@ class ComposeGenerator:
         if user_override.get("volumes"):
             config.setdefault("volumes", [])
             config["volumes"].extend(user_override["volumes"])
+
+        # Extra hosts: replace package defaults with explicit project routing.
+        if "extra_hosts" in user_override:
+            config["extra_hosts"] = list(user_override["extra_hosts"])
 
         # Depends on: replace
         if user_override.get("depends_on"):

@@ -376,8 +376,8 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     )
 
 
-def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypatch, tmp_path):
-    """A rejected quality decision removes the WAP ref and its owned catalog."""
+def test_wap_quality_rejection_retains_owned_query_catalog_and_branch(monkeypatch, tmp_path):
+    """A rejected quality decision retains the WAP ref for audit."""
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     run_id = "run-rejected"
     branch = _wap_branch_name(run_id)
@@ -393,7 +393,6 @@ def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypa
     instance.get_runs.return_value = [run]
     instance.get_records_for_run.return_value = SimpleNamespace(records=[_FakeRecord(passed=False)])
     catalog = MagicMock()
-    catalog.delete_branch.return_value = True
     query_catalog_manager = MagicMock()
     monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
     monkeypatch.setattr(
@@ -410,11 +409,11 @@ def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypa
     wap_auto_promotion_sensor._raw_fn(context)
 
     catalog.merge_branch.assert_not_called()
-    query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch)
-    catalog.delete_branch.assert_called_once_with(branch)
+    query_catalog_manager.drop_ref_query_catalog.assert_not_called()
+    catalog.delete_branch.assert_not_called()
     payload = json.loads((tmp_path / ".phlo" / "wap-reports" / f"{run_id}.json").read_text())
-    assert payload["status"] == "rejected"
-    assert payload["cleanup_complete"] is True
+    assert payload["status"] == "promotion_blocked"
+    assert payload["failure_reason"] == "asset_checks_failed"
 
 
 def test_wap_cleanup_keeps_branch_when_query_catalog_cleanup_fails(monkeypatch, tmp_path):

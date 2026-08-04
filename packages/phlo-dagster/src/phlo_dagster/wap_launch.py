@@ -10,6 +10,7 @@ from phlo.capabilities.resolver import resolve_capability
 from phlo.exceptions import PhloConfigError
 
 WAP_BRANCH_TAG = "phlo/wap_branch"
+WAP_REF_TAG = "phlo/ref"
 WAP_RUN_ID_TAG = "phlo/run_id"
 WAP_BRANCH_PREFIX = "pipeline-run-"
 
@@ -26,7 +27,11 @@ class WapLaunch:
     @property
     def tags(self) -> dict[str, str]:
         """Return the Dagster tags that bind stages to this WAP branch."""
-        return {WAP_RUN_ID_TAG: self.logical_run_id, WAP_BRANCH_TAG: self.branch}
+        return {
+            WAP_RUN_ID_TAG: self.logical_run_id,
+            WAP_BRANCH_TAG: self.branch,
+            WAP_REF_TAG: self.branch,
+        }
 
     def cleanup_if_created(self) -> None:
         """Remove only the branch created by this launch attempt."""

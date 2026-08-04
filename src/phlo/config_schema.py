@@ -89,6 +89,10 @@ class ServiceOverride(BaseModel):
         default=None,
         description="Volume mounts to add (appended to package defaults).",
     )
+    extra_hosts: list[str] | None = Field(
+        default=None,
+        description="Compose host mappings to add or replace for this service.",
+    )
     depends_on: list[str] | None = Field(
         default=None,
         description="Service dependencies to override (replaces package defaults).",
@@ -119,6 +123,22 @@ class ServiceOverride(BaseModel):
         default=None,
         description="Healthcheck configuration for inline services.",
     )
+
+    @field_validator("extra_hosts")
+    @classmethod
+    def validate_extra_hosts(cls, value: list[str] | None) -> list[str] | None:
+        """Require non-empty Docker Compose host-to-address mappings."""
+        if value is None:
+            return value
+        for mapping in value:
+            if not isinstance(mapping, str) or not mapping.strip():
+                raise ValueError("extra_hosts mappings must be non-empty")
+            host, separator, address = mapping.strip().partition("=")
+            if not separator:
+                host, separator, address = mapping.strip().partition(":")
+            if not separator or not host.strip() or not address.strip():
+                raise ValueError("extra_hosts entries must be Compose host mappings")
+        return [mapping.strip() for mapping in value]
 
 
 class ServiceConfig(BaseModel):
