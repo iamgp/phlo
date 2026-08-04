@@ -42,7 +42,13 @@ relx status --channel
 ### Dependency Refresh Lane
 
 Run dependency refreshes only as an explicit release-maintenance task. They are
-not part of normal pull-request CI.
+not part of normal pull-request CI. GitHub Actions audits the locked Python and
+Observatory dependencies every day; Renovate opens dependency remediation PRs
+for available vulnerability fixes. A remediation PR runs the normal CI suite
+and the full nightly workflow before merge review. Do not merge a remediation
+PR until those checks have passed. The nightly workflow deliberately runs only
+for trusted in-repository PRs because it needs service credentials; forked PRs
+retain normal CI without those secrets.
 
 ```bash
 gh workflow run "Dependency Refresh" --ref main -f lane=all
