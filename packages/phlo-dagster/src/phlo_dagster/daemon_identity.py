@@ -17,6 +17,7 @@ Run Tag Propagation:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dagster._core.run_coordinator import QueuedRunCoordinator, SubmitRunContext
 from dagster._core.storage.tags import (
     AUTOMATION_CONDITION_TAG,
@@ -186,7 +187,7 @@ def authorize_daemon_run(
     )
 
 
-def _infer_daemon_trigger(run_tags: dict[str, str]) -> tuple[str, str] | None:
+def _infer_daemon_trigger(run_tags: Mapping[str, str]) -> tuple[str, str] | None:
     """Infer daemon trigger kind and name from Dagster run tags."""
     if schedule_name := run_tags.get(SCHEDULE_NAME_TAG):
         return "schedule", schedule_name

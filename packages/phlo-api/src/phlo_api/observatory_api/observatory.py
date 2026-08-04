@@ -21,11 +21,6 @@ from typing import Any, cast
 from urllib.parse import quote
 from uuid import uuid4
 
-try:
-    import fcntl
-except ImportError:  # pragma: no cover - POSIX is used in production
-    fcntl = None  # type: ignore[assignment]
-
 from fastapi import APIRouter, BackgroundTasks, Body, Query, Request
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
@@ -35,6 +30,7 @@ from phlo_api.observatory_api.observatory_actions import execute_observatory_act
 from phlo_api.observatory_api.observatory_cache import ReadModelCache
 from phlo_api.observatory_api.observatory_capabilities import build_capability_inventory
 from phlo_api.observatory_api.observatory_models import (
+    ControlStatus,
     HealthState,
     ObservatoryAction,
     ObservatoryActionRequest,
@@ -163,6 +159,15 @@ from phlo_api.api.operation_controls import (
     require_scope,
 )
 from phlo_api.pagination import paginate_items
+from types import ModuleType
+
+fcntl: ModuleType | None
+try:
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - POSIX is used in production
+    fcntl = None
+else:
+    fcntl = _fcntl
 
 router = APIRouter(tags=["observatory"])
 
@@ -382,15 +387,19 @@ def _dataset_workflow_config() -> ObservatoryDatasetWorkflowConfig:
 
 
 def _workflow_dataset_overlay(dataset_id: str) -> Mapping[str, Any]:
-    state = _load_dataset_workflow_state()
-    datasets = state.get("datasets") if isinstance(state.get("datasets"), Mapping) else {}
+    raw_state = _load_dataset_workflow_state()
+    state: dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
+    raw_datasets = state.get("datasets")
+    datasets = raw_datasets if isinstance(raw_datasets, Mapping) else {}
     overlay = datasets.get(dataset_id)
     return overlay if isinstance(overlay, Mapping) else {}
 
 
 def _workflow_candidate_overlay(table_id: str) -> Mapping[str, Any]:
-    state = _load_dataset_workflow_state()
-    candidates = state.get("candidates") if isinstance(state.get("candidates"), Mapping) else {}
+    raw_state = _load_dataset_workflow_state()
+    state: dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
+    raw_candidates = state.get("candidates")
+    candidates = raw_candidates if isinstance(raw_candidates, Mapping) else {}
     overlay = candidates.get(table_id)
     return overlay if isinstance(overlay, Mapping) else {}
 
@@ -1357,7 +1366,13 @@ def _load_governance_matrix() -> ObservatoryGovernanceMatrix:
     )
 
 
-CONTROL_STATUSES = ("pass", "fail", "warning", "unknown", "not_applicable")
+CONTROL_STATUSES: tuple[ControlStatus, ...] = (
+    "pass",
+    "fail",
+    "warning",
+    "unknown",
+    "not_applicable",
+)
 
 
 def _governance_row_for_dataset(
@@ -1447,7 +1462,7 @@ def _governance_controls_for_dataset(
 def _quality_control_status(
     dataset: ObservatoryDataset,
     quality: Sequence[ObservatoryQualityCheck],
-) -> str:
+) -> ControlStatus:
     if dataset.candidate:
         return "not_applicable"
     if not quality:
@@ -1480,7 +1495,7 @@ def _quality_control_message(
     return "Blocking quality checks are clear."
 
 
-def _aggregate_control_status(controls: Sequence[ObservatoryDatasetControl]) -> str:
+def _aggregate_control_status(controls: Sequence[ObservatoryDatasetControl]) -> ControlStatus:
     statuses = [control.status for control in controls]
     for status in ("fail", "warning", "unknown", "not_applicable"):
         if status in statuses:
@@ -2876,20 +2891,22 @@ async def _contributing_rows_query(
 ) -> ObservatoryContributingRowsQueryResponse | dict[str, str]:
     from phlo_api.observatory_api.contributing import (
         ContributingRowsQueryRequest,
+        ContributingRowsQueryResponse,
         get_contributing_rows_query,
     )
 
     result = await get_contributing_rows_query(
         ContributingRowsQueryRequest.model_validate(request.model_dump())
     )
-    if isinstance(result, Mapping):
+    if not isinstance(result, ContributingRowsQueryResponse):
         error = result.get("error")
         if isinstance(error, str):
             return {"error": error}
+        return {"error": "Unable to build contributing rows query."}
     return ObservatoryContributingRowsQueryResponse(
         query=result.query,
         upstream=ObservatoryUpstreamTableRef(
-            schema_name=result.upstream.schema_name,
+            schema=result.upstream.schema_name,
             table=result.upstream.table,
         ),
     )
@@ -2900,16 +2917,18 @@ async def _contributing_rows_page(
 ) -> ObservatoryContributingRowsPageResponse | dict[str, str]:
     from phlo_api.observatory_api.contributing import (
         ContributingRowsPageRequest,
+        ContributingRowsPageResponse,
         get_contributing_rows_page,
     )
 
     result = await get_contributing_rows_page(
         ContributingRowsPageRequest.model_validate(request.model_dump())
     )
-    if isinstance(result, Mapping):
+    if not isinstance(result, ContributingRowsPageResponse):
         error = result.get("error")
         if isinstance(error, str):
             return {"error": error}
+        return {"error": "Unable to build contributing rows page."}
     return ObservatoryContributingRowsPageResponse(
         mode=result.mode,
         page=result.page,
@@ -2917,7 +2936,7 @@ async def _contributing_rows_page(
         has_more=result.has_more,
         query=result.query,
         upstream=ObservatoryUpstreamTableRef(
-            schema_name=result.upstream.schema_name,
+            schema=result.upstream.schema_name,
             table=result.upstream.table,
         ),
         columns=result.columns,

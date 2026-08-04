@@ -233,7 +233,8 @@ async def terminate(
     result = await _graphql(dagster_url, TERMINATE_RUN_MUTATION, {"runId": run_id})
     payload = result.get("data", {}).get("terminateRun", {})
     typename = str(payload.get("__typename") or "TerminateRunResult")
-    run = payload.get("run") if isinstance(payload.get("run"), dict) else {}
+    raw_run = payload.get("run")
+    run: dict[str, Any] = raw_run if isinstance(raw_run, dict) else {}
     accepted = typename == "TerminateRunSuccess"
     return DagsterOperationResult(
         operation="cancel_run",
@@ -354,7 +355,8 @@ def _launch_result(
     fallback_run_id: str | None = None,
 ) -> DagsterOperationResult:
     typename = str(payload.get("__typename") or "DagsterLaunchResult")
-    run = payload.get("run") if isinstance(payload.get("run"), dict) else {}
+    raw_run = payload.get("run")
+    run: dict[str, Any] = raw_run if isinstance(raw_run, dict) else {}
     accepted = typename in {"LaunchRunSuccess", "LaunchPipelineRunSuccess"} and bool(run)
     return DagsterOperationResult(
         operation=operation,

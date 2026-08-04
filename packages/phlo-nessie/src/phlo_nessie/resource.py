@@ -110,6 +110,13 @@ class NessieResource:
         """
         return f"{self.base_url}{path}"
 
+    @staticmethod
+    def _status_code(response: requests.Response) -> int:
+        """Return an HTTP status code, rejecting an incomplete response."""
+        if response.status_code is None:
+            raise RuntimeError("Nessie response did not include an HTTP status code")
+        return response.status_code
+
     def _request(
         self,
         method: str,
@@ -163,7 +170,9 @@ class NessieResource:
                     time.sleep(_BACKOFF_SCHEDULE[attempt - 1])
                     continue
                 raise
-        raise last_exc  # type: ignore[misc]
+        if last_exc is None:
+            raise RuntimeError("Nessie request retries exhausted without an exception")
+        raise last_exc
 
     def list_branches(self) -> list[BranchInfo]:
         """List all branch references from Nessie.
@@ -248,11 +257,12 @@ class NessieResource:
             base_url=self.base_url,
         )
         response = self._request("GET", self._url(f"/api/v1/trees/tree/{name}"), timeout=10)
-        if response.status_code >= 400:
+        status_code = self._status_code(response)
+        if status_code >= 400:
             logger.info(
                 "nessie_resource_get_branch_hash_missing",
                 branch_name=name,
-                status_code=response.status_code,
+                status_code=status_code,
             )
             return None
         data = response.json() or {}
@@ -296,11 +306,12 @@ class NessieResource:
             params={"expectedHash": branch_hash},
             timeout=10,
         )
-        deleted = response.status_code < 300
+        status_code = self._status_code(response)
+        deleted = status_code < 300
         logger.info(
             "nessie_resource_delete_branch_completed",
             branch_name=name,
-            status_code=response.status_code,
+            status_code=status_code,
             deleted=deleted,
         )
         return deleted
@@ -340,12 +351,13 @@ class NessieResource:
             json={"name": name, "type": "BRANCH", "hash": source_hash},
             timeout=10,
         )
-        if response.status_code >= 400:
+        status_code = self._status_code(response)
+        if status_code >= 400:
             logger.warning(
                 "nessie_resource_create_branch_failed",
                 branch_name=name,
                 from_ref=from_ref,
-                status_code=response.status_code,
+                status_code=status_code,
                 body=response.text[:200],
             )
             return None
@@ -400,13 +412,14 @@ class NessieResource:
             },
             timeout=30,
         )
-        merged = response.status_code < 300
+        status_code = self._status_code(response)
+        merged = status_code < 300
         logger.info(
             "nessie_resource_merge_branch_completed",
             source=source,
             target=target,
-            status_code=response.status_code,
-            body=response.text[:200] if response.status_code >= 400 else None,
+            status_code=status_code,
+            body=response.text[:200] if status_code >= 400 else None,
             merged=merged,
         )
         return merged

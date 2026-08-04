@@ -90,6 +90,16 @@ from phlo_iceberg.evidence import emit_mutation, table_state, unavailable_table_
 
 logger = get_logger(__name__)
 
+
+def _as_int(value: object) -> int:
+    """Convert supported numeric evidence values to an integer."""
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float, str)):
+        return int(value)
+    return 0
+
+
 _COMPACTION_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 DEFAULT_MAX_AFFECTED_OBJECTS = 1_000
 DEFAULT_MAX_AFFECTED_BYTES = 10 * 1024 * 1024 * 1024
@@ -1962,6 +1972,8 @@ class IcebergResource:
             ).to_dict()
 
         after = _retention_state_evidence(after_plan)
+        after_snapshot_id = after_plan.get("before_snapshot_id")
+        after_revision = after_snapshot_id if isinstance(after_snapshot_id, (str, int)) else None
         return MaintenanceOperationResult(
             operation="expire_snapshots",
             table_name=table_name,
@@ -1971,7 +1983,7 @@ class IcebergResource:
             accepted=True,
             executed=True,
             before_revision=expected_snapshot_id,
-            after_revision=after_plan.get("before_snapshot_id"),
+            after_revision=after_revision,
             planned={
                 **plan,
                 "trino_boundary": "executed",
@@ -1982,7 +1994,7 @@ class IcebergResource:
                 "planned_candidate_snapshots": len(plan["candidate_snapshots"]),
                 "observed_snapshot_count_reduction": max(
                     0,
-                    int(before.get("snapshot_count") or 0) - int(after.get("snapshot_count") or 0),
+                    _as_int(before.get("snapshot_count")) - _as_int(after.get("snapshot_count")),
                 ),
                 "exact_deleted_snapshot_set": "unavailable",
                 "provider_deletion_surface": "threshold_not_bound_to_plan",

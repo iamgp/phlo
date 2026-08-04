@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-lineage"
 FRAMEWORK_TYPE = "cli"
@@ -32,5 +32,5 @@ LineageSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_lineage_adapter() -> LineageSurfaceAdapter:
+def get_lineage_adapter() -> CliSurfaceAdapter:
     return LineageSurfaceAdapter.get_instance()

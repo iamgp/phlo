@@ -65,8 +65,11 @@ def _call_with_optional_context(fn: Callable[..., Any], context: RuntimeContext)
         in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
     ]
     if unsupported_parameters or len(required_parameters) > 1:
+        function_name = getattr(fn, "__qualname__", None)
+        if not isinstance(function_name, str):
+            function_name = repr(fn)
         raise TypeError(
-            f"Decorated function {fn.__qualname__}{signature} must accept either "
+            f"Decorated function {function_name}{signature} must accept either "
             "no parameters or one context parameter."
         )
     if required_parameters:

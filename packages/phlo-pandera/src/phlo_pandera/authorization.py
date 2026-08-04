@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-pandera"
 FRAMEWORK_TYPE = "cli"
@@ -33,5 +33,5 @@ PanderaSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_pandera_adapter() -> PanderaSurfaceAdapter:
+def get_pandera_adapter() -> CliSurfaceAdapter:
     return PanderaSurfaceAdapter.get_instance()

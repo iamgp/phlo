@@ -373,7 +373,8 @@ class GraphQLWebSocketAuthenticationASGI:
         payload = envelope.get("payload") if isinstance(envelope, dict) else None
         token = payload.get("access_token") if isinstance(payload, dict) else None
         if (
-            envelope.get("type") != "connection_init"
+            not isinstance(envelope, dict)
+            or envelope.get("type") != "connection_init"
             or not isinstance(payload, dict)
             or set(payload) != {"access_token"}
             or not isinstance(token, str)
@@ -465,7 +466,7 @@ class PhloDagsterWebserver(DagsterWebserver):
             operations = [
                 definition
                 for definition in document.definitions
-                if getattr(definition, "operation", None).value == "subscription"
+                if getattr(getattr(definition, "operation", None), "value", None) == "subscription"
                 and (
                     operation_name is None
                     or getattr(getattr(definition, "name", None), "value", None) == operation_name
@@ -474,7 +475,10 @@ class PhloDagsterWebserver(DagsterWebserver):
             if len(operations) != 1:
                 raise GraphQLError("Unclassified GraphQL operation")
             operation = operations[0]
-            for selection in operation.selection_set.selections:
+            selection_set = getattr(operation, "selection_set", None)
+            if selection_set is None:
+                raise GraphQLError("GraphQL operation has no selection set")
+            for selection in selection_set.selections:
                 field_name = selection.name.value
                 kwargs = {}
                 for argument in selection.arguments:
@@ -523,7 +527,7 @@ class PhloDagsterWebserver(DagsterWebserver):
 # Dagster's CLI factory resolves this class from dagster_webserver.app, so the
 # normal CLI options and workspace lifecycle remain unchanged while the shipped
 # entrypoint uses the secured subclass.
-dagster_app.DagsterWebserver = PhloDagsterWebserver
+setattr(dagster_app, "DagsterWebserver", PhloDagsterWebserver)
 
 
 if __name__ == "__main__":

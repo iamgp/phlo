@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.cli.authorization import cli_surface_adapter_class
+from phlo.cli.authorization import CliSurfaceAdapter, cli_surface_adapter_class
 
 SURFACE_NAME = "phlo-dlt"
 FRAMEWORK_TYPE = "cli"
@@ -23,5 +23,5 @@ DltSurfaceAdapter = cli_surface_adapter_class(
 )
 
 
-def get_dlt_adapter() -> DltSurfaceAdapter:
+def get_dlt_adapter() -> CliSurfaceAdapter:
     return DltSurfaceAdapter.get_instance()

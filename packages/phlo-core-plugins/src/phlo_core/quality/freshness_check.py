@@ -98,9 +98,8 @@ class FreshnessCheckPlugin(QualityCheckPlugin[Any]):
 
     def create_check(
         self,
-        timestamp_column: str,
-        max_age_hours: float,
-        reference_time: datetime | None = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> Any:
         """Create a freshness check instance.
 
@@ -146,6 +145,16 @@ class FreshnessCheckPlugin(QualityCheckPlugin[Any]):
                 )
 
         """
+        if len(args) > 3 or set(kwargs) - {"timestamp_column", "max_age_hours", "reference_time"}:
+            raise TypeError("create_check accepts timestamp_column, max_age_hours, reference_time")
+        timestamp_column = kwargs.get("timestamp_column", args[0] if args else None)
+        max_age_hours = kwargs.get("max_age_hours", args[1] if len(args) > 1 else None)
+        reference_time = kwargs.get("reference_time", args[2] if len(args) > 2 else None)
+        if not isinstance(timestamp_column, str) or not isinstance(max_age_hours, (int, float)):
+            raise TypeError("timestamp_column and max_age_hours are required")
+        if reference_time is not None and not isinstance(reference_time, datetime):
+            raise TypeError("reference_time must be a datetime or None")
+
         from phlo_pandera.checks import FreshnessCheck
 
         return FreshnessCheck(

@@ -6,6 +6,7 @@ import json
 import os
 from collections import defaultdict
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Any
 
 from opentelemetry import trace
@@ -24,7 +25,7 @@ class JsonLineSpanExporter(SpanExporter):
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
-    def export(self, spans: list[ReadableSpan]) -> SpanExportResult:
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         with self._path.open("a", encoding="utf-8") as handle:
             for span in spans:
                 parent_id = None
@@ -39,7 +40,7 @@ class JsonLineSpanExporter(SpanExporter):
                     },
                     "start_time_ns": span.start_time,
                     "end_time_ns": span.end_time,
-                    "attributes": dict(span.attributes),
+                    "attributes": {key: value for key, value in (span.attributes or {}).items()},
                     "status": {
                         "code": getattr(
                             span.status.status_code, "name", str(span.status.status_code)

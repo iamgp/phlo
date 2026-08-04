@@ -118,14 +118,15 @@ class HasuraClient:
         """
         raw_url = hasura_url or "http://hasura:8080"
         self.hasura_url = _resolve_hasura_url(raw_url)
-        self.admin_secret = admin_secret or os.environ.get("HASURA_ADMIN_SECRET")
-        if not self.admin_secret:
-            self.admin_secret = get_settings().hasura_admin_secret
-        if not self.admin_secret:
+        resolved_admin_secret = admin_secret or os.environ.get("HASURA_ADMIN_SECRET")
+        if not resolved_admin_secret:
+            resolved_admin_secret = get_settings().hasura_admin_secret
+        if not resolved_admin_secret:
             raise ValueError(
                 "Hasura admin secret must be provided via the 'admin_secret' argument "
                 "or the HASURA_ADMIN_SECRET environment/.phlo config."
             )
+        self.admin_secret = resolved_admin_secret
         if self.admin_secret == "phlo-hasura-admin-secret":
             logger.warning(
                 "hasura_using_generated_default_admin_secret",
