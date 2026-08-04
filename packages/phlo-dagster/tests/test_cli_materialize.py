@@ -301,19 +301,17 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
     assert discovery_calls == [True]
 
 
-@patch(
-    "phlo_dagster.cli_materialize.find_dagster_container",
-    side_effect=AssertionError("dry-run should not inspect Docker"),
-)
+@patch("phlo_dagster.cli_materialize.find_dagster_container", return_value="lakehouse-dagster-1")
 @patch("phlo_dagster.cli_materialize.get_project_name", return_value="mock-project")
 def test_materialize_accepts_select_without_asset_argument(mock_project, mock_container) -> None:
-    """Docs use `phlo materialize --select ...`; keep that path runnable."""
+    """Dry runs resolve the active Compose Dagster container."""
     runner = CliRunner()
     result = runner.invoke(materialize, ["--select", "tag:bronze", "--dry-run"])
 
     assert result.exit_code == 0
     assert "PHLO_CONTRACT_REFRESH_SELECTION=tag:bronze" in result.output
     assert "--select tag:bronze" in result.output
+    assert "lakehouse-dagster-1" in result.output
 
 
 @patch("phlo_dagster.cli_materialize.find_dagster_container", return_value="mock-container")

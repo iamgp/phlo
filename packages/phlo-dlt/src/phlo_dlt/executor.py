@@ -373,7 +373,10 @@ class DltIngester(BaseIngester):
 
             pipeline, local_staging_root = setup_dlt_pipeline(
                 pipeline_name=pipeline_name,
-                dataset_name=group_name,
+                # DLT's filesystem destination uses dataset_name as a directory.
+                # A Dagster group can contain several assets, so it cannot also
+                # identify a pipeline's staging area.
+                dataset_name=pipeline_name,
             )
 
             # We pass 'self' as context because dlt_helpers expects an object with .log
