@@ -20,6 +20,7 @@ from phlo.config_schema import (
     ApiConfig,
     InfrastructureConfig,
     ServiceConfig,
+    WapConfig,
 )
 from phlo.logging import get_logger
 
@@ -132,6 +133,21 @@ def load_infrastructure_config(project_root: Path) -> InfrastructureConfig:
             error=str(exc),
         )
         raise
+
+
+@project_root_cached
+def load_wap_config(project_root: Path | None = None) -> WapConfig:
+    """Load the project-level WAP policy from ``phlo.yaml``.
+
+    Keeping this separate from infrastructure configuration makes the policy
+    available to both the host CLI and the Dagster process running in ``/app``.
+    """
+    root = project_root or _default_project_root()
+    project_config = load_project_config(root)
+    wap_config = project_config.get("wap", {}) if project_config else {}
+    if wap_config is None:
+        wap_config = {}
+    return WapConfig(**wap_config)
 
 
 def get_project_name_from_config(project_root: Path | None = None) -> str | None:
@@ -379,3 +395,4 @@ def clear_config_cache() -> None:
     """Clear the configuration cache."""
     load_project_config.cache_clear()
     load_infrastructure_config.cache_clear()
+    load_wap_config.cache_clear()

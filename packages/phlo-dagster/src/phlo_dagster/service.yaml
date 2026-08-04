@@ -26,6 +26,9 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  # Use the generated entrypoint from the bind-mounted Dagster directory so
+  # development stacks execute the checked-out bootstrap script.
+  entrypoint: ["/bin/bash", "/opt/dagster/entrypoint.sh"]
   healthcheck:
     test:
       [

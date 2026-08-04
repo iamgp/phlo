@@ -51,7 +51,9 @@ RUN \
     fi; \
     else \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
-    fi && apk del .build-deps
+    fi \
+    && uv pip install --system "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1" \
+    && apk del .build-deps
 
 # Build caches contain package manifests that vulnerability scanners treat as runtime
 # dependencies. They are unnecessary after installation and must not ship in the image.

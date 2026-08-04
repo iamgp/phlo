@@ -163,17 +163,21 @@ async def launch_materialize(
                 message="Dagster previously accepted materialize_asset.",
                 details={"typename": "LaunchRunSuccess", "reconciled": True},
             )
+    selector: dict[str, Any] = {
+        "pipelineName": job_name,
+        "assetSelection": [{"path": asset_key_path.split("/")}],
+    }
+    if repository_location_name:
+        selector["repositoryLocationName"] = repository_location_name
+    if repository_name:
+        selector["repositoryName"] = repository_name
+
     result = await _graphql(
         dagster_url,
         LAUNCH_PIPELINE_EXECUTION_MUTATION,
         {
             "executionParams": {
-                "selector": {
-                    "pipelineName": job_name,
-                    "repositoryLocationName": repository_location_name,
-                    "repositoryName": repository_name,
-                    "assetSelection": [{"path": asset_key_path.split("/")}],
-                },
+                "selector": selector,
                 "runConfigData": run_config or {},
                 "mode": "default",
                 "executionMetadata": {"tags": _tags_for_execution(execution_tags)},

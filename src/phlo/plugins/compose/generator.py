@@ -287,6 +287,11 @@ class ComposeGenerator:
             # `phlo_src_path` points at `.../src/phlo`, so `../..` is the repo root.
             project_mount = f"{phlo_src_path}/../..:/opt/phlo-dev:rw"
             config["volumes"].append(project_mount)
+            # Do not silently reuse a published service image in a development
+            # stack: it cannot include the checked-out adapter's runtime
+            # dependencies. With no explicit image Compose builds the generated
+            # Dockerfile before starting the mounted source tree.
+            config.pop("image", None)
             # Add environment variable to enable dev mode sync
             if "environment" not in config:
                 config["environment"] = {}

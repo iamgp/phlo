@@ -55,6 +55,46 @@ class ApiConfig(BaseModel):
     )
 
 
+class WapConfig(BaseModel):
+    """Project-level Write-Audit-Publish launch configuration.
+
+    WAP is deliberately a project policy rather than a per-invocation switch:
+    enabling it makes every Phlo materialize or backfill launch branch-first.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Launch materialize and backfill runs through the WAP GraphQL lifecycle.",
+    )
+    job_name: str = Field(
+        default="__ASSET_JOB",
+        description="Dagster asset job used for WAP launches.",
+    )
+    repository_location_name: str | None = Field(
+        default=None,
+        description="Optional Dagster code-location selector for WAP launches.",
+    )
+    repository_name: str | None = Field(
+        default=None,
+        description="Optional Dagster repository selector for WAP launches.",
+    )
+    dagster_url: str = Field(
+        default="http://localhost:10006/graphql",
+        description="Dagster GraphQL endpoint used for WAP launches.",
+    )
+
+    @field_validator("job_name", "repository_location_name", "repository_name", "dagster_url")
+    @classmethod
+    def validate_nonblank(cls, value: str | None) -> str | None:
+        """Normalize optional selectors and reject empty required settings."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("WAP string settings cannot be empty")
+        return normalized
+
+
 class ServiceOverride(BaseModel):
     """User overrides for a service in phlo.yaml.
 

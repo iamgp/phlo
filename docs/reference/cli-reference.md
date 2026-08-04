@@ -1196,22 +1196,20 @@ for the structured failure details.
 
 **Write-audit-publish (WAP) launch**:
 
-WAP creates or reuses a `pipeline-run-<logical-run-id>` catalog branch before
-asking Dagster to start exactly one asset. It requires the Dagster job and
-repository selector plus a verified user access token. Set the repository with
-the shown options or `PHLO_DAGSTER_REPOSITORY_*` environment variables. The
-token is accepted only through `PHLO_DAGSTER_ACCESS_TOKEN`, so it doesn't appear
-in process arguments or shell history. If the launch response is ambiguous,
-Phlo retains a newly created branch so the caller can reconcile or retry with
-the same `--wap-run-id`; a retry reuses the run Dagster already accepted.
+WAP is a project policy configured in `phlo.yaml`, not a command-line option.
+When enabled, every `phlo materialize ASSET_NAME` creates a fresh
+`pipeline-run-<logical-run-id>` catalog branch before asking Dagster GraphQL to
+start the asset. Phlo applies the `phlo/wap_branch` and `phlo/ref` tags to bind
+the run to that immutable ref. A configured `PHLO_DAGSTER_ACCESS_TOKEN` is sent
+as a bearer token but never appears in process arguments or shell history.
 
 ```bash
-phlo materialize dlt_events --wap --job-name __ASSET_JOB \
-  --repository-location-name phlo_dagster --repository-name phlo_dagster
+phlo materialize dlt_events
 ```
 
-The direct `dagster asset materialize` command bypasses Phlo's WAP lifecycle;
-use the Phlo WAP launch path when writes must be isolated before execution.
+If Dagster rejects a launch, the run fails checks, or transport is ambiguous,
+Phlo retains the branch and WAP report for audit. With WAP disabled, this command
+retains its legacy direct `dagster asset materialize` behavior.
 
 **Selection Syntax**:
 

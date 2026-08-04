@@ -34,20 +34,24 @@ class WapLaunch:
         }
 
     def cleanup_if_created(self) -> None:
-        """Remove only the branch created by this launch attempt."""
+        """Remove only the branch created by this launch attempt.
+
+        Normal WAP callers intentionally do not invoke this method: retained
+        refs and their reports are the audit trail for failed checks.
+        """
         if self.created_branch:
             self.catalog.delete_branch(self.branch)
 
 
 def prepare_wap_launch(*, logical_run_id: str) -> WapLaunch:
-    """Ensure a WAP branch and tags exist before asking Dagster to start work."""
+    """Create a WAP branch and tags before asking Dagster to start work."""
     resolution = resolve_capability("catalog")
     if resolution is None or not (
         resolution.support.supports_refs and resolution.support.supports_promote
     ):
         raise PhloConfigError(
             message="WAP materialization requires a catalog with refs and promotion support.",
-            suggestions=["Configure a versioned catalog such as phlo-nessie before using --wap."],
+            suggestions=["Configure a versioned catalog such as phlo-nessie before enabling wap."],
         )
 
     catalog: Any = resolution.provider
@@ -59,11 +63,9 @@ def prepare_wap_launch(*, logical_run_id: str) -> WapLaunch:
 
     branch = f"{WAP_BRANCH_PREFIX}{logical_run_id}"
     if catalog.get_branch_hash(branch):
-        return WapLaunch(
-            logical_run_id=logical_run_id,
-            branch=branch,
-            catalog=catalog,
-            created_branch=False,
+        raise PhloConfigError(
+            message=f"WAP branch {branch!r} already exists; refusing to reuse it for a new run.",
+            suggestions=["Retry the command to create a new WAP branch."],
         )
 
     if catalog.create_branch(branch, from_ref="main") is None:

@@ -55,7 +55,6 @@ Example:
 
 from __future__ import annotations
 
-import os
 import platform
 from pathlib import Path
 from typing import Any
@@ -65,6 +64,7 @@ import dagster as dg
 from phlo.capabilities.interfaces import VersionedCatalog
 from phlo.capabilities.resolver import resolve_capability
 from phlo.exceptions import PhloCapabilitySetupError
+from phlo.infrastructure import load_wap_config
 from phlo_dagster.framework.discovery import (
     _collect_dagster_extension_definitions,
     _ensure_core_resources,
@@ -91,14 +91,8 @@ def _collect_wap_definitions() -> dg.Definitions | None:
         No explicit exceptions raised. Logs warnings for incompatible providers.
 
     """
-    if not get_settings().phlo_wap_enabled:
-        logger.info("dagster_wap_definitions_disabled")
-        return None
-
-    wap_sensors_raw = os.getenv("PHLO_WAP_SENSORS_ENABLED", "")
-    wap_sensors_enabled = wap_sensors_raw.lower() in {"1", "true", "yes"}
-    if os.getenv("PHLO_DAGSTER_DEV") == "1" and not wap_sensors_enabled:
-        logger.info("dagster_wap_definitions_skipped_in_local_dev")
+    if not load_wap_config().enabled:
+        logger.info("dagster_wap_definitions_disabled_by_project_policy")
         return None
 
     resolution = resolve_capability("catalog")

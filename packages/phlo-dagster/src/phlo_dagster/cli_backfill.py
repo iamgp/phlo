@@ -57,6 +57,8 @@ from phlo.cli.infrastructure.container_backend import (
 )
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import service_unavailable_error
+from phlo.capabilities.discovery import discover_capabilities
+from phlo.infrastructure import load_wap_config
 from phlo.logging import get_logger
 from phlo_dagster.cli_materialize import wait_for_dagster_runtime
 from phlo_dagster.containers import find_dagster_container
@@ -109,13 +111,6 @@ BACKFILL_STATE_FILE = Path(".phlo/backfill_state.json")
     default=0.0,
     help="Delay between parallel executions in seconds (rate limiting)",
 )
-@click.option("--wap", is_flag=True, help="Launch partitions on isolated WAP branches.")
-@click.option("--job-name", help="Dagster job name for a WAP backfill launch.")
-@click.option("--repository-location-name", envvar="PHLO_DAGSTER_REPOSITORY_LOCATION_NAME")
-@click.option("--repository-name", envvar="PHLO_DAGSTER_REPOSITORY_NAME")
-@click.option(
-    "--dagster-url", envvar="DAGSTER_GRAPHQL_URL", default="http://localhost:3000/graphql"
-)
 def backfill(
     asset_name: str | None,
     start_date: str | None,
@@ -125,11 +120,6 @@ def backfill(
     resume: bool,
     dry_run: bool,
     delay: float,
-    wap: bool,
-    job_name: str | None,
-    repository_location_name: str | None,
-    repository_name: str | None,
-    dagster_url: str,
 ):
     """Run asset materialization across a date range with parallel execution.
 
@@ -245,6 +235,8 @@ def backfill(
         console.print(f"[yellow]Already completed:[/yellow] {len(completed_partitions)}")
         console.print(f"[yellow]Remaining:[/yellow] {len(partition_dates)}")
 
+    wap_config = load_wap_config()
+
     if dry_run:
         logger.info(
             "dagster_backfill_dry_run",
@@ -253,8 +245,14 @@ def backfill(
         )
         console.print("\n[yellow]Dry run - showing first 5 commands:[/yellow]\n")
         for date in partition_dates[:5]:
-            cmd = _build_materialize_command(asset_name, date, container_name="dagster")
-            console.print(f"[dim]{' '.join(cmd)}[/dim]")
+            if wap_config.enabled:
+                console.print(
+                    f"[dim]GraphQL WAP launch {asset_name} partition {date} "
+                    f"through {wap_config.dagster_url}[/dim]"
+                )
+            else:
+                cmd = _build_materialize_command(asset_name, date, container_name="dagster")
+                console.print(f"[dim]{' '.join(cmd)}[/dim]")
         if len(partition_dates) > 5:
             console.print(f"[dim]... and {len(partition_dates) - 5} more[/dim]")
         return
@@ -264,19 +262,16 @@ def backfill(
         console.print("[yellow]No partitions to backfill[/yellow]")
         return
 
-    if wap:
+    if wap_config.enabled:
         access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
-        if not job_name or not repository_location_name or not repository_name or not access_token:
-            raise click.UsageError(
-                "WAP backfill requires --job-name, repository selectors, and PHLO_DAGSTER_ACCESS_TOKEN."
-            )
+        discover_capabilities()
         _run_wap_backfill(
             asset_name,
             partition_dates,
-            dagster_url=dagster_url,
-            job_name=job_name,
-            repository_location_name=repository_location_name,
-            repository_name=repository_name,
+            dagster_url=wap_config.dagster_url,
+            job_name=wap_config.job_name,
+            repository_location_name=wap_config.repository_location_name,
+            repository_name=wap_config.repository_name,
             access_token=access_token,
         )
         return
@@ -298,9 +293,9 @@ def _run_wap_backfill(
     *,
     dagster_url: str,
     job_name: str,
-    repository_location_name: str,
-    repository_name: str,
-    access_token: str,
+    repository_location_name: str | None,
+    repository_name: str | None,
+    access_token: str | None,
 ) -> None:
     """Create a WAP branch before submitting each partitioned asset run."""
     for partition_date in partition_dates:
@@ -320,7 +315,6 @@ def _run_wap_backfill(
             )
         )
         if not result.accepted:
-            launch.cleanup_if_created()
             raise click.ClickException(result.message)
         console.print(f"Launched WAP backfill for {partition_date} on {launch.branch}")
 

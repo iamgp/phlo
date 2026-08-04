@@ -86,6 +86,57 @@ def test_wap_backfill_creates_branch_before_each_partition(monkeypatch):
     )
 
 
+def test_enabled_project_wap_backfill_uses_graphql_without_cli_flags(monkeypatch) -> None:
+    """The project policy selects the WAP path for every partition."""
+    launches: list[tuple[str, list[str]]] = []
+    discovery_calls: list[bool] = []
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.load_wap_config",
+        lambda: SimpleNamespace(
+            enabled=True,
+            dagster_url="http://dagster/graphql",
+            job_name="__ASSET_JOB",
+            repository_location_name=None,
+            repository_name=None,
+        ),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill._run_wap_backfill",
+        lambda asset_name, partitions, **_kwargs: launches.append((asset_name, partitions)),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.discover_capabilities",
+        lambda: discovery_calls.append(True),
+    )
+
+    result = CliRunner().invoke(
+        backfill,
+        ["dlt_events", "--partitions", "2024-01-01,2024-01-02"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert launches == [("dlt_events", ["2024-01-01", "2024-01-02"])]
+    assert discovery_calls == [True]
+
+
+def test_disabled_project_wap_backfill_retains_direct_path(monkeypatch) -> None:
+    """Disabled WAP keeps the established container-exec implementation."""
+    direct_calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.load_wap_config",
+        lambda: SimpleNamespace(enabled=False),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill._run_backfill",
+        lambda asset_name, partitions, **_kwargs: direct_calls.append((asset_name, partitions)),
+    )
+
+    result = CliRunner().invoke(backfill, ["dlt_events", "--partitions", "2024-01-01"])
+
+    assert result.exit_code == 0, result.output
+    assert direct_calls == [("dlt_events", ["2024-01-01"])]
+
+
 class TestBackfillValidation:
     """Test partition date validation."""
 

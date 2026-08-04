@@ -388,6 +388,33 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
     assert "PHLO_DEV_MODE" in compose
 
 
+def test_compose_generator_dev_mode_builds_phlo_services_from_source(tmp_path) -> None:
+    """Dev stacks must not start an incomplete published Dagster image."""
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        phlo_dev=True,
+        image="ghcr.io/phlohouse/phlo-dagster:0.6.0",
+        build={"context": ".", "dockerfile": "dagster/Dockerfile"},
+        compose={},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    compose = yaml.safe_load(
+        generator.generate_compose(
+            services=[service],
+            output_dir=tmp_path,
+            dev_mode=True,
+            phlo_src_path="../phlo/src/phlo",
+        )
+    )
+
+    assert "image" not in compose["services"]["dagster"]
+    assert compose["services"]["dagster"]["build"]["dockerfile"] == "dagster/Dockerfile"
+
+
 @pytest.mark.parametrize("service_name", ["dagster", "dagster-daemon"])
 @pytest.mark.parametrize(
     ("host_platform", "expected_user", "expected_home"),

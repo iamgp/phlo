@@ -54,7 +54,7 @@ def test_prepare_wap_launch_creates_deterministic_branch_and_tags(monkeypatch) -
     assert catalog.created == [("pipeline-run-request-42", "main")]
 
 
-def test_prepare_wap_launch_reuses_existing_branch_for_retry(monkeypatch) -> None:
+def test_prepare_wap_launch_refuses_to_reuse_an_existing_branch(monkeypatch) -> None:
     catalog = _Catalog({"main": "main-hash", "pipeline-run-request-42": "old-hash"})
     monkeypatch.setattr(
         "phlo_dagster.wap_launch.resolve_capability",
@@ -64,9 +64,10 @@ def test_prepare_wap_launch_reuses_existing_branch_for_retry(monkeypatch) -> Non
         ),
     )
 
-    launch = prepare_wap_launch(logical_run_id="request-42")
-    launch.cleanup_if_created()
+    import pytest
 
-    assert launch.created_branch is False
+    with pytest.raises(Exception, match="refusing to reuse"):
+        prepare_wap_launch(logical_run_id="request-42")
+
     assert catalog.created == []
     assert catalog.deleted == []

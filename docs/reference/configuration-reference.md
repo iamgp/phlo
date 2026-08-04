@@ -508,10 +508,27 @@ BRANCH_CLEANUP_ENABLED=false
 
 ### WAP Sensor Configuration
 
+Enable the branch-first WAP policy at project scope in `phlo.yaml`:
+
+```yaml
+wap:
+  enabled: true
+  # These defaults target the standard generated Dagster asset job.
+  job_name: __ASSET_JOB
+  # Optional selectors for projects with more than one Dagster code location.
+  repository_location_name: user_code
+  repository_name: user_repository
+  dagster_url: http://localhost:10006/graphql
+```
+
+When `enabled` is true, `phlo materialize` and `phlo backfill` always launch
+through Dagster GraphQL after creating a fresh WAP branch. Do not pass WAP
+command-line flags: the configuration is intentionally project-wide. Disabled
+or absent configuration keeps the direct CLI execution path.
+
 Dagster WAP sensor intervals:
 
 ```bash
-PHLO_WAP_ENABLED=true
 PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS=30
 PHLO_WAP_PROMOTION_INTERVAL_SECONDS=60
 PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
@@ -519,8 +536,8 @@ PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
 
 These settings only matter when the active profile includes a versioned catalog
 capability.
-Set `PHLO_WAP_ENABLED=false` to disable WAP sensors even when Nessie/Iceberg
-branching is available. Each WAP run writes `.phlo/wap-reports/<run_id>.json`
+The project-level `wap.enabled` setting controls whether these sensors are
+loaded. Each WAP run writes `.phlo/wap-reports/<run_id>.json`
 with the branch, source hash, target hash before/after promotion, and cleanup
 result.
 

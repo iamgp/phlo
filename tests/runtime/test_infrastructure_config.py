@@ -19,6 +19,7 @@ from phlo.infrastructure import (
     get_service_config,
     load_infrastructure_config,
     load_project_config,
+    load_wap_config,
 )
 from phlo.infrastructure.config import get_api_authorization_config
 from phlo.security.mode import is_regulated, is_regulated_mode_enabled
@@ -317,6 +318,29 @@ def test_load_infrastructure_config_missing_file_returns_defaults(tmp_path: Path
     assert config.container_naming_pattern == "{project}-{service}-1"
     assert config.services == {}
     assert config.network.driver == "bridge"
+
+
+def test_load_wap_config_reads_the_project_policy(tmp_path: Path) -> None:
+    """WAP launch selection is an explicit project-level phlo.yaml setting."""
+    (tmp_path / "phlo.yaml").write_text(
+        """\
+wap:
+  enabled: true
+  job_name: project_asset_job
+  repository_location_name: user_code
+  repository_name: user_repository
+  dagster_url: http://dagster.internal/graphql
+""",
+        encoding="utf-8",
+    )
+
+    config = load_wap_config(tmp_path)
+
+    assert config.enabled is True
+    assert config.job_name == "project_asset_job"
+    assert config.repository_location_name == "user_code"
+    assert config.repository_name == "user_repository"
+    assert config.dagster_url == "http://dagster.internal/graphql"
 
 
 def test_load_infrastructure_config_empty_file_returns_defaults(tmp_path: Path):
