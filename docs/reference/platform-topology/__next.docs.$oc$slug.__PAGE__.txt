@@ -1,10 +1,7 @@
 1:"$Sreact.fragment"
-2:I[98330,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"DocsPage"]
-3:I[98330,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"DocsBody"]
-4:I[94157,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"Heading"]
-d:I[47873,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"default"]
-e:I[97367,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js"],"OutletBoundary"]
-f:"$Sreact.suspense"
+2:I[98330,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"DocsPage"]
+3:I[98330,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"DocsBody"]
+4:I[94157,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"Heading"]
 5:T3a29,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1437.666 519.6" width="1437.666" height="519.6" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
@@ -147,12 +144,31 @@ f:"$Sreact.suspense"
   <rect x="1121.56" y="442.70000000000005" width="276.10599999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
   <text x="1259.6129999999998" y="461.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">ClickStack or Prometheus/Loki/Grafana</text>
 </g>
-</svg>0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"toc":[{"depth":1,"url":"#platform-topology","title":"Platform Topology"},{"depth":2,"url":"#topology","title":"Topology"},{"depth":2,"url":"#reading-this-topology","title":"Reading This Topology"},{"depth":2,"url":"#related-pages","title":"Related Pages"}],"children":["$","$L3",null,{"children":[["$","$L4",null,{"as":"h1","id":"platform-topology","children":"Platform Topology"}],"\n",["$","p",null,{"children":"This page shows the major Phlo layers and where optional systems fit."}],"\n",["$","$L4",null,{"as":"h2","id":"topology","children":"Topology"}],"\n",["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$5"}}],"\n","$L6","\n","$L7","\n","$L8","\n","$L9"]}]}],["$La","$Lb"],"$Lc"]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"WhC3liCkm8xs3w_B0aw0a"}
+</svg>e:X
+13:X
+13:C
+0:{"buildId":"IepU_2Lq1gBWgRaw15ys2","data":[{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"toc":[{"depth":1,"url":"#platform-topology","title":"Platform Topology"},{"depth":2,"url":"#topology","title":"Topology"},{"depth":2,"url":"#reading-this-topology","title":"Reading This Topology"},{"depth":2,"url":"#related-pages","title":"Related Pages"}],"children":["$","$L3",null,{"children":[["$","$L4",null,{"as":"h1","id":"platform-topology","children":"Platform Topology"}],"\n",["$","p",null,{"children":"This page shows the major Phlo layers and where optional systems fit."}],"\n",["$","$L4",null,{"as":"h2","id":"topology","children":"Topology"}],"\n",["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$5"}}],"\n","$L6","\n","$L7","\n","$L8","\n","$L9"]}]}],["$La","$Lb"],"$Lc"]}],"isPartial":"$@d","staleTime":"$e","varyParams":null},{"rsc":"$Lf","isPartial":"$@10","staleTime":"$e","varyParams":null},{"rsc":"$L11","isPartial":"$@12","staleTime":"$e","varyParams":"$13"}],"isUpgradeableISRFallback":false,"a":"$@14","rootVaryParams":null,"needsRuntimeRequest":"$@15"}
+16:I[47873,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"default"]
+17:I[97367,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"OutletBoundary"]
+18:"$Sreact.suspense"
+1a:I[97367,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"ViewportBoundary"]
+1b:I[97367,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"MetadataBoundary"]
+1c:I[39756,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"default"]
+1d:I[37457,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"default"]
 6:["$","$L4",null,{"as":"h2","id":"reading-this-topology","children":"Reading This Topology"}]
 7:["$","ul",null,{"children":["\n",["$","li",null,{"children":"core runtime: mandatory logic and workflow abstractions"}],"\n",["$","li",null,{"children":"data plane: storage, catalogs, orchestration, transforms, and query"}],"\n",["$","li",null,{"children":"external surfaces: optional serving, API, and metadata entry points"}],"\n",["$","li",null,{"children":"observability: separate but cross-cutting layer"}],"\n"]}]
 8:["$","$L4",null,{"as":"h2","id":"related-pages","children":"Related Pages"}]
-9:["$","ul",null,{"children":["\n",["$","li",null,{"children":["$","$Ld",null,{"href":"../guides/choosing-components.md","children":"Choosing Components"}]}],"\n",["$","li",null,{"children":["$","$Ld",null,{"href":"../guides/deployment-profiles.md","children":"Deployment Profiles"}]}],"\n",["$","li",null,{"children":["$","$Ld",null,{"href":"api-surfaces.md","children":"API Surfaces"}]}],"\n"]}]
+9:["$","ul",null,{"children":["\n",["$","li",null,{"children":["$","$L16",null,{"href":"../guides/choosing-components.md","children":"Choosing Components"}]}],"\n",["$","li",null,{"children":["$","$L16",null,{"href":"../guides/deployment-profiles.md","children":"Deployment Profiles"}]}],"\n",["$","li",null,{"children":["$","$L16",null,{"href":"api-surfaces.md","children":"API Surfaces"}]}],"\n"]}]
 a:["$","script","script-0",{"src":"/phlo/_next/static/chunks/0ir4hn50thz5z.js","async":true}]
-b:["$","script","script-1",{"src":"/phlo/_next/static/chunks/36c8aq_5qkt-w.js","async":true}]
-c:["$","$Le",null,{"children":["$","$f",null,{"name":"Next.MetadataOutlet","children":"$@10"}]}]
-10:null
+b:["$","script","script-1",{"src":"/phlo/_next/static/chunks/185l0jloj8wzp.js","async":true}]
+c:["$","$L17",null,{"children":["$","$18",null,{"name":"Next.MetadataOutlet","children":"$@19"}]}]
+f:["$","$1","h",{"children":[null,["$","$L1a",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L1b",null,{"children":["$","$18",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Phlo"}],["$","meta","1",{"name":"description","content":"Generated documentation site"}]]}]}]}],null]}]
+11:["$","$1","c",{"children":[null,["$","$L1c",null,{"parallelRouterKey":"children","template":["$","$L1d",null,{}]}]]}]
+15:true
+19:null
+e:300
+e:C
+14:0
+10:"$undefined"
+12:"$undefined"
+d:"$undefined"

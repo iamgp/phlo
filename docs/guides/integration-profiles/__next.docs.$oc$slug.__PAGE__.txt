@@ -1,10 +1,7 @@
 1:"$Sreact.fragment"
-2:I[98330,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"DocsPage"]
-3:I[98330,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"DocsBody"]
-4:I[94157,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"Heading"]
-3e:I[47873,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js","/phlo/_next/static/chunks/38h2ra-it3nxb.js","/phlo/_next/static/chunks/2v5m94v30vyns.js","/phlo/_next/static/chunks/2amx5gxmf1qtm.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/36c8aq_5qkt-w.js"],"default"]
-3f:I[97367,["/phlo/_next/static/chunks/3akmlaju22lmu.js","/phlo/_next/static/chunks/2a35y8vvamogv.js"],"OutletBoundary"]
-40:"$Sreact.suspense"
+2:I[98330,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"DocsPage"]
+3:I[98330,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"DocsBody"]
+4:I[94157,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"Heading"]
 5:T10cd,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 621.394 90.45" width="621.394" height="90.45" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
@@ -52,7 +49,17 @@
   <rect x="474.675" y="24" width="122.71900000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
   <text x="536.0345" y="42.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Publish target</text>
 </g>
-</svg>0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"toc":[{"depth":1,"url":"#integration-profiles","title":"Integration Profiles"},{"depth":2,"url":"#core-rules","title":"Core rules"},{"depth":2,"url":"#profile-bundled-stack","title":"Profile: Bundled Stack"},{"depth":3,"url":"#guarantees","title":"Guarantees"},{"depth":3,"url":"#versioned-flow","title":"Versioned flow"},{"depth":3,"url":"#alternative-delta-table-store","title":"Alternative: Delta Table Store"},{"depth":2,"url":"#profile-non-versioned-local-profile","title":"Profile: Non-Versioned Local Profile"},{"depth":3,"url":"#guarantees-1","title":"Guarantees"},{"depth":2,"url":"#runtime-routing","title":"Runtime routing"},{"depth":2,"url":"#choosing-a-profile","title":"Choosing a profile"},{"depth":2,"url":"#contract-tests","title":"Contract tests"}],"children":["$","$L3",null,{"children":[["$","$L4",null,{"as":"h1","id":"integration-profiles","children":"Integration Profiles"}],"\n",["$","p",null,{"children":"Phlo is capability-driven. It does not require one fixed stack."}],"\n",["$","p",null,{"children":"The core runtime contract is:"}],"\n",["$","p",null,{"children":["$","code",null,{"children":"ingestion -> table store -> query/transform -> publish"}]}],"\n",["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$5"}}],"\n","$L6","\n","$L7","\n","$L8","\n","$L9","\n","$La","\n","$Lb","\n","$Lc","\n","$Ld","\n","$Le","\n","$Lf","\n","$L10","\n","$L11","\n","$L12","\n","$L13","\n","$L14","\n","$L15","\n","$L16","\n","$L17","\n","$L18","\n","$L19","\n","$L1a","\n","$L1b","\n","$L1c","\n","$L1d","\n","$L1e","\n","$L1f","\n","$L20","\n","$L21","\n","$L22","\n","$L23","\n","$L24","\n","$L25","\n","$L26","\n","$L27","\n","$L28","\n","$L29","\n","$L2a","\n","$L2b","\n","$L2c","\n","$L2d","\n","$L2e","\n","$L2f","\n","$L30","\n","$L31","\n","$L32","\n","$L33","\n","$L34","\n","$L35","\n","$L36","\n","$L37"]}]}],["$L38","$L39"],"$L3a"]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"WhC3liCkm8xs3w_B0aw0a"}
+</svg>3c:X
+41:X
+41:C
+0:{"buildId":"IepU_2Lq1gBWgRaw15ys2","data":[{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"toc":[{"depth":1,"url":"#integration-profiles","title":"Integration Profiles"},{"depth":2,"url":"#core-rules","title":"Core rules"},{"depth":2,"url":"#profile-bundled-stack","title":"Profile: Bundled Stack"},{"depth":3,"url":"#guarantees","title":"Guarantees"},{"depth":3,"url":"#versioned-flow","title":"Versioned flow"},{"depth":3,"url":"#alternative-delta-table-store","title":"Alternative: Delta Table Store"},{"depth":2,"url":"#profile-non-versioned-local-profile","title":"Profile: Non-Versioned Local Profile"},{"depth":3,"url":"#guarantees-1","title":"Guarantees"},{"depth":2,"url":"#runtime-routing","title":"Runtime routing"},{"depth":2,"url":"#choosing-a-profile","title":"Choosing a profile"},{"depth":2,"url":"#contract-tests","title":"Contract tests"}],"children":["$","$L3",null,{"children":[["$","$L4",null,{"as":"h1","id":"integration-profiles","children":"Integration Profiles"}],"\n",["$","p",null,{"children":"Phlo is capability-driven. It does not require one fixed stack."}],"\n",["$","p",null,{"children":"The core runtime contract is:"}],"\n",["$","p",null,{"children":["$","code",null,{"children":"ingestion -> table store -> query/transform -> publish"}]}],"\n",["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$5"}}],"\n","$L6","\n","$L7","\n","$L8","\n","$L9","\n","$La","\n","$Lb","\n","$Lc","\n","$Ld","\n","$Le","\n","$Lf","\n","$L10","\n","$L11","\n","$L12","\n","$L13","\n","$L14","\n","$L15","\n","$L16","\n","$L17","\n","$L18","\n","$L19","\n","$L1a","\n","$L1b","\n","$L1c","\n","$L1d","\n","$L1e","\n","$L1f","\n","$L20","\n","$L21","\n","$L22","\n","$L23","\n","$L24","\n","$L25","\n","$L26","\n","$L27","\n","$L28","\n","$L29","\n","$L2a","\n","$L2b","\n","$L2c","\n","$L2d","\n","$L2e","\n","$L2f","\n","$L30","\n","$L31","\n","$L32","\n","$L33","\n","$L34","\n","$L35","\n","$L36","\n","$L37"]}]}],["$L38","$L39"],"$L3a"]}],"isPartial":"$@3b","staleTime":"$3c","varyParams":null},{"rsc":"$L3d","isPartial":"$@3e","staleTime":"$3c","varyParams":null},{"rsc":"$L3f","isPartial":"$@40","staleTime":"$3c","varyParams":"$41"}],"isUpgradeableISRFallback":false,"a":"$@42","rootVaryParams":null,"needsRuntimeRequest":"$@43"}
+47:I[47873,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js","/phlo/_next/static/chunks/3fr4fve7ydu9p.js","/phlo/_next/static/chunks/0g2u_8svgsk6-.js","/phlo/_next/static/chunks/0gpf3m6wbmmpg.js","/phlo/_next/static/chunks/0ir4hn50thz5z.js","/phlo/_next/static/chunks/185l0jloj8wzp.js"],"default"]
+48:I[97367,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"OutletBoundary"]
+49:"$Sreact.suspense"
+4b:I[97367,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"ViewportBoundary"]
+4c:I[97367,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"MetadataBoundary"]
+4d:I[39756,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"default"]
+4e:I[37457,["/phlo/_next/static/chunks/176mzrsa28qdg.js","/phlo/_next/static/chunks/1dnldvtj6nm7i.js"],"default"]
 6:["$","p",null,{"children":"Optional capabilities refine that contract:"}]
 7:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","code",null,{"children":"versioned catalog"}],": refs, branch isolation, promotion"]}],"\n",["$","li",null,{"children":[["$","code",null,{"children":"publish target"}],": downstream serving/export target"]}],"\n",["$","li",null,{"children":[["$","code",null,{"children":"governance backend"}],": policy enforcement"]}],"\n"]}]
 8:["$","p",null,{"children":"This guide defines the supported profiles on this branch and what each one guarantees."}]
@@ -66,7 +73,7 @@ f:["$","p",null,{"children":"Data plane:"}]
 10:["$","p",null,{"children":["$","code",null,{"children":"DLT -> staged parquet -> Iceberg -> Trino/dbt -> Postgres publish"}]}]
 11:["$","p",null,{"children":"Control plane:"}]
 12:["$","p",null,{"children":["$","code",null,{"children":"Dagster + capability registry + runtime routing"}]}]
-3b:T15cc,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830.9480000000001 90.45" width="830.9480000000001" height="90.45" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
+44:T15cc,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830.9480000000001 90.45" width="830.9480000000001" height="90.45" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -123,12 +130,12 @@ f:["$","p",null,{"children":"Data plane:"}]
   <rect x="682.7470000000001" y="24" width="124.20100000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
   <text x="744.8475000000001" y="42.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">phlo-postgres</text>
 </g>
-</svg>13:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$3b"}}]
+</svg>13:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$44"}}]
 14:["$","$L4",null,{"as":"h3","id":"guarantees","children":"Guarantees"}]
 15:["$","ul",null,{"children":["\n",["$","li",null,{"children":"DLT consumes all staged parquet files, not just the first shard"}],"\n",["$","li",null,{"children":"strict Pandera validation runs before visible table-store writes"}],"\n",["$","li",null,{"children":"when a versioned catalog is available, strict writes can use isolated refs"}],"\n",["$","li",null,{"children":"dbt target selection is derived from canonical runtime routing"}],"\n",["$","li",null,{"children":"Dagster only enables WAP sensors when a versioned catalog capability is available"}],"\n",["$","li",null,{"children":"Postgres is modeled as a publish target, not a parallel transform plane"}],"\n"]}]
 16:["$","$L4",null,{"as":"h3","id":"versioned-flow","children":"Versioned flow"}]
 17:["$","p",null,{"children":"When the active catalog supports refs and promotion, the normal Dagster WAP flow is:"}]
-3c:T1429,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 972.9240000000001 90.45" width="972.9240000000001" height="90.45" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
+45:T1429,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 972.9240000000001 90.45" width="972.9240000000001" height="90.45" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -180,7 +187,7 @@ f:["$","p",null,{"children":"Data plane:"}]
   <rect x="787.6730000000001" y="24" width="161.251" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
   <text x="868.2985000000001" y="42.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Clean up run branch</text>
 </g>
-</svg>18:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$3c"}}]
+</svg>18:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$45"}}]
 19:["$","ol",null,{"children":["\n",["$","li",null,{"children":"create isolated run branch"}],"\n",["$","li",null,{"children":"write data on the isolated ref"}],"\n",["$","li",null,{"children":"run checks"}],"\n",["$","li",null,{"children":"promote back to durable ref on success"}],"\n",["$","li",null,{"children":"clean up the run branch"}],"\n"]}]
 1a:["$","p",null,{"children":"In the default stack, Nessie provides that versioned catalog capability."}]
 1b:["$","$L4",null,{"as":"h3","id":"alternative-delta-table-store","children":"Alternative: Delta Table Store"}]
@@ -195,7 +202,7 @@ f:["$","p",null,{"children":"Data plane:"}]
 24:["$","ul",null,{"children":["\n",["$","li",null,{"children":"dbt still uses generated runtime config"}],"\n",["$","li",null,{"children":"runtime routing still resolves the active environment"}],"\n",["$","li",null,{"children":"no branch/WAP semantics are assumed"}],"\n",["$","li",null,{"children":"tests can run without the bundled service stack"}],"\n"]}]
 25:["$","$L4",null,{"as":"h2","id":"runtime-routing","children":"Runtime routing"}]
 26:["$","p",null,{"children":"Runtime routing is the shared contract that ties profiles together."}]
-3d:T147c,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 357.596 249.15000000000003" width="357.596" height="249.15000000000003" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
+46:T147c,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 357.596 249.15000000000003" width="357.596" height="249.15000000000003" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -247,7 +254,7 @@ f:["$","p",null,{"children":"Data plane:"}]
   <rect x="185.611" y="182.70000000000002" width="122.71900000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
   <text x="246.9705" y="201.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Publish target</text>
 </g>
-</svg>27:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$3d"}}]
+</svg>27:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$46"}}]
 28:["$","p",null,{"children":"The main fields are:"}]
 29:["$","ul",null,{"children":["\n",["$","li",null,{"children":["$","code",null,{"children":"environment"}]}],"\n",["$","li",null,{"children":["$","code",null,{"children":"ref"}]}],"\n",["$","li",null,{"children":["$","code",null,{"children":"partition_key"}]}],"\n",["$","li",null,{"children":["$","code",null,{"children":"run_id"}]}],"\n",["$","li",null,{"children":["$","code",null,{"children":"resources"}]}],"\n",["$","li",null,{"children":["$","code",null,{"children":"feature_flags"}]}],"\n"]}]
 2a:["$","p",null,{"children":"Providers read from this routing surface instead of inventing package-local selectors."}]
@@ -263,8 +270,17 @@ f:["$","p",null,{"children":"Data plane:"}]
 34:["$","p",null,{"children":"Current coverage on this branch:"}]
 35:["$","ul",null,{"children":["\n",["$","li",null,{"children":"bundled stack harness"}],"\n",["$","li",null,{"children":"bundled stack ingest/transform contract"}],"\n",["$","li",null,{"children":"bundled stack publish contract"}],"\n",["$","li",null,{"children":"bundled stack versioned WAP contract"}],"\n",["$","li",null,{"children":"non-versioned local profile harness/contract"}],"\n"]}]
 36:["$","p",null,{"children":"See also:"}]
-37:["$","ul",null,{"children":["\n",["$","li",null,{"children":["$","$L3e",null,{"href":"capability-primitives.md","children":"Capability Primitives"}]}],"\n",["$","li",null,{"children":["$","$L3e",null,{"href":"../operations/testing.md","children":"Operations Testing"}]}],"\n",["$","li",null,{"children":["$","$L3e",null,{"href":"../packages/phlo-testing.md","children":"phlo-testing"}]}],"\n"]}]
+37:["$","ul",null,{"children":["\n",["$","li",null,{"children":["$","$L47",null,{"href":"capability-primitives.md","children":"Capability Primitives"}]}],"\n",["$","li",null,{"children":["$","$L47",null,{"href":"../operations/testing.md","children":"Operations Testing"}]}],"\n",["$","li",null,{"children":["$","$L47",null,{"href":"../packages/phlo-testing.md","children":"phlo-testing"}]}],"\n"]}]
 38:["$","script","script-0",{"src":"/phlo/_next/static/chunks/0ir4hn50thz5z.js","async":true}]
-39:["$","script","script-1",{"src":"/phlo/_next/static/chunks/36c8aq_5qkt-w.js","async":true}]
-3a:["$","$L3f",null,{"children":["$","$40",null,{"name":"Next.MetadataOutlet","children":"$@41"}]}]
-41:null
+39:["$","script","script-1",{"src":"/phlo/_next/static/chunks/185l0jloj8wzp.js","async":true}]
+3a:["$","$L48",null,{"children":["$","$49",null,{"name":"Next.MetadataOutlet","children":"$@4a"}]}]
+3d:["$","$1","h",{"children":[null,["$","$L4b",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L4c",null,{"children":["$","$49",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Phlo"}],["$","meta","1",{"name":"description","content":"Generated documentation site"}]]}]}]}],null]}]
+3f:["$","$1","c",{"children":[null,["$","$L4d",null,{"parallelRouterKey":"children","template":["$","$L4e",null,{}]}]]}]
+43:true
+4a:null
+3c:300
+3c:C
+42:0
+3e:"$undefined"
+40:"$undefined"
+3b:"$undefined"
