@@ -234,6 +234,31 @@ def test_service_override_renders_valid_extra_hosts_and_rejects_blank_mappings(t
     )
 
 
+def test_infrastructure_service_overrides_are_used_for_compose_generation() -> None:
+    """The documented infrastructure.services path reaches the Compose generator."""
+    from phlo.cli.commands.services.init import _get_service_overrides
+
+    overrides = _get_service_overrides(
+        {
+            "services": {"dagster": {"environment": {"LEGACY": "true"}}},
+            "infrastructure": {
+                "services": {
+                    "dagster": {
+                        "extra_hosts": ["host.docker.internal:host-gateway"],
+                    }
+                }
+            },
+        }
+    )
+
+    assert overrides == {
+        "dagster": {
+            "environment": {"LEGACY": "true"},
+            "extra_hosts": ["host.docker.internal:host-gateway"],
+        }
+    }
+
+
 def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
     discovery = ServiceDiscovery()
     nessie = discovery.get_service("nessie")

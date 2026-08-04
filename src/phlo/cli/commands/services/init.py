@@ -77,6 +77,41 @@ def _load_existing_project_config(config_file: Path) -> dict:
     return project_config
 
 
+def _get_service_overrides(project_config: dict) -> dict[str, dict]:
+    """Read service overrides from the canonical infrastructure block.
+
+    ``services`` at the top level predates ``infrastructure.services`` and is
+    retained for compatibility.  The infrastructure form is authoritative when
+    both configure the same service, which lets operators keep all container
+    configuration in one block.
+    """
+    legacy = project_config.get("services", {})
+    infrastructure = project_config.get("infrastructure", {})
+    canonical = infrastructure.get("services", {}) if isinstance(infrastructure, dict) else {}
+    if not isinstance(legacy, dict) or not isinstance(canonical, dict):
+        raise user_error(
+            "invalid phlo.yaml",
+            details={"services": "must be a mapping"},
+        )
+
+    overrides: dict[str, dict] = {}
+    for service_name in set(legacy) | set(canonical):
+        if not isinstance(service_name, str) or not service_name:
+            raise user_error(
+                "invalid phlo.yaml",
+                details={"services": "service names must be non-empty strings"},
+            )
+        legacy_value = legacy.get(service_name, {})
+        canonical_value = canonical.get(service_name, {})
+        if not isinstance(legacy_value, dict) or not isinstance(canonical_value, dict):
+            raise user_error(
+                "invalid phlo.yaml",
+                details={"services": f"{service_name} must be a mapping"},
+            )
+        overrides[service_name] = {**legacy_value, **canonical_value}
+    return overrides
+
+
 def _validate_production_credentials(
     env_overrides: dict,
     existing_local_values: dict[str, str],
@@ -286,7 +321,10 @@ def init_cmd(
     existing_config = {}
     if config_file.exists():
         existing_config = _load_existing_project_config(config_file)
-    user_overrides = existing_config.get("services", {})
+    user_overrides = _get_service_overrides(existing_config)
+    # Service selection and inline-service discovery use the same effective
+    # overrides as Compose generation.
+    existing_config["services"] = user_overrides
     env_overrides = _get_env_overrides(existing_config)
     existing_env_local = parse_env_file(phlo_dir / ".env.local")
     if production:

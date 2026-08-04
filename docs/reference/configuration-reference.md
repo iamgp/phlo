@@ -531,6 +531,18 @@ WAP configuration is fail-closed: unknown `wap` keys and insecure non-local
 require `PHLO_DAGSTER_ACCESS_TOKEN`; plaintext HTTP is allowed only for the
 local default endpoint.
 
+Service-specific Docker settings such as `extra_hosts` belong under
+`infrastructure.services` (the legacy top-level `services` form remains
+supported):
+
+```yaml
+infrastructure:
+  services:
+    dagster:
+      extra_hosts:
+        - host.docker.internal:host-gateway
+```
+
 Dagster WAP sensor intervals:
 
 ```bash
