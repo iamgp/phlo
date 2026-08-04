@@ -88,7 +88,7 @@ Phlo uses Nessie branches for the Write-Audit-Publish (WAP) pattern:
 
 ```
 1. Write Phase
-   └── Data lands on isolated branch: pipeline/run-{run_id}
+   └── Data lands on isolated branch: pipeline-run-{logical_run_id}
 
 2. Audit Phase
    └── Quality checks validate data on the branch
@@ -121,7 +121,7 @@ nessie.delete_branch("feature/new-data")
 | ------------------- | ------------------------------------ |
 | `main`              | Production data (read-only for most) |
 | `dev`               | Development workspace                |
-| `pipeline/run-{id}` | Isolated pipeline execution          |
+| `pipeline-run-{id}` | Isolated pipeline execution          |
 | `feature/*`         | Feature development                  |
 
 ## Endpoints

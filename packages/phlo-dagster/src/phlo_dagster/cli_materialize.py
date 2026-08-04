@@ -150,6 +150,10 @@ def materialize(
                 "WAP is enabled in phlo.yaml and requires one ASSET_NAME; --select is not supported."
             )
         access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
+        if getattr(wap_config, "requires_access_token", False) and not access_token:
+            raise click.ClickException(
+                "PHLO_DAGSTER_ACCESS_TOKEN is required for a non-local WAP Dagster endpoint."
+            )
         logical_run_id = uuid.uuid4().hex
         if dry_run:
             click.echo(
@@ -160,21 +164,32 @@ def materialize(
 
         discover_capabilities()
         wap_launch = prepare_wap_launch(logical_run_id=logical_run_id)
-        result = asyncio.run(
-            launch_materialize(
-                dagster_url=wap_config.dagster_url,
-                asset_key_path=asset_name,
-                job_name=wap_config.job_name,
-                repository_location_name=wap_config.repository_location_name,
-                repository_name=wap_config.repository_name,
-                access_token=access_token,
-                partition_key=partition,
-                idempotency_key=logical_run_id,
-                tags=wap_launch.tags,
+        try:
+            result = asyncio.run(
+                launch_materialize(
+                    dagster_url=wap_config.dagster_url,
+                    asset_key_path=asset_name,
+                    job_name=wap_config.job_name,
+                    repository_location_name=wap_config.repository_location_name,
+                    repository_name=wap_config.repository_name,
+                    access_token=access_token,
+                    partition_key=partition,
+                    idempotency_key=logical_run_id,
+                    tags=wap_launch.tags,
+                )
             )
-        )
+        except Exception as exc:
+            wap_launch.record_launch_result(status="launch_ambiguous", error=str(exc))
+            raise click.ClickException(f"WAP launch outcome is ambiguous: {exc}") from exc
         if not result.accepted:
+            wap_launch.record_launch_result(status="launch_rejected", error=result.message)
             raise click.ClickException(result.message)
+
+        if not wap_launch.record_launch_result(status="launched", dagster_run_id=result.run_id):
+            raise click.ClickException(
+                "Dagster accepted the WAP run, but its immutable launch manifest could not be stored. "
+                "The branch was retained."
+            )
 
         click.echo(
             f"Launched WAP materialization for {asset_name} on {wap_launch.branch} "

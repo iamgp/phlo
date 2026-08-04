@@ -45,11 +45,10 @@ Example:
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import os
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 import dagster as dg
@@ -68,12 +67,21 @@ from phlo.run_evidence import (
     emit_observation,
 )
 from phlo_dagster.run_evidence import DagsterRunEvidenceSource
+from phlo_dagster.wap_launch import (
+    WAP_BRANCH_TAG,
+    WAP_REF_TAG,
+    WAP_RUN_ID_TAG,
+    _report_path,
+    _report_snapshot_path,
+    read_wap_launch_manifest,
+    write_wap_report,
+)
 
 logger = get_logger(__name__)
 
 WAP_BRANCH_PREFIX = "pipeline-"
 OWNED_WAP_BRANCH_PREFIX = "pipeline-run-"
-WAP_TAG_KEY = "phlo/wap_branch"
+WAP_TAG_KEY = WAP_BRANCH_TAG
 DEFAULT_RETENTION_HOURS = 24
 DEFAULT_CLEANUP_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_CLEANUP_INTERVAL_SECONDS", "3600"))
 DEFAULT_PROMOTION_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_PROMOTION_INTERVAL_SECONDS", "60"))
@@ -82,17 +90,6 @@ WAP_EVIDENCE_PROFILE = RequiredEvidenceProfile(
     version="1",
     provider="dagster",
 )
-
-
-def _report_path(run_id: str) -> Path:
-    root = Path(os.getenv("PHLO_PROJECT_PATH", "."))
-    return root / ".phlo" / "wap-reports" / f"{run_id}.json"
-
-
-def _report_snapshot_path(run_id: str, checksum: str) -> Path:
-    root = Path(os.getenv("PHLO_PROJECT_PATH", ".")) / ".phlo" / "wap-reports" / "evidence"
-    run_key = hashlib.sha256(run_id.encode("utf-8")).hexdigest()[:24]
-    return root / f"{run_key}.{checksum}.json"
 
 
 def _branch_hash(catalog: VersionedCatalog, branch: str) -> str | None:
@@ -105,35 +102,6 @@ def _branch_hash(catalog: VersionedCatalog, branch: str) -> str | None:
         logger.warning("wap_report_branch_hash_failed", branch_name=branch, exc_info=True)
         return None
     return str(value) if value else None
-
-
-def write_wap_report(run_id: str, **updates: Any) -> None:
-    path = _report_path(run_id)
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    except (OSError, json.JSONDecodeError):
-        payload = {}
-    now = datetime.now(timezone.utc).isoformat()
-    payload.update(updates)
-    payload.update(
-        {
-            "created_at": payload.get("created_at", now),
-            "schema_version": "phlo.wap_report.v1",
-            "run_id": run_id,
-            "updated_at": now,
-        }
-    )
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        serialized = json.dumps(payload, indent=2, sort_keys=True)
-        path.write_text(serialized, encoding="utf-8")
-        raw = serialized.encode("utf-8")
-        snapshot_path = _report_snapshot_path(run_id, hashlib.sha256(raw).hexdigest())
-        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-        if not snapshot_path.exists():
-            snapshot_path.write_bytes(raw)
-    except OSError:
-        logger.warning("wap_report_write_failed", path=str(path), run_id=run_id, exc_info=True)
 
 
 def _load_versioned_catalog() -> VersionedCatalog:
@@ -442,6 +410,50 @@ def _logical_run_id(run: Any) -> str:
     return str(logical_run_id or dagster_run_id)
 
 
+def _verify_wap_launch_manifest(run: Any, branch_name: str) -> tuple[str, dict[str, Any]] | None:
+    """Fail closed unless the run still matches its pre-launch WAP manifest."""
+    logical_run_id = _logical_run_id(run)
+    dagster_run_id = str(getattr(run, "run_id", "") or "")
+    tags = getattr(run, "tags", {}) or {}
+    expected_tags = {
+        WAP_RUN_ID_TAG: logical_run_id,
+        WAP_BRANCH_TAG: branch_name,
+        WAP_REF_TAG: branch_name,
+    }
+    if (
+        not logical_run_id
+        or not dagster_run_id
+        or any(tags.get(key) != value for key, value in expected_tags.items())
+    ):
+        return None
+    manifest = _read_wap_report(logical_run_id)
+    checksum = manifest.get("launch_manifest_checksum") if manifest else None
+    binding = read_wap_launch_manifest(logical_run_id, str(checksum)) if checksum else None
+    if (
+        not manifest
+        or not binding
+        or (
+            manifest.get("run_id") != logical_run_id
+            or manifest.get("branch") != branch_name
+            or manifest.get("dagster_run_id") != dagster_run_id
+            or manifest.get("launch_tags") != expected_tags
+            or binding
+            != {
+                "schema_version": "phlo.wap_launch_manifest.v1",
+                "logical_run_id": logical_run_id,
+                "dagster_run_id": dagster_run_id,
+                "branch": branch_name,
+                "tags": expected_tags,
+                "source_hash": manifest.get("source_hash"),
+                "target_branch": "main",
+                "target_hash_before": manifest.get("target_hash_before"),
+            }
+        )
+    ):
+        return None
+    return logical_run_id, manifest
+
+
 def _reconcile_promoted_wap_run(run: Any, instance: Any) -> None:
     """Persist Dagster's authoritative history under the WAP logical identity."""
     dagster_run_id = getattr(run, "run_id", None)
@@ -604,6 +616,24 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         if run_tags.get("phlo/wap_promoted"):
             continue
 
+        manifest = _verify_wap_launch_manifest(run, branch_name)
+        if manifest is None:
+            logical_run_id = _logical_run_id(run)
+            if logical_run_id:
+                write_wap_report(
+                    logical_run_id,
+                    status="promotion_blocked",
+                    branch=branch_name,
+                    failure_reason="launch_manifest_or_immutable_tags_invalid",
+                )
+            logger.warning(
+                "wap_promotion_blocked_launch_manifest_invalid",
+                run_id=run.run_id,
+                branch_name=branch_name,
+            )
+            blocked += 1
+            continue
+
         if not _all_checks_passed(instance, run.run_id):
             quality_decision_id, quality_metadata = _quality_evidence(
                 run.run_id,
@@ -614,7 +644,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             )
             if quality_decision_id is None:
                 write_wap_report(
-                    run.run_id,
+                    _logical_run_id(run),
                     status="promotion_blocked",
                     branch=branch_name,
                     target_branch="main",
@@ -637,7 +667,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 blocked += 1
                 continue
             write_wap_report(
-                run.run_id,
+                _logical_run_id(run),
                 status="promotion_blocked",
                 branch=branch_name,
                 source_hash=_branch_hash(catalog, branch_name),
@@ -677,7 +707,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         )
         if quality_decision_id is None:
             write_wap_report(
-                run.run_id,
+                _logical_run_id(run),
                 status="promotion_blocked",
                 branch=branch_name,
                 target_branch="main",
@@ -702,7 +732,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         merged = catalog.merge_branch(source=branch_name, target="main")
         if not merged:
             write_wap_report(
-                run.run_id,
+                _logical_run_id(run),
                 status="promotion_failed",
                 branch=branch_name,
                 source_hash=source_hash,
@@ -747,7 +777,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         )
         instance.add_run_tags(run.run_id, {"phlo/wap_promoted": "true"})
         write_wap_report(
-            run.run_id,
+            _logical_run_id(run),
             status="promoted",
             branch=branch_name,
             source_hash=source_hash,
@@ -883,17 +913,19 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
             skipped += 1
             continue
 
-        run_id = branch.name.removeprefix(OWNED_WAP_BRANCH_PREFIX)
-        report = _read_wap_report(run_id)
+        logical_run_id = branch.name.removeprefix(OWNED_WAP_BRANCH_PREFIX)
+        report = _read_wap_report(logical_run_id)
         if report and (
-            report.get("run_id") != run_id or report.get("branch") not in (None, branch.name)
+            report.get("run_id") != logical_run_id
+            or report.get("branch") not in (None, branch.name)
         ):
             report = None
+        dagster_run_id = report.get("dagster_run_id") if report else None
         dagster_run = None
         run_status = None
         get_run_by_id = getattr(context.instance, "get_run_by_id", None)
-        if callable(get_run_by_id):
-            dagster_run = get_run_by_id(run_id)
+        if callable(get_run_by_id) and dagster_run_id:
+            dagster_run = get_run_by_id(dagster_run_id)
             if dagster_run is not None:
                 run_status = _normalized_dagster_status(dagster_run)
         report_status = report.get("run_status") if report else None
@@ -901,9 +933,11 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
             run_status = report_status
         elif report and report.get("status") == "promoted":
             run_status = "success"
+        elif report and report.get("status") == "launch_rejected":
+            run_status = "failed"
         if run_status is None:
             _record_uncorrelated_gap(
-                run_id,
+                logical_run_id,
                 branch=branch.name,
                 missing=["run_status"],
                 reason="cleanup_authoritative_status_missing",
@@ -915,7 +949,7 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
         tagged_project = tags.get("phlo/project_id")
         if report_project and tagged_project and report_project != tagged_project:
             _record_uncorrelated_gap(
-                run_id,
+                logical_run_id,
                 branch=branch.name,
                 missing=["project_id"],
                 reason="cleanup_project_conflict",
@@ -925,12 +959,12 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
             tags["phlo/project_id"] = report_project
         if "phlo/attempt" not in tags and report:
             tags["phlo/attempt"] = str(report.get("attempt", ""))
-        cleanup_run = type("CleanupRun", (), {"run_id": run_id, "tags": tags})()
+        cleanup_run = type("CleanupRun", (), {"run_id": logical_run_id, "tags": tags})()
         project_id = _project_id_for_run(cleanup_run)
         attempt = _attempt_for_run(cleanup_run)
         if not project_id or attempt is None:
             _record_uncorrelated_gap(
-                run_id,
+                logical_run_id,
                 branch=branch.name,
                 missing=[
                     field
@@ -947,7 +981,7 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
             query_catalog_manager,
         )
         write_wap_report(
-            run_id,
+            logical_run_id,
             status="cleanup_complete" if cleanup_complete else "cleanup_incomplete",
             branch=branch.name,
             cleanup_complete=cleanup_complete,

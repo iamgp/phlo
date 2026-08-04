@@ -1202,14 +1202,18 @@ When enabled, every `phlo materialize ASSET_NAME` creates a fresh
 start the asset. Phlo applies the `phlo/wap_branch` and `phlo/ref` tags to bind
 the run to that immutable ref. A configured `PHLO_DAGSTER_ACCESS_TOKEN` is sent
 as a bearer token but never appears in process arguments or shell history.
+For a remote endpoint, the token and HTTPS are required; plaintext HTTP is
+accepted only for the default local endpoint.
 
 ```bash
 phlo materialize dlt_events
 ```
 
-If Dagster rejects a launch, the run fails checks, or transport is ambiguous,
-Phlo retains the branch and WAP report for audit. With WAP disabled, this command
-retains its legacy direct `dagster asset materialize` behavior.
+Before GraphQL submission, Phlo writes an immutable launch manifest that binds
+the logical run ID, branch, tags, and catalog hashes. If Dagster rejects a
+launch, the run fails checks, or transport is ambiguous, Phlo retains that
+branch and report for audit. With WAP disabled, this command retains its legacy
+direct `dagster asset materialize` behavior.
 
 **Selection Syntax**:
 

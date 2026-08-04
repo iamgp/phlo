@@ -264,6 +264,10 @@ def backfill(
 
     if wap_config.enabled:
         access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
+        if getattr(wap_config, "requires_access_token", False) and not access_token:
+            raise click.ClickException(
+                "PHLO_DAGSTER_ACCESS_TOKEN is required for a non-local WAP Dagster endpoint."
+            )
         discover_capabilities()
         _run_wap_backfill(
             asset_name,
@@ -301,21 +305,35 @@ def _run_wap_backfill(
     for partition_date in partition_dates:
         logical_run_id = f"backfill-{uuid.uuid4().hex}"
         launch = prepare_wap_launch(logical_run_id=logical_run_id)
-        result = asyncio.run(
-            launch_materialize(
-                dagster_url=dagster_url,
-                asset_key_path=asset_name,
-                job_name=job_name,
-                repository_location_name=repository_location_name,
-                repository_name=repository_name,
-                access_token=access_token,
-                partition_key=partition_date,
-                idempotency_key=logical_run_id,
-                tags=launch.tags,
+        try:
+            result = asyncio.run(
+                launch_materialize(
+                    dagster_url=dagster_url,
+                    asset_key_path=asset_name,
+                    job_name=job_name,
+                    repository_location_name=repository_location_name,
+                    repository_name=repository_name,
+                    access_token=access_token,
+                    partition_key=partition_date,
+                    idempotency_key=logical_run_id,
+                    tags=launch.tags,
+                )
             )
-        )
+        except Exception as exc:
+            launch.record_launch_result(status="launch_ambiguous", error=str(exc))
+            raise click.ClickException(
+                f"WAP launch outcome is ambiguous for {partition_date}: {exc}"
+            ) from exc
         if not result.accepted:
+            launch.record_launch_result(status="launch_rejected", error=result.message)
             raise click.ClickException(result.message)
+        if not launch.record_launch_result(
+            status="launched", dagster_run_id=getattr(result, "run_id", None)
+        ):
+            raise click.ClickException(
+                "Dagster accepted the WAP run, but its immutable launch manifest could not be stored. "
+                "The branch was retained."
+            )
         console.print(f"Launched WAP backfill for {partition_date} on {launch.branch}")
 
 

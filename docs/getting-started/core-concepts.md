@@ -91,16 +91,14 @@ flowchart LR
 **Implementation**
 
 ```python
-# Automatic ref creation on job start
-# packages/phlo-dagster/src/phlo_dagster/wap_sensors.py
-@sensor(name="branch_creation_sensor")
-def branch_creation_sensor(context):
-    # Creates isolated run ref when a VersionedCatalog is available
+# `phlo materialize` and `phlo backfill` create the isolated ref before
+# submitting the Dagster run. The launch manifest binds the branch to the run.
+# packages/phlo-dagster/src/phlo_dagster/wap_launch.py
+prepare_wap_launch(logical_run_id="...")
 
-# Automatic promotion when checks pass
-@sensor(name="auto_promotion_sensor")
-def auto_promotion_sensor(context):
-    # Promotes to the durable target ref if all checks pass
+# Dagster promotes only a run whose immutable tags match that manifest.
+# packages/phlo-dagster/src/phlo_dagster/wap_sensors.py
+wap_auto_promotion_sensor
 
 # Cleanup old branches
 @sensor(name="branch_cleanup_sensor")
@@ -464,7 +462,7 @@ branch = get_branch_from_context(context)
 # Write to branch-specific reference
 table.write(
     data,
-    override_ref=branch  # e.g., "pipeline/run-abc123"
+    override_ref=branch  # e.g., "pipeline-run-abc123"
 )
 
 # Query from specific branch
@@ -553,7 +551,7 @@ Complete end-to-end flow:
 flowchart LR
     source[API source]
     ingest["@phlo.ingest.dlt"]
-    branch["Iceberg table on<br/>pipeline/run-abc123"]
+    branch["Iceberg table on<br/>pipeline-run-abc123"]
     quality["@phlo.quality.rules checks"]
     promote[Auto-promotion sensor]
     dbt[dbt transformations]

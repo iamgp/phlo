@@ -63,6 +63,7 @@ def test_wap_backfill_creates_branch_before_each_partition(monkeypatch):
             branch=f"pipeline-run-{kwargs['logical_run_id']}",
             tags={"phlo/wap_branch": "branch", "phlo/ref": "branch"},
             cleanup_if_created=lambda: None,
+            record_launch_result=lambda **_kwargs: True,
         ),
     )
 

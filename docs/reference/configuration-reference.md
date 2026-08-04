@@ -526,6 +526,11 @@ through Dagster GraphQL after creating a fresh WAP branch. Do not pass WAP
 command-line flags: the configuration is intentionally project-wide. Disabled
 or absent configuration keeps the direct CLI execution path.
 
+WAP configuration is fail-closed: unknown `wap` keys and insecure non-local
+`http://` endpoints are rejected. Remote Dagster endpoints must use HTTPS and
+require `PHLO_DAGSTER_ACCESS_TOKEN`; plaintext HTTP is allowed only for the
+local default endpoint.
+
 Dagster WAP sensor intervals:
 
 ```bash
@@ -537,9 +542,11 @@ PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
 These settings only matter when the active profile includes a versioned catalog
 capability.
 The project-level `wap.enabled` setting controls whether these sensors are
-loaded. Each WAP run writes `.phlo/wap-reports/<run_id>.json`
-with the branch, source hash, target hash before/after promotion, and cleanup
-result.
+loaded. Each WAP launch first writes `.phlo/wap-reports/<logical-run-id>.json`.
+The immutable launch manifest binds the logical ID, Dagster run ID, branch,
+ref tags, and source/target hashes. It is retained when launch outcome is
+rejected or ambiguous, and is verified again before promotion or retention
+cleanup.
 
 ### Validation Configuration
 
@@ -1024,7 +1031,7 @@ Dagster run configuration for asset execution:
     "resources": {
         "iceberg": {
             "config": {
-                "ref": "pipeline/run-abc123"
+                "ref": "pipeline-run-abc123"
             }
         }
     }

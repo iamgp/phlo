@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 from phlo_dagster.wap_launch import WAP_BRANCH_TAG, WAP_REF_TAG, WAP_RUN_ID_TAG, prepare_wap_launch
@@ -32,8 +33,11 @@ class _Catalog:
         return False
 
 
-def test_prepare_wap_launch_creates_deterministic_branch_and_tags(monkeypatch) -> None:
+def test_prepare_wap_launch_creates_deterministic_branch_tags_and_manifest(
+    monkeypatch, tmp_path
+) -> None:
     catalog = _Catalog()
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setattr(
         "phlo_dagster.wap_launch.resolve_capability",
         lambda _: SimpleNamespace(
@@ -52,6 +56,19 @@ def test_prepare_wap_launch_creates_deterministic_branch_and_tags(monkeypatch) -
         WAP_REF_TAG: "pipeline-run-request-42",
     }
     assert catalog.created == [("pipeline-run-request-42", "main")]
+    report = json.loads(
+        (tmp_path / ".phlo" / "wap-reports" / "request-42.json").read_text(encoding="utf-8")
+    )
+    assert report["status"] == "branch_created"
+    assert report["branch"] == "pipeline-run-request-42"
+    assert report["launch_tags"] == launch.tags
+
+    launch.record_launch_result(status="launch_ambiguous", error="response lost")
+    updated = json.loads(
+        (tmp_path / ".phlo" / "wap-reports" / "request-42.json").read_text(encoding="utf-8")
+    )
+    assert updated["status"] == "launch_ambiguous"
+    assert updated["launch_error"] == "response lost"
 
 
 def test_prepare_wap_launch_refuses_to_reuse_an_existing_branch(monkeypatch) -> None:

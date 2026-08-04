@@ -7,8 +7,9 @@ Pydantic models for phlo.yaml infrastructure section.
 from __future__ import annotations
 
 from typing import Any, Literal
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ApiAuthorizationConfig(BaseModel):
@@ -62,6 +63,8 @@ class WapConfig(BaseModel):
     enabling it makes every Phlo materialize or backfill launch branch-first.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = Field(
         default=False,
         description="Launch materialize and backfill runs through the WAP GraphQL lifecycle.",
@@ -83,7 +86,7 @@ class WapConfig(BaseModel):
         description="Dagster GraphQL endpoint used for WAP launches.",
     )
 
-    @field_validator("job_name", "repository_location_name", "repository_name", "dagster_url")
+    @field_validator("job_name", "repository_location_name", "repository_name")
     @classmethod
     def validate_nonblank(cls, value: str | None) -> str | None:
         """Normalize optional selectors and reject empty required settings."""
@@ -93,6 +96,31 @@ class WapConfig(BaseModel):
         if not normalized:
             raise ValueError("WAP string settings cannot be empty")
         return normalized
+
+    @field_validator("dagster_url")
+    @classmethod
+    def validate_dagster_url(cls, value: str) -> str:
+        """Allow plaintext GraphQL only for local development endpoints."""
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.path.rstrip("/") != "/graphql"
+        ):
+            raise ValueError("dagster_url must be an absolute HTTP(S) GraphQL endpoint")
+        if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError("dagster_url must use HTTPS unless it targets localhost")
+        return normalized
+
+    @property
+    def requires_access_token(self) -> bool:
+        """Whether this endpoint is remote and must use explicit bearer authentication."""
+        return urlparse(self.dagster_url).hostname not in {"localhost", "127.0.0.1", "::1"}
 
 
 class ServiceOverride(BaseModel):

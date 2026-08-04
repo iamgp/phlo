@@ -128,6 +128,7 @@ def test_enabled_wap_materialize_uses_graphql_launch_and_retains_a_rejected_bran
     monkeypatch,
 ) -> None:
     cleaned: list[bool] = []
+    records: list[dict[str, str | None]] = []
 
     class Launch:
         logical_run_id = "request-42"
@@ -140,6 +141,10 @@ def test_enabled_wap_materialize_uses_graphql_launch_and_retains_a_rejected_bran
 
         def cleanup_if_created(self) -> None:
             cleaned.append(True)
+
+        def record_launch_result(self, **kwargs) -> bool:
+            records.append(kwargs)
+            return True
 
     async def rejected_launch(**kwargs):
         assert kwargs["asset_key_path"] == "dlt_orders"
@@ -185,12 +190,14 @@ def test_enabled_wap_materialize_uses_graphql_launch_and_retains_a_rejected_bran
     assert result.exit_code != 0
     assert "Dagster rejected run" in result.output
     assert cleaned == []
+    assert records == [{"status": "launch_rejected", "error": "Dagster rejected run"}]
 
 
 def test_enabled_wap_materialize_retains_new_branch_after_ambiguous_transport_failure(
     monkeypatch,
 ) -> None:
     cleaned: list[bool] = []
+    records: list[dict[str, str | None]] = []
 
     class Launch:
         logical_run_id = "request-42"
@@ -203,6 +210,10 @@ def test_enabled_wap_materialize_retains_new_branch_after_ambiguous_transport_fa
 
         def cleanup_if_created(self) -> None:
             cleaned.append(True)
+
+        def record_launch_result(self, **kwargs) -> bool:
+            records.append(kwargs)
+            return True
 
     async def timeout_launch(**_kwargs):
         raise httpx.ReadTimeout("response lost")
@@ -234,6 +245,8 @@ def test_enabled_wap_materialize_retains_new_branch_after_ambiguous_transport_fa
 
     assert result.exit_code != 0
     assert cleaned == []
+    assert records[0]["status"] == "launch_ambiguous"
+    assert "response lost" in str(records[0]["error"])
 
 
 def test_enabled_wap_materialize_requires_one_explicit_asset(monkeypatch) -> None:
@@ -273,6 +286,9 @@ def test_enabled_wap_materialize_uses_project_configuration(
 
         def cleanup_if_created(self) -> None:
             raise AssertionError("accepted launches retain their branch")
+
+        def record_launch_result(self, **_kwargs) -> bool:
+            return True
 
     async def accepted_launch(**kwargs):
         captured.update(

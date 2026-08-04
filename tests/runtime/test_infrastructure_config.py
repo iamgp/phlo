@@ -329,7 +329,7 @@ wap:
   job_name: project_asset_job
   repository_location_name: user_code
   repository_name: user_repository
-  dagster_url: http://dagster.internal/graphql
+  dagster_url: https://dagster.internal/graphql
 """,
         encoding="utf-8",
     )
@@ -340,7 +340,25 @@ wap:
     assert config.job_name == "project_asset_job"
     assert config.repository_location_name == "user_code"
     assert config.repository_name == "user_repository"
-    assert config.dagster_url == "http://dagster.internal/graphql"
+    assert config.dagster_url == "https://dagster.internal/graphql"
+    assert config.requires_access_token is True
+
+
+def test_load_wap_config_fails_closed_for_typos_and_insecure_remote_endpoints(
+    tmp_path: Path,
+) -> None:
+    """A typo must not silently disable the WAP policy or downgrade transport security."""
+    (tmp_path / "phlo.yaml").write_text(
+        """\
+wap:
+  enabledd: true
+  dagster_url: http://dagster.internal/graphql
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValidationError):
+        load_wap_config(tmp_path)
 
 
 def test_load_infrastructure_config_empty_file_returns_defaults(tmp_path: Path):
