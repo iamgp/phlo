@@ -377,7 +377,11 @@ class ComposeGenerator:
             return
         environment = config.get("environment")
         for trigger, entries in conditional_environment.items():
-            if not str(env_values.get(str(trigger), "")).strip() or not isinstance(entries, dict):
+            trigger_name = str(trigger)
+            trigger_value = str(env_values.get(trigger_name, "")).strip()
+            if trigger_value in {'""', "''"}:
+                trigger_value = ""
+            if not trigger_value or not isinstance(entries, dict):
                 continue
             if environment is None:
                 environment = {}

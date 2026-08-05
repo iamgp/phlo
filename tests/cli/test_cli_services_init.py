@@ -65,6 +65,10 @@ def test_production_credentials_allow_generated_passwords_and_safe_usernames() -
     ("env_values", "expected_openid"),
     (
         ({}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": ""}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": "   \t"}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": '""'}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": "''"}, {}),
         (
             {"MINIO_OIDC_CONFIG_URL": "https://identity.example/.well-known/openid-configuration"},
             {
