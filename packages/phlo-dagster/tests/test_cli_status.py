@@ -318,8 +318,13 @@ class TestStatusCLI:
 class TestStatusOutput:
     """Tests for status output formatting."""
 
-    def test_asset_status_empty_when_disconnected(self):
+    def test_asset_status_empty_when_disconnected(self, monkeypatch: pytest.MonkeyPatch):
         """Test that asset status shows empty state when services disconnected."""
+
+        def disconnected(*_args, **_kwargs):
+            raise status_module.requests_exceptions.ConnectionError("Dagster is disconnected")
+
+        monkeypatch.setattr(status_module.http_requests, "post", disconnected)
         runner = CliRunner()
         result = runner.invoke(status, ["--assets"])
 
