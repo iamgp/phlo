@@ -13,6 +13,17 @@ permissions:
   contents: read
 
 jobs:
+  workflow-hardening:
+    name: security / workflow hardening
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Audit workflow security with zizmor
+        run: make zizmor
+
   python-dependencies:
     name: security / python dependencies
     runs-on: ubuntu-latest
