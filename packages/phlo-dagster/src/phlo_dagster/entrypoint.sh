@@ -94,6 +94,17 @@ else
     echo "Non-root mode: using mounted project directly"
 fi
 
+# Development stacks mount the complete repository. Make every source package
+# importable even when the pinned runtime image runs as the unprivileged user
+# and therefore cannot perform a system-wide editable install.
+if [ "$PHLO_DEV_MODE" = "true" ] && [ -d /opt/phlo-dev ]; then
+    for source_dir in /opt/phlo-dev/src /opt/phlo-dev/packages/*/src; do
+        if [ -d "$source_dir" ]; then
+            export PYTHONPATH="$source_dir${PYTHONPATH:+:$PYTHONPATH}"
+        fi
+    done
+fi
+
 # Execute Dagster from the mounted project root when available. User workflows
 # often read local files relative to the project (for example data/*.csv), while
 # DAGSTER_HOME intentionally remains /opt/dagster for instance state.

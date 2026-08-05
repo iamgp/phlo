@@ -47,6 +47,8 @@ def test_launch_materialize_posts_asset_selection(monkeypatch) -> None:
     selector = variables["executionParams"]["selector"]
     assert selector["pipelineName"] == "orders_job"
     assert selector["assetSelection"] == [{"path": ["silver", "orders"]}]
+    assert "repositoryLocationName" not in selector
+    assert "repositoryName" not in selector
 
 
 def test_launch_materialize_uses_the_explicit_user_access_token(monkeypatch) -> None:

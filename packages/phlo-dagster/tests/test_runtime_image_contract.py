@@ -18,6 +18,7 @@ def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -
     )
     assert 'uv pip install --system --prerelease explicit "${base_requirements[@]}"' in dockerfile
     assert 'dagster-postgres "psycopg[binary]"' in dockerfile
+    assert 'uv pip install --system "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1"' in dockerfile
 
 
 def test_dagster_runtime_image_pins_dbt_when_the_provider_version_is_populated() -> None:
@@ -64,3 +65,18 @@ def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:
     assert non_root_message in entrypoint
     assert entrypoint.index("uv pip install --system -e /app") < entrypoint.index(non_root_message)
     assert entrypoint.index("fi\n\n# Execute Dagster") > entrypoint.index(non_root_message)
+
+
+def test_dagster_runtime_entrypoint_exposes_mounted_dev_sources_to_python() -> None:
+    """The unprivileged runtime can import local adapters without installing them."""
+    entrypoint = resources.files("phlo_dagster").joinpath("entrypoint.sh").read_text()
+
+    assert "for source_dir in /opt/phlo-dev/src /opt/phlo-dev/packages/*/src; do" in entrypoint
+    assert 'export PYTHONPATH="$source_dir${PYTHONPATH:+:$PYTHONPATH}"' in entrypoint
+
+
+def test_dagster_service_uses_the_generated_bootstrap_script() -> None:
+    """Generated stacks must use the checked-out entrypoint in dev mode."""
+    service = resources.files("phlo_dagster").joinpath("service.yaml").read_text()
+
+    assert 'entrypoint: ["/bin/bash", "/opt/dagster/entrypoint.sh"]' in service

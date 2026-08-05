@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import dagster as dg
@@ -129,22 +130,28 @@ def test_build_definitions_merges_wap_sensors_when_versioned_catalog_present() -
 
 
 def test_wap_sensors_dev_flag_requires_truthy_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Falsy PHLO_WAP_SENSORS_ENABLED values should still skip WAP sensors in dev."""
+    """An absent project WAP policy skips sensors even in dev."""
     monkeypatch.setenv("PHLO_DAGSTER_DEV", "1")
     monkeypatch.setenv("PHLO_WAP_SENSORS_ENABLED", "false")
 
-    with patch("phlo_dagster.framework.definitions.resolve_capability") as resolve_capability:
+    with (
+        patch(
+            "phlo_dagster.framework.definitions.load_wap_config",
+            return_value=SimpleNamespace(enabled=False),
+        ),
+        patch("phlo_dagster.framework.definitions.resolve_capability") as resolve_capability,
+    ):
         from phlo_dagster.framework.definitions import _collect_wap_definitions
 
         assert _collect_wap_definitions() is None
         resolve_capability.assert_not_called()
 
 
-def test_wap_sensors_can_be_disabled_in_config() -> None:
+def test_wap_sensors_can_be_disabled_in_project_config() -> None:
     with (
         patch(
-            "phlo_dagster.framework.definitions.get_settings",
-            return_value=_Settings(phlo_wap_enabled=False),
+            "phlo_dagster.framework.definitions.load_wap_config",
+            return_value=SimpleNamespace(enabled=False),
         ),
         patch("phlo_dagster.framework.definitions.resolve_capability") as resolve_capability,
     ):

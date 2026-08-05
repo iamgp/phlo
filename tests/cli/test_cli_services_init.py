@@ -9,9 +9,11 @@ import click
 import pytest
 import yaml
 from click.testing import CliRunner
+from pydantic import ValidationError
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path
 from phlo.cli.infrastructure.selection import select_services_to_install
+from phlo.config_schema import ServiceOverride
 from phlo.plugins.compose import generator as generator_module
 from phlo.plugins.compose.env import generate_env, generate_env_local
 from phlo.plugins.compose.generator import ComposeGenerator
@@ -202,6 +204,61 @@ def test_conditional_environment_list_is_not_mutated_between_renders(tmp_path) -
     ]
 
 
+def test_service_override_renders_valid_extra_hosts_and_rejects_blank_mappings(tmp_path) -> None:
+    """A service can reach a host-only dependency through Compose host-gateway mapping."""
+    service = _service("dagster", default=True)
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery({service.name: service})))
+
+    rendered = yaml.safe_load(
+        generator.generate_compose(
+            [service],
+            output_dir=tmp_path,
+            user_overrides={"dagster": {"extra_hosts": ["host.docker.internal:host-gateway"]}},
+        )
+    )
+
+    assert rendered["services"]["dagster"]["extra_hosts"] == ["host.docker.internal:host-gateway"]
+    with pytest.raises(ValidationError, match="extra_hosts mappings must be non-empty"):
+        ServiceOverride(extra_hosts=["  "])
+    with pytest.raises(ValidationError, match="extra_hosts mappings must be non-empty"):
+        generator.generate_compose(
+            [service],
+            output_dir=tmp_path,
+            user_overrides={"dagster": {"extra_hosts": ["  "]}},
+        )
+    assert (
+        "extra_hosts"
+        not in yaml.safe_load(generator.generate_compose([service], output_dir=tmp_path))[
+            "services"
+        ]["dagster"]
+    )
+
+
+def test_infrastructure_service_overrides_are_used_for_compose_generation() -> None:
+    """The documented infrastructure.services path reaches the Compose generator."""
+    from phlo.cli.commands.services.init import _get_service_overrides
+
+    overrides = _get_service_overrides(
+        {
+            "services": {"dagster": {"environment": {"LEGACY": "true"}}},
+            "infrastructure": {
+                "services": {
+                    "dagster": {
+                        "extra_hosts": ["host.docker.internal:host-gateway"],
+                    }
+                }
+            },
+        }
+    )
+
+    assert overrides == {
+        "dagster": {
+            "environment": {"LEGACY": "true"},
+            "extra_hosts": ["host.docker.internal:host-gateway"],
+        }
+    }
+
+
 def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
     discovery = ServiceDiscovery()
     nessie = discovery.get_service("nessie")
@@ -354,6 +411,33 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
 
     assert "/opt/phlo-dev:rw" in compose
     assert "PHLO_DEV_MODE" in compose
+
+
+def test_compose_generator_dev_mode_builds_phlo_services_from_source(tmp_path) -> None:
+    """Dev stacks must not start an incomplete published Dagster image."""
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        phlo_dev=True,
+        image="ghcr.io/phlohouse/phlo-dagster:0.6.0",
+        build={"context": ".", "dockerfile": "dagster/Dockerfile"},
+        compose={},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    compose = yaml.safe_load(
+        generator.generate_compose(
+            services=[service],
+            output_dir=tmp_path,
+            dev_mode=True,
+            phlo_src_path="../phlo/src/phlo",
+        )
+    )
+
+    assert "image" not in compose["services"]["dagster"]
+    assert compose["services"]["dagster"]["build"]["dockerfile"] == "dagster/Dockerfile"
 
 
 @pytest.mark.parametrize("service_name", ["dagster", "dagster-daemon"])

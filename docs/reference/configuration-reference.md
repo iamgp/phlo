@@ -508,10 +508,49 @@ BRANCH_CLEANUP_ENABLED=false
 
 ### WAP Sensor Configuration
 
+Enable the branch-first WAP policy at project scope in `phlo.yaml`:
+
+```yaml
+wap:
+  enabled: true
+  # These defaults target the standard generated Dagster asset job.
+  job_name: __ASSET_JOB
+  # Optional selectors for projects with more than one Dagster code location.
+  repository_location_name: user_code
+  repository_name: user_repository
+  # Optional only when Dagster is remote; local Dagster is resolved by Phlo.
+  dagster_url: https://dagster.example.com/graphql
+```
+
+When `enabled` is true, `phlo materialize` and `phlo backfill` always launch
+through Dagster GraphQL after creating a fresh WAP branch. Do not pass WAP
+command-line flags: the configuration is intentionally project-wide. Disabled
+or absent configuration keeps the direct CLI execution path.
+
+For a standard local Phlo stack, only `wap.enabled: true` is needed. Phlo uses
+`resolve_host` and the project's `DAGSTER_PORT` to find local Dagster; do not
+duplicate its URL in `phlo.yaml`.
+
+WAP configuration is fail-closed: unknown `wap` keys and insecure non-local
+`http://` endpoints are rejected. Remote Dagster endpoints must use HTTPS and
+require `PHLO_DAGSTER_ACCESS_TOKEN`; plaintext HTTP is allowed only for the
+local default endpoint.
+
+Service-specific Docker settings such as `extra_hosts` belong under
+`infrastructure.services` (the legacy top-level `services` form remains
+supported):
+
+```yaml
+infrastructure:
+  services:
+    dagster:
+      extra_hosts:
+        - host.docker.internal:host-gateway
+```
+
 Dagster WAP sensor intervals:
 
 ```bash
-PHLO_WAP_ENABLED=true
 PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS=30
 PHLO_WAP_PROMOTION_INTERVAL_SECONDS=60
 PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
@@ -519,10 +558,12 @@ PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
 
 These settings only matter when the active profile includes a versioned catalog
 capability.
-Set `PHLO_WAP_ENABLED=false` to disable WAP sensors even when Nessie/Iceberg
-branching is available. Each WAP run writes `.phlo/wap-reports/<run_id>.json`
-with the branch, source hash, target hash before/after promotion, and cleanup
-result.
+The project-level `wap.enabled` setting controls whether these sensors are
+loaded. Each WAP launch first writes `.phlo/wap-reports/<logical-run-id>.json`.
+The immutable launch manifest binds the logical ID, Dagster run ID, branch,
+ref tags, and source/target hashes. It is retained when launch outcome is
+rejected or ambiguous, and is verified again before promotion or retention
+cleanup.
 
 ### Validation Configuration
 
@@ -894,9 +935,19 @@ infrastructure:
       internal_host: postgres
 ```
 
-Service enablement, Compose port replacement, environment, volume, dependency,
+Service enablement, Compose port replacement, environment, volume, `extra_hosts`, dependency,
 command, and healthcheck overrides live in the top-level `services:` section, not
 under `infrastructure.services`.
+
+Use `extra_hosts` when a generated service must resolve a host-private dependency from
+inside Docker. Values use Docker Compose host mappings and replace any package default:
+
+```yaml
+services:
+  dagster:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
 
 Service packages own their default ports. When a package is selected by
 `phlo services init`, its non-secret defaults are materialized into `.phlo/.env`;
@@ -997,7 +1048,7 @@ Dagster run configuration for asset execution:
     "resources": {
         "iceberg": {
             "config": {
-                "ref": "pipeline/run-abc123"
+                "ref": "pipeline-run-abc123"
             }
         }
     }

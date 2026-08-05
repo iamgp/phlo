@@ -20,6 +20,7 @@ from phlo_dagster.wap_sensors import (
     wap_branch_cleanup_sensor,
     write_wap_report,
 )
+from phlo_dagster.wap_launch import _write_launch_manifest as _write_immutable_launch_manifest
 from phlo.hooks import HookBus
 from phlo.run_evidence import SQLiteRunEvidenceStore
 from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
@@ -28,6 +29,31 @@ from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _write_launch_manifest(logical_run_id: str, dagster_run_id: str, branch: str) -> None:
+    tags = {
+        "phlo/run_id": logical_run_id,
+        "phlo/wap_branch": branch,
+        "phlo/ref": branch,
+    }
+    checksum = _write_immutable_launch_manifest(
+        logical_run_id=logical_run_id,
+        dagster_run_id=dagster_run_id,
+        branch=branch,
+        tags=tags,
+        source_hash=None,
+        target_hash_before=None,
+    )
+    assert checksum is not None
+    write_wap_report(
+        logical_run_id,
+        status="launched",
+        branch=branch,
+        dagster_run_id=dagster_run_id,
+        launch_tags=tags,
+        launch_manifest_checksum=checksum,
+    )
 
 
 def test_wap_branch_name():
@@ -75,7 +101,7 @@ def test_write_wap_report_keeps_identity_fields_and_ignores_write_failure(
 
     payload = json.loads((tmp_path / ".phlo" / "wap-reports" / "run-1.json").read_text())
     assert payload["run_id"] == "run-1"
-    assert payload["schema_version"] == "phlo.wap_report.v1"
+    assert payload["schema_version"] == "phlo.wap_report.v2"
     assert payload["updated_at"] != "wrong"
 
     def raise_write_error(*args, **kwargs):
@@ -299,14 +325,8 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     dagster_run_id = "run-promote"
     logical_run_id = "logical-promote"
-    branch = _wap_branch_name(dagster_run_id)
-    write_wap_report(
-        dagster_run_id,
-        status="branch_created",
-        branch=branch,
-        project_id="project-promote",
-        attempt=1,
-    )
+    branch = _wap_branch_name(logical_run_id)
+    _write_launch_manifest(logical_run_id, dagster_run_id, branch)
 
     check_record = SimpleNamespace(
         storage_id=42,
@@ -321,6 +341,7 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
             tags={
                 "phlo/wap_branch": branch,
                 "phlo/run_id": logical_run_id,
+                "phlo/ref": branch,
                 "phlo/project_id": "project-promote",
                 "phlo/attempt": "1",
             },
@@ -357,6 +378,11 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     catalog.merge_branch.assert_called_once_with(source=branch, target="main")
     query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch)
     catalog.delete_branch.assert_called_once_with(branch)
+    manifest = json.loads(
+        (tmp_path / ".phlo" / "wap-reports" / f"{logical_run_id}.json").read_text()
+    )
+    assert manifest["status"] == "promoted"
+    assert not (tmp_path / ".phlo" / "wap-reports" / f"{dagster_run_id}.json").exists()
     quality_rows = store.list_quality_results("project-promote", logical_run_id, attempt=1)
     quality_id = next(row["quality_result_id"] for row in quality_rows)
     assert quality_id in {row["quality_result_id"] for row in quality_rows}
@@ -376,15 +402,18 @@ def test_wap_successful_promotion_uses_recorded_check_event_identity(monkeypatch
     )
 
 
-def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypatch, tmp_path):
-    """A rejected quality decision removes the WAP ref and its owned catalog."""
+def test_wap_quality_rejection_retains_owned_query_catalog_and_branch(monkeypatch, tmp_path):
+    """A rejected quality decision retains the WAP ref for audit."""
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     run_id = "run-rejected"
     branch = _wap_branch_name(run_id)
+    _write_launch_manifest(run_id, run_id, branch)
     run = SimpleNamespace(
         run_id=run_id,
         tags={
             "phlo/wap_branch": branch,
+            "phlo/run_id": run_id,
+            "phlo/ref": branch,
             "phlo/project_id": "project-rejected",
             "phlo/attempt": "1",
         },
@@ -393,7 +422,6 @@ def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypa
     instance.get_runs.return_value = [run]
     instance.get_records_for_run.return_value = SimpleNamespace(records=[_FakeRecord(passed=False)])
     catalog = MagicMock()
-    catalog.delete_branch.return_value = True
     query_catalog_manager = MagicMock()
     monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
     monkeypatch.setattr(
@@ -410,11 +438,39 @@ def test_wap_quality_rejection_cleans_owned_query_catalog_before_branch(monkeypa
     wap_auto_promotion_sensor._raw_fn(context)
 
     catalog.merge_branch.assert_not_called()
-    query_catalog_manager.drop_ref_query_catalog.assert_called_once_with(branch)
-    catalog.delete_branch.assert_called_once_with(branch)
+    query_catalog_manager.drop_ref_query_catalog.assert_not_called()
+    catalog.delete_branch.assert_not_called()
     payload = json.loads((tmp_path / ".phlo" / "wap-reports" / f"{run_id}.json").read_text())
-    assert payload["status"] == "rejected"
-    assert payload["cleanup_complete"] is True
+    assert payload["status"] == "promotion_blocked"
+    assert payload["failure_reason"] == "asset_checks_failed"
+
+
+def test_wap_promotion_rejects_mutated_ref_tag(monkeypatch, tmp_path):
+    """A run may promote only the exact branch recorded before GraphQL submission."""
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    logical_run_id = "logical-mutated"
+    dagster_run_id = "run-mutated"
+    branch = _wap_branch_name(logical_run_id)
+    _write_launch_manifest(logical_run_id, dagster_run_id, branch)
+    run = SimpleNamespace(
+        run_id=dagster_run_id,
+        tags={
+            "phlo/run_id": logical_run_id,
+            "phlo/wap_branch": branch,
+            "phlo/ref": "pipeline-run-other",
+        },
+    )
+    instance = MagicMock()
+    instance.get_runs.return_value = [run]
+    catalog = MagicMock()
+    monkeypatch.setattr("phlo_dagster.wap_sensors._load_versioned_catalog", lambda: catalog)
+    context = MagicMock(instance=instance, cursor=None)
+
+    wap_auto_promotion_sensor._raw_fn(context)
+
+    catalog.merge_branch.assert_not_called()
+    report = json.loads((tmp_path / ".phlo" / "wap-reports" / f"{logical_run_id}.json").read_text())
+    assert report["failure_reason"] == "launch_manifest_or_immutable_tags_invalid"
 
 
 def test_wap_cleanup_keeps_branch_when_query_catalog_cleanup_fails(monkeypatch, tmp_path):
@@ -422,10 +478,13 @@ def test_wap_cleanup_keeps_branch_when_query_catalog_cleanup_fails(monkeypatch, 
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     run_id = "run-catalog-failure"
     branch = _wap_branch_name(run_id)
+    _write_launch_manifest(run_id, run_id, branch)
     run = SimpleNamespace(
         run_id=run_id,
         tags={
             "phlo/wap_branch": branch,
+            "phlo/run_id": run_id,
+            "phlo/ref": branch,
             "phlo/project_id": "project-catalog-failure",
             "phlo/attempt": "1",
         },
@@ -600,11 +659,13 @@ def test_wap_merge_failure_preserves_successful_dagster_run_status(monkeypatch, 
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     run_id = "run-merge-failure"
     branch = _wap_branch_name(run_id)
-    write_wap_report(run_id, status="branch_created", branch=branch)
+    _write_launch_manifest(run_id, run_id, branch)
     run = SimpleNamespace(
         run_id=run_id,
         tags={
             "phlo/wap_branch": branch,
+            "phlo/run_id": run_id,
+            "phlo/ref": branch,
             "phlo/project_id": "project-merge-failure",
             "phlo/attempt": "1",
         },
@@ -673,7 +734,8 @@ def test_wap_project_identity_requires_authoritative_agreement(
 
 def test_wap_cleanup_uses_authoritative_terminated_run_status(monkeypatch, tmp_path):
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
-    branch_name = _wap_branch_name("run-cleanup")
+    logical_run_id = "logical-cleanup"
+    branch_name = _wap_branch_name(logical_run_id)
     branch = SimpleNamespace(
         name=branch_name,
         created_at=datetime.now(timezone.utc) - timedelta(hours=25),
@@ -684,6 +746,7 @@ def test_wap_cleanup_uses_authoritative_terminated_run_status(monkeypatch, tmp_p
         status=dg.DagsterRunStatus.SUCCESS,
         tags={"phlo/project_id": "project-cleanup", "phlo/attempt": "2"},
     )
+    _write_launch_manifest(logical_run_id, dagster_run.run_id, branch_name)
     instance = MagicMock()
     instance.get_run_by_id.return_value = dagster_run
     catalog = MagicMock()

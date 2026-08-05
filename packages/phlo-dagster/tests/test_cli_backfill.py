@@ -1,6 +1,7 @@
 """Tests for the phlo backfill CLI command."""
 
 import json
+from types import SimpleNamespace
 from datetime import datetime
 from unittest.mock import ANY, patch
 
@@ -50,6 +51,91 @@ class TestBackfillDateGeneration:
         )
         assert result.exit_code == 1
         assert "Start date must be before end date" in result.output
+
+
+def test_wap_backfill_creates_branch_before_each_partition(monkeypatch):
+    from phlo_dagster.cli_backfill import _run_wap_backfill
+
+    launched: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.prepare_wap_launch",
+        lambda **kwargs: SimpleNamespace(
+            branch=f"pipeline-run-{kwargs['logical_run_id']}",
+            tags={"phlo/wap_branch": "branch", "phlo/ref": "branch"},
+            cleanup_if_created=lambda: None,
+            record_launch_result=lambda **_kwargs: True,
+        ),
+    )
+
+    async def launch(**kwargs):
+        launched.append(kwargs)
+        return SimpleNamespace(accepted=True, message="ok")
+
+    monkeypatch.setattr("phlo_dagster.cli_backfill.launch_materialize", launch)
+    _run_wap_backfill(
+        "dlt_events",
+        ["2024-01-01", "2024-01-02"],
+        dagster_url="http://dagster",
+        job_name="__ASSET_JOB",
+        repository_location_name="phlo_dagster",
+        repository_name="phlo_dagster",
+        access_token="token",
+    )
+    assert [call["partition_key"] for call in launched] == ["2024-01-01", "2024-01-02"]
+    assert all(
+        call["tags"] == {"phlo/wap_branch": "branch", "phlo/ref": "branch"} for call in launched
+    )
+
+
+def test_enabled_project_wap_backfill_uses_graphql_without_cli_flags(monkeypatch) -> None:
+    """The project policy selects the WAP path for every partition."""
+    launches: list[tuple[str, list[str]]] = []
+    discovery_calls: list[bool] = []
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.load_wap_config",
+        lambda: SimpleNamespace(
+            enabled=True,
+            dagster_url="http://dagster/graphql",
+            job_name="__ASSET_JOB",
+            repository_location_name=None,
+            repository_name=None,
+        ),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill._run_wap_backfill",
+        lambda asset_name, partitions, **_kwargs: launches.append((asset_name, partitions)),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.discover_capabilities",
+        lambda: discovery_calls.append(True),
+    )
+
+    result = CliRunner().invoke(
+        backfill,
+        ["dlt_events", "--partitions", "2024-01-01,2024-01-02"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert launches == [("dlt_events", ["2024-01-01", "2024-01-02"])]
+    assert discovery_calls == [True]
+
+
+def test_disabled_project_wap_backfill_retains_direct_path(monkeypatch) -> None:
+    """Disabled WAP keeps the established container-exec implementation."""
+    direct_calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill.load_wap_config",
+        lambda: SimpleNamespace(enabled=False),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_backfill._run_backfill",
+        lambda asset_name, partitions, **_kwargs: direct_calls.append((asset_name, partitions)),
+    )
+
+    result = CliRunner().invoke(backfill, ["dlt_events", "--partitions", "2024-01-01"])
+
+    assert result.exit_code == 0, result.output
+    assert direct_calls == [("dlt_events", ["2024-01-01"])]
 
 
 class TestBackfillValidation:

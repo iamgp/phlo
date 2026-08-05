@@ -7,8 +7,9 @@ Pydantic models for phlo.yaml infrastructure section.
 from __future__ import annotations
 
 from typing import Any, Literal
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ApiAuthorizationConfig(BaseModel):
@@ -55,6 +56,79 @@ class ApiConfig(BaseModel):
     )
 
 
+class WapConfig(BaseModel):
+    """Project-level Write-Audit-Publish launch configuration.
+
+    WAP is deliberately a project policy rather than a per-invocation switch:
+    enabling it makes every Phlo materialize or backfill launch branch-first.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(
+        default=False,
+        description="Launch materialize and backfill runs through the WAP GraphQL lifecycle.",
+    )
+    job_name: str = Field(
+        default="__ASSET_JOB",
+        description="Dagster asset job used for WAP launches.",
+    )
+    repository_location_name: str | None = Field(
+        default=None,
+        description="Optional Dagster code-location selector for WAP launches.",
+    )
+    repository_name: str | None = Field(
+        default=None,
+        description="Optional Dagster repository selector for WAP launches.",
+    )
+    dagster_url: str | None = Field(
+        default=None,
+        description="Optional remote Dagster GraphQL endpoint used for WAP launches.",
+    )
+
+    @field_validator("job_name", "repository_location_name", "repository_name")
+    @classmethod
+    def validate_nonblank(cls, value: str | None) -> str | None:
+        """Normalize optional selectors and reject empty required settings."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("WAP string settings cannot be empty")
+        return normalized
+
+    @field_validator("dagster_url")
+    @classmethod
+    def validate_dagster_url(cls, value: str | None) -> str | None:
+        """Allow plaintext GraphQL only for local development endpoints."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.path.rstrip("/") != "/graphql"
+        ):
+            raise ValueError("dagster_url must be an absolute HTTP(S) GraphQL endpoint")
+        if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError("dagster_url must use HTTPS unless it targets localhost")
+        return normalized
+
+    @property
+    def requires_access_token(self) -> bool:
+        """Whether this endpoint is remote and must use explicit bearer authentication."""
+        return self.dagster_url is not None and urlparse(self.dagster_url).hostname not in {
+            "localhost",
+            "127.0.0.1",
+            "::1",
+        }
+
+
 class ServiceOverride(BaseModel):
     """User overrides for a service in phlo.yaml.
 
@@ -89,6 +163,10 @@ class ServiceOverride(BaseModel):
         default=None,
         description="Volume mounts to add (appended to package defaults).",
     )
+    extra_hosts: list[str] | None = Field(
+        default=None,
+        description="Compose host mappings to add or replace for this service.",
+    )
     depends_on: list[str] | None = Field(
         default=None,
         description="Service dependencies to override (replaces package defaults).",
@@ -119,6 +197,22 @@ class ServiceOverride(BaseModel):
         default=None,
         description="Healthcheck configuration for inline services.",
     )
+
+    @field_validator("extra_hosts")
+    @classmethod
+    def validate_extra_hosts(cls, value: list[str] | None) -> list[str] | None:
+        """Require non-empty Docker Compose host-to-address mappings."""
+        if value is None:
+            return value
+        for mapping in value:
+            if not isinstance(mapping, str) or not mapping.strip():
+                raise ValueError("extra_hosts mappings must be non-empty")
+            host, separator, address = mapping.strip().partition("=")
+            if not separator:
+                host, separator, address = mapping.strip().partition(":")
+            if not separator or not host.strip() or not address.strip():
+                raise ValueError("extra_hosts entries must be Compose host mappings")
+        return [mapping.strip() for mapping in value]
 
 
 class ServiceConfig(BaseModel):

@@ -59,8 +59,10 @@ from phlo.cli.infrastructure.container_backend import (
 )
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import command_failed_error, service_unavailable_error
+from phlo.infrastructure import load_wap_config
 from phlo_dagster.containers import find_dagster_container
 from phlo_dagster.operations import launch_materialize
+from phlo_dagster.wap_endpoint import resolve_wap_dagster_url
 from phlo_dagster.wap_launch import prepare_wap_launch
 from phlo.logging import get_logger
 
@@ -111,26 +113,6 @@ def wait_for_dagster_runtime(
 @click.argument("asset_name", required=False)
 @click.option("-p", "--partition", help="Partition date (YYYY-MM-DD)")
 @click.option("--select", help="Asset selector expression")
-@click.option("--wap", is_flag=True, help="Launch one asset through the WAP branch lifecycle")
-@click.option("--wap-run-id", help="Reuse this logical run identity for a WAP retry")
-@click.option("--job-name", help="Dagster job name required for a WAP launch")
-@click.option(
-    "--repository-location-name",
-    envvar="PHLO_DAGSTER_REPOSITORY_LOCATION_NAME",
-    help="Dagster repository location for a WAP launch",
-)
-@click.option(
-    "--repository-name",
-    envvar="PHLO_DAGSTER_REPOSITORY_NAME",
-    help="Dagster repository name for a WAP launch",
-)
-@click.option(
-    "--dagster-url",
-    envvar="DAGSTER_GRAPHQL_URL",
-    default="http://localhost:3000/graphql",
-    show_default=True,
-    help="Dagster GraphQL endpoint for a WAP launch",
-)
 @click.option(
     "--no-contract-refresh",
     is_flag=True,
@@ -141,12 +123,6 @@ def materialize(
     asset_name: str | None,
     partition: Optional[str],
     select: Optional[str],
-    wap: bool,
-    wap_run_id: str | None,
-    job_name: str | None,
-    repository_location_name: str | None,
-    repository_name: str | None,
-    dagster_url: str,
     no_contract_refresh: bool,
     dry_run: bool,
 ) -> None:
@@ -168,23 +144,19 @@ def materialize(
     """
     if not asset_name and not select:
         raise click.UsageError("Provide ASSET_NAME or --select.")
-    if wap:
+    wap_config = load_wap_config()
+    if wap_config.enabled:
         if not asset_name or select:
             raise click.UsageError(
-                "WAP materialization requires one ASSET_NAME and does not support --select."
+                "WAP is enabled in phlo.yaml and requires one ASSET_NAME; --select is not supported."
             )
-        if not job_name:
-            raise click.UsageError("WAP materialization requires --job-name.")
-        if not repository_location_name or not repository_name:
-            raise click.UsageError(
-                "WAP materialization requires --repository-location-name and --repository-name "
-                "(or PHLO_DAGSTER_REPOSITORY_LOCATION_NAME and PHLO_DAGSTER_REPOSITORY_NAME)."
-            )
+        dagster_url = resolve_wap_dagster_url(wap_config)
         access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
-        if not access_token:
-            raise click.UsageError("WAP materialization requires PHLO_DAGSTER_ACCESS_TOKEN.")
-
-        logical_run_id = wap_run_id or uuid.uuid4().hex
+        if getattr(wap_config, "requires_access_token", False) and not access_token:
+            raise click.ClickException(
+                "PHLO_DAGSTER_ACCESS_TOKEN is required for a non-local WAP Dagster endpoint."
+            )
+        logical_run_id = uuid.uuid4().hex
         if dry_run:
             click.echo(
                 "WAP dry run - would launch "
@@ -199,24 +171,27 @@ def materialize(
                 launch_materialize(
                     dagster_url=dagster_url,
                     asset_key_path=asset_name,
-                    job_name=job_name,
-                    repository_location_name=repository_location_name,
-                    repository_name=repository_name,
+                    job_name=wap_config.job_name,
+                    repository_location_name=wap_config.repository_location_name,
+                    repository_name=wap_config.repository_name,
                     access_token=access_token,
                     partition_key=partition,
                     idempotency_key=logical_run_id,
                     tags=wap_launch.tags,
                 )
             )
-        except Exception:
-            # A timeout or transport failure can occur after Dagster accepts the
-            # mutation. Retain a branch we created so the run can be reconciled
-            # or retried with the same logical run ID.
-            raise
-
+        except Exception as exc:
+            wap_launch.record_launch_result(status="launch_ambiguous", error=str(exc))
+            raise click.ClickException(f"WAP launch outcome is ambiguous: {exc}") from exc
         if not result.accepted:
-            wap_launch.cleanup_if_created()
+            wap_launch.record_launch_result(status="launch_rejected", error=result.message)
             raise click.ClickException(result.message)
+
+        if not wap_launch.record_launch_result(status="launched", dagster_run_id=result.run_id):
+            raise click.ClickException(
+                "Dagster accepted the WAP run, but its immutable launch manifest could not be stored. "
+                "The branch was retained."
+            )
 
         click.echo(
             f"Launched WAP materialization for {asset_name} on {wap_launch.branch} "

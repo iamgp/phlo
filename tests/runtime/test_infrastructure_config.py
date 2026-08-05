@@ -19,6 +19,7 @@ from phlo.infrastructure import (
     get_service_config,
     load_infrastructure_config,
     load_project_config,
+    load_wap_config,
 )
 from phlo.infrastructure.config import get_api_authorization_config
 from phlo.security.mode import is_regulated, is_regulated_mode_enabled
@@ -317,6 +318,57 @@ def test_load_infrastructure_config_missing_file_returns_defaults(tmp_path: Path
     assert config.container_naming_pattern == "{project}-{service}-1"
     assert config.services == {}
     assert config.network.driver == "bridge"
+
+
+def test_load_wap_config_reads_the_project_policy(tmp_path: Path) -> None:
+    """WAP launch selection is an explicit project-level phlo.yaml setting."""
+    (tmp_path / "phlo.yaml").write_text(
+        """\
+wap:
+  enabled: true
+  job_name: project_asset_job
+  repository_location_name: user_code
+  repository_name: user_repository
+  dagster_url: https://dagster.internal/graphql
+""",
+        encoding="utf-8",
+    )
+
+    config = load_wap_config(tmp_path)
+
+    assert config.enabled is True
+    assert config.job_name == "project_asset_job"
+    assert config.repository_location_name == "user_code"
+    assert config.repository_name == "user_repository"
+    assert config.dagster_url == "https://dagster.internal/graphql"
+    assert config.requires_access_token is True
+
+
+def test_load_wap_config_fails_closed_for_typos_and_insecure_remote_endpoints(
+    tmp_path: Path,
+) -> None:
+    """A typo must not silently disable the WAP policy or downgrade transport security."""
+    (tmp_path / "phlo.yaml").write_text(
+        """\
+wap:
+  enabledd: true
+  dagster_url: http://dagster.internal/graphql
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValidationError):
+        load_wap_config(tmp_path)
+
+
+def test_load_wap_config_uses_service_resolution_when_no_remote_url_is_set(tmp_path: Path) -> None:
+    (tmp_path / "phlo.yaml").write_text("wap:\n  enabled: true\n", encoding="utf-8")
+
+    config = load_wap_config(tmp_path)
+
+    assert config.enabled is True
+    assert config.dagster_url is None
+    assert config.requires_access_token is False
 
 
 def test_load_infrastructure_config_empty_file_returns_defaults(tmp_path: Path):

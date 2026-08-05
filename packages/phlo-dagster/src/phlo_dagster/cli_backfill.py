@@ -35,9 +35,12 @@ Example:
 """
 
 import json
+import asyncio
+import os
 import re
 import subprocess
 import sys
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -54,9 +57,14 @@ from phlo.cli.infrastructure.container_backend import (
 )
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import service_unavailable_error
+from phlo.capabilities.discovery import discover_capabilities
+from phlo.infrastructure import load_wap_config
 from phlo.logging import get_logger
 from phlo_dagster.cli_materialize import wait_for_dagster_runtime
 from phlo_dagster.containers import find_dagster_container
+from phlo_dagster.operations import launch_materialize
+from phlo_dagster.wap_endpoint import resolve_wap_dagster_url
+from phlo_dagster.wap_launch import prepare_wap_launch
 
 console = Console()
 logger = get_logger(__name__)
@@ -228,6 +236,8 @@ def backfill(
         console.print(f"[yellow]Already completed:[/yellow] {len(completed_partitions)}")
         console.print(f"[yellow]Remaining:[/yellow] {len(partition_dates)}")
 
+    wap_config = load_wap_config()
+
     if dry_run:
         logger.info(
             "dagster_backfill_dry_run",
@@ -235,9 +245,16 @@ def backfill(
             partition_count=len(partition_dates),
         )
         console.print("\n[yellow]Dry run - showing first 5 commands:[/yellow]\n")
+        dagster_url = resolve_wap_dagster_url(wap_config) if wap_config.enabled else None
         for date in partition_dates[:5]:
-            cmd = _build_materialize_command(asset_name, date, container_name="dagster")
-            console.print(f"[dim]{' '.join(cmd)}[/dim]")
+            if wap_config.enabled:
+                console.print(
+                    f"[dim]GraphQL WAP launch {asset_name} partition {date} "
+                    f"through {dagster_url}[/dim]"
+                )
+            else:
+                cmd = _build_materialize_command(asset_name, date, container_name="dagster")
+                console.print(f"[dim]{' '.join(cmd)}[/dim]")
         if len(partition_dates) > 5:
             console.print(f"[dim]... and {len(partition_dates) - 5} more[/dim]")
         return
@@ -245,6 +262,25 @@ def backfill(
     if not partition_dates:
         logger.info("dagster_backfill_no_partitions", asset_name=asset_name)
         console.print("[yellow]No partitions to backfill[/yellow]")
+        return
+
+    if wap_config.enabled:
+        dagster_url = resolve_wap_dagster_url(wap_config)
+        access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
+        if getattr(wap_config, "requires_access_token", False) and not access_token:
+            raise click.ClickException(
+                "PHLO_DAGSTER_ACCESS_TOKEN is required for a non-local WAP Dagster endpoint."
+            )
+        discover_capabilities()
+        _run_wap_backfill(
+            asset_name,
+            partition_dates,
+            dagster_url=dagster_url,
+            job_name=wap_config.job_name,
+            repository_location_name=wap_config.repository_location_name,
+            repository_name=wap_config.repository_name,
+            access_token=access_token,
+        )
         return
 
     # Run backfill with progress tracking
@@ -256,6 +292,52 @@ def backfill(
         delay=delay,
         completed_partitions=completed_partitions,
     )
+
+
+def _run_wap_backfill(
+    asset_name: str,
+    partition_dates: list[str],
+    *,
+    dagster_url: str,
+    job_name: str,
+    repository_location_name: str | None,
+    repository_name: str | None,
+    access_token: str | None,
+) -> None:
+    """Create a WAP branch before submitting each partitioned asset run."""
+    for partition_date in partition_dates:
+        logical_run_id = f"backfill-{uuid.uuid4().hex}"
+        launch = prepare_wap_launch(logical_run_id=logical_run_id)
+        try:
+            result = asyncio.run(
+                launch_materialize(
+                    dagster_url=dagster_url,
+                    asset_key_path=asset_name,
+                    job_name=job_name,
+                    repository_location_name=repository_location_name,
+                    repository_name=repository_name,
+                    access_token=access_token,
+                    partition_key=partition_date,
+                    idempotency_key=logical_run_id,
+                    tags=launch.tags,
+                )
+            )
+        except Exception as exc:
+            launch.record_launch_result(status="launch_ambiguous", error=str(exc))
+            raise click.ClickException(
+                f"WAP launch outcome is ambiguous for {partition_date}: {exc}"
+            ) from exc
+        if not result.accepted:
+            launch.record_launch_result(status="launch_rejected", error=result.message)
+            raise click.ClickException(result.message)
+        if not launch.record_launch_result(
+            status="launched", dagster_run_id=getattr(result, "run_id", None)
+        ):
+            raise click.ClickException(
+                "Dagster accepted the WAP run, but its immutable launch manifest could not be stored. "
+                "The branch was retained."
+            )
+        console.print(f"Launched WAP backfill for {partition_date} on {launch.branch}")
 
 
 def _generate_partition_dates(start_date: str, end_date: str) -> list[str]:

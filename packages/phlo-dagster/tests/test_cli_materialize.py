@@ -124,18 +124,27 @@ def test_materialize_can_disable_contract_refresh(mock_project, mock_container) 
     assert "PHLO_AUTO_REFRESH_CONTRACTS=0" in result.output
 
 
-def test_wap_materialize_uses_graphql_launch_and_cleans_a_rejected_new_branch(
+def test_enabled_wap_materialize_uses_graphql_launch_and_retains_a_rejected_branch(
     monkeypatch,
 ) -> None:
     cleaned: list[bool] = []
+    records: list[dict[str, str | None]] = []
 
     class Launch:
         logical_run_id = "request-42"
         branch = "pipeline-run-request-42"
-        tags = {"phlo/run_id": logical_run_id, "phlo/wap_branch": branch}
+        tags = {
+            "phlo/run_id": logical_run_id,
+            "phlo/wap_branch": branch,
+            "phlo/ref": branch,
+        }
 
         def cleanup_if_created(self) -> None:
             cleaned.append(True)
+
+        def record_launch_result(self, **kwargs) -> bool:
+            records.append(kwargs)
+            return True
 
     async def rejected_launch(**kwargs):
         assert kwargs["asset_key_path"] == "dlt_orders"
@@ -149,6 +158,24 @@ def test_wap_materialize_uses_graphql_launch_and_cleans_a_rejected_new_branch(
             "Result", (), {"accepted": False, "message": "Dagster rejected run", "run_id": None}
         )()
 
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.load_wap_config",
+        lambda: type(
+            "Config",
+            (),
+            {
+                "enabled": True,
+                "dagster_url": "http://dagster/graphql",
+                "job_name": "__ASSET_JOB",
+                "repository_location_name": "phlo_dagster",
+                "repository_name": "phlo_dagster",
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.uuid.uuid4",
+        lambda: type("ID", (), {"hex": "request-42"})(),
+    )
     monkeypatch.setattr("phlo_dagster.cli_materialize.prepare_wap_launch", lambda **_: Launch())
     monkeypatch.setattr("phlo_dagster.cli_materialize.launch_materialize", rejected_launch)
     monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "user-access-token")
@@ -157,39 +184,54 @@ def test_wap_materialize_uses_graphql_launch_and_cleans_a_rejected_new_branch(
         materialize,
         [
             "dlt_orders",
-            "--wap",
-            "--wap-run-id",
-            "request-42",
-            "--job-name",
-            "__ASSET_JOB",
-            "--repository-location-name",
-            "phlo_dagster",
-            "--repository-name",
-            "phlo_dagster",
         ],
     )
 
     assert result.exit_code != 0
     assert "Dagster rejected run" in result.output
-    assert cleaned == [True]
+    assert cleaned == []
+    assert records == [{"status": "launch_rejected", "error": "Dagster rejected run"}]
 
 
-def test_wap_materialize_retains_new_branch_after_ambiguous_transport_failure(
+def test_enabled_wap_materialize_retains_new_branch_after_ambiguous_transport_failure(
     monkeypatch,
 ) -> None:
     cleaned: list[bool] = []
+    records: list[dict[str, str | None]] = []
 
     class Launch:
         logical_run_id = "request-42"
         branch = "pipeline-run-request-42"
-        tags = {"phlo/run_id": logical_run_id, "phlo/wap_branch": branch}
+        tags = {
+            "phlo/run_id": logical_run_id,
+            "phlo/wap_branch": branch,
+            "phlo/ref": branch,
+        }
 
         def cleanup_if_created(self) -> None:
             cleaned.append(True)
 
+        def record_launch_result(self, **kwargs) -> bool:
+            records.append(kwargs)
+            return True
+
     async def timeout_launch(**_kwargs):
         raise httpx.ReadTimeout("response lost")
 
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.load_wap_config",
+        lambda: type(
+            "Config",
+            (),
+            {
+                "enabled": True,
+                "dagster_url": "http://dagster/graphql",
+                "job_name": "__ASSET_JOB",
+                "repository_location_name": None,
+                "repository_name": None,
+            },
+        )(),
+    )
     monkeypatch.setattr("phlo_dagster.cli_materialize.prepare_wap_launch", lambda **_: Launch())
     monkeypatch.setattr("phlo_dagster.cli_materialize.launch_materialize", timeout_launch)
     monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "user-access-token")
@@ -198,57 +240,36 @@ def test_wap_materialize_retains_new_branch_after_ambiguous_transport_failure(
         materialize,
         [
             "dlt_orders",
-            "--wap",
-            "--job-name",
-            "__ASSET_JOB",
-            "--repository-location-name",
-            "phlo_dagster",
-            "--repository-name",
-            "phlo_dagster",
         ],
     )
 
     assert result.exit_code != 0
     assert cleaned == []
+    assert records[0]["status"] == "launch_ambiguous"
+    assert "response lost" in str(records[0]["error"])
 
 
-def test_wap_materialize_requires_a_complete_selector_and_user_credential(monkeypatch) -> None:
+def test_enabled_wap_materialize_requires_one_explicit_asset(monkeypatch) -> None:
     monkeypatch.setattr(
         "phlo_dagster.cli_materialize.prepare_wap_launch",
         lambda **_: (_ for _ in ()).throw(AssertionError("must not create a branch")),
     )
     runner = CliRunner()
 
-    monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "user-access-token")
-    incomplete_selector = runner.invoke(
-        materialize,
-        ["dlt_orders", "--wap", "--job-name", "__ASSET_JOB"],
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.load_wap_config",
+        lambda: type("Config", (), {"enabled": True})(),
     )
-    monkeypatch.delenv("PHLO_DAGSTER_ACCESS_TOKEN")
-    missing_credential = runner.invoke(
-        materialize,
-        [
-            "dlt_orders",
-            "--wap",
-            "--job-name",
-            "__ASSET_JOB",
-            "--repository-location-name",
-            "phlo_dagster",
-            "--repository-name",
-            "phlo_dagster",
-        ],
-    )
+    incomplete_selector = runner.invoke(materialize, ["dlt_orders", "--select", "dlt_orders"])
 
     assert incomplete_selector.exit_code != 0
-    assert "requires --repository-location-name and --repository-name" in incomplete_selector.output
-    assert missing_credential.exit_code != 0
-    assert "requires PHLO_DAGSTER_ACCESS_TOKEN" in missing_credential.output
+    assert "requires one ASSET_NAME" in incomplete_selector.output
 
     help_result = runner.invoke(materialize, ["--help"])
-    assert "--access-token" not in help_result.output
+    assert "--wap" not in help_result.output
 
 
-def test_wap_materialize_resolves_the_required_selector_and_credential_from_environment(
+def test_enabled_wap_materialize_uses_project_configuration(
     monkeypatch,
 ) -> None:
     captured: dict[str, str] = {}
@@ -257,10 +278,17 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
     class Launch:
         logical_run_id = "request-42"
         branch = "pipeline-run-request-42"
-        tags = {"phlo/run_id": logical_run_id, "phlo/wap_branch": branch}
+        tags = {
+            "phlo/run_id": logical_run_id,
+            "phlo/wap_branch": branch,
+            "phlo/ref": branch,
+        }
 
         def cleanup_if_created(self) -> None:
             raise AssertionError("accepted launches retain their branch")
+
+        def record_launch_result(self, **_kwargs) -> bool:
+            return True
 
     async def accepted_launch(**kwargs):
         captured.update(
@@ -277,9 +305,25 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
         assert discovery_calls == [True]
         return Launch()
 
-    monkeypatch.setenv("PHLO_DAGSTER_REPOSITORY_LOCATION_NAME", "phlo_dagster")
-    monkeypatch.setenv("PHLO_DAGSTER_REPOSITORY_NAME", "phlo_dagster")
     monkeypatch.setenv("PHLO_DAGSTER_ACCESS_TOKEN", "verified-user-token")
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.load_wap_config",
+        lambda: type(
+            "Config",
+            (),
+            {
+                "enabled": True,
+                "dagster_url": "http://dagster/graphql",
+                "job_name": "__ASSET_JOB",
+                "repository_location_name": "phlo_dagster",
+                "repository_name": "phlo_dagster",
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.uuid.uuid4",
+        lambda: type("ID", (), {"hex": "request-42"})(),
+    )
     monkeypatch.setattr(
         "phlo_dagster.cli_materialize.discover_capabilities", lambda: discovery_calls.append(True)
     )
@@ -288,7 +332,7 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
 
     result = CliRunner().invoke(
         materialize,
-        ["dlt_orders", "--wap", "--job-name", "__ASSET_JOB", "--wap-run-id", "request-42"],
+        ["dlt_orders"],
     )
 
     assert result.exit_code == 0, result.output
@@ -296,7 +340,11 @@ def test_wap_materialize_resolves_the_required_selector_and_credential_from_envi
         "repository_location_name": "phlo_dagster",
         "repository_name": "phlo_dagster",
         "access_token": "verified-user-token",
-        "tags": {"phlo/run_id": "request-42", "phlo/wap_branch": "pipeline-run-request-42"},
+        "tags": {
+            "phlo/run_id": "request-42",
+            "phlo/wap_branch": "pipeline-run-request-42",
+            "phlo/ref": "pipeline-run-request-42",
+        },
     }
     assert discovery_calls == [True]
 

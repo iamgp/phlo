@@ -26,6 +26,9 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  # Use the generated entrypoint from the bind-mounted Dagster directory so
+  # development stacks execute the checked-out bootstrap script.
+  entrypoint: ["/bin/bash", "/opt/dagster/entrypoint.sh"]
   healthcheck:
     test:
       [
@@ -37,7 +40,9 @@ compose:
     interval: 30s
     timeout: 5s
     retries: 3
-    start_period: 15s
+    # Editable project installs and Dagster definition loading can exceed the
+    # short Docker default on a cold bundled-stack boot.
+    start_period: 120s
   labels:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "dagster:3000"

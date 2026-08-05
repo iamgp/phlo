@@ -16,6 +16,7 @@ from phlo.infrastructure.config import (
     get_service_config,
     load_infrastructure_config,
     load_project_config,
+    load_wap_config,
 )
 from phlo.infrastructure.containers import (
     find_service_container,
@@ -36,6 +37,7 @@ __all__ = [
     "get_regulated_mode_config",
     "clear_config_cache",
     "load_project_config",
+    "load_wap_config",
     "resolve_container_name",
     "list_running_containers",
     "select_first_existing",

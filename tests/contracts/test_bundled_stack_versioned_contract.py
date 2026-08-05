@@ -28,6 +28,7 @@ def test_bundled_stack_versioned_flow_uses_isolated_branch_then_promotes(
 
     run_tags = bundled_stack_harness.get_run_tags(run_id)
     assert run_tags.get("phlo/wap_branch") == branch_name
+    assert run_tags.get("phlo/ref") == branch_name
     assert run_tags.get("phlo/project_id") == bundled_stack_harness.project_dir.name
     assert run_tags.get("phlo/run_id") == branch_name.removeprefix("pipeline-run-")
     assert run_tags.get("phlo/attempt") == "1"
