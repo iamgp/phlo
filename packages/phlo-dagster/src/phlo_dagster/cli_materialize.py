@@ -62,6 +62,7 @@ from phlo.cli.output import command_failed_error, service_unavailable_error
 from phlo.infrastructure import load_wap_config
 from phlo_dagster.containers import find_dagster_container
 from phlo_dagster.operations import launch_materialize
+from phlo_dagster.wap_endpoint import resolve_wap_dagster_url
 from phlo_dagster.wap_launch import prepare_wap_launch
 from phlo.logging import get_logger
 
@@ -149,6 +150,7 @@ def materialize(
             raise click.UsageError(
                 "WAP is enabled in phlo.yaml and requires one ASSET_NAME; --select is not supported."
             )
+        dagster_url = resolve_wap_dagster_url(wap_config)
         access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
         if getattr(wap_config, "requires_access_token", False) and not access_token:
             raise click.ClickException(
@@ -158,7 +160,7 @@ def materialize(
         if dry_run:
             click.echo(
                 "WAP dry run - would launch "
-                f"{asset_name} with logical run ID {logical_run_id} through {wap_config.dagster_url}"
+                f"{asset_name} with logical run ID {logical_run_id} through {dagster_url}"
             )
             return
 
@@ -167,7 +169,7 @@ def materialize(
         try:
             result = asyncio.run(
                 launch_materialize(
-                    dagster_url=wap_config.dagster_url,
+                    dagster_url=dagster_url,
                     asset_key_path=asset_name,
                     job_name=wap_config.job_name,
                     repository_location_name=wap_config.repository_location_name,

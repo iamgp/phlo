@@ -81,9 +81,9 @@ class WapConfig(BaseModel):
         default=None,
         description="Optional Dagster repository selector for WAP launches.",
     )
-    dagster_url: str = Field(
-        default="http://localhost:10006/graphql",
-        description="Dagster GraphQL endpoint used for WAP launches.",
+    dagster_url: str | None = Field(
+        default=None,
+        description="Optional remote Dagster GraphQL endpoint used for WAP launches.",
     )
 
     @field_validator("job_name", "repository_location_name", "repository_name")
@@ -99,8 +99,10 @@ class WapConfig(BaseModel):
 
     @field_validator("dagster_url")
     @classmethod
-    def validate_dagster_url(cls, value: str) -> str:
+    def validate_dagster_url(cls, value: str | None) -> str | None:
         """Allow plaintext GraphQL only for local development endpoints."""
+        if value is None:
+            return None
         normalized = value.strip()
         parsed = urlparse(normalized)
         if (
@@ -120,7 +122,11 @@ class WapConfig(BaseModel):
     @property
     def requires_access_token(self) -> bool:
         """Whether this endpoint is remote and must use explicit bearer authentication."""
-        return urlparse(self.dagster_url).hostname not in {"localhost", "127.0.0.1", "::1"}
+        return self.dagster_url is not None and urlparse(self.dagster_url).hostname not in {
+            "localhost",
+            "127.0.0.1",
+            "::1",
+        }
 
 
 class ServiceOverride(BaseModel):

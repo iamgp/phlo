@@ -518,13 +518,18 @@ wap:
   # Optional selectors for projects with more than one Dagster code location.
   repository_location_name: user_code
   repository_name: user_repository
-  dagster_url: http://localhost:10006/graphql
+  # Optional only when Dagster is remote; local Dagster is resolved by Phlo.
+  dagster_url: https://dagster.example.com/graphql
 ```
 
 When `enabled` is true, `phlo materialize` and `phlo backfill` always launch
 through Dagster GraphQL after creating a fresh WAP branch. Do not pass WAP
 command-line flags: the configuration is intentionally project-wide. Disabled
 or absent configuration keeps the direct CLI execution path.
+
+For a standard local Phlo stack, only `wap.enabled: true` is needed. Phlo uses
+`resolve_host` and the project's `DAGSTER_PORT` to find local Dagster; do not
+duplicate its URL in `phlo.yaml`.
 
 WAP configuration is fail-closed: unknown `wap` keys and insecure non-local
 `http://` endpoints are rejected. Remote Dagster endpoints must use HTTPS and

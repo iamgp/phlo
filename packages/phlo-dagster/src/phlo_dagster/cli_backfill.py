@@ -63,6 +63,7 @@ from phlo.logging import get_logger
 from phlo_dagster.cli_materialize import wait_for_dagster_runtime
 from phlo_dagster.containers import find_dagster_container
 from phlo_dagster.operations import launch_materialize
+from phlo_dagster.wap_endpoint import resolve_wap_dagster_url
 from phlo_dagster.wap_launch import prepare_wap_launch
 
 console = Console()
@@ -244,11 +245,12 @@ def backfill(
             partition_count=len(partition_dates),
         )
         console.print("\n[yellow]Dry run - showing first 5 commands:[/yellow]\n")
+        dagster_url = resolve_wap_dagster_url(wap_config) if wap_config.enabled else None
         for date in partition_dates[:5]:
             if wap_config.enabled:
                 console.print(
                     f"[dim]GraphQL WAP launch {asset_name} partition {date} "
-                    f"through {wap_config.dagster_url}[/dim]"
+                    f"through {dagster_url}[/dim]"
                 )
             else:
                 cmd = _build_materialize_command(asset_name, date, container_name="dagster")
@@ -263,6 +265,7 @@ def backfill(
         return
 
     if wap_config.enabled:
+        dagster_url = resolve_wap_dagster_url(wap_config)
         access_token = os.environ.get("PHLO_DAGSTER_ACCESS_TOKEN")
         if getattr(wap_config, "requires_access_token", False) and not access_token:
             raise click.ClickException(
@@ -272,7 +275,7 @@ def backfill(
         _run_wap_backfill(
             asset_name,
             partition_dates,
-            dagster_url=wap_config.dagster_url,
+            dagster_url=dagster_url,
             job_name=wap_config.job_name,
             repository_location_name=wap_config.repository_location_name,
             repository_name=wap_config.repository_name,

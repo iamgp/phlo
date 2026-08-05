@@ -361,6 +361,16 @@ wap:
         load_wap_config(tmp_path)
 
 
+def test_load_wap_config_uses_service_resolution_when_no_remote_url_is_set(tmp_path: Path) -> None:
+    (tmp_path / "phlo.yaml").write_text("wap:\n  enabled: true\n", encoding="utf-8")
+
+    config = load_wap_config(tmp_path)
+
+    assert config.enabled is True
+    assert config.dagster_url is None
+    assert config.requires_access_token is False
+
+
 def test_load_infrastructure_config_empty_file_returns_defaults(tmp_path: Path):
     """Empty phlo.yaml should return default infrastructure config."""
     config_path = tmp_path / "phlo.yaml"
