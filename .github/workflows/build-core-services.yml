@@ -14,6 +14,11 @@ on:
         description: Optional comma-separated generated services to republish
         required: false
         type: string
+      test_only:
+        description: Build and scan images without publishing them
+        required: false
+        default: false
+        type: boolean
   release:
     types: [published]
 
@@ -180,7 +185,7 @@ jobs:
           file: ${{ matrix.target.root }}/${{ matrix.target.dockerfile }}
           build-args: ${{ steps.args.outputs.value }}
           platforms: ${{ matrix.architecture.platform }}
-          outputs: type=image,name=${{ steps.image.outputs.repository }},push-by-digest=true,name-canonical=true,push=true
+          outputs: ${{ inputs.test_only && format('type=oci,dest={0}/test-image.tar', github.workspace) || format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', steps.image.outputs.repository) }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -203,6 +208,7 @@ jobs:
       # Buildx has produced this immutable architecture digest exactly once.
       # Scan that digest before it can be assembled into a published manifest.
       - name: Scan immutable architecture digest
+        if: ${{ !inputs.test_only }}
         env:
           IMAGE: ${{ steps.image.outputs.repository }}
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -210,11 +216,23 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p security-reports
-          docker run --rm aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
-            image --format json --output /tmp/trivy.json --scanners vuln "$IMAGE@$DIGEST"
-          cp /tmp/trivy.json "security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"
+          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+            image --format json --output "/work/security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json" --scanners vuln "$IMAGE@$DIGEST"
           uv --project source run --no-project --with pyyaml==6.0.3 python source/scripts/container_security.py \
-            apply-policy --register source/security/container-waivers.yml --image "$IMAGE@$DIGEST" --report /tmp/trivy.json
+            apply-policy --register source/security/container-waivers.yml --image "$IMAGE@$DIGEST" --report "security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"
+
+      - name: Scan test-only local image
+        if: ${{ inputs.test_only }}
+        env:
+          IMAGE: ${{ steps.image.outputs.repository }}:test-${{ github.run_id }}-${{ matrix.architecture.name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p security-reports
+          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+            image --input /work/test-image.tar --format json --output "/work/security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json" --scanners vuln
+          uv --project source run --no-project --with pyyaml==6.0.3 python source/scripts/container_security.py \
+            apply-policy --register source/security/container-waivers.yml --image "$IMAGE" --report "security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"
 
       - name: Upload immutable digest scan report
         if: always()
@@ -234,7 +252,7 @@ jobs:
   merge:
     name: Publish ${{ matrix.target.service }} manifest
     needs: [prepare, build]
-    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.has_targets == 'true'
+    if: always() && !inputs.test_only && needs.prepare.result == 'success' && needs.prepare.outputs.has_targets == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -316,7 +334,7 @@ jobs:
   manifest:
     name: Published image digest manifest
     needs: [prepare, merge]
-    if: always() && needs.merge.result == 'success' && needs.prepare.outputs.has_targets == 'true'
+    if: always() && !inputs.test_only && needs.merge.result == 'success' && needs.prepare.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

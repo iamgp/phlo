@@ -39,6 +39,8 @@ def test_publication_workflow_publishes_attested_images_after_digest_scans() -> 
     assert "\n  push:" in workflow
     assert "fetch-depth: 0" in workflow
     assert "workflow_dispatch:" in workflow
+    assert "test_only:" in workflow
+    assert "Build and scan images without publishing them" in workflow
     assert "release:" in workflow
     assert "PUBLISH_SERVICES" in workflow
     assert "packages: write" in workflow
@@ -48,9 +50,9 @@ def test_publication_workflow_publishes_attested_images_after_digest_scans() -> 
     assert "platform: linux/arm64" in workflow
     assert "setup-qemu-action@" not in workflow
     assert "push-by-digest=true" in workflow
-    assert "name=${{ steps.image.outputs.repository }},push-by-digest=true" in workflow
+    assert "format('type=image,name={0},push-by-digest=true" in workflow
     assert "name=${{ matrix.target.image }},push-by-digest=true" not in workflow
-    assert "if: always() && needs.prepare.result == 'success'" in workflow
+    assert "if: always() && !inputs.test_only && needs.prepare.result == 'success'" in workflow
     assert "name: digest-${{ matrix.target.service }}-amd64" in workflow
     assert "name: digest-${{ matrix.target.service }}-arm64" in workflow
     assert "pattern: digest-${{ matrix.target.service }}-*" not in workflow
@@ -60,6 +62,10 @@ def test_publication_workflow_publishes_attested_images_after_digest_scans() -> 
     assert "org.opencontainers.image.source=https://github.com/${{ github.repository }}" in workflow
     assert "Scan immutable architecture digest" in workflow
     assert "apply-policy" in workflow
+    assert "Scan test-only local image" in workflow
+    assert "type=oci,dest={0}/test-image.tar" in workflow
+    assert "image --input /work/test-image.tar" in workflow
+    assert "!inputs.test_only" in workflow
 
 
 def test_container_security_replaces_legacy_remote_image_scan() -> None:

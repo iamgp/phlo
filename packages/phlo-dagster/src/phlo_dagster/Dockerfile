@@ -18,11 +18,13 @@ RUN apk upgrade --no-cache \
     && apk add --no-cache \
         bash=5.3.9-r1 \
         ca-certificates=20260611-r0 \
+        cargo=1.96.1-r0 \
         curl=8.21.0-r0 \
-        git=2.54.0-r0 \
-    && apk add --no-cache --virtual .build-deps \
         gcc=15.2.0-r5 \
+        git=2.54.0-r0 \
         musl-dev=1.2.6-r2 \
+        rust=1.96.1-r0 \
+        su-exec=0.3-r0 \
     && pip install --no-cache-dir "uv==0.8.13"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -45,15 +47,14 @@ RUN \
     else \
         uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"; \
         PHLO_PRERELEASE_REQUIREMENTS="$(python -c 'import importlib.metadata as md, re; print(" ".join(req.split(";")[0].strip() for req in (md.metadata("phlo").get_all("Requires-Dist") or []) if "extra == '\''defaults'\''" in req and re.search(r"(a|b|rc|dev)[0-9]+", req)))')"; \
-        base_requirements=("phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"); \
+        base_requirements=("phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" "dbt-core<1.12" dagster-webserver dagster-postgres "psycopg[binary]"); \
         if [ -n "$PHLO_PRERELEASE_REQUIREMENTS" ]; then read -r -a prerelease_requirements <<< "$PHLO_PRERELEASE_REQUIREMENTS"; base_requirements+=("${prerelease_requirements[@]}"); fi; \
         uv pip install --system --prerelease explicit "${base_requirements[@]}"; \
     fi; \
     else \
-        uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
+        uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" "dbt-core<1.12" dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi \
-    && uv pip install --system "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1" \
-    && apk del .build-deps
+    && uv pip install --system "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1"
 
 # Build caches contain package manifests that vulnerability scanners treat as runtime
 # dependencies. They are unnecessary after installation and must not ship in the image.
@@ -65,8 +66,6 @@ RUN chmod +x /usr/local/bin/phlo-dagster-entrypoint.sh \
     && addgroup -S phlo \
     && adduser -S -G phlo -h /opt/dagster -H phlo \
     && chown -R phlo:phlo /opt/dagster
-
-USER phlo
 
 # Copy workspace configuration
 COPY dagster/workspace.yaml /opt/dagster/workspace.yaml
