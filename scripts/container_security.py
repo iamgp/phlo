@@ -243,7 +243,13 @@ def main() -> int:
     render.add_argument("--register", type=Path, default=Path("security/container-waivers.yml"))
     render.add_argument("--output", type=Path, default=Path("security/container-waivers.md"))
     affected = sub.add_parser("affected-images")
-    affected.add_argument("--base", required=True)
+    changed_scope = affected.add_mutually_exclusive_group(required=True)
+    changed_scope.add_argument("--base")
+    changed_scope.add_argument(
+        "--all",
+        action="store_true",
+        help="Return every generated service image for the nightly validation lane.",
+    )
     affected.add_argument("--head", default="HEAD")
     policy = sub.add_parser("apply-policy")
     policy.add_argument("--register", type=Path, default=Path("security/container-waivers.yml"))
@@ -251,9 +257,12 @@ def main() -> int:
     policy.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "affected-images":
-        changed = subprocess.check_output(
-            ["git", "diff", "--name-only", f"{args.base}...{args.head}"], text=True
-        ).splitlines()
+        if args.all:
+            changed = ["pyproject.toml"]
+        else:
+            changed = subprocess.check_output(
+                ["git", "diff", "--name-only", f"{args.base}...{args.head}"], text=True
+            ).splitlines()
         print(json.dumps(affected_images(changed, Path.cwd()), separators=(",", ":")))
         return 0
     waivers = load_waivers(args.register)

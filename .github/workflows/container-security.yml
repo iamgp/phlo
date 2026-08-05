@@ -1,12 +1,12 @@
 name: Container Security
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "10 2 * * *"
 
 concurrency:
-  group: container-security-${{ github.event.pull_request.number || github.ref }}
+  group: container-security-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -46,13 +46,11 @@ jobs:
         with:
           version: "0.12.1"
       - id: images
-        name: Detect affected images
-        env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        name: Select generated service images
         shell: bash
         run: |
           set -euo pipefail
-          matrix="$(uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py affected-images --base "$BASE")"
+          matrix="$(uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py affected-images --all)"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           if [ "$(jq '.include | length' <<< "$matrix")" -gt 0 ]; then echo "has_images=true" >> "$GITHUB_OUTPUT"; else echo "has_images=false" >> "$GITHUB_OUTPUT"; fi
 
@@ -69,7 +67,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
-      - name: Lint changed Dockerfile
+      - name: Lint generated-service Dockerfile
         run: docker run --rm -i hadolint/hadolint@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "${{ matrix.target.package }}/${{ matrix.target.dockerfile }}"
 
   generated-files:
