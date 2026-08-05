@@ -6,6 +6,7 @@ Generates docker-compose.yml and .env/.env.local files from service definitions.
 
 import os
 import platform
+import re
 import shutil
 from collections.abc import Mapping
 from pathlib import Path
@@ -37,6 +38,7 @@ _PRODUCTION_CREDENTIAL_DEFAULTS = {
     "MINIO_ROOT_USER": "minio",
     "MINIO_ROOT_PASSWORD": "minio123",
 }
+_EMPTY_DEFAULT_ENVIRONMENT_EXPRESSION = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*):-\}$")
 
 
 class ComposeGenerator:
@@ -359,6 +361,7 @@ class ComposeGenerator:
                 config["depends_on"] = depends_config
 
         self._apply_conditional_environment(config, compose, env_values or {})
+        self._remove_windows_quoted_empty_environment_values(config, env_values or {})
 
         # Apply user overrides from phlo.yaml last, so they take precedence.
         self._apply_user_overrides(config, user_override)
@@ -377,7 +380,11 @@ class ComposeGenerator:
             return
         environment = config.get("environment")
         for trigger, entries in conditional_environment.items():
-            if not str(env_values.get(str(trigger), "")).strip() or not isinstance(entries, dict):
+            trigger_name = str(trigger)
+            trigger_value = self._normalise_optional_environment_value(
+                env_values.get(trigger_name, "")
+            )
+            if not trigger_value or not isinstance(entries, dict):
                 continue
             if environment is None:
                 environment = {}
@@ -386,6 +393,59 @@ class ComposeGenerator:
                 environment.update(entries)
             elif isinstance(environment, list):
                 environment.extend(f"{key}={value}" for key, value in entries.items())
+
+    @staticmethod
+    def _normalise_optional_environment_value(value: Any) -> str:
+        """Treat CMD's literal quoted-empty values as an unset optional value."""
+        normalised = str(value).strip()
+        return "" if normalised in {'""', "''"} else normalised
+
+    @staticmethod
+    def _is_windows_quoted_empty(value: Any) -> bool:
+        """Return whether a value is CMD's literal quoted-empty representation."""
+        return str(value).strip() in {'""', "''"}
+
+    def _remove_windows_quoted_empty_environment_values(
+        self, config: dict[str, Any], env_values: Mapping[str, Any]
+    ) -> None:
+        """Omit optional `${NAME:-}` entries set as `""` by Windows CMD.
+
+        In CMD, `set NAME=""` stores the quote characters rather than an empty
+        value. Docker Compose would otherwise pass those characters through to
+        services, which makes optional integrations look partially configured.
+        Only expressions with an explicitly empty fallback are removed; required
+        values and non-empty defaults preserve their existing Compose behavior.
+        """
+        environment = config.get("environment")
+        if isinstance(environment, dict):
+            for key, value in list(environment.items()):
+                variable = self._empty_default_variable(value)
+                if (
+                    variable
+                    and variable in env_values
+                    and self._is_windows_quoted_empty(env_values[variable])
+                ):
+                    del environment[key]
+        elif isinstance(environment, list):
+            config["environment"] = [
+                entry
+                for entry in environment
+                if not (
+                    isinstance(entry, str)
+                    and "=" in entry
+                    and (variable := self._empty_default_variable(entry.split("=", 1)[1]))
+                    and variable in env_values
+                    and self._is_windows_quoted_empty(env_values[variable])
+                )
+            ]
+
+    @staticmethod
+    def _empty_default_variable(value: Any) -> str | None:
+        """Return the variable referenced by an exact `${NAME:-}` expression."""
+        if not isinstance(value, str):
+            return None
+        match = _EMPTY_DEFAULT_ENVIRONMENT_EXPRESSION.fullmatch(value)
+        return match.group(1) if match else None
 
     def _apply_user_overrides(
         self,

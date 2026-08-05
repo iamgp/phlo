@@ -65,6 +65,10 @@ def test_production_credentials_allow_generated_passwords_and_safe_usernames() -
     ("env_values", "expected_openid"),
     (
         ({}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": ""}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": "   \t"}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": '""'}, {}),
+        ({"MINIO_OIDC_CONFIG_URL": "''"}, {}),
         (
             {"MINIO_OIDC_CONFIG_URL": "https://identity.example/.well-known/openid-configuration"},
             {
@@ -94,6 +98,61 @@ def test_minio_compose_only_includes_openid_settings_with_a_discovery_url(
     assert {
         key: value for key, value in environment.items() if key.startswith("MINIO_IDENTITY_OPENID_")
     } == expected_openid
+
+
+@pytest.mark.parametrize("quoted_empty", ('""', "''"))
+def test_compose_omits_optional_environment_values_set_to_windows_quoted_empty(
+    tmp_path, quoted_empty
+) -> None:
+    discovery = ServiceDiscovery()
+    services = [
+        service
+        for name in ("minio", "dagster", "clickstack")
+        if (service := discovery.get_service(name)) is not None
+    ]
+
+    rendered = yaml.safe_load(
+        ComposeGenerator(discovery).generate_compose(
+            services,
+            output_dir=tmp_path,
+            env_values={
+                "MINIO_SERVER_URL": quoted_empty,
+                "MINIO_LDAP_SERVER": quoted_empty,
+                "MINIO_LDAP_BIND_DN": quoted_empty,
+                "MINIO_LDAP_BIND_PASSWORD": quoted_empty,
+                "MINIO_LDAP_USER_BASE_DN": quoted_empty,
+                "MINIO_LDAP_USER_FILTER": quoted_empty,
+                "MINIO_AUDIT_ENDPOINT": quoted_empty,
+                "PHLO_DAGSTER_OIDC_ISSUER": quoted_empty,
+                "PHLO_DAGSTER_OIDC_AUDIENCE": quoted_empty,
+                "PHLO_DAGSTER_OIDC_JWKS_URL": quoted_empty,
+                "PHLO_DAGSTER_OIDC_CA_FILE": quoted_empty,
+                "CLICKSTACK_QUERY_URL": quoted_empty,
+            },
+        )
+    )
+
+    minio_environment = rendered["services"]["minio"]["environment"]
+    assert not {
+        "MINIO_SERVER_URL",
+        "MINIO_IDENTITY_LDAP_SERVER_ADDR",
+        "MINIO_IDENTITY_LDAP_LOOKUP_BIND_DN",
+        "MINIO_IDENTITY_LDAP_LOOKUP_BIND_PASSWORD",
+        "MINIO_IDENTITY_LDAP_USER_DN_SEARCH_BASE_DN",
+        "MINIO_IDENTITY_LDAP_USER_DN_SEARCH_FILTER",
+        "MINIO_AUDIT_WEBHOOK_ENDPOINT",
+    }.intersection(minio_environment)
+
+    dagster_environment = rendered["services"]["dagster"]["environment"]
+    assert not {
+        "PHLO_DAGSTER_OIDC_ISSUER",
+        "PHLO_DAGSTER_OIDC_AUDIENCE",
+        "PHLO_DAGSTER_OIDC_JWKS_URL",
+        "PHLO_DAGSTER_OIDC_CA_FILE",
+    }.intersection(dagster_environment)
+
+    clickstack_environment = rendered["services"]["clickstack"]["environment"]
+    assert "CLICKSTACK_QUERY_URL" not in clickstack_environment
 
 
 def test_conditional_environment_creates_an_absent_environment(tmp_path) -> None:
