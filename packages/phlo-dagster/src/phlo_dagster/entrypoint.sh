@@ -2,9 +2,12 @@
 # Phlo Dagster Entrypoint
 # Syncs dependencies in dev mode before running the main command
 
-set -e
+set -eo pipefail
 
-if [ "$(id -u)" -eq 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Dagster bootstrap must start as root so it can install mounted project dependencies." >&2
+    exit 1
+fi
 
 # If dev mode is enabled, sync dependencies from mounted pyproject.toml
 if [ "$PHLO_DEV_MODE" = "true" ] && [ -f /opt/phlo-dev/pyproject.toml ]; then
@@ -18,39 +21,6 @@ if [ "$PHLO_DEV_MODE" = "true" ] && [ -f /opt/phlo-dev/pyproject.toml ]; then
       echo "Warning: Could not sync dependencies"
     cd /opt/dagster
     echo "Dev mode: dependencies synced"
-fi
-
-# In decoupled mode, runtime plugins live in /opt/phlo-dev/packages.
-# Install every local workspace package so user workflows can import plugin modules.
-if [ "$PHLO_DEV_MODE" = "true" ] && [ -d /opt/phlo-dev/packages ]; then
-    echo "Dev mode: installing local workspace packages..."
-    for pkg_dir in /opt/phlo-dev/packages/*; do
-        if [ ! -d "$pkg_dir" ] || [ ! -f "$pkg_dir/pyproject.toml" ]; then
-            continue
-        fi
-        uv pip install --system -e "$pkg_dir" || echo "Warning: Could not install $pkg_dir"
-    done
-    # Ensure core runtime plugins required by example projects are present.
-    for required_pkg in \
-        phlo-core-plugins \
-        phlo-dagster \
-        phlo-dlt \
-        phlo-dbt \
-        phlo-pandera \
-        phlo-iceberg \
-        phlo-nessie \
-        phlo-trino \
-        phlo-postgres \
-        phlo-minio \
-        phlo-lineage
-    do
-        required_path="/opt/phlo-dev/packages/$required_pkg"
-        if [ -d "$required_path" ]; then
-            uv pip install --system -e "$required_path" || echo "Warning: Could not install $required_pkg"
-        fi
-    done
-    uv pip install --system dagster-dbt || echo "Warning: Could not install dagster-dbt"
-    echo "Dev mode: local workspace packages installed"
 fi
 
 # Optionally install extra local packages in dev mode
@@ -73,6 +43,35 @@ fi
 # are available before Dagster loads Definitions.
 if [ -f /app/pyproject.toml ]; then
     echo "Installing mounted Phlo project..."
+    # A generated project can declare an optional Phlo capability after the
+    # stack has started (for example, phlo-pandera after creating an ingestion
+    # workflow). Resolve only those direct workspace dependencies rather than
+    # installing every package under /opt/phlo-dev.
+    project_local_packages="$(python - <<'PY'
+import re
+import tomllib
+
+with open("/app/pyproject.toml", "rb") as project_file:
+    dependencies = tomllib.load(project_file).get("project", {}).get("dependencies", [])
+
+for dependency in dependencies:
+    match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", dependency)
+    if match:
+        name = match.group(0).lower()
+        if name.startswith("phlo-"):
+            print(name)
+PY
+)"
+    while IFS= read -r package; do
+        if [ -z "$package" ]; then
+            continue
+        fi
+        local_path="/opt/phlo-dev/packages/$package"
+        if [ -d "$local_path" ]; then
+            echo "Installing declared local package: $package"
+            uv pip install --system -e "$local_path"
+        fi
+    done <<< "$project_local_packages"
     uv pip install --system -e /app
     echo "Mounted Phlo project installed"
 fi
@@ -89,10 +88,6 @@ try:
 except ImportError:
     pass
 EOF
-
-else
-    echo "Non-root mode: using mounted project directly"
-fi
 
 # Development stacks mount the complete repository. Make every source package
 # importable even when the pinned runtime image runs as the unprivileged user
@@ -112,5 +107,10 @@ if [ -n "$PHLO_PROJECT_PATH" ] && [ -d "$PHLO_PROJECT_PATH" ]; then
     cd "$PHLO_PROJECT_PATH"
 fi
 
-# Execute the main command
-exec "$@"
+# Drop privileges after the one-time bootstrap. Linux development stacks retain
+# their host-owned project files; other stacks use the image's phlo account.
+runtime_user="phlo"
+if [ -n "${PHLO_RUNTIME_UID:-}" ] && [ -n "${PHLO_RUNTIME_GID:-}" ]; then
+    runtime_user="${PHLO_RUNTIME_UID}:${PHLO_RUNTIME_GID}"
+fi
+exec su-exec "$runtime_user" "$@"

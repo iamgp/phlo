@@ -334,14 +334,20 @@ class ComposeGenerator:
 
         if service.name in {"dagster", "dagster-daemon"}:
             if platform.system() == "Linux":
-                config["user"] = f"{os.getuid()}:{os.getgid()}"
+                # Start as root so the entrypoint can install the mounted project's
+                # dependencies, then drop to the host identity before Dagster starts.
+                config.pop("user", None)
                 environment = config.setdefault("environment", {})
                 if isinstance(environment, dict):
                     environment.setdefault("HOME", "/opt/dagster")
+                    environment["PHLO_RUNTIME_UID"] = str(os.getuid())
+                    environment["PHLO_RUNTIME_GID"] = str(os.getgid())
                 elif isinstance(environment, list) and not any(
                     item.startswith("HOME=") for item in environment if isinstance(item, str)
                 ):
                     environment.append("HOME=/opt/dagster")
+                    environment.append(f"PHLO_RUNTIME_UID={os.getuid()}")
+                    environment.append(f"PHLO_RUNTIME_GID={os.getgid()}")
             else:
                 config.pop("user", None)
 

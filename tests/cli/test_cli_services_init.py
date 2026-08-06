@@ -501,8 +501,16 @@ def test_compose_generator_dev_mode_builds_phlo_services_from_source(tmp_path) -
 
 @pytest.mark.parametrize("service_name", ["dagster", "dagster-daemon"])
 @pytest.mark.parametrize(
-    ("host_platform", "expected_user", "expected_home"),
-    [("Linux", "1234:2345", "/opt/dagster"), ("Darwin", None, None), ("Windows", None, None)],
+    ("host_platform", "expected_user", "expected_environment"),
+    [
+        (
+            "Linux",
+            None,
+            {"HOME": "/opt/dagster", "PHLO_RUNTIME_UID": "1234", "PHLO_RUNTIME_GID": "2345"},
+        ),
+        ("Darwin", None, {}),
+        ("Windows", None, {}),
+    ],
 )
 def test_compose_generator_sets_host_user_for_project_writing_services(
     monkeypatch: pytest.MonkeyPatch,
@@ -510,7 +518,7 @@ def test_compose_generator_sets_host_user_for_project_writing_services(
     service_name: str,
     host_platform: str,
     expected_user: str | None,
-    expected_home: str | None,
+    expected_environment: dict[str, str],
 ) -> None:
     monkeypatch.setattr(generator_module.platform, "system", lambda: host_platform)
     monkeypatch.setattr(generator_module.os, "getuid", lambda: 1234, raising=False)
@@ -540,7 +548,9 @@ def test_compose_generator_sets_host_user_for_project_writing_services(
     )
 
     assert data["services"][service_name].get("user") == expected_user
-    assert data["services"][service_name].get("environment", {}).get("HOME") == expected_home
+    environment = data["services"][service_name].get("environment", {})
+    for key, value in expected_environment.items():
+        assert environment.get(key) == value
     assert data["services"]["trino"]["user"] == "root"
 
 
@@ -564,6 +574,8 @@ def test_compose_generator_adds_home_to_list_environment_on_linux(
     assert data["services"]["dagster"]["environment"] == [
         "EXISTING=value",
         "HOME=/opt/dagster",
+        "PHLO_RUNTIME_UID=1234",
+        "PHLO_RUNTIME_GID=2345",
     ]
 
 
