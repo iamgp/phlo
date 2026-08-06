@@ -33,6 +33,7 @@ compose:
         - "${PHLO_API_PORT:-4000}:4000"
     volumes:
         - ../:/app:ro
+        - ./logs:/app/.phlo/logs
     healthcheck:
         test:
             [

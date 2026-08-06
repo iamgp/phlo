@@ -19,7 +19,9 @@ def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -
     assert 'uv pip install --system --prerelease explicit "${base_requirements[@]}"' in dockerfile
     assert '"dbt-core<1.12"' in dockerfile
     assert 'dagster-postgres "psycopg[binary]"' in dockerfile
-    assert 'uv pip install --system "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1"' in dockerfile
+    assert (
+        '"$PHLO_DAGSTER_REQUIREMENT" "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1"' in dockerfile
+    )
     assert "cargo=1.96.1-r0" in dockerfile
     assert "rust=1.96.1-r0" in dockerfile
     assert "su-exec=0.3-r0" in dockerfile
@@ -29,6 +31,7 @@ def test_dagster_runtime_image_pins_dbt_when_the_provider_version_is_populated()
     dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
 
     assert 'ARG PHLO_DBT_VERSION=""' in dockerfile
+    assert 'ARG PHLO_DAGSTER_VERSION=""' in dockerfile
     assert (
         'if [ -n "$PHLO_DBT_VERSION" ]; then '
         'PHLO_DBT_REQUIREMENT="phlo-dbt==$PHLO_DBT_VERSION"; fi;'
@@ -37,6 +40,10 @@ def test_dagster_runtime_image_pins_dbt_when_the_provider_version_is_populated()
         'if [ -n "$PHLO_DBT_VERSION" ]; then uv pip install --system --no-index '
         "--no-deps --reinstall --find-links /opt/phlo-wheelhouse "
         '"$PHLO_DBT_REQUIREMENT"; fi;'
+    ) in dockerfile
+    assert (
+        "uv pip install --system --no-index --no-deps --reinstall --find-links "
+        '/opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_DAGSTER_REQUIREMENT";'
     ) in dockerfile
     assert dockerfile.count('"$PHLO_DBT_REQUIREMENT"') == 4
     package_metadata = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
@@ -51,6 +58,7 @@ def test_dagster_runtime_image_keeps_dbt_unpinned_when_provider_version_is_empty
     assert (
         '"phlo[defaults]" "$PHLO_DBT_REQUIREMENT" "dbt-core<1.12" dagster-webserver' in dockerfile
     )
+    assert 'PHLO_DAGSTER_REQUIREMENT="phlo-dagster";' in dockerfile
 
 
 def test_dagster_runtime_image_removes_all_python_build_caches() -> None:
@@ -72,6 +80,12 @@ def test_dagster_runtime_entrypoint_installs_mounted_project() -> None:
     assert entrypoint.index("uv pip install --system -e /app") < entrypoint.index(
         'exec su-exec "$runtime_user" "$@"'
     )
+
+
+def test_dagster_image_starts_as_root_for_bootstrap() -> None:
+    dockerfile = resources.files("phlo_dagster").joinpath("Dockerfile").read_text()
+
+    assert "USER root" in dockerfile
 
 
 def test_dagster_runtime_entrypoint_exposes_mounted_dev_sources_to_python() -> None:

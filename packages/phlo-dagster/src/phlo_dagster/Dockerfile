@@ -11,6 +11,7 @@ WORKDIR /opt/dagster
 
 ARG PHLO_VERSION=""
 ARG PHLO_DBT_VERSION=""
+ARG PHLO_DAGSTER_VERSION=""
 ARG PHLO_WHEELHOUSE=""
 
 # Install system dependencies and uv
@@ -37,6 +38,8 @@ COPY --from=phlo-build-context /opt/phlo-build-context/wheelhouse /opt/phlo-whee
 RUN \
     PHLO_DBT_REQUIREMENT="phlo-dbt"; \
     if [ -n "$PHLO_DBT_VERSION" ]; then PHLO_DBT_REQUIREMENT="phlo-dbt==$PHLO_DBT_VERSION"; fi; \
+    PHLO_DAGSTER_REQUIREMENT="phlo-dagster"; \
+    if [ -n "$PHLO_DAGSTER_VERSION" ]; then PHLO_DAGSTER_REQUIREMENT="phlo-dagster==$PHLO_DAGSTER_VERSION"; fi; \
     if [ -n "$PHLO_VERSION" ]; then \
     if [ -n "$PHLO_WHEELHOUSE" ]; then \
         test -d /opt/phlo-wheelhouse; \
@@ -44,6 +47,7 @@ RUN \
         uv pip install --system --prerelease explicit --find-links /opt/phlo-wheelhouse "phlo[defaults]==$PHLO_VERSION" "$PHLO_DBT_REQUIREMENT" dagster-webserver dagster-postgres "psycopg[binary]"; \
         uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION"; \
         if [ -n "$PHLO_DBT_VERSION" ]; then uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "$PHLO_DBT_REQUIREMENT"; fi; \
+        uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "$PHLO_DAGSTER_REQUIREMENT"; \
     else \
         uv pip install --system --no-deps --prerelease explicit "phlo==$PHLO_VERSION"; \
         PHLO_PRERELEASE_REQUIREMENTS="$(python -c 'import importlib.metadata as md, re; print(" ".join(req.split(";")[0].strip() for req in (md.metadata("phlo").get_all("Requires-Dist") or []) if "extra == '\''defaults'\''" in req and re.search(r"(a|b|rc|dev)[0-9]+", req)))')"; \
@@ -54,7 +58,10 @@ RUN \
     else \
         uv pip install --system "phlo[defaults]" "$PHLO_DBT_REQUIREMENT" "dbt-core<1.12" dagster-webserver dagster-postgres "psycopg[binary]"; \
     fi \
-    && uv pip install --system "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1"
+    && uv pip install --system "$PHLO_DAGSTER_REQUIREMENT" "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1" \
+    && if [ -n "$PHLO_WHEELHOUSE" ]; then \
+        uv pip install --system --no-index --no-deps --reinstall --find-links /opt/phlo-wheelhouse "phlo==$PHLO_VERSION" "$PHLO_DAGSTER_REQUIREMENT"; \
+    fi
 
 # Build caches contain package manifests that vulnerability scanners treat as runtime
 # dependencies. They are unnecessary after installation and must not ship in the image.
@@ -70,6 +77,11 @@ RUN chmod +x /usr/local/bin/phlo-dagster-entrypoint.sh \
 # Copy workspace configuration
 COPY dagster/workspace.yaml /opt/dagster/workspace.yaml
 COPY dagster/dagster.yaml /opt/dagster/dagster.yaml
+
+# The entrypoint installs the mounted project, then drops to the phlo account.
+# Keep the image startup user explicit so a base-image change cannot bypass that
+# bootstrap phase.
+USER root
 
 EXPOSE 3000
 

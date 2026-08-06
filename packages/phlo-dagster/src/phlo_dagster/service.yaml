@@ -16,6 +16,7 @@ build:
   args:
     PHLO_VERSION: ${PHLO_VERSION:-}
     PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-}
+    PHLO_DAGSTER_VERSION: ${PHLO_DAGSTER_VERSION:-}
     PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
 
 depends_on:
@@ -128,6 +129,10 @@ env_vars:
     default: ""
     package: phlo-dbt
     description: phlo-dbt version to install in the service image
+  PHLO_DAGSTER_VERSION:
+    default: ""
+    package: phlo-dagster
+    description: phlo-dagster version to install in the service image
   PHLO_HOST_PLATFORM:
     default: ""
     description: Host platform for executor selection (Darwin/Linux)
