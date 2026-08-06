@@ -60,6 +60,11 @@ def test_publication_workflow_publishes_attested_images_after_digest_scans() -> 
     assert "org.opencontainers.image.source=https://github.com/${{ github.repository }}" in workflow
     assert "Scan immutable architecture digest" in workflow
     assert "apply-policy" in workflow
+    assert '-v "$PWD:/work" -w /work' in workflow
+    assert (
+        '"/work/security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"'
+        in workflow
+    )
 
 
 def test_container_security_replaces_legacy_remote_image_scan() -> None:
