@@ -210,11 +210,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p security-reports
-          docker run --rm aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
-            image --format json --output /tmp/trivy.json --scanners vuln "$IMAGE@$DIGEST"
-          cp /tmp/trivy.json "security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"
+          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+            image --format json --output "/work/security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json" --scanners vuln "$IMAGE@$DIGEST"
           uv --project source run --no-project --with pyyaml==6.0.3 python source/scripts/container_security.py \
-            apply-policy --register source/security/container-waivers.yml --image "$IMAGE@$DIGEST" --report /tmp/trivy.json
+            apply-policy --register source/security/container-waivers.yml --image "$IMAGE@$DIGEST" --report "security-reports/${{ matrix.target.service }}-${{ matrix.architecture.name }}.json"
 
       - name: Upload immutable digest scan report
         if: always()
