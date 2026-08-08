@@ -34,6 +34,10 @@ compose:
     volumes:
         - ../:/app:ro
         - ./logs:/app/.phlo/logs
+        # API-managed state must remain writable while the project definition
+        # itself stays immutable inside a release container.
+        - ../.phlo/observatory:/app/.phlo/observatory
+        - ../.phlo/state:/app/.phlo/state
     healthcheck:
         test:
             [

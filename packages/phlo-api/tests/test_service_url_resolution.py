@@ -202,3 +202,9 @@ def test_non_dev_api_profile_compose_is_reachable_without_dev_mounts(tmp_path) -
     assert "depends_on" not in service
     assert "PHLO_DEV_MODE" not in service["environment"]
     assert "/opt/phlo-dev:rw" not in "\n".join(service.get("volumes", []))
+    assert service["volumes"] == [
+        "../:/app:ro",
+        "./logs:/app/.phlo/logs",
+        "../.phlo/observatory:/app/.phlo/observatory",
+        "../.phlo/state:/app/.phlo/state",
+    ]
