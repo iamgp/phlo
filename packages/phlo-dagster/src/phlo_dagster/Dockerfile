@@ -65,7 +65,7 @@ RUN \
 
 # Build caches contain package manifests that vulnerability scanners treat as runtime
 # dependencies. They are unnecessary after installation and must not ship in the image.
-RUN rm -rf /root/.cache/uv /root/.cache/puccinialin
+RUN rm -rf /root/.cache/uv /root/.cache/puccinialin /root/.cargo/registry
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.
 COPY dagster/entrypoint.sh /usr/local/bin/phlo-dagster-entrypoint.sh
