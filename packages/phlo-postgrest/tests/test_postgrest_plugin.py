@@ -13,6 +13,16 @@ def test_postgrest_builds_a_minimal_stable_runtime_image() -> None:
         "context": ".",
         "dockerfile": "postgrest/Dockerfile",
     }
+
+
+def test_postgrest_uses_the_project_postgres_credentials() -> None:
+    """Generated projects use a random database password, not the template fallback."""
+    definition = PostgrestServicePlugin().service_definition
+
+    assert definition["compose"]["environment"]["PGRST_DB_URI"] == (
+        "postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/"
+        "${POSTGRES_DB:-phlo}"
+    )
     assert "POSTGREST_VERSION" not in definition["env_vars"]
     assert {"source": "Dockerfile", "dest": "postgrest/Dockerfile"} in definition["files"]
 
