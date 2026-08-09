@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from typing import Any
 
 import dagster as dg
@@ -11,6 +13,25 @@ from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec
 from phlo.exceptions import PhloDiscoveryError
 from phlo_dagster.adapter import DagsterOrchestratorAdapter
 from phlo_dagster.framework.asset_diagnostics import merge_definitions_with_duplicate_diagnostics
+
+
+def test_adapter_import_does_not_eagerly_build_framework_definitions() -> None:
+    """Adapter imports must not trigger plugin discovery through the facade."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; import phlo_dagster.adapter; "
+                "assert 'phlo_dagster.framework.definitions' not in sys.modules"
+            ),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def _run(_context: Any) -> list[MaterializeResult]:
