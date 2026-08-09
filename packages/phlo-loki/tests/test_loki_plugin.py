@@ -1,5 +1,7 @@
 """Tests for Loki service plugin."""
 
+from importlib.resources import files
+
 from phlo_loki.plugin import LokiServicePlugin
 
 
@@ -33,6 +35,13 @@ def test_loki_uses_a_distroless_readiness_probe() -> None:
         "/usr/bin/loki-healthcheck",
     ]
     assert any(file["dest"] == "loki/loki_healthcheck.go" for file in definition["files"])
+
+
+def test_loki_healthcheck_build_avoids_loki_vendor_mode() -> None:
+    """The standalone probe must not inherit Loki's patched vendor tree."""
+    dockerfile = files("phlo_loki").joinpath("Dockerfile").read_text()
+
+    assert "cd /tmp && GO111MODULE=off CGO_ENABLED=0 go build" in dockerfile
 
 
 def test_loki_plugin_metadata():

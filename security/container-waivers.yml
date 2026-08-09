@@ -1,4 +1,28 @@
 # Container vulnerability exceptions. Do not put credentials or other secrets here.
 # Keep this list empty until an approved, time-limited exception is necessary.
 version: 1
-waivers: []
+waivers:
+  - id: phlo-alloy-cve-2026-41567
+    image: ghcr.io/phlohouse/phlo-alloy
+    vulnerability_id: CVE-2026-41567
+    severity: HIGH
+    reachability: Alloy only uses the Docker API as a client for local container discovery; it does not expose Docker image upload endpoints.
+    rationale: Upstream scanner data reports no fixed Docker module version. The image needs the Docker client library for log discovery.
+    compensating_control: Docker socket access is read-only and limited to the local Compose daemon; re-evaluate on the next Alloy or Docker module update.
+    owner: iamgp
+    approval: operator-approved
+    approval_date: 2026-08-09
+    expiry_date: 2026-09-08
+    remediation_issue: https://github.com/phlohouse/phlo/issues/669
+  - id: phlo-alloy-cve-2026-42306
+    image: ghcr.io/phlohouse/phlo-alloy
+    vulnerability_id: CVE-2026-42306
+    severity: HIGH
+    reachability: Alloy only uses the Docker API as a client for local container discovery; it does not invoke docker cp or mount setup operations.
+    rationale: Upstream scanner data reports no fixed Docker module version. The image needs the Docker client library for log discovery.
+    compensating_control: Docker socket access is read-only and limited to the local Compose daemon; re-evaluate on the next Alloy or Docker module update.
+    owner: iamgp
+    approval: operator-approved
+    approval_date: 2026-08-09
+    expiry_date: 2026-09-08
+    remediation_issue: https://github.com/phlohouse/phlo/issues/669
