@@ -24,6 +24,17 @@ def test_loki_service_builds_patched_release_image() -> None:
     assert "LOKI_VERSION" not in definition["env_vars"]
 
 
+def test_loki_uses_a_distroless_readiness_probe() -> None:
+    """The generated image must not depend on absent shell utilities."""
+    definition = LokiServicePlugin().service_definition
+
+    assert definition["compose"]["healthcheck"]["test"] == [
+        "CMD",
+        "/usr/bin/loki-healthcheck",
+    ]
+    assert any(file["dest"] == "loki/loki_healthcheck.go" for file in definition["files"])
+
+
 def test_loki_plugin_metadata():
     """Validate Loki plugin metadata tags and name."""
 

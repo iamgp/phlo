@@ -11,9 +11,13 @@ RUN CGO_ENABLED=0 go build -mod=mod -trimpath -tags netgo \
         -X github.com/grafana/loki/v3/pkg/util/build.Version=3.7.4 \
         -X github.com/grafana/loki/v3/pkg/util/build.Revision=b318f2829f0ae2094ab3a1e90780450e9e4b03be" \
     -o /out/loki ./cmd/loki
+COPY loki/loki_healthcheck.go /tmp/loki_healthcheck.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
+    -o /out/loki-healthcheck /tmp/loki_healthcheck.go
 
 FROM grafana/loki:3.7.4@sha256:87f0a067673756a3cede1bcbf0c74875f7df9b09fddb53e399d0c576f756cfcc
 
 COPY --from=build /out/loki /usr/bin/loki
+COPY --from=build /out/loki-healthcheck /usr/bin/loki-healthcheck
 
 USER 10001
