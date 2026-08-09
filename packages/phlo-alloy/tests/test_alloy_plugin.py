@@ -46,6 +46,15 @@ def test_alloy_builder_discards_source_control_and_dependency_caches() -> None:
     assert "rm -rf internal/web/ui/node_modules /tmp/go-cache /tmp/go-mod" in dockerfile
 
 
+def test_alloy_image_pins_fixed_transitive_dependencies() -> None:
+    """The published image must not retain scanner-fixable Go dependencies."""
+    dockerfile = resources.files("phlo_alloy").joinpath("Dockerfile").read_text()
+
+    assert "github.com/docker/docker@v29.3.1+incompatible" in dockerfile
+    assert "github.com/go-git/go-git/v5@v5.19.2" in dockerfile
+    assert "golang.org/x/text@v0.39.0" in dockerfile
+
+
 def test_alloy_plugin_metadata():
     """Validate Alloy plugin metadata."""
     plugin = AlloyServicePlugin()
