@@ -31,6 +31,19 @@ Usage:
         defs = build_definitions(workflows_path="custom_workflows")
 """
 
-from phlo_dagster.framework.definitions import build_definitions, defs
-
 __all__ = ["build_definitions", "defs"]
+
+
+def __getattr__(name: str):
+    """Load framework definitions only when the public facade is requested.
+
+    Adapter imports use framework submodules such as ``asset_diagnostics``.
+    Eagerly importing definitions here starts plugin discovery while the
+    adapter is still being imported, which makes its entry point partial.
+    """
+    if name not in __all__:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    from phlo_dagster.framework.definitions import build_definitions, defs
+
+    return {"build_definitions": build_definitions, "defs": defs}[name]

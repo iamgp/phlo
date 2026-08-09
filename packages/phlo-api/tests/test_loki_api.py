@@ -8,10 +8,16 @@ import pytest
 from fastapi import HTTPException
 
 from phlo_api.observatory_api.loki import (
+    build_log_query,
     parse_loki_response,
     reject_request_loki_url,
     resolve_loki_url,
 )
+
+
+def test_build_log_query_matches_dagster_run_id_in_plain_container_logs() -> None:
+    """Run correlation must work before JSON parsing structured application logs."""
+    assert build_log_query(run_id="run-123") == ('{container=~".+"} |= "run-123" | json')
 
 
 def test_parse_loki_response_emits_function_and_legacy_fn_metadata() -> None:

@@ -104,8 +104,8 @@ def test_dagster_runtime_entrypoint_installs_only_requested_dev_packages() -> No
     assert "phlo-testing" not in entrypoint
 
 
-def test_dagster_service_uses_the_generated_bootstrap_script() -> None:
-    """Generated stacks must use the checked-out entrypoint in dev mode."""
+def test_dagster_service_uses_the_image_bootstrap_script() -> None:
+    """The DAGSTER_HOME bind mount must not hide the image bootstrap script."""
     service = resources.files("phlo_dagster").joinpath("service.yaml").read_text()
 
-    assert 'entrypoint: ["/bin/bash", "/opt/dagster/entrypoint.sh"]' in service
+    assert 'entrypoint: ["/usr/local/bin/phlo-dagster-entrypoint.sh"]' in service

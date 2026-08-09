@@ -22,6 +22,13 @@ def test_alloy_service_builds_patched_release_image() -> None:
     assert definition["build"] == {"context": ".", "dockerfile": "alloy/Dockerfile"}
 
 
+def test_alloy_service_uses_writable_storage_for_the_non_root_runtime() -> None:
+    """Alloy must not use its default relative state directory under an unwritable cwd."""
+    definition = AlloyServicePlugin().service_definition
+
+    assert "--storage.path=/tmp/alloy" in definition["compose"]["command"]
+
+
 def test_alloy_runtime_image_sets_the_upstream_non_root_user() -> None:
     """The generated Dockerfile keeps Alloy's upstream runtime identity explicit."""
     dockerfile = resources.files("phlo_alloy").joinpath("Dockerfile").read_text()

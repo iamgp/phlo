@@ -16,6 +16,10 @@ compose:
   restart: unless-stopped
   labels:
     phlo.metrics.enabled: "false"
+  environment:
+    # Project initialization generates POSTGRES_PASSWORD.  Override the
+    # static template's development fallback so PostgREST uses that secret.
+    PGRST_DB_URI: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
   command: ["/bin/postgrest", "/etc/postgrest/postgrest.conf"]
   volumes:
     - ./postgrest/conf:/etc/postgrest:ro

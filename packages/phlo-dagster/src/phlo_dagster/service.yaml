@@ -27,9 +27,9 @@ depends_on:
 
 compose:
   restart: unless-stopped
-  # Use the generated entrypoint from the bind-mounted Dagster directory so
-  # development stacks execute the checked-out bootstrap script.
-  entrypoint: ["/bin/bash", "/opt/dagster/entrypoint.sh"]
+  # Keep the image entrypoint outside the bind-mounted DAGSTER_HOME directory.
+  # That lets both development and released stacks use the same bootstrap script.
+  entrypoint: ["/usr/local/bin/phlo-dagster-entrypoint.sh"]
   healthcheck:
     test:
       [

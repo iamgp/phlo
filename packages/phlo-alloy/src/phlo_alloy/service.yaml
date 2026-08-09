@@ -18,6 +18,7 @@ compose:
   command:
     - run
     - --server.http.listen-addr=0.0.0.0:12345
+    - --storage.path=/tmp/alloy
     - /etc/alloy/config.alloy
   ports:
     - "${ALLOY_PORT:-12345}:12345"
