@@ -162,6 +162,7 @@ def build_log_query(
 
     """
     label_matchers = []
+    line_filters = []
     json_filters = []
 
     # Service filter - required by Loki
@@ -170,9 +171,11 @@ def build_log_query(
     else:
         label_matchers.append('container=~".+"')
 
-    # JSON filters for correlation
+    # Dagster's container logs include the execution run ID in their rendered
+    # message, whereas application logs may expose it as a JSON field.  Filter
+    # the raw line first so both log formats remain queryable.
     if run_id:
-        json_filters.append(f'run_id="{run_id}"')
+        line_filters.append(f'|= "{run_id}"')
     if asset_key:
         json_filters.append(f'asset_key="{asset_key}"')
     if job:
@@ -185,9 +188,10 @@ def build_log_query(
         json_filters.append(f'level="{level}"')
 
     label_selector = ", ".join(label_matchers)
+    line_pipeline = " " + " ".join(line_filters) if line_filters else ""
     json_pipeline = " | json | " + " | ".join(json_filters) if json_filters else " | json"
 
-    return "{" + label_selector + "}" + json_pipeline
+    return "{" + label_selector + "}" + line_pipeline + json_pipeline
 
 
 def parse_loki_response(response: dict[str, Any]) -> list[LogEntry]:
