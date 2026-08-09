@@ -4,7 +4,8 @@ RUN apk add --no-cache git=2.54.0-r0
 WORKDIR /src
 RUN git clone https://github.com/oauth2-proxy/oauth2-proxy.git . && \
     git checkout 66b3a17db09f0b51a4bc3159d4c7fe3fbeca1288 && \
-    go get google.golang.org/grpc@v1.82.1
+    go get google.golang.org/grpc@v1.82.1 \
+        google.golang.org/x/text@v0.39.0
 RUN CGO_ENABLED=0 go build -trimpath \
     -ldflags="-s -w -X github.com/oauth2-proxy/oauth2-proxy/v7/pkg/version.VERSION=v7.15.3" \
     -o /out/oauth2-proxy .
