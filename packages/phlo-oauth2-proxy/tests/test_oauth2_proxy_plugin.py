@@ -40,3 +40,16 @@ def test_oauth2_proxy_image_pinned():
 
     assert defn["image"] == "ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1"
     assert defn["build"]["dockerfile"] == "oauth2-proxy/Dockerfile"
+
+
+def test_oauth2_proxy_uses_a_distroless_readiness_probe():
+    """The generated image must not depend on absent shell utilities."""
+    definition = Oauth2ProxyServicePlugin().service_definition
+
+    assert definition["compose"]["healthcheck"]["test"] == [
+        "CMD",
+        "/bin/oauth2-proxy-healthcheck",
+    ]
+    assert any(
+        file["dest"] == "oauth2-proxy/oauth2_proxy_healthcheck.go" for file in definition["files"]
+    )

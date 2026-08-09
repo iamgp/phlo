@@ -8,9 +8,13 @@ RUN git clone https://github.com/oauth2-proxy/oauth2-proxy.git . && \
 RUN CGO_ENABLED=0 go build -trimpath \
     -ldflags="-s -w -X github.com/oauth2-proxy/oauth2-proxy/v7/pkg/version.VERSION=v7.15.3" \
     -o /out/oauth2-proxy .
+COPY oauth2-proxy/oauth2_proxy_healthcheck.go /tmp/oauth2_proxy_healthcheck.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
+    -o /out/oauth2-proxy-healthcheck /tmp/oauth2_proxy_healthcheck.go
 
 FROM quay.io/oauth2-proxy/oauth2-proxy:v7.15.3@sha256:10a1165743a192e1940b4708fb9647027185ce11a681a1c5519b442ff7f1f561
 
 COPY --from=build /out/oauth2-proxy /bin/oauth2-proxy
+COPY --from=build /out/oauth2-proxy-healthcheck /bin/oauth2-proxy-healthcheck
 
 USER 65532
