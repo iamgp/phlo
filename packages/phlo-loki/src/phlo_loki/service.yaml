@@ -4,10 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: ghcr.io/phlohouse/phlo-loki:3.7.4-grpc1.82.1
-build:
-  context: .
-  dockerfile: loki/Dockerfile
+image: grafana/loki:3.7.4@sha256:87f0a067673756a3cede1bcbf0c74875f7df9b09fddb53e399d0c576f756cfcc
 
 compose:
   restart: unless-stopped
@@ -22,11 +19,6 @@ compose:
   volumes:
     - ./loki:/etc/loki:ro
     - loki-data:/loki
-  healthcheck:
-    test: ["CMD", "/usr/bin/loki-healthcheck"]
-    interval: 10s
-    timeout: 5s
-    retries: 5
 
 env_vars:
   LOKI_PORT:
@@ -40,9 +32,5 @@ env_vars:
     description: Path used to build Loki log query links
 
 files:
-  - source: Dockerfile
-    dest: loki/Dockerfile
-  - source: loki_healthcheck.go
-    dest: loki/loki_healthcheck.go
   - source: loki-config.yml
     dest: loki/loki-config.yml

@@ -1,7 +1,5 @@
 """Tests for Nessie service plugin."""
 
-from importlib import resources
-
 from phlo.capabilities import CapabilitySupport
 from phlo_nessie.plugin import NessieServicePlugin
 from phlo_nessie.resource import NessieResource
@@ -18,19 +16,16 @@ def test_nessie_service_definition():
     assert service_definition["category"] == "core"
 
 
-def test_nessie_service_builds_the_patched_stable_image() -> None:
+def test_nessie_service_uses_pinned_upstream_image() -> None:
     definition = NessieServicePlugin().service_definition
 
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16"
-    assert definition["build"] == {"context": ".", "dockerfile": "nessie/Dockerfile"}
+    assert definition["image"] == (
+        "ghcr.io/projectnessie/nessie:0.108.3@"
+        "sha256:219709df809fcfac7abe0491b2070c8d56178ed29828fb30968a4365b62bcc8a"
+    )
+    assert "build" not in definition
     assert "NESSIE_VERSION" not in definition["env_vars"]
-    assert {
-        "source": "libraries.sha256",
-        "dest": "nessie/libraries.sha256",
-    } in definition["files"]
-
-    dockerfile = resources.files("phlo_nessie").joinpath("Dockerfile").read_text()
-    assert "COPY nessie/libraries.sha256 /patches/libraries.sha256" in dockerfile
+    assert not definition.get("files")
 
 
 def test_nessie_resource_provider_registers_catalog_capability() -> None:

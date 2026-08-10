@@ -1,7 +1,5 @@
 """Tests for Postgres service and resource plugins."""
 
-from importlib import resources
-
 from phlo.capabilities import PublishTargetSpec
 from phlo_postgres.plugin import (
     PostgresExporterServicePlugin,
@@ -21,20 +19,14 @@ def test_postgres_service_definition():
     assert service_definition["category"] == "core"
 
 
-def test_postgres_service_builds_pinned_hardened_image() -> None:
+def test_postgres_service_uses_pinned_upstream_image() -> None:
     service_definition = PostgresServicePlugin().service_definition
 
     assert service_definition["image"] == (
-        "ghcr.io/phlohouse/phlo-postgres:18.4-alpine3.24-gosu1.19"
+        "postgres:18.4-alpine3.24@"
+        "sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15"
     )
-    assert service_definition["build"]["dockerfile"] == "postgres/Dockerfile"
-
-
-def test_postgres_image_runs_as_postgres_after_volume_setup() -> None:
-    """The setup service owns the data volume before the database starts non-root."""
-    dockerfile = resources.files("phlo_postgres").joinpath("Dockerfile").read_text()
-
-    assert dockerfile.rstrip().endswith("USER postgres")
+    assert "build" not in service_definition
 
 
 def test_postgres_volume_setup_rejects_pre_18_data_layout() -> None:
@@ -45,13 +37,14 @@ def test_postgres_volume_setup_rejects_pre_18_data_layout() -> None:
     assert "exit 1" in command
 
 
-def test_postgres_exporter_builds_pinned_hardened_image() -> None:
+def test_postgres_exporter_uses_pinned_upstream_image() -> None:
     service_definition = PostgresExporterServicePlugin().service_definition
 
     assert service_definition["image"] == (
-        "ghcr.io/phlohouse/phlo-postgres-exporter:v0.20.1-go1.26.5"
+        "quay.io/prometheuscommunity/postgres-exporter:v0.20.1@"
+        "sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e"
     )
-    assert service_definition["build"]["dockerfile"] == "postgres-exporter/Dockerfile"
+    assert "build" not in service_definition
 
 
 def test_postgres_resource_provider():

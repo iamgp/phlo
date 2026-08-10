@@ -1,18 +1,16 @@
 """PostgREST generated service contracts."""
 
-from importlib import resources
-
 from phlo_postgrest.plugin import PostgrestServicePlugin
 
 
-def test_postgrest_builds_a_minimal_stable_runtime_image() -> None:
+def test_postgrest_uses_pinned_upstream_image() -> None:
     definition = PostgrestServicePlugin().service_definition
 
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-postgrest:14.15-security-patches"
-    assert definition["build"] == {
-        "context": ".",
-        "dockerfile": "postgrest/Dockerfile",
-    }
+    assert definition["image"] == (
+        "postgrest/postgrest:v14.15@"
+        "sha256:2f8e7b656f09db697a8875177694b417b35cb76c21370de07fc54e711e902326"
+    )
+    assert "build" not in definition
 
 
 def test_postgrest_uses_the_project_postgres_credentials() -> None:
@@ -24,10 +22,9 @@ def test_postgrest_uses_the_project_postgres_credentials() -> None:
         "${POSTGRES_DB:-phlo}"
     )
     assert "POSTGREST_VERSION" not in definition["env_vars"]
-    assert {"source": "Dockerfile", "dest": "postgrest/Dockerfile"} in definition["files"]
-
-    dockerfile = resources.files("phlo_postgrest").joinpath("Dockerfile").read_text()
-    assert "postgrest/postgrest:v14.15@sha256:" in dockerfile
-    assert "COPY --from=upstream /bin/postgrest /usr/bin/postgrest" in dockerfile
-    assert "rm -f /usr/bin/pebble" in dockerfile
-    assert dockerfile.rstrip().endswith('CMD ["postgrest"]')
+    assert {"source": "conf", "dest": "postgrest/conf"} in definition["files"]
+    assert definition["compose"]["healthcheck"]["test"] == [
+        "CMD",
+        "pgrep",
+        "postgrest",
+    ]

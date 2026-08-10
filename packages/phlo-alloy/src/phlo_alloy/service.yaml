@@ -4,10 +4,7 @@ category: observability
 default: false
 profile: observability
 
-image: ghcr.io/phlohouse/phlo-alloy:v1.18.0-go1.26.5
-build:
-  context: .
-  dockerfile: alloy/Dockerfile
+image: grafana/alloy:v1.18.0@sha256:491b0578c04983fd54fe99b587b6fab4404dc46d0dc16677bd6b00cc1140b308
 
 compose:
   restart: unless-stopped
@@ -27,7 +24,7 @@ compose:
     - /var/run/docker.sock:/var/run/docker.sock:ro
   depends_on:
     loki:
-      condition: service_healthy
+      condition: service_started
   healthcheck:
     test: ["CMD", "pgrep", "alloy"]
     interval: 10s
@@ -40,7 +37,5 @@ env_vars:
     description: Alloy HTTP port
 
 files:
-  - source: Dockerfile
-    dest: alloy/Dockerfile
   - source: config.alloy
     dest: alloy/config.alloy

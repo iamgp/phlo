@@ -3,10 +3,7 @@ description: Git-like catalog for Iceberg tables with branch/merge support
 category: core
 default: true
 
-image: ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16
-build:
-  context: .
-  dockerfile: nessie/Dockerfile
+image: ghcr.io/projectnessie/nessie:0.108.3@sha256:219709df809fcfac7abe0491b2070c8d56178ed29828fb30968a4365b62bcc8a
 
 depends_on:
   - postgres
@@ -96,7 +93,3 @@ hooks:
       timeout_seconds: 60
 
 files:
-  - source: Dockerfile
-    dest: nessie/Dockerfile
-  - source: libraries.sha256
-    dest: nessie/libraries.sha256

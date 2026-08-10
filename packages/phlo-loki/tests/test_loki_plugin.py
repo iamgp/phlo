@@ -1,7 +1,5 @@
 """Tests for Loki service plugin."""
 
-from importlib.resources import files
-
 from phlo_loki.plugin import LokiServicePlugin
 
 
@@ -17,31 +15,21 @@ def test_loki_service_definition():
     assert "./volumes/loki:/loki" not in defn["compose"]["volumes"]
 
 
-def test_loki_service_builds_patched_release_image() -> None:
-    """Generated Loki uses the stable release with its fixed gRPC dependency."""
+def test_loki_service_uses_pinned_upstream_image() -> None:
     definition = LokiServicePlugin().service_definition
 
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-loki:3.7.4-grpc1.82.1"
-    assert definition["build"] == {"context": ".", "dockerfile": "loki/Dockerfile"}
+    assert definition["image"] == (
+        "grafana/loki:3.7.4@sha256:87f0a067673756a3cede1bcbf0c74875f7df9b09fddb53e399d0c576f756cfcc"
+    )
+    assert "build" not in definition
     assert "LOKI_VERSION" not in definition["env_vars"]
 
 
-def test_loki_uses_a_distroless_readiness_probe() -> None:
-    """The generated image must not depend on absent shell utilities."""
+def test_loki_distroless_image_does_not_claim_an_in_container_probe() -> None:
     definition = LokiServicePlugin().service_definition
 
-    assert definition["compose"]["healthcheck"]["test"] == [
-        "CMD",
-        "/usr/bin/loki-healthcheck",
-    ]
-    assert any(file["dest"] == "loki/loki_healthcheck.go" for file in definition["files"])
-
-
-def test_loki_healthcheck_build_avoids_loki_vendor_mode() -> None:
-    """The standalone probe must not inherit Loki's patched vendor tree."""
-    dockerfile = files("phlo_loki").joinpath("Dockerfile").read_text()
-
-    assert "cd /tmp && GO111MODULE=off CGO_ENABLED=0 go build" in dockerfile
+    assert "healthcheck" not in definition["compose"]
+    assert all(file["dest"] != "loki/loki_healthcheck.go" for file in definition["files"])
 
 
 def test_loki_plugin_metadata():

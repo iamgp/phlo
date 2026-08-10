@@ -1,7 +1,5 @@
 """Tests for Pgweb service plugin."""
 
-from importlib import resources
-
 from phlo_pgweb.plugin import PgwebServicePlugin
 
 
@@ -11,8 +9,12 @@ def test_pgweb_service_definition():
     defn = plugin.service_definition
 
     assert defn["name"] == "pgweb"
-    assert defn["build"] == {"context": ".", "dockerfile": "pgweb/Dockerfile"}
-    assert defn["files"] == [{"source": "Dockerfile", "dest": "pgweb/Dockerfile"}]
+    assert defn["image"] == (
+        "sosedoff/pgweb:0.17.0@"
+        "sha256:a5256d416e2e8b92d69a4459058e3eca33a9f075d8325491644411d0bc3bd70b"
+    )
+    assert "build" not in defn
+    assert not defn.get("files")
 
 
 def test_pgweb_plugin_metadata():
@@ -22,9 +24,3 @@ def test_pgweb_plugin_metadata():
 
     assert meta.name == "pgweb"
     assert "postgres" in meta.tags
-
-
-def test_pgweb_runtime_packages_are_reproducible() -> None:
-    dockerfile = resources.files("phlo_pgweb").joinpath("Dockerfile").read_text()
-
-    assert "apk upgrade" not in dockerfile

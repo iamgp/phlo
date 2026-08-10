@@ -7,46 +7,39 @@ import yaml
 from phlo_openmetadata.plugin import OpenMetadataServicePlugin
 
 
-def test_openmetadata_builds_a_patched_stable_server_image() -> None:
+def test_openmetadata_uses_pinned_upstream_server_image() -> None:
     definition = OpenMetadataServicePlugin().service_definition
-    dockerfile = resources.files("phlo_openmetadata").joinpath("Dockerfile").read_text()
 
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-openmetadata:1.13.1-java-patches"
-    assert definition["build"] == {
-        "context": ".",
-        "dockerfile": "openmetadata/Dockerfile",
-    }
-    assert "FROM docker.io/openmetadata/server:1.13.1@sha256:eaa3185" in dockerfile
-    assert "docker.getcollate.io" not in dockerfile
+    assert definition["image"] == (
+        "docker.io/openmetadata/server:1.13.1@"
+        "sha256:eaa318584c52d4a492a2c56c95818b5564c6ea28b2e9695ac532c856b2c61bc9"
+    )
+    assert "build" not in definition
     assert "OPENMETADATA_VERSION" not in definition["env_vars"]
 
 
-def test_openmetadata_mysql_builds_the_updated_stable_database_image() -> None:
+def test_openmetadata_mysql_uses_pinned_upstream_database_image() -> None:
     raw = resources.files("phlo_openmetadata").joinpath("openmetadata-mysql-setup.yaml").read_text()
     definition = yaml.safe_load(raw)
-    dockerfile = resources.files("phlo_openmetadata").joinpath("db.Dockerfile").read_text()
-
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-openmetadata-db:1.13.1-ol8.10"
-    assert definition["build"] == {
-        "context": ".",
-        "dockerfile": "openmetadata-mysql/Dockerfile",
-    }
-    assert "FROM docker.io/openmetadata/db:1.13.1@sha256:6659446" in dockerfile
-    assert "docker.getcollate.io" not in dockerfile
+    assert definition["image"] == (
+        "docker.io/openmetadata/db:1.13.1@"
+        "sha256:6659446dba183f1e9364602839dd999c06a83f7d2e905d1c3fb22a74f3e27288"
+    )
+    assert "build" not in definition
 
 
-def test_openmetadata_setup_uses_the_patched_server_image() -> None:
+def test_openmetadata_setup_uses_the_pinned_upstream_server_image() -> None:
     raw = resources.files("phlo_openmetadata").joinpath("openmetadata-setup.yaml").read_text()
     definition = yaml.safe_load(raw)
 
-    assert definition["image"] == "ghcr.io/phlohouse/phlo-openmetadata:1.13.1-java-patches"
-    assert definition["build"] == {
-        "context": ".",
-        "dockerfile": "openmetadata/Dockerfile",
-    }
+    assert definition["image"] == (
+        "docker.io/openmetadata/server:1.13.1@"
+        "sha256:eaa318584c52d4a492a2c56c95818b5564c6ea28b2e9695ac532c856b2c61bc9"
+    )
+    assert "build" not in definition
 
 
-def test_openmetadata_elasticsearch_builds_the_patched_compatible_image() -> None:
+def test_openmetadata_elasticsearch_uses_pinned_upstream_image() -> None:
     raw = (
         resources.files("phlo_openmetadata")
         .joinpath("openmetadata-elasticsearch-setup.yaml")
@@ -55,16 +48,8 @@ def test_openmetadata_elasticsearch_builds_the_patched_compatible_image() -> Non
     definition = yaml.safe_load(raw)
 
     assert definition["image"] == (
-        "ghcr.io/phlohouse/phlo-openmetadata-elasticsearch:8.11.4-java-patches"
+        "docker.elastic.co/elasticsearch/elasticsearch:9.3.0@"
+        "sha256:4f6bdcb742e892539c6ac49b0dd3e4e182e90218546e8c6a22db378c344acb60"
     )
-    assert definition["build"] == {
-        "context": ".",
-        "dockerfile": "openmetadata-elasticsearch/Dockerfile",
-    }
-    assert {
-        "source": "es-libraries.sha256",
-        "dest": "openmetadata-elasticsearch/libraries.sha256",
-    } in definition["files"]
-
-    dockerfile = resources.files("phlo_openmetadata").joinpath("es.Dockerfile").read_text()
-    assert "COPY openmetadata-elasticsearch/libraries.sha256 libraries.sha256" in dockerfile
+    assert "build" not in definition
+    assert not definition.get("files")

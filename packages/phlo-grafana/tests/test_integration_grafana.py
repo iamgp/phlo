@@ -26,16 +26,16 @@ def test_grafana_service_definition():
     assert "./volumes/grafana:/var/lib/grafana" not in service_def["compose"]["volumes"]
 
 
-def test_grafana_uses_rebuilt_image():
+def test_grafana_uses_pinned_upstream_image():
     from phlo_grafana.plugin import GrafanaServicePlugin
 
     service_def = GrafanaServicePlugin().service_definition
 
-    assert service_def["image"] == "ghcr.io/phlohouse/phlo-grafana:13.1.1-go1.26.5"
-    assert service_def["build"] == {
-        "context": "./grafana",
-        "dockerfile": "Dockerfile",
-    }
-    assert {"source": "Dockerfile", "dest": "grafana/Dockerfile"} in service_def["files"]
+    assert service_def["image"] == (
+        "grafana/grafana:13.1.1@"
+        "sha256:7cb8c64c4d57a57e734073f3cc94620adb24a0acb929bd80ba9f14017e3a975b"
+    )
+    assert "build" not in service_def
+    assert all(file["dest"] != "grafana/Dockerfile" for file in service_def["files"])
     assert service_def["compose"].get("user") is None
     assert service_def["compose"]["environment"]["GF_PLUGINS_PREINSTALL_DISABLED"] == "true"
