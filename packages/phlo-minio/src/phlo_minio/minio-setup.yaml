@@ -4,10 +4,7 @@ description: Initialize MinIO buckets for data lake
 category: core
 default: true
 
-image: ghcr.io/phlohouse/phlo-minio-mc:77f82e18b540
-build:
-  context: .
-  dockerfile: minio-mc/Dockerfile
+image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
 
 depends_on:
   - minio
@@ -21,12 +18,9 @@ compose:
     /bin/sh -c "
     sleep 5 &&
     mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+    until mc ready myminio; do sleep 2; done &&
     mc mb --ignore-existing myminio/lake &&
     mc mb --ignore-existing myminio/lake/warehouse &&
     mc mb --ignore-existing myminio/lake/stage &&
     echo 'Buckets created successfully'
     "
-
-files:
-  - source: mc.Dockerfile
-    dest: minio-mc/Dockerfile

@@ -44,7 +44,6 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_superset = [
-    "Dockerfile",
     "service.yaml",
     "dashboards/**",
 ]

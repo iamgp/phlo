@@ -1,7 +1,5 @@
 """Tests for MinIO service plugin."""
 
-from importlib import resources
-
 from phlo_minio.plugin import MinioResourceProvider, MinioServicePlugin, MinioSetupServicePlugin
 
 
@@ -25,22 +23,21 @@ def test_minio_service_uses_named_volume():
     assert all("./volumes/minio" not in volume for volume in volumes)
 
 
-def test_minio_services_build_pinned_phlo_images() -> None:
-    """Server and client should build hardened Phlo-owned images from pinned source."""
+def test_minio_services_use_pinned_upstream_images() -> None:
     server = MinioServicePlugin().service_definition
     setup = MinioSetupServicePlugin().service_definition
 
-    assert server["image"] == "ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c"
-    assert server["build"]["dockerfile"] == "minio/Dockerfile"
-    assert setup["image"] == "ghcr.io/phlohouse/phlo-minio-mc:77f82e18b540"
-    assert setup["build"]["dockerfile"] == "minio-mc/Dockerfile"
-
-
-def test_minio_server_image_includes_the_public_cli_runtime_client() -> None:
-    """Release maintenance commands execute `mc` inside the MinIO server container."""
-    dockerfile = resources.files("phlo_minio").joinpath("Dockerfile").read_text()
-
-    assert "COPY --from=mc-build /out/mc /usr/bin/mc" in dockerfile
+    assert server["image"] == (
+        "quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@"
+        "sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
+    )
+    assert setup["image"] == (
+        "quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z@"
+        "sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727"
+    )
+    assert "build" not in server
+    assert "build" not in setup
+    assert "until mc ready myminio" in setup["compose"]["entrypoint"]
 
 
 def test_minio_resource_provider_exposes_object_store(monkeypatch) -> None:

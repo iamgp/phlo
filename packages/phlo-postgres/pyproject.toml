@@ -52,8 +52,6 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_postgres = [
-    "Dockerfile",
-    "exporter.Dockerfile",
     "service.yaml",
     "exporter_service.yaml",
     "volume_setup.yaml",

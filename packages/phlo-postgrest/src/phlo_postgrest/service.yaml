@@ -4,10 +4,7 @@ category: api
 default: false
 profile: api
 
-image: ghcr.io/phlohouse/phlo-postgrest:14.15-security-patches
-build:
-  context: .
-  dockerfile: postgrest/Dockerfile
+image: postgrest/postgrest:v14.15@sha256:2f8e7b656f09db697a8875177694b417b35cb76c21370de07fc54e711e902326
 
 depends_on:
   - postgres
@@ -40,8 +37,6 @@ env_vars:
     description: Comma-separated list of schemas to expose (auto-configured by hook)
 
 files:
-  - source: Dockerfile
-    dest: postgrest/Dockerfile
   - source: conf
     dest: postgrest/conf
 

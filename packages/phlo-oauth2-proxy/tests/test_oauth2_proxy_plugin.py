@@ -1,7 +1,5 @@
 """Tests for oauth2-proxy service plugin."""
 
-from importlib.resources import files
-
 from phlo_oauth2_proxy.plugin import Oauth2ProxyServicePlugin
 
 
@@ -40,25 +38,15 @@ def test_oauth2_proxy_image_pinned():
     plugin = Oauth2ProxyServicePlugin()
     defn = plugin.service_definition
 
-    assert defn["image"] == "ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1"
-    assert defn["build"]["dockerfile"] == "oauth2-proxy/Dockerfile"
+    assert defn["image"] == (
+        "quay.io/oauth2-proxy/oauth2-proxy:v7.15.3@"
+        "sha256:10a1165743a192e1940b4708fb9647027185ce11a681a1c5519b442ff7f1f561"
+    )
+    assert "build" not in defn
 
 
-def test_oauth2_proxy_image_pins_the_fixed_xtext_dependency() -> None:
-    """The generated image must contain the scanner-required x/text fix."""
-    dockerfile = files("phlo_oauth2_proxy").joinpath("Dockerfile").read_text()
-
-    assert "golang.org/x/text@v0.39.0" in dockerfile
-
-
-def test_oauth2_proxy_uses_a_distroless_readiness_probe():
-    """The generated image must not depend on absent shell utilities."""
+def test_oauth2_proxy_distroless_image_does_not_claim_an_in_container_probe():
     definition = Oauth2ProxyServicePlugin().service_definition
 
-    assert definition["compose"]["healthcheck"]["test"] == [
-        "CMD",
-        "/bin/oauth2-proxy-healthcheck",
-    ]
-    assert any(
-        file["dest"] == "oauth2-proxy/oauth2_proxy_healthcheck.go" for file in definition["files"]
-    )
+    assert "healthcheck" not in definition["compose"]
+    assert not definition.get("files")

@@ -4,10 +4,7 @@ category: auth
 default: false
 profile: proxy
 
-image: ghcr.io/phlohouse/phlo-oauth2-proxy:v7.15.3-grpc1.82.1
-build:
-  context: .
-  dockerfile: oauth2-proxy/Dockerfile
+image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3@sha256:10a1165743a192e1940b4708fb9647027185ce11a681a1c5519b442ff7f1f561
 
 compose:
   restart: unless-stopped
@@ -28,12 +25,6 @@ compose:
     OAUTH2_PROXY_EMAIL_DOMAINS: "${OAUTH2_PROXY_EMAIL_DOMAINS:-*}"
     OAUTH2_PROXY_UPSTREAMS: "static://202"
     OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
-  healthcheck:
-    test: ["CMD", "/bin/oauth2-proxy-healthcheck"]
-    interval: 30s
-    timeout: 5s
-    retries: 3
-    start_period: 10s
 
 env_vars:
   OAUTH2_PROXY_PROVIDER:
@@ -56,9 +47,3 @@ env_vars:
   OAUTH2_PROXY_EMAIL_DOMAINS:
     default: "*"
     description: Comma-separated list of allowed email domains (use * for any)
-
-files:
-  - source: Dockerfile
-    dest: oauth2-proxy/Dockerfile
-  - source: oauth2_proxy_healthcheck.go
-    dest: oauth2-proxy/oauth2_proxy_healthcheck.go
