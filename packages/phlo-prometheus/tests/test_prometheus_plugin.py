@@ -13,9 +13,11 @@ def test_prometheus_service_definition():
     assert "prometheus-data:/prometheus" in defn["compose"]["volumes"]
     assert "./volumes/prometheus:/prometheus" not in defn["compose"]["volumes"]
     assert defn["image"] == (
-        "${PROMETHEUS_IMAGE:-ghcr.io/phlohouse/phlo-prometheus:v3.13.1-grpc1.82.1}"
+        "${PROMETHEUS_IMAGE:-prom/prometheus:v3.13.1@"
+        "sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893}"
     )
-    assert defn["build"]["dockerfile"] == "prometheus/Dockerfile"
+    assert "build" not in defn
+    assert all(file_spec["source"] != "Dockerfile" for file_spec in defn["files"])
 
 
 def test_prometheus_plugin_metadata():

@@ -33,7 +33,7 @@
       {"name": "minio", "image_reference": "ghcr.io/phlohouse/phlo-minio:7aac2a2c5b7c"},
       {"name": "minio-setup", "image_reference": "ghcr.io/phlohouse/phlo-minio-mc:77f82e18b540"},
       {"name": "nessie", "image_reference": "ghcr.io/phlohouse/phlo-nessie:0.108.3-netty4.2.16"},
-      {"name": "trino", "image_reference": "ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5"},
+      {"name": "trino", "image_reference": "trinodb/trino:483@sha256:db58cc93e593a2706553745f276bb119c9810e69918be56ecde088ba7ccb0534"},
       {"name": "phlo-api", "image_reference": "ghcr.io/phlohouse/phlo-api:0.7.0"},
       {"name": "observatory", "image_reference": "ghcr.io/phlohouse/phlo-observatory:0.7.0"}
     ],

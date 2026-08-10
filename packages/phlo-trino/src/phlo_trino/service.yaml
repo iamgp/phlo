@@ -3,11 +3,7 @@ description: Distributed SQL query engine for the data lake
 category: core
 default: true
 
-image: ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5
-
-build:
-  context: ./trino
-  dockerfile: Dockerfile
+image: trinodb/trino:483@sha256:db58cc93e593a2706553745f276bb119c9810e69918be56ecde088ba7ccb0534
 
 depends_on:
   - nessie
@@ -100,8 +96,6 @@ env_vars:
     description: Time-to-live for cached query results
 
 files:
-  - source: Dockerfile
-    dest: trino/Dockerfile
   - source: jvm.config
     dest: trino/jvm.config
   - source: config.properties

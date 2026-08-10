@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import sys
 from pathlib import Path
 
 import yaml
 
+from phlo.plugins.compose.generator import ComposeGenerator
+from phlo.plugins.discovery import ServiceDiscovery
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
+MATRIX_SPEC = importlib.util.spec_from_file_location(
+    "generated_image_matrix", REPO_ROOT / "scripts" / "generated_image_matrix.py"
+)
+assert MATRIX_SPEC and MATRIX_SPEC.loader
+GENERATED_IMAGE_MATRIX = importlib.util.module_from_spec(MATRIX_SPEC)
+sys.modules["generated_image_matrix"] = GENERATED_IMAGE_MATRIX
+MATRIX_SPEC.loader.exec_module(GENERATED_IMAGE_MATRIX)
 
 
 def _published_image(raw_image: str) -> str:
@@ -30,6 +42,39 @@ def test_every_generated_build_uses_a_versioned_ghcr_image() -> None:
         assert image.startswith("ghcr.io/phlohouse/phlo-"), service_file
         assert ":" in image.rsplit("/", 1)[-1], service_file
         assert not image.endswith(":latest"), service_file
+
+
+def test_generated_prometheus_and_trino_use_upstream_images_and_are_not_published(
+    tmp_path: Path, monkeypatch
+) -> None:
+    discovery = ServiceDiscovery()
+    services = [
+        service
+        for name in ("prometheus", "trino", "postgres")
+        if (service := discovery.get_service(name)) is not None
+    ]
+    generated_root = tmp_path / ".phlo"
+    generated_root.mkdir()
+    compose = yaml.safe_load(
+        ComposeGenerator(discovery).generate_compose(services, output_dir=generated_root)
+    )
+
+    assert compose["services"]["prometheus"]["image"] == (
+        "${PROMETHEUS_IMAGE:-prom/prometheus:v3.13.1@"
+        "sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893}"
+    )
+    assert compose["services"]["trino"]["image"] == (
+        "trinodb/trino:483@sha256:db58cc93e593a2706553745f276bb119c9810e69918be56ecde088ba7ccb0534"
+    )
+    assert "build" not in compose["services"]["prometheus"]
+    assert "build" not in compose["services"]["trino"]
+
+    monkeypatch.chdir(generated_root)
+    targets = GENERATED_IMAGE_MATRIX.publication_matrix(compose, tmp_path)["include"]
+    published_services = {target["service"] for target in targets}
+
+    assert "prometheus" not in published_services
+    assert "trino" not in published_services
 
 
 def test_publication_workflow_publishes_attested_images_after_digest_scans() -> None:
