@@ -152,7 +152,10 @@ jobs:
   publish-candidate-comparison:
     name: publish upstream image candidate comparison
     needs: [discover-candidates, compare-candidates]
-    if: always() && needs.discover-candidates.outputs.count != '0'
+    if: >-
+      always() &&
+      needs.discover-candidates.result == 'success' &&
+      fromJSON(needs.discover-candidates.outputs.count) > 0
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
