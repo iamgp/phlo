@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -84,3 +85,111 @@ def test_affected_images_ignores_docs_and_selects_changed_service() -> None:
             "dockerfile": "src/phlo_api/Dockerfile",
         }
     ]
+
+
+def test_affected_images_selects_exact_unique_fleet_for_all_and_broad_changes() -> None:
+    expected = {
+        ("phlo-api", "ghcr.io/phlohouse/phlo-api:0.7.0"),
+        ("dagster", "ghcr.io/phlohouse/phlo-dagster:0.6.0"),
+        ("observatory", "ghcr.io/phlohouse/phlo-observatory:0.7.0"),
+    }
+    all_targets = container_security.affected_images(["pyproject.toml"], REPO_ROOT)["include"]
+    security_targets = container_security.affected_images(
+        ["scripts/container_security.py"], REPO_ROOT
+    )["include"]
+
+    assert {(target["service"], target["image"]) for target in all_targets} == expected
+    assert security_targets == all_targets
+
+
+def test_published_fleet_is_derived_from_source_with_required_shared_mapping() -> None:
+    assert container_security.published_fleet(REPO_ROOT) == [
+        {
+            "image": "ghcr.io/phlohouse/phlo-api:0.7.0",
+            "services": ["phlo-api"],
+        },
+        {
+            "image": "ghcr.io/phlohouse/phlo-dagster:0.6.0",
+            "services": ["dagster", "dagster-daemon"],
+        },
+        {
+            "image": "ghcr.io/phlohouse/phlo-observatory:0.7.0",
+            "services": ["observatory"],
+        },
+    ]
+
+
+def test_rescan_manifest_assembly_sorts_and_validates_complete_fleet() -> None:
+    records = [
+        {
+            "image": "ghcr.io/phlohouse/phlo-observatory:0.7.0",
+            "digest": "sha256:" + "c" * 64,
+            "services": ["observatory"],
+        },
+        {
+            "image": "ghcr.io/phlohouse/phlo-api:0.7.0",
+            "digest": "sha256:" + "a" * 64,
+            "services": ["phlo-api"],
+        },
+        {
+            "image": "ghcr.io/phlohouse/phlo-dagster:0.6.0",
+            "digest": "sha256:" + "b" * 64,
+            "services": ["dagster-daemon", "dagster"],
+        },
+    ]
+
+    manifest = container_security.assemble_rescan_manifest(records, REPO_ROOT)
+
+    assert [entry["image"] for entry in manifest] == sorted(entry["image"] for entry in records)
+    assert manifest[1]["services"] == ["dagster", "dagster-daemon"]
+
+
+def test_rescan_manifest_rejects_incomplete_duplicate_unexpected_and_malformed_records() -> None:
+    valid = [
+        {
+            "image": "ghcr.io/phlohouse/phlo-api:0.7.0",
+            "digest": "sha256:" + "a" * 64,
+            "services": ["phlo-api"],
+        },
+        {
+            "image": "ghcr.io/phlohouse/phlo-dagster:0.6.0",
+            "digest": "sha256:" + "b" * 64,
+            "services": ["dagster", "dagster-daemon"],
+        },
+        {
+            "image": "ghcr.io/phlohouse/phlo-observatory:0.7.0",
+            "digest": "sha256:" + "c" * 64,
+            "services": ["observatory"],
+        },
+    ]
+    invalid_cases = {
+        "missing": valid[:-1],
+        "duplicate": [*valid, valid[0]],
+        "unexpected": [
+            *valid,
+            {
+                "image": "ghcr.io/phlohouse/phlo-extra:1.0.0",
+                "digest": "sha256:" + "d" * 64,
+                "services": ["extra"],
+            },
+        ],
+        "bad digest": [{**valid[0], "digest": "latest"}, *valid[1:]],
+        "wrong Dagster mapping": [
+            valid[0],
+            {**valid[1], "services": ["dagster"]},
+            valid[2],
+        ],
+        "conflicting service": [
+            valid[0],
+            valid[1],
+            {**valid[2], "services": ["phlo-api"]},
+        ],
+        "malformed": [json.loads('{"image": 1}'), *valid[1:]],
+    }
+
+    for label, records in invalid_cases.items():
+        try:
+            container_security.assemble_rescan_manifest(records, REPO_ROOT)
+        except ValueError:
+            continue
+        raise AssertionError(f"{label} records were accepted")

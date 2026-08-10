@@ -6,11 +6,12 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import subprocess
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -29,6 +30,22 @@ REQUIRED_WAIVER_FIELDS = {
     "remediation_issue",
 }
 BLOCKING_SEVERITIES = {"CRITICAL", "HIGH"}
+PUBLISHED_SERVICE_REPOSITORIES = {
+    "phlo-api": "ghcr.io/phlohouse/phlo-api:",
+    "dagster": "ghcr.io/phlohouse/phlo-dagster:",
+    "dagster-daemon": "ghcr.io/phlohouse/phlo-dagster:",
+    "observatory": "ghcr.io/phlohouse/phlo-observatory:",
+}
+BROAD_IMAGE_PATHS = {
+    ".github/workflows/build-core-services.yml",
+    ".github/workflows/container-rescan.yml",
+    ".github/workflows/container-security.yml",
+    "pyproject.toml",
+    "scripts/container_security.py",
+    "scripts/generated_image_matrix.py",
+    "uv.lock",
+}
+DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 def _date(value: Any, field: str) -> dt.date:
@@ -166,9 +183,7 @@ def affected_images(changed: Iterable[str], root: Path) -> dict[str, list[dict[s
     paths = set(changed)
     service_files = sorted((root / "packages").glob("*/src/*/service.yaml"))
     targets: list[dict[str, str]] = []
-    broad_change = any(
-        path in {"pyproject.toml", "uv.lock", "scripts/generated_image_matrix.py"} for path in paths
-    )
+    broad_change = any(path in BROAD_IMAGE_PATHS or path.startswith("security/") for path in paths)
     for service_file in service_files:
         service = yaml.safe_load(service_file.read_text(encoding="utf-8"))
         if not isinstance(service, dict) or not isinstance(service.get("build"), dict):
@@ -199,6 +214,103 @@ def affected_images(changed: Iterable[str], root: Path) -> dict[str, list[dict[s
             }
         )
     return {"include": targets}
+
+
+def published_fleet(root: Path) -> list[dict[str, Any]]:
+    """Derive and validate the complete unique published fleet from service source."""
+    by_service: dict[str, str] = {}
+    for service_file in sorted((root / "packages").glob("*/src/*/*.yaml")):
+        service = yaml.safe_load(service_file.read_text(encoding="utf-8"))
+        if not isinstance(service, dict) or not isinstance(service.get("build"), dict):
+            continue
+        service_name = service.get("name")
+        image = service.get("image")
+        if not isinstance(service_name, str) or not isinstance(image, str):
+            raise ValueError(f"built service in {service_file} has invalid name or image")
+        image = _image_default(image).split("@", 1)[0]
+        if service_name in by_service:
+            raise ValueError(f"duplicate published service {service_name!r}")
+        by_service[service_name] = image
+
+    expected_services = set(PUBLISHED_SERVICE_REPOSITORIES)
+    actual_services = set(by_service)
+    if actual_services != expected_services:
+        missing = sorted(expected_services - actual_services)
+        unexpected = sorted(actual_services - expected_services)
+        raise ValueError(
+            f"published service fleet mismatch; missing={missing!r}, unexpected={unexpected!r}"
+        )
+    for service_name, repository in PUBLISHED_SERVICE_REPOSITORIES.items():
+        if not by_service[service_name].startswith(repository):
+            raise ValueError(
+                f"published service {service_name!r} must use a versioned {repository!r} image"
+            )
+    if by_service["dagster"] != by_service["dagster-daemon"]:
+        raise ValueError("dagster and dagster-daemon must share one published image")
+
+    grouped: dict[str, list[str]] = {}
+    for service_name, image in by_service.items():
+        grouped.setdefault(image, []).append(service_name)
+    if len(grouped) != 3:
+        raise ValueError(
+            f"published fleet must contain exactly three unique images, found {len(grouped)}"
+        )
+    return [
+        {"image": image, "services": sorted(services)}
+        for image, services in sorted(grouped.items())
+    ]
+
+
+def assemble_rescan_manifest(records: Any, root: Path) -> list[dict[str, Any]]:
+    """Validate resolved registry records against source and return a stable manifest."""
+    if not isinstance(records, list):
+        raise ValueError("resolved registry records must be a list")
+    expected = {entry["image"]: entry["services"] for entry in published_fleet(root)}
+    resolved: dict[str, dict[str, Any]] = {}
+    seen_services: set[str] = set()
+    for index, raw_record in enumerate(records, start=1):
+        if not isinstance(raw_record, dict) or set(raw_record) != {"image", "digest", "services"}:
+            raise ValueError(f"resolved registry record {index} is malformed")
+        record = cast(dict[str, Any], raw_record)
+        image = record["image"]
+        digest = record["digest"]
+        services = record["services"]
+        if (
+            not isinstance(image, str)
+            or not isinstance(digest, str)
+            or DIGEST_PATTERN.fullmatch(digest) is None
+            or not isinstance(services, list)
+            or not services
+            or not all(isinstance(service, str) and service for service in services)
+            or len(services) != len(set(services))
+        ):
+            raise ValueError(f"resolved registry record {index} is malformed")
+        if image in resolved:
+            raise ValueError(f"duplicate resolved registry image {image!r}")
+        normalized_services = sorted(services)
+        conflicting = seen_services.intersection(normalized_services)
+        if conflicting:
+            raise ValueError(f"services mapped to multiple images: {sorted(conflicting)!r}")
+        seen_services.update(normalized_services)
+        resolved[image] = {
+            "image": image,
+            "digest": digest,
+            "services": normalized_services,
+        }
+
+    if set(resolved) != set(expected):
+        missing = sorted(set(expected) - set(resolved))
+        unexpected = sorted(set(resolved) - set(expected))
+        raise ValueError(
+            f"resolved image fleet mismatch; missing={missing!r}, unexpected={unexpected!r}"
+        )
+    for image, services in expected.items():
+        if resolved[image]["services"] != services:
+            raise ValueError(
+                f"resolved image {image!r} has services {resolved[image]['services']!r}; "
+                f"expected {services!r}"
+            )
+    return [resolved[image] for image in sorted(resolved)]
 
 
 def _waived(waivers: list[dict[str, Any]], image: str, vulnerability_id: str) -> bool:
@@ -251,11 +363,28 @@ def main() -> int:
         help="Return every generated service image for the nightly validation lane.",
     )
     affected.add_argument("--head", default="HEAD")
+    fleet = sub.add_parser("published-fleet")
+    fleet.add_argument("--root", type=Path, default=Path.cwd())
+    assemble = sub.add_parser("assemble-rescan-manifest")
+    assemble.add_argument("--records", type=Path, required=True)
+    assemble.add_argument("--output", type=Path, required=True)
+    assemble.add_argument("--root", type=Path, default=Path.cwd())
     policy = sub.add_parser("apply-policy")
     policy.add_argument("--register", type=Path, default=Path("security/container-waivers.yml"))
     policy.add_argument("--image", required=True)
     policy.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
+    if args.command == "published-fleet":
+        print(json.dumps(published_fleet(args.root), separators=(",", ":")))
+        return 0
+    if args.command == "assemble-rescan-manifest":
+        manifest = assemble_rescan_manifest(
+            json.loads(args.records.read_text(encoding="utf-8")), args.root
+        )
+        args.output.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        return 0
     if args.command == "affected-images":
         if args.all:
             changed = ["pyproject.toml"]

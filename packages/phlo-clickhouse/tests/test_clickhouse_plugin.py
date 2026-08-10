@@ -19,14 +19,18 @@ def test_clickhouse_service_definition():
     assert "clickhouse-logs:/var/log/clickhouse-server" in service_definition["compose"]["volumes"]
 
 
-def test_clickhouse_service_pins_generated_image_version() -> None:
-    """The generated environment must not replace the pinned image tag with latest."""
+def test_clickhouse_service_pins_generated_image_digest() -> None:
+    """The generated environment defaults to an immutable image reference."""
     service_definition = ClickHouseServicePlugin().service_definition
 
     assert service_definition["image"] == (
-        "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.5.6.64-alpine}"
+        "${CLICKHOUSE_IMAGE:-clickhouse/clickhouse-server:26.5.6.64-alpine@"
+        "sha256:446c9d82443b926a5aacb952448dd632672606acc691ce1b3c2292b68a1197c2}"
     )
-    assert service_definition["env_vars"]["CLICKHOUSE_VERSION"]["default"] == ("26.5.6.64-alpine")
+    assert service_definition["env_vars"]["CLICKHOUSE_IMAGE"]["default"] == (
+        "clickhouse/clickhouse-server:26.5.6.64-alpine@"
+        "sha256:446c9d82443b926a5aacb952448dd632672606acc691ce1b3c2292b68a1197c2"
+    )
 
 
 def test_clickhouse_service_metadata():
