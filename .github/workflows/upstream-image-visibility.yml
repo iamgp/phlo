@@ -1,0 +1,71 @@
+name: Upstream Image Visibility
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs after the blocking first-party rescan (04:25 UTC). Scanning 24 large
+    # vendor images sequentially is intentionally thorough and may approach an hour.
+    - cron: "20 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: scan vendor runtime images
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+          enable-cache: true
+
+      - name: Derive immutable upstream inventory
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            write-upstream-inventory \
+            --output upstream-inventory.json
+          mkdir -p upstream-reports upstream-trivy-cache
+
+      - name: Scan every upstream runtime image
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r reference report; do
+            echo "Scanning $reference"
+            docker run --rm \
+              -v "$PWD:/work" \
+              -v "$PWD/upstream-trivy-cache:/cache" \
+              -w /work \
+              aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+              image --cache-dir /cache --timeout 10m --scanners vuln --format json \
+              --output "/work/upstream-reports/$report" "$reference" < /dev/null
+          done < <(jq -r '.images[] | [.reference, .report] | @tsv' upstream-inventory.json)
+
+      - name: Validate reports and publish summary
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            summarize-upstream-reports \
+            --inventory upstream-inventory.json \
+            --reports upstream-reports \
+            --output upstream-summary.md
+          cat upstream-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload inventory, summary, and raw reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: upstream-image-visibility
+          path: |
+            upstream-inventory.json
+            upstream-summary.md
+            upstream-reports/*.json
+          if-no-files-found: error
+          retention-days: 30

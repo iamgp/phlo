@@ -5,6 +5,20 @@
   "prHourlyLimit": 2,
   "prConcurrentLimit": 4,
   "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update immutable package runtime image defaults.",
+      "managerFilePatterns": ["^packages/[^/]+/src/[^/]+/.+\\.ya?ml$"],
+      "matchStrings": [
+        "(?m)^(?<indent>[ \\t]*)image:(?<spacing>[ \\t]+)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})[ \\t]*$",
+        "(?m)^(?<indent>[ \\t]*)image:(?<spacing>[ \\t]+)(?<wrapperPrefix>\\$\\{(?<envName>[A-Z][A-Z0-9_]*)\\:-)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})(?<wrapperSuffix>\\})[ \\t]*$"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker",
+      "autoReplaceStringTemplate": "{{{indent}}}image:{{{spacing}}}{{{wrapperPrefix}}}{{{depName}}}:{{{newValue}}}@{{{newDigest}}}{{{wrapperSuffix}}}"
+    }
+  ],
   "vulnerabilityAlerts": {
     "enabled": true,
     "addLabels": ["security"],
@@ -13,6 +27,18 @@
     "vulnerabilityFixStrategy": "lowest"
   },
   "packageRules": [
+    {
+      "description": "Keep upstream runtime image digest updates review-required.",
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["docker"],
+      "automerge": false
+    },
+    {
+      "description": "Do not update Phlo-owned published images as upstream dependencies.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["ghcr.io/phlohouse/phlo-*"],
+      "enabled": false
+    },
     {
       "description": "Group GitHub Actions updates.",
       "matchManagers": ["github-actions"],

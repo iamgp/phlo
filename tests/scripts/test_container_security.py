@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
+
+import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
@@ -193,3 +198,134 @@ def test_rescan_manifest_rejects_incomplete_duplicate_unexpected_and_malformed_r
         except ValueError:
             continue
         raise AssertionError(f"{label} records were accepted")
+
+
+def test_upstream_runtime_inventory_is_complete_deduplicated_and_provenanced() -> None:
+    inventory = container_security.upstream_runtime_inventory(REPO_ROOT)
+    root_image_documents = []
+    for path in sorted((REPO_ROOT / "packages").glob("*/src/**/*.yaml")):
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(document, dict) and "image" in document:
+            root_image_documents.append(document)
+
+    assert inventory["version"] == 1
+    assert len(root_image_documents) == 31
+    assert sum(isinstance(document.get("build"), dict) for document in root_image_documents) == 4
+    assert len(inventory["images"]) == 24
+    assert sum(len(image["sources"]) for image in inventory["images"]) == 27
+    assert inventory["images"] == sorted(inventory["images"], key=lambda item: item["reference"])
+    for image in inventory["images"]:
+        assert re.fullmatch(r".+:[^@]+@sha256:[0-9a-f]{64}", image["reference"])
+        assert not image["reference"].startswith("ghcr.io/phlohouse/phlo-")
+        assert re.fullmatch(r"[0-9a-f]{64}\.json", image["report"])
+        assert image["sources"] == sorted(
+            image["sources"], key=lambda source: (source["path"], source["service"])
+        )
+
+    clickhouse = next(
+        image for image in inventory["images"] if image["reference"].startswith("clickhouse/")
+    )
+    assert len(clickhouse["sources"]) == 2
+    assert {source["env"] for source in clickhouse["sources"]} == {"CLICKHOUSE_IMAGE"}
+
+
+@pytest.mark.parametrize(
+    "image,build,error",
+    [
+        ("alpine:3.24", None, "immutable tag and digest"),
+        ("alpine@sha256:" + "a" * 64, None, "immutable tag and digest"),
+        ("alpine:3.24@sha256:ABC", None, "immutable tag and digest"),
+        ("${IMAGE-alpine:3.24@sha256:" + "a" * 64 + "}", None, "environment default"),
+        (123, None, "image must be a string"),
+        ("alpine:3.24", {"context": "."}, ""),
+    ],
+)
+def test_upstream_runtime_inventory_rejects_malformed_runtime_images(
+    tmp_path: Path, image: object, build: object, error: str
+) -> None:
+    service_dir = tmp_path / "packages/example/src/example"
+    service_dir.mkdir(parents=True)
+    document: dict[str, object] = {"name": "example", "image": image}
+    if build is not None:
+        document["build"] = build
+    (service_dir / "service.yaml").write_text(yaml.safe_dump(document), encoding="utf-8")
+
+    if build is not None:
+        assert container_security.upstream_runtime_inventory(tmp_path) == {
+            "version": 1,
+            "images": [],
+        }
+    else:
+        with pytest.raises(ValueError, match=error):
+            container_security.upstream_runtime_inventory(tmp_path)
+
+
+def _trivy_report(*findings: dict[str, object]) -> dict[str, object]:
+    return {"SchemaVersion": 2, "Results": [{"Target": "fixture", "Vulnerabilities": findings}]}
+
+
+def test_upstream_report_summary_counts_findings_without_blocking_on_severity(
+    tmp_path: Path,
+) -> None:
+    reference = "alpine:3.24@sha256:" + "a" * 64
+    report_name = hashlib.sha256(reference.encode()).hexdigest() + ".json"
+    inventory = {
+        "version": 1,
+        "images": [
+            {
+                "reference": reference,
+                "report": report_name,
+                "sources": [{"path": "packages/a/src/a/service.yaml", "service": "a"}],
+            }
+        ],
+    }
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    (reports / report_name).write_text(
+        json.dumps(
+            _trivy_report(
+                {"VulnerabilityID": "CVE-1", "Severity": "CRITICAL", "FixedVersion": "2"},
+                {"VulnerabilityID": "CVE-2", "Severity": "HIGH", "FixedVersion": ""},
+                {"VulnerabilityID": "CVE-3", "Severity": "LOW", "FixedVersion": "3"},
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    summary = container_security.summarize_upstream_reports(inventory, reports)
+
+    assert "non-blocking visibility" in summary.lower()
+    assert "| CRITICAL | 1 | 1 | 0 |" in summary
+    assert "| HIGH | 1 | 0 | 1 |" in summary
+    assert "| LOW | 1 | 1 | 0 |" in summary
+    assert "packages/a/src/a/service.yaml (a)" in summary
+
+
+@pytest.mark.parametrize("failure", ["missing", "unexpected", "malformed"])
+def test_upstream_report_summary_rejects_incomplete_or_invalid_report_sets(
+    tmp_path: Path, failure: str
+) -> None:
+    reference = "alpine:3.24@sha256:" + "a" * 64
+    report_name = hashlib.sha256(reference.encode()).hexdigest() + ".json"
+    inventory = {
+        "version": 1,
+        "images": [
+            {
+                "reference": reference,
+                "report": report_name,
+                "sources": [{"path": "packages/a/src/a/service.yaml", "service": "a"}],
+            }
+        ],
+    }
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    if failure != "missing":
+        (reports / report_name).write_text(
+            "not json" if failure == "malformed" else json.dumps(_trivy_report()),
+            encoding="utf-8",
+        )
+    if failure == "unexpected":
+        (reports / ("b" * 64 + ".json")).write_text(json.dumps(_trivy_report()), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=failure):
+        container_security.summarize_upstream_reports(inventory, reports)

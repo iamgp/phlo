@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Validate container vulnerability waivers and apply Phlo's scan policy."""
+"""Derive container inventories, validate reports, and apply Phlo scan policy."""
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import re
 import subprocess
@@ -46,6 +47,12 @@ BROAD_IMAGE_PATHS = {
     "uv.lock",
 }
 DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+IMMUTABLE_IMAGE_PATTERN = re.compile(
+    r"(?P<repository>[a-z0-9][a-z0-9._/-]*(?::[0-9]+)?):"
+    r"(?P<tag>[^:@\s{}]+)@(?P<digest>sha256:[0-9a-f]{64})"
+)
+ENV_IMAGE_PATTERN = re.compile(r"\$\{(?P<env>[A-Z][A-Z0-9_]*)\:-(?P<reference>[^{}]+)\}")
+UPSTREAM_SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")
 
 
 def _date(value: Any, field: str) -> dt.date:
@@ -313,6 +320,203 @@ def assemble_rescan_manifest(records: Any, root: Path) -> list[dict[str, Any]]:
     return [resolved[image] for image in sorted(resolved)]
 
 
+def _upstream_image_default(value: str, path: Path) -> tuple[str, str | None]:
+    """Strictly unwrap one shell-style environment default."""
+    if value.startswith("${"):
+        match = ENV_IMAGE_PATTERN.fullmatch(value)
+        if match is None:
+            raise ValueError(f"{path}: image has malformed environment default")
+        return match.group("reference"), match.group("env")
+    return value, None
+
+
+def upstream_runtime_inventory(root: Path) -> dict[str, Any]:
+    """Derive immutable vendor runtime images and their package-source provenance."""
+    by_reference: dict[str, list[dict[str, str]]] = {}
+    for service_file in sorted((root / "packages").glob("*/src/**/*.yaml")):
+        try:
+            document = yaml.safe_load(service_file.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as exc:
+            raise ValueError(f"cannot parse package service {service_file}: {exc}") from exc
+        if not isinstance(document, dict) or "image" not in document:
+            continue
+        if isinstance(document.get("build"), dict):
+            continue
+        image = document["image"]
+        if not isinstance(image, str):
+            raise ValueError(f"{service_file}: runtime image must be a string")
+        reference, env = _upstream_image_default(image, service_file)
+        if reference.startswith("ghcr.io/phlohouse/phlo-"):
+            continue
+        if IMMUTABLE_IMAGE_PATTERN.fullmatch(reference) is None:
+            raise ValueError(
+                f"{service_file}: vendor runtime image must contain an immutable tag and digest"
+            )
+        service = document.get("name")
+        if not isinstance(service, str) or not service:
+            raise ValueError(f"{service_file}: vendor runtime service must have a name")
+        source = {
+            "path": service_file.relative_to(root).as_posix(),
+            "service": service,
+        }
+        if env is not None:
+            source["env"] = env
+        by_reference.setdefault(reference, []).append(source)
+
+    images = []
+    for reference, sources in sorted(by_reference.items()):
+        images.append(
+            {
+                "reference": reference,
+                "report": hashlib.sha256(reference.encode()).hexdigest() + ".json",
+                "sources": sorted(
+                    sources,
+                    key=lambda source: (source["path"], source["service"]),
+                ),
+            }
+        )
+    return {"version": 1, "images": images}
+
+
+def _validate_upstream_inventory(inventory: Any) -> list[dict[str, Any]]:
+    if not isinstance(inventory, dict) or set(inventory) != {"version", "images"}:
+        raise ValueError("upstream inventory is malformed")
+    if inventory["version"] != 1 or not isinstance(inventory["images"], list):
+        raise ValueError("upstream inventory is malformed")
+    images: list[dict[str, Any]] = []
+    references: set[str] = set()
+    reports: set[str] = set()
+    for index, raw_image in enumerate(inventory["images"], start=1):
+        if not isinstance(raw_image, dict) or set(raw_image) != {
+            "reference",
+            "report",
+            "sources",
+        }:
+            raise ValueError(f"upstream inventory image {index} is malformed")
+        image = cast(dict[str, Any], raw_image)
+        reference = image["reference"]
+        report = image["report"]
+        sources = image["sources"]
+        if (
+            not isinstance(reference, str)
+            or IMMUTABLE_IMAGE_PATTERN.fullmatch(reference) is None
+            or reference.startswith("ghcr.io/phlohouse/phlo-")
+            or not isinstance(report, str)
+            or re.fullmatch(r"[0-9a-f]{64}\.json", report) is None
+            or report != hashlib.sha256(reference.encode()).hexdigest() + ".json"
+            or not isinstance(sources, list)
+            or not sources
+        ):
+            raise ValueError(f"upstream inventory image {index} is malformed")
+        if reference in references or report in reports:
+            raise ValueError(f"upstream inventory image {index} is duplicate")
+        references.add(reference)
+        reports.add(report)
+        for source in sources:
+            if (
+                not isinstance(source, dict)
+                or not set(source).issubset({"path", "service", "env"})
+                or not {"path", "service"}.issubset(source)
+                or not all(isinstance(value, str) and value for value in source.values())
+            ):
+                raise ValueError(f"upstream inventory image {index} source is malformed")
+        images.append(image)
+    if images != sorted(images, key=lambda image: image["reference"]):
+        raise ValueError("upstream inventory images are not sorted")
+    return images
+
+
+def _report_findings(report: Any, report_name: str) -> list[dict[str, Any]]:
+    if not isinstance(report, dict) or not isinstance(report.get("SchemaVersion"), int):
+        raise ValueError(f"malformed Trivy report {report_name}")
+    results = report.get("Results") or []
+    if not isinstance(results, list):
+        raise ValueError(f"malformed Trivy report {report_name}")
+    findings: list[dict[str, Any]] = []
+    for result in results:
+        if not isinstance(result, dict):
+            raise ValueError(f"malformed Trivy report {report_name}")
+        vulnerabilities = result.get("Vulnerabilities") or []
+        if not isinstance(vulnerabilities, list):
+            raise ValueError(f"malformed Trivy report {report_name}")
+        for finding in vulnerabilities:
+            if (
+                not isinstance(finding, dict)
+                or not isinstance(finding.get("VulnerabilityID"), str)
+                or str(finding.get("Severity", "")).upper() not in UPSTREAM_SEVERITIES
+                or not isinstance(finding.get("FixedVersion", ""), str)
+            ):
+                raise ValueError(f"malformed Trivy report {report_name}")
+            findings.append(finding)
+    return findings
+
+
+def summarize_upstream_reports(inventory: Any, reports_dir: Path) -> str:
+    """Validate a complete Trivy report set and render non-blocking visibility."""
+    images = _validate_upstream_inventory(inventory)
+    expected = {image["report"] for image in images}
+    actual = {path.name for path in reports_dir.iterdir() if path.is_file()}
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing:
+        raise ValueError(f"missing upstream Trivy reports: {missing!r}")
+    if unexpected:
+        raise ValueError(f"unexpected upstream Trivy reports: {unexpected!r}")
+
+    aggregate = {severity: {"total": 0, "fixable": 0} for severity in UPSTREAM_SEVERITIES}
+    per_image: list[tuple[dict[str, Any], dict[str, dict[str, int]]]] = []
+    for image in images:
+        report_path = reports_dir / image["report"]
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"malformed Trivy report {image['report']}: {exc}") from exc
+        counts = {severity: {"total": 0, "fixable": 0} for severity in UPSTREAM_SEVERITIES}
+        for finding in _report_findings(report, image["report"]):
+            severity = str(finding["Severity"]).upper()
+            counts[severity]["total"] += 1
+            aggregate[severity]["total"] += 1
+            if finding.get("FixedVersion"):
+                counts[severity]["fixable"] += 1
+                aggregate[severity]["fixable"] += 1
+        per_image.append((image, counts))
+
+    lines = [
+        "# Upstream runtime image vulnerability visibility",
+        "",
+        "> Generated non-blocking visibility. Findings do not apply Phlo's first-party",
+        "> waiver policy and do not fail this workflow; malformed or incomplete scans do.",
+        "",
+        "## Aggregate findings",
+        "",
+        "| Severity | Total | Fixable | Unfixed |",
+        "|---|---:|---:|---:|",
+    ]
+    for severity in UPSTREAM_SEVERITIES:
+        counts = aggregate[severity]
+        lines.append(
+            f"| {severity} | {counts['total']} | {counts['fixable']} | "
+            f"{counts['total'] - counts['fixable']} |"
+        )
+    lines.extend(("", "## Inventory and per-image findings", ""))
+    for image, counts in per_image:
+        lines.extend((f"### `{image['reference']}`", "", "Sources:"))
+        for source in image["sources"]:
+            provenance = f"{source['path']} ({source['service']})"
+            if source.get("env"):
+                provenance += f" via ${{{source['env']}}}"
+            lines.append(f"- `{provenance}`")
+        lines.extend(("", "| Severity | Total | Fixable | Unfixed |", "|---|---:|---:|---:|"))
+        for severity in UPSTREAM_SEVERITIES:
+            severity_counts = counts[severity]
+            lines.append(
+                f"| {severity} | {severity_counts['total']} | {severity_counts['fixable']} | "
+                f"{severity_counts['total'] - severity_counts['fixable']} |"
+            )
+        lines.append("")
+    return "\n".join(lines)
+
+
 def _waived(waivers: list[dict[str, Any]], image: str, vulnerability_id: str) -> bool:
     image_name = image.split("@", 1)[0]
     for waiver in waivers:
@@ -369,6 +573,15 @@ def main() -> int:
     assemble.add_argument("--records", type=Path, required=True)
     assemble.add_argument("--output", type=Path, required=True)
     assemble.add_argument("--root", type=Path, default=Path.cwd())
+    upstream = sub.add_parser("upstream-runtime-images")
+    upstream.add_argument("--root", type=Path, default=Path.cwd())
+    write_upstream = sub.add_parser("write-upstream-inventory")
+    write_upstream.add_argument("--root", type=Path, default=Path.cwd())
+    write_upstream.add_argument("--output", type=Path, required=True)
+    summarize_upstream = sub.add_parser("summarize-upstream-reports")
+    summarize_upstream.add_argument("--inventory", type=Path, required=True)
+    summarize_upstream.add_argument("--reports", type=Path, required=True)
+    summarize_upstream.add_argument("--output", type=Path, required=True)
     policy = sub.add_parser("apply-policy")
     policy.add_argument("--register", type=Path, default=Path("security/container-waivers.yml"))
     policy.add_argument("--image", required=True)
@@ -384,6 +597,20 @@ def main() -> int:
         args.output.write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+        return 0
+    if args.command in {"upstream-runtime-images", "write-upstream-inventory"}:
+        inventory = upstream_runtime_inventory(args.root)
+        rendered = json.dumps(inventory, indent=2, sort_keys=True) + "\n"
+        if args.command == "upstream-runtime-images":
+            print(rendered, end="")
+        else:
+            args.output.write_text(rendered, encoding="utf-8")
+        return 0
+    if args.command == "summarize-upstream-reports":
+        summary = summarize_upstream_reports(
+            json.loads(args.inventory.read_text(encoding="utf-8")), args.reports
+        )
+        args.output.write_text(summary, encoding="utf-8")
         return 0
     if args.command == "affected-images":
         if args.all:

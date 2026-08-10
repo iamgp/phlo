@@ -23,11 +23,33 @@ This repository has no safely configured issue token or issue-routing
 convention, so nightly failures are intentionally surfaced through workflow
 summaries and retained artifacts rather than creating issues automatically.
 
+Vendor runtime images have a separate, non-blocking visibility lane. The
+scheduled **Upstream Image Visibility** workflow derives every unique vendor
+image from root `image` fields under `packages/*/src/**/*.yaml`, requires an
+immutable tag and digest, and scans the exact references sequentially. HIGH and
+CRITICAL findings are reported rather than waived or treated as Phlo build
+failures: upstream vendors own those images. Inventory mistakes, registry or
+scanner failures, missing reports, and malformed results still fail the run so
+a green run means the visibility report is complete.
+
+The workflow summary shows aggregate and per-image severity and fixability,
+along with every package-source location and environment override. Its retained
+artifact contains the deterministic inventory, rendered Markdown summary, and
+raw Trivy JSON. Maintainers can run it on demand from **Actions > Upstream Image
+Visibility > Run workflow**. It scans 24 current images sequentially with a
+shared cache, so a complete run is intentionally relatively expensive and may
+take close to an hour.
+
 ## Base-image refresh
 
-Renovate is configured for dependency updates. Review digest updates as normal
-pull requests, including the container security workflow. For an upstream that
-Renovate cannot update, a maintainer should resolve the upstream digest, update
-the relevant `FROM` line in a branch, run `python scripts/container_security.py
-affected-images --base main --head HEAD`, and open a pull request. Do not update
-base images directly on the default branch.
+Renovate's Docker regex manager discovers immutable vendor runtime defaults in
+package source YAML, including strict `${NAME:-image}` defaults. It updates the
+tag and digest together and opens review-required pull requests; automerge is
+disabled. Phlo-owned `ghcr.io/phlohouse/phlo-*` images are explicitly disabled
+for this manager because the first-party publication pipeline owns them.
+
+Review each update as a normal dependency pull request and check the container
+security contracts. For an upstream that Renovate cannot update, resolve the
+new tag and digest in a branch, run `python scripts/container_security.py
+upstream-runtime-images`, and open a pull request. Never update image defaults
+directly on the default branch.
