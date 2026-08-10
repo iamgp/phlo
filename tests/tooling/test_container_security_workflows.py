@@ -82,5 +82,6 @@ def test_renovate_config_validation_uses_pinned_node_and_renovate() -> None:
     assert '"renovate.json"' in workflow
     assert "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238" in workflow
     assert "npm install --global renovate@44.20.1" in workflow
-    assert "renovate-config-validator --no-global renovate.json" in workflow
+    assert "renovate-config-validator renovate.json" in workflow
+    assert "--no-global" not in workflow
     assert "contents: read" in workflow

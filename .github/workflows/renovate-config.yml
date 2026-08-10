@@ -32,4 +32,4 @@ jobs:
         # independently checked; this repository does not ship a Node tool lockfile.
         run: |
           npm install --global renovate@44.20.1
-          renovate-config-validator --no-global renovate.json
+          renovate-config-validator renovate.json
