@@ -5,6 +5,17 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _publisher_should_run(discovery_result: str, count: str) -> bool:
+    return discovery_result == "success" and count.isdecimal() and int(count) > 0
+
+
+def test_candidate_comment_publisher_requires_successful_nonempty_discovery() -> None:
+    assert not _publisher_should_run("skipped", "")
+    assert not _publisher_should_run("success", "")
+    assert not _publisher_should_run("success", "0")
+    assert _publisher_should_run("success", "1")
+
+
 def test_container_workflows_run_validation_nightly_with_pinned_tools_and_digest_rescans() -> None:
     validation = (REPO_ROOT / ".github/workflows/container-security.yml").read_text()
     nightly = (REPO_ROOT / ".github/workflows/container-rescan.yml").read_text()
@@ -73,6 +84,49 @@ def test_upstream_visibility_is_scheduled_manual_non_blocking_and_strictly_repor
         assert contract in workflow
     for forbidden in ("apply-policy", "container-waivers", "continue-on-error", "--exit-code 1"):
         assert forbidden not in workflow
+
+
+def test_renovate_image_prs_compare_exact_changed_base_and_candidate_refs() -> None:
+    workflow = (REPO_ROOT / ".github/workflows/upstream-image-visibility.yml").read_text()
+
+    for contract in (
+        "pull_request:",
+        "types: [opened, reopened, synchronize, labeled]",
+        "discover-candidates",
+        "compare-candidates",
+        "github.event.pull_request.user.type == 'Bot'",
+        "startsWith(github.head_ref, 'renovate/')",
+        "contains(github.event.pull_request.labels.*.name, 'dependencies')",
+        "github.event.pull_request.base.sha",
+        "github.event.pull_request.head.sha",
+        "write-upstream-candidates",
+        "--download-db-only",
+        "--skip-db-update",
+        "compare-upstream-candidates",
+        "base-reports/*.json",
+        "candidate-reports/*.json",
+    ):
+        assert contract in workflow
+    for publisher_contract in (
+        "publish-candidate-comparison",
+        "needs: [discover-candidates, compare-candidates]",
+        "needs.discover-candidates.result == 'success'",
+        "fromJSON(needs.discover-candidates.outputs.count) > 0",
+        "actions: read",
+        "pull-requests: write",
+        "actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131",
+        "name: upstream-image-candidate-comparison",
+        "<!-- phlo-upstream-image-candidate-comparison -->",
+        "gh api --paginate",
+        "--method PATCH",
+        "--method POST",
+        "--method DELETE",
+        "--input comment-payload.json",
+    ):
+        assert publisher_contract in workflow
+    publisher = workflow.split("  publish-candidate-comparison:", 1)[1].split("\n  scan:", 1)[0]
+    assert "permissions:\n      actions: read\n      pull-requests: write" in publisher
+    assert "actions/checkout" not in publisher
 
 
 def test_renovate_config_validation_uses_pinned_node_and_renovate() -> None:

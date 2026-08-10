@@ -378,6 +378,97 @@ def upstream_runtime_inventory(root: Path) -> dict[str, Any]:
     return {"version": 1, "images": images}
 
 
+def _runtime_reference_from_document(document: Any, path: str) -> tuple[str, dict[str, str]] | None:
+    if (
+        not isinstance(document, dict)
+        or "image" not in document
+        or isinstance(document.get("build"), dict)
+    ):
+        return None
+    image = document["image"]
+    if not isinstance(image, str):
+        raise ValueError(f"{path}: runtime image must be a string")
+    reference, env = _upstream_image_default(image, Path(path))
+    if reference.startswith("ghcr.io/phlohouse/phlo-"):
+        return None
+    if IMMUTABLE_IMAGE_PATTERN.fullmatch(reference) is None:
+        raise ValueError(f"{path}: vendor runtime image must contain an immutable tag and digest")
+    service = document.get("name")
+    if not isinstance(service, str) or not service:
+        raise ValueError(f"{path}: vendor runtime service must have a name")
+    source = {"path": path, "service": service}
+    if env is not None:
+        source["env"] = env
+    return reference, source
+
+
+def _git_yaml(revision: str, path: str) -> Any:
+    try:
+        contents = subprocess.check_output(["git", "show", f"{revision}:{path}"], text=True)
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"{path}: missing from {revision}") from exc
+    try:
+        return yaml.safe_load(contents)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"cannot parse package service {path} at {revision}: {exc}") from exc
+
+
+def _immutable_repository(reference: str) -> str:
+    match = IMMUTABLE_IMAGE_PATTERN.fullmatch(reference)
+    if match is None:
+        raise ValueError(f"invalid immutable image reference {reference!r}")
+    return match.group("repository")
+
+
+def upstream_runtime_candidates(base: str, head: str) -> dict[str, Any]:
+    """Derive changed immutable vendor image pairs from exact Git source revisions."""
+    try:
+        changed = subprocess.check_output(
+            ["git", "diff", "--name-only", f"{base}...{head}", "--", "packages"], text=True
+        ).splitlines()
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"cannot compare upstream runtime images: {exc}") from exc
+    grouped: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for path in sorted(
+        path for path in changed if re.fullmatch(r"packages/[^/]+/src/.+\.ya?ml", path)
+    ):
+        base_image = _runtime_reference_from_document(_git_yaml(base, path), path)
+        candidate_image = _runtime_reference_from_document(_git_yaml(head, path), path)
+        if base_image is None and candidate_image is None:
+            continue
+        if base_image is None or candidate_image is None:
+            raise ValueError(
+                f"{path}: upstream runtime image must exist in both base and candidate"
+            )
+        base_reference, _ = base_image
+        candidate_reference, source = candidate_image
+        if base_reference == candidate_reference:
+            continue
+        base_repository = _immutable_repository(base_reference)
+        candidate_repository = _immutable_repository(candidate_reference)
+        if base_repository != candidate_repository:
+            raise ValueError(
+                f"{path}: candidate must retain upstream repository {base_repository}; "
+                f"got {candidate_repository}"
+            )
+        grouped.setdefault((base_reference, candidate_reference), []).append(source)
+    images = []
+    for (base_reference, candidate_reference), sources in sorted(grouped.items()):
+        if len({(source["path"], source["service"]) for source in sources}) != len(sources):
+            raise ValueError(f"duplicate upstream runtime source for {candidate_reference}")
+        images.append(
+            {
+                "base": base_reference,
+                "candidate": candidate_reference,
+                "base_report": hashlib.sha256(base_reference.encode()).hexdigest() + ".json",
+                "candidate_report": hashlib.sha256(candidate_reference.encode()).hexdigest()
+                + ".json",
+                "sources": sorted(sources, key=lambda source: (source["path"], source["service"])),
+            }
+        )
+    return {"version": 1, "images": images}
+
+
 def _validate_upstream_inventory(inventory: Any) -> list[dict[str, Any]]:
     if not isinstance(inventory, dict) or set(inventory) != {"version", "images"}:
         raise ValueError("upstream inventory is malformed")
@@ -517,6 +608,150 @@ def summarize_upstream_reports(inventory: Any, reports_dir: Path) -> str:
     return "\n".join(lines)
 
 
+def _validate_candidate_manifest(manifest: Any) -> list[dict[str, Any]]:
+    if not isinstance(manifest, dict) or set(manifest) != {"version", "images"}:
+        raise ValueError("upstream candidate manifest is malformed")
+    if manifest["version"] != 1 or not isinstance(manifest["images"], list):
+        raise ValueError("upstream candidate manifest is malformed")
+    images: list[dict[str, Any]] = []
+    pairs: set[tuple[str, str]] = set()
+    reports: set[str] = set()
+    for index, raw_image in enumerate(manifest["images"], start=1):
+        required = {"base", "candidate", "base_report", "candidate_report", "sources"}
+        if not isinstance(raw_image, dict) or set(raw_image) != required:
+            raise ValueError(f"upstream candidate image {index} is malformed")
+        image = cast(dict[str, Any], raw_image)
+        base, candidate = image["base"], image["candidate"]
+        base_report, candidate_report = image["base_report"], image["candidate_report"]
+        sources = image["sources"]
+        if (
+            not isinstance(base, str)
+            or not isinstance(candidate, str)
+            or base == candidate
+            or IMMUTABLE_IMAGE_PATTERN.fullmatch(base) is None
+            or IMMUTABLE_IMAGE_PATTERN.fullmatch(candidate) is None
+            or not isinstance(base_report, str)
+            or not isinstance(candidate_report, str)
+            or base_report != hashlib.sha256(base.encode()).hexdigest() + ".json"
+            or candidate_report != hashlib.sha256(candidate.encode()).hexdigest() + ".json"
+            or not isinstance(sources, list)
+            or not sources
+        ):
+            raise ValueError(f"upstream candidate image {index} is malformed")
+        if (base, candidate) in pairs or base_report in reports or candidate_report in reports:
+            raise ValueError(f"upstream candidate image {index} is duplicate")
+        pairs.add((base, candidate))
+        reports.update((base_report, candidate_report))
+        for source in sources:
+            if (
+                not isinstance(source, dict)
+                or not set(source).issubset({"path", "service", "env"})
+                or not {"path", "service"}.issubset(source)
+                or not all(isinstance(value, str) and value for value in source.values())
+            ):
+                raise ValueError(f"upstream candidate image {index} source is malformed")
+        if sources != sorted(sources, key=lambda source: (source["path"], source["service"])):
+            raise ValueError(f"upstream candidate image {index} sources are not sorted")
+        images.append(image)
+    if images != sorted(images, key=lambda image: (image["base"], image["candidate"])):
+        raise ValueError("upstream candidate images are not sorted")
+    return images
+
+
+def _read_expected_reports(
+    reports_dir: Path, expected: set[str]
+) -> dict[str, list[dict[str, Any]]]:
+    actual = {path.name for path in reports_dir.iterdir() if path.is_file()}
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing:
+        raise ValueError(f"missing upstream Trivy reports: {missing!r}")
+    if unexpected:
+        raise ValueError(f"unexpected upstream Trivy reports: {unexpected!r}")
+    parsed: dict[str, list[dict[str, Any]]] = {}
+    for report_name in expected:
+        try:
+            report = json.loads((reports_dir / report_name).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"malformed Trivy report {report_name}: {exc}") from exc
+        parsed[report_name] = _report_findings(report, report_name)
+    return parsed
+
+
+def compare_upstream_candidate_reports(
+    manifest: Any, base_reports_dir: Path, candidate_reports_dir: Path
+) -> tuple[str, list[str]]:
+    """Render an exact upstream-image comparison and return gate failures."""
+    images = _validate_candidate_manifest(manifest)
+    base_reports = _read_expected_reports(
+        base_reports_dir, {image["base_report"] for image in images}
+    )
+    candidate_reports = _read_expected_reports(
+        candidate_reports_dir, {image["candidate_report"] for image in images}
+    )
+    lines = [
+        "# Upstream runtime image candidate security comparison",
+        "",
+        "A candidate passes only when Critical and High raw occurrence counts do not increase,",
+        "and at least one decreases. Malformed or incomplete reports fail closed.",
+        "",
+    ]
+    errors: list[str] = []
+    for image in images:
+        base_findings = base_reports[image["base_report"]]
+        candidate_findings = candidate_reports[image["candidate_report"]]
+        lines.extend((f"## `{image['candidate']}`", "", f"Base: `{image['base']}`", "", "Sources:"))
+        for source in image["sources"]:
+            provenance = f"{source['path']} ({source['service']})"
+            if source.get("env"):
+                provenance += f" via ${{{source['env']}}}"
+            lines.append(f"- `{provenance}`")
+        lines.extend(
+            (
+                "",
+                "| Severity | Base occurrences | Candidate occurrences | Base unique IDs | Candidate unique IDs | Base fixable | Base unfixed | Candidate fixable | Candidate unfixed |",
+                "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+            )
+        )
+        counts: dict[str, tuple[int, int]] = {}
+        for severity in UPSTREAM_SEVERITIES:
+            base_selected = [item for item in base_findings if item["Severity"].upper() == severity]
+            candidate_selected = [
+                item for item in candidate_findings if item["Severity"].upper() == severity
+            ]
+            base_fixable = sum(bool(item["FixedVersion"]) for item in base_selected)
+            candidate_fixable = sum(bool(item["FixedVersion"]) for item in candidate_selected)
+            lines.append(
+                f"| {severity} | {len(base_selected)} | {len(candidate_selected)} | "
+                f"{len({item['VulnerabilityID'] for item in base_selected})} | "
+                f"{len({item['VulnerabilityID'] for item in candidate_selected})} | "
+                f"{base_fixable} | {len(base_selected) - base_fixable} | "
+                f"{candidate_fixable} | {len(candidate_selected) - candidate_fixable} |"
+            )
+            counts[severity] = (len(base_selected), len(candidate_selected))
+        base_ids = {str(item["VulnerabilityID"]) for item in base_findings}
+        candidate_ids = {str(item["VulnerabilityID"]) for item in candidate_findings}
+        for label, values in (
+            ("Added IDs", sorted(candidate_ids - base_ids)),
+            ("Removed IDs", sorted(base_ids - candidate_ids)),
+            ("Unchanged IDs", sorted(base_ids & candidate_ids)),
+        ):
+            rendered = ", ".join(f"`{value}`" for value in values) or "None"
+            lines.append(f"{label}: {rendered}")
+        critical_base, critical_candidate = counts["CRITICAL"]
+        high_base, high_candidate = counts["HIGH"]
+        if not (
+            critical_candidate <= critical_base
+            and high_candidate <= high_base
+            and (critical_candidate < critical_base or high_candidate < high_base)
+        ):
+            errors.append(
+                f"{image['candidate']}: candidate does not strictly improve CRITICAL/HIGH findings"
+            )
+        lines.append("")
+    return "\n".join(lines), errors
+
+
 def _waived(waivers: list[dict[str, Any]], image: str, vulnerability_id: str) -> bool:
     image_name = image.split("@", 1)[0]
     for waiver in waivers:
@@ -578,10 +813,19 @@ def main() -> int:
     write_upstream = sub.add_parser("write-upstream-inventory")
     write_upstream.add_argument("--root", type=Path, default=Path.cwd())
     write_upstream.add_argument("--output", type=Path, required=True)
+    write_candidates = sub.add_parser("write-upstream-candidates")
+    write_candidates.add_argument("--base", required=True)
+    write_candidates.add_argument("--head", required=True)
+    write_candidates.add_argument("--output", type=Path, required=True)
     summarize_upstream = sub.add_parser("summarize-upstream-reports")
     summarize_upstream.add_argument("--inventory", type=Path, required=True)
     summarize_upstream.add_argument("--reports", type=Path, required=True)
     summarize_upstream.add_argument("--output", type=Path, required=True)
+    compare_upstream = sub.add_parser("compare-upstream-candidates")
+    compare_upstream.add_argument("--manifest", type=Path, required=True)
+    compare_upstream.add_argument("--base-reports", type=Path, required=True)
+    compare_upstream.add_argument("--candidate-reports", type=Path, required=True)
+    compare_upstream.add_argument("--output", type=Path, required=True)
     policy = sub.add_parser("apply-policy")
     policy.add_argument("--register", type=Path, default=Path("security/container-waivers.yml"))
     policy.add_argument("--image", required=True)
@@ -606,11 +850,30 @@ def main() -> int:
         else:
             args.output.write_text(rendered, encoding="utf-8")
         return 0
+    if args.command == "write-upstream-candidates":
+        manifest = upstream_runtime_candidates(args.base, args.head)
+        args.output.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        return 0
     if args.command == "summarize-upstream-reports":
         summary = summarize_upstream_reports(
             json.loads(args.inventory.read_text(encoding="utf-8")), args.reports
         )
         args.output.write_text(summary, encoding="utf-8")
+        return 0
+    if args.command == "compare-upstream-candidates":
+        summary, errors = compare_upstream_candidate_reports(
+            json.loads(args.manifest.read_text(encoding="utf-8")),
+            args.base_reports,
+            args.candidate_reports,
+        )
+        args.output.write_text(summary, encoding="utf-8")
+        if errors:
+            print(
+                "Upstream image candidate comparison failed:", *errors, sep="\n- ", file=sys.stderr
+            )
+            return 1
         return 0
     if args.command == "affected-images":
         if args.all:
