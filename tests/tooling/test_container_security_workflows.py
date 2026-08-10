@@ -50,3 +50,38 @@ def test_workflow_security_audit_is_nightly_not_a_pr_ci_gate() -> None:
     assert "make zizmor" not in ci
     assert "security / workflow hardening" in security
     assert "make zizmor" in security
+
+
+def test_upstream_visibility_is_scheduled_manual_non_blocking_and_strictly_reported() -> None:
+    workflow = (REPO_ROOT / ".github/workflows/upstream-image-visibility.yml").read_text()
+
+    for contract in (
+        "workflow_dispatch:",
+        "schedule:",
+        "permissions:",
+        "contents: read",
+        "timeout-minutes: 90",
+        "write-upstream-inventory",
+        "summarize-upstream-reports",
+        "aquasec/trivy@sha256:",
+        "$GITHUB_STEP_SUMMARY",
+        "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+        "if: always()",
+        "if-no-files-found: error",
+        '"$reference" < /dev/null',
+    ):
+        assert contract in workflow
+    for forbidden in ("apply-policy", "container-waivers", "continue-on-error", "--exit-code 1"):
+        assert forbidden not in workflow
+
+
+def test_renovate_config_validation_uses_pinned_node_and_renovate() -> None:
+    workflow = (REPO_ROOT / ".github/workflows/renovate-config.yml").read_text()
+
+    assert "pull_request:" in workflow
+    assert '"renovate.json"' in workflow
+    assert "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238" in workflow
+    assert "npm install --global renovate@44.20.1" in workflow
+    assert "renovate-config-validator renovate.json" in workflow
+    assert "--no-global" not in workflow
+    assert "contents: read" in workflow

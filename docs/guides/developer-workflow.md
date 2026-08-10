@@ -69,3 +69,11 @@ uv run ty check
 - platform topology and surfaces: [Platform Topology](../reference/platform-topology.md)
 - setup of optional external systems: [Setup](../setup/index.md)
 - production operation: [Operations](../operations/index.md)
+
+## Reviewing vendor image updates
+
+Renovate opens review-required pull requests for digest-pinned vendor images in
+package source YAML. These updates change the tag and digest together and are
+never automerged. Confirm the service contract and generated Compose behavior;
+the scheduled non-blocking vulnerability view and its raw Trivy artifacts are
+described in [Container image security operations](../operations/container-image-security.md).
