@@ -4,7 +4,7 @@ category: api
 default: false
 profile: api
 
-image: hasura/graphql-engine:${HASURA_VERSION:-v2.49.5}
+image: ${HASURA_IMAGE:-hasura/graphql-engine:v2.49.5@sha256:a9f427a9078b75c5f43ea40abd4ba4e426f45777f862eff7265f411a5ac96086}
 
 depends_on:
   - postgres
@@ -31,9 +31,9 @@ compose:
     retries: 5
 
 env_vars:
-  HASURA_VERSION:
-    default: v2.49.5
-    description: Hasura GraphQL Engine version
+  HASURA_IMAGE:
+    default: hasura/graphql-engine:v2.49.5@sha256:a9f427a9078b75c5f43ea40abd4ba4e426f45777f862eff7265f411a5ac96086
+    description: Complete Hasura GraphQL Engine image reference
   HASURA_PORT:
     default: 8082
     description: Hasura console and API port

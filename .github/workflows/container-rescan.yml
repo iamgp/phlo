@@ -21,33 +21,39 @@ jobs:
       - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "0.12.1"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Validate waiver expiry
         run: uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py validate-waivers
-      - name: Download latest published digest manifest
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Resolve the complete current published fleet
         shell: bash
         run: |
           set -euo pipefail
-          manifest=""
-          mapfile -t run_ids < <(
-            gh run list --workflow build-core-services.yml --status success --limit 100 \
-              --json databaseId --jq '.[].databaseId'
-          )
-          for run_id in "${run_ids[@]}"; do
-            candidate="$RUNNER_TEMP/published-$run_id/generated-service-images.json"
-            if gh run download "$run_id" --name generated-service-images \
-              --dir "$RUNNER_TEMP/published-$run_id" && test -s "$candidate"; then
-              manifest="$candidate"
-              break
-            fi
+          mkdir -p published resolved
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            published-fleet > "$RUNNER_TEMP/expected-fleet.json"
+          jq -c '.[]' "$RUNNER_TEMP/expected-fleet.json" | while read -r target; do
+            image="$(jq -r .image <<< "$target")"
+            services="$(jq -c .services <<< "$target")"
+            digest="$(
+              docker buildx imagetools inspect \
+                --format '{{json .Manifest.Digest}}' "$image" | jq -r .
+            )"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            safe="$(tr -d '\n' <<< "$image" | tr '/:@' '___')"
+            jq -n --arg image "$image" --arg digest "$digest" --argjson services "$services" \
+              '{image: $image, digest: $digest, services: $services}' > "resolved/${safe}.json"
           done
-          test -n "$manifest" || {
-            echo "No successful image publication run with a digest manifest was found." >&2
-            exit 1
-          }
-          mkdir -p published
-          cp "$manifest" published/generated-service-images.json
+          jq -s '.' resolved/*.json > "$RUNNER_TEMP/resolved-fleet.json"
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            assemble-rescan-manifest --records "$RUNNER_TEMP/resolved-fleet.json" \
+            --output published/generated-service-images.json
       - name: Rescan immutable images with fresh Trivy data
         shell: bash
         run: |
@@ -56,15 +62,19 @@ jobs:
           jq -c '.[]' published/generated-service-images.json | while read -r target; do
             image="$(jq -r .image <<< "$target")"
             digest="$(jq -r .digest <<< "$target")"
-            safe="$(tr '/:@' '___' <<< "$image")"
-            docker run --rm aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f image --format json --output "/tmp/trivy.json" --scanners vuln "$image@$digest"
-            cp /tmp/trivy.json "reports/${safe}.json"
-            uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py apply-policy --image "$image@$digest" --report "/tmp/trivy.json"
+            safe="$(tr -d '\n' <<< "$image" | tr '/:@' '___')"
+            report="reports/${safe}.json"
+            docker run --rm -v "$PWD:/work" -w /work aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+              image --format json --output "/work/$report" --scanners vuln "$image@$digest"
+            uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+              apply-policy --image "$image@$digest" --report "$report"
           done
       - name: Upload rescan reports
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: container-rescan-${{ github.run_id }}
-          path: reports
+          path: |
+            published/generated-service-images.json
+            reports
           if-no-files-found: warn

@@ -153,6 +153,52 @@ def test_remaining_vendor_services_use_upstream_images_and_are_not_published(
     assert published_services == {"phlo-api", "dagster", "observatory"}
 
 
+def test_every_vendor_runtime_default_is_pinned_to_an_immutable_digest() -> None:
+    tag_only: list[str] = []
+    for service_file in sorted((REPO_ROOT / "packages").glob("*/src/*/*.yaml")):
+        service = yaml.safe_load(service_file.read_text(encoding="utf-8"))
+        if not isinstance(service, dict) or not isinstance(service.get("image"), str):
+            continue
+        image = _published_image(service["image"])
+        if image.startswith("ghcr.io/phlohouse/phlo-") and service.get("build"):
+            continue
+        if "@sha256:" not in image:
+            tag_only.append(f"{service_file.relative_to(REPO_ROOT)}: {image}")
+
+    assert tag_only == []
+
+
+def test_hasura_and_clickhouse_accept_safe_full_image_overrides() -> None:
+    hasura = yaml.safe_load(
+        (REPO_ROOT / "packages/phlo-hasura/src/phlo_hasura/service.yaml").read_text()
+    )
+    clickhouse = yaml.safe_load(
+        (REPO_ROOT / "packages/phlo-clickhouse/src/phlo_clickhouse/service.yaml").read_text()
+    )
+    clickhouse_setup = yaml.safe_load(
+        (
+            REPO_ROOT / "packages/phlo-clickhouse/src/phlo_clickhouse/clickhouse-setup.yaml"
+        ).read_text()
+    )
+
+    assert hasura["image"] == (
+        "${HASURA_IMAGE:-hasura/graphql-engine:v2.49.5@"
+        "sha256:a9f427a9078b75c5f43ea40abd4ba4e426f45777f862eff7265f411a5ac96086}"
+    )
+    clickhouse_image = (
+        "${CLICKHOUSE_IMAGE:-clickhouse/clickhouse-server:26.5.6.64-alpine@"
+        "sha256:446c9d82443b926a5aacb952448dd632672606acc691ce1b3c2292b68a1197c2}"
+    )
+    assert clickhouse["image"] == clickhouse_image
+    assert clickhouse_setup["image"] == clickhouse_image
+    assert "HASURA_VERSION" not in hasura["env_vars"]
+    assert hasura["env_vars"]["HASURA_IMAGE"]["default"] == _published_image(hasura["image"])
+    assert "CLICKHOUSE_VERSION" not in clickhouse["env_vars"]
+    assert clickhouse["env_vars"]["CLICKHOUSE_IMAGE"]["default"] == _published_image(
+        clickhouse["image"]
+    )
+
+
 def test_publication_workflow_publishes_attested_images_after_digest_scans() -> None:
     workflow = (REPO_ROOT / ".github/workflows/build-core-services.yml").read_text(encoding="utf-8")
 

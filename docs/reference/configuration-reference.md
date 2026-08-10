@@ -355,8 +355,8 @@ trino://localhost:10005/iceberg_dev
 ClickHouse analytical database for data plane:
 
 ```bash
-# Version and connectivity
-CLICKHOUSE_VERSION=latest
+# Image and connectivity
+CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:26.5.6.64-alpine@sha256:446c9d82443b926a5aacb952448dd632672606acc691ce1b3c2292b68a1197c2
 CLICKHOUSE_HTTP_PORT=8123
 CLICKHOUSE_NATIVE_PORT=19000
 CLICKHOUSE_HOST=clickhouse
@@ -648,6 +648,7 @@ JWT_EXPIRATION_HOURS=24
 #### Hasura GraphQL
 
 ```bash
+HASURA_IMAGE=hasura/graphql-engine:v2.49.5@sha256:a9f427a9078b75c5f43ea40abd4ba4e426f45777f862eff7265f411a5ac96086
 HASURA_GRAPHQL_PORT=10012
 HASURA_GRAPHQL_ADMIN_SECRET=hasura-admin-secret
 HASURA_GRAPHQL_ENABLE_CONSOLE=true
