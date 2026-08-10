@@ -9,10 +9,7 @@ without a fix require an active approved waiver; expired waivers block.
 
 ## Active waivers
 
-| ID | Image/package | Finding | Severity | Owner | Expires | Remediation |
-|---|---|---|---|---|---|---|
-| phlo-alloy-cve-2026-41567 | ghcr.io/phlohouse/phlo-alloy | CVE-2026-41567 | HIGH | iamgp | 2026-09-08 | https://github.com/phlohouse/phlo/issues/669 |
-| phlo-alloy-cve-2026-42306 | ghcr.io/phlohouse/phlo-alloy | CVE-2026-42306 | HIGH | iamgp | 2026-09-08 | https://github.com/phlohouse/phlo/issues/669 |
+None.
 
 ## Expiring within 7 days
 

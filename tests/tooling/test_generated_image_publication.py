@@ -48,6 +48,17 @@ def test_every_generated_build_uses_a_versioned_ghcr_image() -> None:
         assert ":" in image.rsplit("/", 1)[-1], service_file
         assert not image.endswith(":latest"), service_file
 
+    published_images = {image for _, image in build_definitions}
+    waiver_register = yaml.safe_load(
+        (REPO_ROOT / "security/container-waivers.yml").read_text(encoding="utf-8")
+    )
+    for waiver in waiver_register["waivers"]:
+        waiver_image = str(waiver["image"])
+        assert any(
+            image == waiver_image or image.startswith((f"{waiver_image}:", f"{waiver_image}@"))
+            for image in published_images
+        ), f"{waiver['id']} targets an image that is no longer published"
+
 
 def test_generated_prometheus_and_trino_use_upstream_images_and_are_not_published(
     tmp_path: Path, monkeypatch
