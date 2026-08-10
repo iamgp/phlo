@@ -96,8 +96,25 @@ def test_renovate_image_prs_compare_exact_changed_base_and_candidate_refs() -> N
         "candidate-reports/*.json",
     ):
         assert contract in workflow
-    assert "contents: read" in workflow
-    assert "pull-requests: write" not in workflow
+    for publisher_contract in (
+        "publish-candidate-comparison",
+        "needs: [discover-candidates, compare-candidates]",
+        "if: always() && needs.discover-candidates.outputs.count != '0'",
+        "actions: read",
+        "pull-requests: write",
+        "actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131",
+        "name: upstream-image-candidate-comparison",
+        "<!-- phlo-upstream-image-candidate-comparison -->",
+        "gh api --paginate",
+        "--method PATCH",
+        "--method POST",
+        "--method DELETE",
+        "--input comment-payload.json",
+    ):
+        assert publisher_contract in workflow
+    publisher = workflow.split("  publish-candidate-comparison:", 1)[1].split("\n  scan:", 1)[0]
+    assert "permissions:\n      actions: read\n      pull-requests: write" in publisher
+    assert "actions/checkout" not in publisher
 
 
 def test_renovate_config_validation_uses_pinned_node_and_renovate() -> None:

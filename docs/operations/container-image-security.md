@@ -44,7 +44,9 @@ not increase raw CRITICAL or HIGH occurrences and must strictly decrease at
 least one. The report retains raw occurrence counts, unique vulnerability IDs,
 fixable and unfixed counts, and added, removed, and unchanged IDs for each
 deduplicated image pair. A passing comparison does not replace the affected
-package's runtime acceptance checks or human review.
+package's runtime acceptance checks or human review. The workflow updates one
+sticky pull-request comment with the exact comparison Markdown and an explicit
+pass/fail result, including when the comparison gate fails.
 
 The workflow summary shows aggregate and per-image severity and fixability,
 along with every package-source location and environment override. Its retained
