@@ -40,6 +40,20 @@ def _image_match(manager: dict[str, Any], source: str) -> re.Match[str] | None:
     return matches[0] if matches else None
 
 
+def _render_update(manager: dict[str, Any], source: str, *, new_value: str, new_digest: str) -> str:
+    """Faithfully simulate Renovate's configured mustache replacement template."""
+    match = _image_match(manager, source)
+    assert match
+    values = {"wrapperPrefix": "", "wrapperSuffix": ""}
+    values.update({key: value or "" for key, value in match.groupdict().items()})
+    values.update(newValue=new_value, newDigest=new_digest)
+    rendered = manager["autoReplaceStringTemplate"]
+    for key, value in values.items():
+        rendered = rendered.replace("{{{" + key + "}}}", value)
+    assert "{{{" not in rendered
+    return source[: match.start()] + rendered + source[match.end() :]
+
+
 def test_runtime_image_manager_covers_only_recursive_package_source_yaml() -> None:
     manager = _manager()
     file_patterns = [_python_regex(pattern) for pattern in manager["managerFilePatterns"]]
@@ -52,10 +66,18 @@ def test_runtime_image_manager_covers_only_recursive_package_source_yaml() -> No
         pattern.fullmatch("packages/phlo-openmetadata/src/phlo_openmetadata/setup/service.yml")
         for pattern in file_patterns
     )
-    assert not any(
-        pattern.fullmatch("packages/phlo-delta/tests/fixtures/delta_versions.yaml")
-        for pattern in file_patterns
+    delta_path = REPO_ROOT / "packages/phlo-delta/tests/compose/docker-compose.yml"
+    delta_relative = delta_path.relative_to(REPO_ROOT).as_posix()
+    delta_source = delta_path.read_text(encoding="utf-8")
+    assert "    image: trinodb/trino:477" in delta_source
+    assert not any(pattern.fullmatch(delta_relative) for pattern in file_patterns)
+    assert _image_match(manager, delta_source) is None
+    nested_immutable = delta_source.replace(
+        "    image: trinodb/trino:477",
+        "    image: trinodb/trino:483@sha256:" + "a" * 64,
+        1,
     )
+    assert _image_match(manager, nested_immutable) is None
 
 
 def test_runtime_image_manager_extracts_every_real_immutable_root_image() -> None:
@@ -80,27 +102,40 @@ def test_runtime_image_manager_extracts_every_real_immutable_root_image() -> Non
     assert matched == eligible
 
 
-def test_runtime_image_replacement_updates_tag_and_digest_without_damaging_wrapper() -> None:
+def test_runtime_image_replacement_updates_real_plain_and_env_defaults_exactly() -> None:
     manager = _manager()
-    replacement = manager["autoReplaceStringTemplate"]
-
-    def replace(source: str) -> str:
-        match = _image_match(manager, source)
-        assert match
-        values = {"wrapperPrefix": "", "wrapperSuffix": ""}
-        values.update({key: value or "" for key, value in match.groupdict().items()})
-        values.update(newValue="v9.9.9", newDigest="sha256:" + "f" * 64)
-        rendered = replacement
-        for key, value in values.items():
-            rendered = rendered.replace("{{{" + key + "}}}", value)
-        return source[: match.start()] + rendered + source[match.end() :]
-
-    assert replace("image: grafana/alloy:v1.0.0@sha256:" + "a" * 64) == (
-        "image: grafana/alloy:v9.9.9@sha256:" + "f" * 64
+    new_digest = "sha256:" + "f" * 64
+    examples = (
+        (
+            REPO_ROOT / "packages/phlo-alloy/src/phlo_alloy/service.yaml",
+            "grafana/alloy:v1.18.0@sha256:491b0578c04983fd54fe99b587b6fab4404dc46d0dc16677bd6b00cc1140b308",
+            "grafana/alloy:v9.9.9@" + new_digest,
+            "image: grafana/alloy:v9.9.9@" + new_digest,
+        ),
+        (
+            REPO_ROOT / "packages/phlo-hasura/src/phlo_hasura/service.yaml",
+            "hasura/graphql-engine:v2.49.5@sha256:a9f427a9078b75c5f43ea40abd4ba4e426f45777f862eff7265f411a5ac96086",
+            "hasura/graphql-engine:v9.9.9@" + new_digest,
+            "image: ${HASURA_IMAGE:-hasura/graphql-engine:v9.9.9@" + new_digest + "}",
+        ),
     )
-    assert replace("image: ${ALLOY_IMAGE:-grafana/alloy:v1.0.0@sha256:" + "a" * 64 + "}") == (
-        "image: ${ALLOY_IMAGE:-grafana/alloy:v9.9.9@sha256:" + "f" * 64 + "}"
-    )
+
+    for path, old_reference, new_reference, expected_line in examples:
+        source = path.read_text(encoding="utf-8")
+        updated = _render_update(
+            manager,
+            source,
+            new_value="v9.9.9",
+            new_digest=new_digest,
+        )
+        assert updated == source.replace(old_reference, new_reference, 1)
+        assert expected_line in updated.splitlines()
+        assert updated.endswith("\n") == source.endswith("\n")
+        assert updated.count("\n") == source.count("\n")
+
+
+def test_runtime_image_manager_rejects_malformed_env_defaults() -> None:
+    manager = _manager()
     assert (
         _image_match(
             manager,

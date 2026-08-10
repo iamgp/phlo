@@ -11,12 +11,12 @@
       "description": "Update immutable package runtime image defaults.",
       "managerFilePatterns": ["^packages/[^/]+/src/[^/]+/.+\\.ya?ml$"],
       "matchStrings": [
-        "(?m)^(?<indent>[ \\t]*)image:(?<spacing>[ \\t]+)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})[ \\t]*$",
-        "(?m)^(?<indent>[ \\t]*)image:(?<spacing>[ \\t]+)(?<wrapperPrefix>\\$\\{(?<envName>[A-Z][A-Z0-9_]*)\\:-)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})(?<wrapperSuffix>\\})[ \\t]*$"
+        "(?m)^image:(?<spacing>[ \\t]+)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})[ \\t]*$",
+        "(?m)^image:(?<spacing>[ \\t]+)(?<wrapperPrefix>\\$\\{(?<envName>[A-Z][A-Z0-9_]*)\\:-)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})(?<wrapperSuffix>\\})[ \\t]*$"
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker",
-      "autoReplaceStringTemplate": "{{{indent}}}image:{{{spacing}}}{{{wrapperPrefix}}}{{{depName}}}:{{{newValue}}}@{{{newDigest}}}{{{wrapperSuffix}}}"
+      "autoReplaceStringTemplate": "image:{{{spacing}}}{{{wrapperPrefix}}}{{{depName}}}:{{{newValue}}}@{{{newDigest}}}{{{wrapperSuffix}}}"
     }
   ],
   "vulnerabilityAlerts": {
