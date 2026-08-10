@@ -74,6 +74,9 @@ uv run ty check
 
 Renovate opens review-required pull requests for digest-pinned vendor images in
 package source YAML. These updates change the tag and digest together and are
-never automerged. Confirm the service contract and generated Compose behavior;
-the scheduled non-blocking vulnerability view and its raw Trivy artifacts are
-described in [Container image security operations](../operations/container-image-security.md).
+never automerged. Each changed reference is compared with its exact base using
+the same pinned Trivy database snapshot; CRITICAL and HIGH raw occurrence counts
+must not increase and at least one must decrease. Review the comparison, then
+confirm the service contract and generated Compose behavior. The scheduled
+non-blocking vulnerability view and raw Trivy artifacts are described in
+[Container image security operations](../operations/container-image-security.md).

@@ -329,3 +329,112 @@ def test_upstream_report_summary_rejects_incomplete_or_invalid_report_sets(
 
     with pytest.raises(ValueError, match=failure):
         container_security.summarize_upstream_reports(inventory, reports)
+
+
+def test_upstream_candidate_comparison_requires_pareto_improvement_and_reports_id_deltas(
+    tmp_path: Path,
+) -> None:
+    base = "alpine:3.23@sha256:" + "a" * 64
+    candidate = "alpine:3.24@sha256:" + "b" * 64
+    manifest = {
+        "version": 1,
+        "images": [
+            {
+                "base": base,
+                "candidate": candidate,
+                "base_report": hashlib.sha256(base.encode()).hexdigest() + ".json",
+                "candidate_report": hashlib.sha256(candidate.encode()).hexdigest() + ".json",
+                "sources": [
+                    {"path": "packages/a/src/a/service.yaml", "service": "a"},
+                    {"path": "packages/b/src/b/service.yaml", "service": "b"},
+                ],
+            }
+        ],
+    }
+    base_reports = tmp_path / "base"
+    candidate_reports = tmp_path / "candidate"
+    base_reports.mkdir()
+    candidate_reports.mkdir()
+    (base_reports / manifest["images"][0]["base_report"]).write_text(
+        json.dumps(
+            _trivy_report(
+                {"VulnerabilityID": "CVE-1", "Severity": "CRITICAL", "FixedVersion": ""},
+                {"VulnerabilityID": "CVE-2", "Severity": "HIGH", "FixedVersion": "2"},
+                {"VulnerabilityID": "CVE-3", "Severity": "HIGH", "FixedVersion": ""},
+            )
+        ),
+        encoding="utf-8",
+    )
+    (candidate_reports / manifest["images"][0]["candidate_report"]).write_text(
+        json.dumps(
+            _trivy_report(
+                {"VulnerabilityID": "CVE-2", "Severity": "HIGH", "FixedVersion": "2"},
+                {"VulnerabilityID": "CVE-4", "Severity": "LOW", "FixedVersion": "3"},
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    summary, errors = container_security.compare_upstream_candidate_reports(
+        manifest, base_reports, candidate_reports
+    )
+
+    assert errors == []
+    assert "| CRITICAL | 1 | 0 | 1 | 0 |" in summary
+    assert "| HIGH | 2 | 1 | 2 | 1 |" in summary
+    assert "Added IDs: `CVE-4`" in summary
+    assert "Removed IDs: `CVE-1`, `CVE-3`" in summary
+    assert "Unchanged IDs: `CVE-2`" in summary
+
+
+@pytest.mark.parametrize(
+    ("base_findings", "candidate_findings"),
+    [
+        (
+            [{"VulnerabilityID": "CVE-1", "Severity": "CRITICAL", "FixedVersion": ""}],
+            [{"VulnerabilityID": "CVE-2", "Severity": "CRITICAL", "FixedVersion": ""}],
+        ),
+        (
+            [{"VulnerabilityID": "CVE-1", "Severity": "HIGH", "FixedVersion": ""}],
+            [
+                {"VulnerabilityID": "CVE-1", "Severity": "HIGH", "FixedVersion": ""},
+                {"VulnerabilityID": "CVE-2", "Severity": "HIGH", "FixedVersion": ""},
+            ],
+        ),
+    ],
+)
+def test_upstream_candidate_comparison_rejects_equal_or_worse_critical_high(
+    tmp_path: Path,
+    base_findings: list[dict[str, object]],
+    candidate_findings: list[dict[str, object]],
+) -> None:
+    base = "alpine:3.23@sha256:" + "a" * 64
+    candidate = "alpine:3.24@sha256:" + "b" * 64
+    manifest = {
+        "version": 1,
+        "images": [
+            {
+                "base": base,
+                "candidate": candidate,
+                "base_report": hashlib.sha256(base.encode()).hexdigest() + ".json",
+                "candidate_report": hashlib.sha256(candidate.encode()).hexdigest() + ".json",
+                "sources": [{"path": "packages/a/src/a/service.yaml", "service": "a"}],
+            }
+        ],
+    }
+    base_reports = tmp_path / "base"
+    candidate_reports = tmp_path / "candidate"
+    base_reports.mkdir()
+    candidate_reports.mkdir()
+    (base_reports / manifest["images"][0]["base_report"]).write_text(
+        json.dumps(_trivy_report(*base_findings)), encoding="utf-8"
+    )
+    (candidate_reports / manifest["images"][0]["candidate_report"]).write_text(
+        json.dumps(_trivy_report(*candidate_findings)), encoding="utf-8"
+    )
+
+    _, errors = container_security.compare_upstream_candidate_reports(
+        manifest, base_reports, candidate_reports
+    )
+
+    assert errors == [f"{candidate}: candidate does not strictly improve CRITICAL/HIGH findings"]

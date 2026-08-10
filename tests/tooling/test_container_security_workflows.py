@@ -75,6 +75,31 @@ def test_upstream_visibility_is_scheduled_manual_non_blocking_and_strictly_repor
         assert forbidden not in workflow
 
 
+def test_renovate_image_prs_compare_exact_changed_base_and_candidate_refs() -> None:
+    workflow = (REPO_ROOT / ".github/workflows/upstream-image-visibility.yml").read_text()
+
+    for contract in (
+        "pull_request:",
+        "types: [opened, reopened, synchronize, labeled]",
+        "discover-candidates",
+        "compare-candidates",
+        "github.event.pull_request.user.type == 'Bot'",
+        "startsWith(github.head_ref, 'renovate/')",
+        "contains(github.event.pull_request.labels.*.name, 'dependencies')",
+        "github.event.pull_request.base.sha",
+        "github.event.pull_request.head.sha",
+        "write-upstream-candidates",
+        "--download-db-only",
+        "--skip-db-update",
+        "compare-upstream-candidates",
+        "base-reports/*.json",
+        "candidate-reports/*.json",
+    ):
+        assert contract in workflow
+    assert "contents: read" in workflow
+    assert "pull-requests: write" not in workflow
+
+
 def test_renovate_config_validation_uses_pinned_node_and_renovate() -> None:
     workflow = (REPO_ROOT / ".github/workflows/renovate-config.yml").read_text()
 

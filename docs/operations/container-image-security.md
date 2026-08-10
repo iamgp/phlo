@@ -32,6 +32,18 @@ failures: upstream vendors own those images. Inventory mistakes, registry or
 scanner failures, missing reports, and malformed results still fail the run so
 a green run means the visibility report is complete.
 
+For Renovate-created vendor-image pull requests, the same workflow adds a
+blocking candidate comparison. Its trigger requires a GitHub bot account, the
+`renovate/` branch convention, and the `dependencies` label; this avoids
+granting secrets or write permissions to pull-request code. It derives exact
+base and head references from Git source, downloads one pinned Trivy database
+snapshot, and scans both references against that snapshot. The candidate must
+not increase raw CRITICAL or HIGH occurrences and must strictly decrease at
+least one. The report retains raw occurrence counts, unique vulnerability IDs,
+fixable and unfixed counts, and added, removed, and unchanged IDs for each
+deduplicated image pair. A passing comparison does not replace the affected
+package's runtime acceptance checks or human review.
+
 The workflow summary shows aggregate and per-image severity and fixability,
 along with every package-source location and environment override. Its retained
 artifact contains the deterministic inventory, rendered Markdown summary, and
@@ -49,7 +61,8 @@ disabled. Phlo-owned `ghcr.io/phlohouse/phlo-*` images are explicitly disabled
 for this manager because the first-party publication pipeline owns them.
 
 Review each update as a normal dependency pull request and check the container
-security contracts. For an upstream that Renovate cannot update, resolve the
+security comparison and the affected package's runtime acceptance checks. For
+an upstream that Renovate cannot update, resolve the
 new tag and digest in a branch, run `python scripts/container_security.py
 upstream-runtime-images`, and open a pull request. Never update image defaults
 directly on the default branch.
