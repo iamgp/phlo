@@ -1,10 +1,12 @@
 # Container image security operations
 
-Pull requests run only cheap checks: waiver/report validation, Hadolint for
-affected Dockerfiles, and generated Compose/Dockerfile validation. They do not
-build or scan images; documentation-only changes do not trigger container work.
-Build, exact-digest vulnerability scanning, SBOM/provenance, and publication
-run only after a merge to `main`.
+Ordinary pull requests run only cheap checks: waiver/report validation, Hadolint
+for affected Dockerfiles, and generated Compose/Dockerfile validation. They do
+not build or scan images; documentation-only changes do not trigger container
+work. The narrow Renovate upstream-image exception performs paired exact-image
+scans before merge, as described below. Build, first-party exact-digest
+vulnerability scanning, SBOM/provenance, and publication run only after a merge
+to `main`.
 
 Publication runs collect the digests changed by that run as workflow artifacts.
 Those artifacts are publication evidence and may intentionally describe only a

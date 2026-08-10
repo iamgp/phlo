@@ -438,3 +438,25 @@ def test_upstream_candidate_comparison_rejects_equal_or_worse_critical_high(
     )
 
     assert errors == [f"{candidate}: candidate does not strictly improve CRITICAL/HIGH findings"]
+
+
+def test_upstream_runtime_candidates_reject_cross_repository_replacements(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = "packages/example/src/example/service.yaml"
+    base = "alpine:3.23@sha256:" + "a" * 64
+    candidate = "busybox:1.37@sha256:" + "b" * 64
+
+    def check_output(command: list[str], *, text: bool) -> str:
+        if command[:3] == ["git", "diff", "--name-only"]:
+            return path + "\n"
+        if command == ["git", "show", f"base:{path}"]:
+            return f"name: example\nimage: ${{IMAGE:-{base}}}\n"
+        if command == ["git", "show", f"head:{path}"]:
+            return f"name: example\nimage: ${{IMAGE:-{candidate}}}\n"
+        raise AssertionError(f"unexpected command: {command!r}")
+
+    monkeypatch.setattr(container_security.subprocess, "check_output", check_output)
+
+    with pytest.raises(ValueError, match="must retain upstream repository alpine; got busybox"):
+        container_security.upstream_runtime_candidates("base", "head")

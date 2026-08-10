@@ -413,6 +413,13 @@ def _git_yaml(revision: str, path: str) -> Any:
         raise ValueError(f"cannot parse package service {path} at {revision}: {exc}") from exc
 
 
+def _immutable_repository(reference: str) -> str:
+    match = IMMUTABLE_IMAGE_PATTERN.fullmatch(reference)
+    if match is None:
+        raise ValueError(f"invalid immutable image reference {reference!r}")
+    return match.group("repository")
+
+
 def upstream_runtime_candidates(base: str, head: str) -> dict[str, Any]:
     """Derive changed immutable vendor image pairs from exact Git source revisions."""
     try:
@@ -437,6 +444,13 @@ def upstream_runtime_candidates(base: str, head: str) -> dict[str, Any]:
         candidate_reference, source = candidate_image
         if base_reference == candidate_reference:
             continue
+        base_repository = _immutable_repository(base_reference)
+        candidate_repository = _immutable_repository(candidate_reference)
+        if base_repository != candidate_repository:
+            raise ValueError(
+                f"{path}: candidate must retain upstream repository {base_repository}; "
+                f"got {candidate_repository}"
+            )
         grouped.setdefault((base_reference, candidate_reference), []).append(source)
     images = []
     for (base_reference, candidate_reference), sources in sorted(grouped.items()):
