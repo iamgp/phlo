@@ -32,6 +32,16 @@ def test_every_generated_build_uses_a_versioned_ghcr_image() -> None:
         assert not image.endswith(":latest"), service_file
 
 
+def test_prometheus_and_trino_are_not_generated_image_publication_targets() -> None:
+    for service_file in (
+        REPO_ROOT / "packages/phlo-prometheus/src/phlo_prometheus/service.yaml",
+        REPO_ROOT / "packages/phlo-trino/src/phlo_trino/service.yaml",
+    ):
+        service = yaml.safe_load(service_file.read_text(encoding="utf-8"))
+        assert "build" not in service
+        assert not _published_image(service["image"]).startswith("ghcr.io/phlohouse/phlo-")
+
+
 def test_publication_workflow_publishes_attested_images_after_digest_scans() -> None:
     workflow = (REPO_ROOT / ".github/workflows/build-core-services.yml").read_text(encoding="utf-8")
 

@@ -41,7 +41,6 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_prometheus = [
-    "Dockerfile",
     "service.yaml",
     "prometheus.yml",
 ]

@@ -17,15 +17,14 @@ def test_trino_service_definition():
     assert service_definition["category"] == "core"
 
 
-def test_trino_rebuilds_the_launcher_with_current_go():
+def test_trino_uses_the_upstream_image_without_a_local_build():
     service_definition = TrinoServicePlugin().service_definition
 
-    assert service_definition["image"] == "ghcr.io/phlohouse/phlo-trino:483-launcher318-go1.26.5"
-    assert service_definition["build"] == {
-        "context": "./trino",
-        "dockerfile": "Dockerfile",
-    }
-    assert {"source": "Dockerfile", "dest": "trino/Dockerfile"} in service_definition["files"]
+    assert service_definition["image"] == (
+        "trinodb/trino:483@sha256:db58cc93e593a2706553745f276bb119c9810e69918be56ecde088ba7ccb0534"
+    )
+    assert "build" not in service_definition
+    assert all(file_spec["source"] != "Dockerfile" for file_spec in service_definition["files"])
 
 
 def test_trino_runtime_files_are_included_in_package_data():
@@ -42,3 +41,5 @@ def test_trino_runtime_files_are_included_in_package_data():
         if "*" in source:
             continue
         assert any(fnmatch(source, pattern) for pattern in package_data)
+
+    assert "Dockerfile" not in package_data
