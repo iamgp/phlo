@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
 from pathlib import Path
 import subprocess
 from types import SimpleNamespace
@@ -1683,6 +1685,170 @@ def test_observatory_operation_routes_enforce_scope_idempotency_audit_and_rate_l
     records = [json.loads(line) for line in audit_path.read_text().splitlines()]
     assert any(record["operation"] == "materialize_asset" for record in records)
     assert all(record["subject"] != "read-token" for record in records)
+
+
+def test_observatory_concurrent_idempotency_endpoint_executes_provider_once(
+    monkeypatch, tmp_path: Path, regulated_api_boundary
+) -> None:
+    """Two overlapping identical mutation requests execute the provider exactly once."""
+    import httpx
+    from phlo.capabilities import (
+        AuthenticationProviderSpec,
+        AuthorizationPolicyBackendSpec,
+        clear_capabilities,
+        register_capability,
+    )
+    from security_test_support import _HeaderAuthenticationProvider, _backend
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        json.dumps(
+            {"operate-token": {"subject": "operator-idem", "scopes": ["lakehouse:operate"]}}
+        ),
+    )
+    provider_call_count = 0
+    provider_lock = threading.Lock()
+
+    async def fake_materialize(asset_id: str, payload, dagster_url: str | None = None):
+        nonlocal provider_call_count
+        with provider_lock:
+            provider_call_count += 1
+        # Hold the claim open so the contender observes the pending state.
+        await asyncio.sleep(0.4)
+        return {
+            "operation": "materialize_asset",
+            "dry_run": payload.dry_run,
+            "accepted": True,
+            "run_id": "run-only",
+            "asset_key_path": asset_id,
+            "partition_key": payload.partition_key,
+            "status": "STARTED",
+            "message": "Dagster accepted materialize_asset.",
+            "details": {},
+        }
+
+    provider = _FakeOrchestratorOperations(materialize_asset=fake_materialize)
+    monkeypatch.setattr(observatory, "resolve_orchestrator_operations", lambda: provider)
+
+    # Register the test auth provider once for the duration of the test so both
+    # concurrent requests resolve a principal without per-request registration.
+    register_capability(
+        "authentication_provider",
+        AuthenticationProviderSpec(
+            name="test-concurrent", provider=_HeaderAuthenticationProvider()
+        ),
+    )
+    register_capability(
+        "authorization_policy_backend",
+        AuthorizationPolicyBackendSpec(name="test-concurrent", provider=_backend()),
+    )
+    monkeypatch.setenv("PHLO_AUTHENTICATION_PROVIDER", "test-concurrent")
+    monkeypatch.setenv("PHLO_AUTHORIZATION_BACKEND", "test-concurrent")
+
+    headers = {
+        "Authorization": "Bearer operate-token",
+        "X-Test-Principal": "operator",
+        "X-Test-Subject": "operator-idem",
+    }
+    body = {"dry_run": False, "idempotency_key": "endpoint-same-key"}
+
+    async def call_once() -> httpx.Response:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            return await client.post(
+                "/api/observatory/assets/silver/orders/materialize",
+                json=body,
+                headers=headers,
+            )
+
+    async def main() -> tuple[httpx.Response, httpx.Response]:
+        return await asyncio.gather(call_once(), call_once())
+
+    try:
+        r1, r2 = asyncio.run(main())
+    finally:
+        clear_capabilities("authentication_provider")
+        clear_capabilities("authorization_policy_backend")
+
+    assert provider_call_count == 1
+    codes = sorted([r1.status_code, r2.status_code])
+    assert codes == [200, 409]
+    winner = r1 if r1.status_code == 200 else r2
+    contender = r1 if r1.status_code == 409 else r2
+    assert winner.json()["run_id"] == "run-only"
+    assert contender.json()["detail"] == {"error": "idempotency_in_progress"}
+    assert contender.headers.get("retry-after") is not None
+
+
+def test_observatory_idempotency_outcome_unknown_endpoint_does_not_retry(
+    monkeypatch, tmp_path: Path, regulated_api_boundary
+) -> None:
+    """A provider exception leaves an unknown claim; retrying returns 409 without execution."""
+    from phlo.capabilities import (
+        AuthenticationProviderSpec,
+        AuthorizationPolicyBackendSpec,
+        clear_capabilities,
+        register_capability,
+    )
+    from security_test_support import _HeaderAuthenticationProvider, _backend
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        json.dumps(
+            {"operate-token": {"subject": "operator-idem", "scopes": ["lakehouse:operate"]}}
+        ),
+    )
+    provider_call_count = 0
+    provider_lock = threading.Lock()
+
+    async def fake_materialize(asset_id: str, payload, dagster_url: str | None = None):
+        nonlocal provider_call_count
+        with provider_lock:
+            provider_call_count += 1
+        raise RuntimeError("provider exploded")
+
+    provider = _FakeOrchestratorOperations(materialize_asset=fake_materialize)
+    monkeypatch.setattr(observatory, "resolve_orchestrator_operations", lambda: provider)
+
+    register_capability(
+        "authentication_provider",
+        AuthenticationProviderSpec(name="test-unknown", provider=_HeaderAuthenticationProvider()),
+    )
+    register_capability(
+        "authorization_policy_backend",
+        AuthorizationPolicyBackendSpec(name="test-unknown", provider=_backend()),
+    )
+    monkeypatch.setenv("PHLO_AUTHENTICATION_PROVIDER", "test-unknown")
+    monkeypatch.setenv("PHLO_AUTHORIZATION_BACKEND", "test-unknown")
+
+    headers = {
+        "Authorization": "Bearer operate-token",
+        "X-Test-Principal": "operator",
+        "X-Test-Subject": "operator-idem",
+    }
+    body = {"dry_run": False, "idempotency_key": "endpoint-unknown-key"}
+    client = TestClient(app, raise_server_exceptions=False)
+    try:
+        first = client.post(
+            "/api/observatory/assets/silver/orders/materialize",
+            json=body,
+            headers=headers,
+        )
+        retry = client.post(
+            "/api/observatory/assets/silver/orders/materialize",
+            json=body,
+            headers=headers,
+        )
+    finally:
+        clear_capabilities("authentication_provider")
+        clear_capabilities("authorization_policy_backend")
+
+    assert first.status_code == 500
+    assert retry.status_code == 409
+    assert retry.json()["detail"] == {"error": "idempotency_outcome_unknown"}
+    assert provider_call_count == 1
 
 
 def test_observatory_available_missing_package_service_add_is_disabled(monkeypatch) -> None:
