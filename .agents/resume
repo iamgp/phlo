@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# This repository has no always-on backing services. Integration tests start
+# their own containers when explicitly requested.
+echo "No orb services require recovery."
