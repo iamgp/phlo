@@ -10,6 +10,7 @@ import sqlite3
 import time
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,24 @@ from phlo_api.api.authentication import get_request_principal
 
 _TOKEN_CONFIG_ENV = "PHLO_API_TOKENS"
 _DEFAULT_IDEMPOTENCY_RETENTION_HOURS = 24
+# Busy timeout (ms) for SQLite write contention during atomic idempotency claims.
+_IDEMPOTENCY_BUSY_TIMEOUT_MS = 5000
+# Default Retry-After (seconds) surfaced for a live pending idempotency claim.
+_IDEMPOTENCY_RETRY_AFTER_SECONDS = 2
+_STATE_PENDING = "pending"
+_STATE_COMPLETED = "completed"
+_STATE_UNKNOWN = "unknown"
 _RATE_LIMITS: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+
+
+class IdempotencyConflict(HTTPException):
+    """Stable 409 raised when an idempotency key is pending or has an unknown outcome."""
+
+    def __init__(self, detail: dict[str, Any], retry_after: int | None = None) -> None:
+        headers: dict[str, str] = {}
+        if retry_after is not None:
+            headers["Retry-After"] = str(retry_after)
+        super().__init__(status_code=409, detail=detail, headers=headers or None)
 
 
 def project_root() -> Path:
@@ -125,46 +143,38 @@ def replay_or_execute(
     target: str,
     execute: Callable[[], dict[str, Any]],
 ) -> dict[str, Any]:
-    """Return a previous idempotent response or execute and persist the new response."""
+    """Return a previous idempotent response or execute and persist the new response.
+
+    The idempotency key is claimed atomically *before* the provider runs, so
+    concurrent callers with the same identity never execute the provider more
+    than once. A contender either replays a completed response or receives a
+    stable ``409`` (in-progress / unknown-outcome) without invoking the provider.
+    """
     if not idempotency_key:
         return execute()
 
-    conn = _idempotency_connection()
-    try:
-        _delete_expired(conn)
-        key_hash = _idempotency_hash(idempotency_key)
-        existing = conn.execute(
-            """
-            SELECT response_json FROM operations
-            WHERE project = ? AND key_hash = ? AND operation = ? AND target = ?
-            """,
-            (str(project_root()), key_hash, operation, target),
-        ).fetchone()
-        if existing:
-            return json.loads(existing[0])
-
-        response = execute()
-        now = datetime.now(UTC)
-        expires_at = now + timedelta(hours=_DEFAULT_IDEMPOTENCY_RETENTION_HOURS)
-        conn.execute(
-            """
-            INSERT INTO operations(project, key_hash, operation, target, response_json, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                str(project_root()),
-                key_hash,
-                operation,
-                target,
-                json.dumps(response, sort_keys=True),
-                now.isoformat(),
-                expires_at.isoformat(),
-            ),
+    key_hash = _idempotency_hash(idempotency_key)
+    claim = _claim_idempotency_key(key_hash=key_hash, operation=operation, target=target)
+    if claim.claimed:
+        pass
+    elif claim.state == _STATE_COMPLETED:
+        return json.loads(claim.response_json)
+    elif claim.state == _STATE_PENDING:
+        raise IdempotencyConflict(
+            {"error": "idempotency_in_progress"}, retry_after=_IDEMPOTENCY_RETRY_AFTER_SECONDS
         )
-        conn.commit()
-        return response
-    finally:
-        conn.close()
+    elif claim.state == _STATE_UNKNOWN:
+        raise IdempotencyConflict({"error": "idempotency_outcome_unknown"})
+
+    try:
+        response = execute()
+    except BaseException:
+        _mark_idempotency_unknown(key_hash=key_hash, operation=operation, target=target)
+        raise
+    _complete_idempotency_claim(
+        key_hash=key_hash, operation=operation, target=target, response=response
+    )
+    return response
 
 
 async def replay_or_execute_async(
@@ -174,23 +184,42 @@ async def replay_or_execute_async(
     target: str,
     execute: Callable[[], Awaitable[dict[str, Any]]],
 ) -> dict[str, Any]:
-    """Async variant of replay_or_execute."""
+    """Async variant of replay_or_execute.
+
+    The atomic claim and completion run in a worker thread so the SQLite write
+    transaction is held outside the event loop; only the provider await runs on
+    the loop.
+    """
     if not idempotency_key:
         return await execute()
 
-    existing = await asyncio.to_thread(
-        _load_idempotent_response,
-        idempotency_key=idempotency_key,
-        operation=operation,
-        target=target,
+    key_hash = _idempotency_hash(idempotency_key)
+    claim = await asyncio.to_thread(
+        _claim_idempotency_key, key_hash=key_hash, operation=operation, target=target
     )
-    if existing is not None:
-        return existing
+    if claim.claimed:
+        pass
+    elif claim.state == _STATE_COMPLETED:
+        return json.loads(claim.response_json)
+    elif claim.state == _STATE_PENDING:
+        raise IdempotencyConflict(
+            {"error": "idempotency_in_progress"}, retry_after=_IDEMPOTENCY_RETRY_AFTER_SECONDS
+        )
+    elif claim.state == _STATE_UNKNOWN:
+        raise IdempotencyConflict({"error": "idempotency_outcome_unknown"})
 
-    response = await execute()
+    try:
+        response = await execute()
+    except BaseException:
+        # Provider raised after the claim: record an unknown outcome so later
+        # callers receive a stable 409 and never re-invoke the provider.
+        await asyncio.to_thread(
+            _mark_idempotency_unknown, key_hash=key_hash, operation=operation, target=target
+        )
+        raise
     await asyncio.to_thread(
-        _store_idempotent_response,
-        idempotency_key=idempotency_key,
+        _complete_idempotency_claim,
+        key_hash=key_hash,
         operation=operation,
         target=target,
         response=response,
@@ -198,52 +227,127 @@ async def replay_or_execute_async(
     return response
 
 
-def _load_idempotent_response(
-    *, idempotency_key: str, operation: str, target: str
-) -> dict[str, Any] | None:
+@dataclass(slots=True)
+class _IdempotencyClaim:
+    """Result of an idempotency claim attempt for an existing identity."""
+
+    claimed: bool
+    state: str
+    response_json: str
+
+
+def _claim_idempotency_key(*, key_hash: str, operation: str, target: str) -> _IdempotencyClaim:
+    """Atomically claim an idempotency identity or report an existing claim's state.
+
+    A ``pending`` row is inserted before provider execution. If the identity
+    already exists, the existing row's state (and completed response) is
+    returned so the caller can replay or surface a stable conflict.
+    """
     conn = _idempotency_connection()
     try:
         _delete_expired(conn)
-        key_hash = _idempotency_hash(idempotency_key)
-        existing = conn.execute(
-            """
-            SELECT response_json FROM operations
-            WHERE project = ? AND key_hash = ? AND operation = ? AND target = ?
-            """,
-            (str(project_root()), key_hash, operation, target),
-        ).fetchone()
-        if existing:
-            return json.loads(existing[0])
-        return None
+        now = datetime.now(UTC)
+        expires_at = now + timedelta(hours=_DEFAULT_IDEMPOTENCY_RETENTION_HOURS)
+        # BEGIN IMMEDIATE acquires the write lock up front so two concurrent
+        # claims serialize: exactly one INSERT succeeds and the other sees the
+        # committed row rather than racing on the primary key.
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute(
+                """
+                INSERT INTO operations(project, key_hash, operation, target, state, response_json, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(project_root()),
+                    key_hash,
+                    operation,
+                    target,
+                    _STATE_PENDING,
+                    "",
+                    now.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+            conn.commit()
+            return _IdempotencyClaim(claimed=True, state=_STATE_PENDING, response_json="")
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            row = conn.execute(
+                """
+                SELECT state, response_json FROM operations
+                WHERE project = ? AND key_hash = ? AND operation = ? AND target = ?
+                """,
+                (str(project_root()), key_hash, operation, target),
+            ).fetchone()
+            if row is None:
+                # Expired and deleted between the INSERT and the read; retry once.
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(
+                    """
+                    INSERT INTO operations(project, key_hash, operation, target, state, response_json, created_at, expires_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(project_root()),
+                        key_hash,
+                        operation,
+                        target,
+                        _STATE_PENDING,
+                        "",
+                        now.isoformat(),
+                        expires_at.isoformat(),
+                    ),
+                )
+                conn.commit()
+                return _IdempotencyClaim(claimed=True, state=_STATE_PENDING, response_json="")
+            return _IdempotencyClaim(claimed=False, state=str(row[0]), response_json=str(row[1]))
     finally:
         conn.close()
 
 
-def _store_idempotent_response(
-    *,
-    idempotency_key: str,
-    operation: str,
-    target: str,
-    response: dict[str, Any],
+def _complete_idempotency_claim(
+    *, key_hash: str, operation: str, target: str, response: dict[str, Any]
 ) -> None:
+    """Mark a claimed identity completed and persist its response for replay."""
     conn = _idempotency_connection()
     try:
-        key_hash = _idempotency_hash(idempotency_key)
-        now = datetime.now(UTC)
-        expires_at = now + timedelta(hours=_DEFAULT_IDEMPOTENCY_RETENTION_HOURS)
         conn.execute(
             """
-            INSERT INTO operations(project, key_hash, operation, target, response_json, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            UPDATE operations
+            SET state = ?, response_json = ?
+            WHERE project = ? AND key_hash = ? AND operation = ? AND target = ?
             """,
             (
+                _STATE_COMPLETED,
+                json.dumps(response, sort_keys=True),
                 str(project_root()),
                 key_hash,
                 operation,
                 target,
-                json.dumps(response, sort_keys=True),
-                now.isoformat(),
-                expires_at.isoformat(),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _mark_idempotency_unknown(*, key_hash: str, operation: str, target: str) -> None:
+    """Record an unknown outcome for a claimed identity after a provider failure."""
+    conn = _idempotency_connection()
+    try:
+        conn.execute(
+            """
+            UPDATE operations
+            SET state = ?
+            WHERE project = ? AND key_hash = ? AND operation = ? AND target = ?
+            """,
+            (
+                _STATE_UNKNOWN,
+                str(project_root()),
+                key_hash,
+                operation,
+                target,
             ),
         )
         conn.commit()
@@ -301,6 +405,7 @@ def _idempotency_connection() -> sqlite3.Connection:
     state_dir = project_root() / ".phlo" / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(state_dir / "operations.sqlite")
+    conn.execute(f"PRAGMA busy_timeout = {_IDEMPOTENCY_BUSY_TIMEOUT_MS}")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS operations(
@@ -315,7 +420,21 @@ def _idempotency_connection() -> sqlite3.Connection:
         )
         """
     )
+    _migrate_operations_schema(conn)
     return conn
+
+
+def _migrate_operations_schema(conn: sqlite3.Connection) -> None:
+    """Add the ``state`` column, defaulting existing completed rows to ``completed``.
+
+    The migration is backward-compatible: pre-existing rows (which only ever
+    held successful, replayable responses) are treated as ``completed`` so they
+    remain replayable after the schema change.
+    """
+    columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(operations)").fetchall()}
+    if "state" not in columns:
+        conn.execute("ALTER TABLE operations ADD COLUMN state TEXT NOT NULL DEFAULT 'completed'")
+        conn.commit()
 
 
 def _delete_expired(conn: sqlite3.Connection) -> None:
