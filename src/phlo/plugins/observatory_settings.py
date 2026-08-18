@@ -1,8 +1,9 @@
-"""Core settings storage contracts and helpers for Observatory backends.
+"""Neutral settings storage contracts and resolution for Observatory backends.
 
-Core defines a neutral ``SettingsStore`` capability contract.  The durable
-PostgreSQL implementation is registered by ``phlo-postgres`` through the
-capability registry; core never imports a provider package.
+Core defines the ``SettingsStore`` capability protocol, configuration, and
+capability resolution.  The durable PostgreSQL implementation lives in
+``phlo-postgres`` and is registered through the capability registry; core
+never imports a provider package and contains no database driver or SQL code.
 """
 
 from __future__ import annotations
@@ -26,17 +27,6 @@ class StorageUnavailableError(RuntimeError):
     The API boundary maps this to HTTP 503.  The message never contains
     a DSN, password, or other credential.
     """
-
-
-def _get_psycopg2():
-    try:
-        import psycopg2
-        import psycopg2.extras
-    except ModuleNotFoundError as exc:
-        raise ModuleNotFoundError(
-            "psycopg2 is required to use PostgreSQL-backed observatory settings storage."
-        ) from exc
-    return psycopg2
 
 
 class ObservatorySettingsStorageConfig(BaseConfig):
@@ -96,123 +86,6 @@ class SettingsStore(Protocol):
     ) -> SettingsRecord: ...
 
 
-class SettingsService:
-    """PostgreSQL-backed settings store with optional schema validation.
-
-    This class lives in core so that existing re-exports remain stable, but
-    it is never coupled to a provider package.  The durable instance used
-    at runtime is registered by ``phlo-postgres`` through the capability
-    registry and resolved by :func:`get_settings_service`.
-    """
-
-    def __init__(self, db_url: str) -> None:
-        self._db_url = db_url
-        self._table_ensured = False
-
-    def get(self, scope: SettingsScope, namespace: str) -> SettingsRecord | None:
-        """Get settings for a scope and namespace."""
-        psycopg2 = _get_psycopg2()
-        try:
-            with psycopg2.connect(self._db_url) as conn:
-                self._ensure_table(conn)
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        SELECT settings, updated_at
-                        FROM phlo_settings
-                        WHERE scope = %s AND namespace = %s
-                        """,
-                        (scope.value, namespace),
-                    )
-                    row = cursor.fetchone()
-                    if not row:
-                        logger.debug(
-                            "observatory_settings_not_found",
-                            scope=scope.value,
-                            namespace=namespace,
-                        )
-                        return None
-                    settings, updated_at = row
-                    return SettingsRecord(
-                        scope=scope,
-                        namespace=namespace,
-                        settings=settings,
-                        updated_at=updated_at.isoformat() if updated_at else None,
-                    )
-        except Exception as exc:
-            if isinstance(exc, StorageUnavailableError):
-                raise
-            logger.warning("observatory_settings_storage_unavailable", scope=scope.value)
-            raise StorageUnavailableError("Settings storage is unavailable") from exc
-
-    def put(
-        self,
-        scope: SettingsScope,
-        namespace: str,
-        settings: dict[str, Any],
-        schema: dict[str, Any] | None = None,
-    ) -> SettingsRecord:
-        """Upsert settings for a scope and namespace."""
-        self._validate(settings, schema)
-        psycopg2 = _get_psycopg2()
-        json_settings = psycopg2.extras.Json(settings)
-        try:
-            with psycopg2.connect(self._db_url) as conn:
-                self._ensure_table(conn)
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO phlo_settings (scope, namespace, settings, updated_at)
-                        VALUES (%s, %s, %s, NOW())
-                        ON CONFLICT (scope, namespace)
-                        DO UPDATE SET settings = EXCLUDED.settings, updated_at = NOW()
-                        RETURNING settings, updated_at
-                        """,
-                        (scope.value, namespace, json_settings),
-                    )
-                    stored_settings, updated_at = cursor.fetchone()
-                    conn.commit()
-                    return SettingsRecord(
-                        scope=scope,
-                        namespace=namespace,
-                        settings=stored_settings,
-                        updated_at=updated_at.isoformat() if updated_at else None,
-                    )
-        except Exception as exc:
-            if isinstance(exc, (StorageUnavailableError, ValueError)):
-                raise
-            logger.warning("observatory_settings_storage_unavailable", scope=scope.value)
-            raise StorageUnavailableError("Settings storage is unavailable") from exc
-
-    def _validate(self, settings: dict[str, Any], schema: dict[str, Any] | None) -> None:
-        if not schema:
-            return
-        try:
-            validate(instance=settings, schema=schema)
-        except ValidationError as exc:
-            logger.warning("observatory_settings_validation_failed", error=str(exc))
-            raise ValueError(str(exc)) from exc
-
-    def _ensure_table(self, conn) -> None:
-        if self._table_ensured:
-            return
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS phlo_settings (
-                    scope TEXT NOT NULL,
-                    namespace TEXT NOT NULL,
-                    settings JSONB NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    PRIMARY KEY (scope, namespace)
-                )
-                """
-            )
-            conn.commit()
-        self._table_ensured = True
-        logger.debug("observatory_settings_table_ensured")
-
-
 class InMemorySettingsService:
     """In-memory settings service for explicit development/test configuration.
 
@@ -259,19 +132,17 @@ def get_settings_service() -> SettingsStore:
     """Resolve the settings store for the configured backend.
 
     - ``postgres`` (default): resolves the ``settings_store`` capability
-      registered by ``phlo-postgres``.  If the capability is not registered
-      or the connection fails, :class:`StorageUnavailableError` is raised
-      so the API boundary can return 503.  A later call retries capability
-      resolution and recovers without a process restart.
+      registered by ``phlo-postgres``.  If the capability is not registered,
+      :class:`StorageUnavailableError` is raised so the API boundary can
+      return 503.  A later call retries capability resolution and recovers
+      without a process restart.  The provider reads the DSN override from
+      :class:`ObservatorySettingsStorageConfig` when present.
 
     - ``memory`` (explicit dev/test): returns a process-local
       :class:`InMemorySettingsService` singleton.  Rejected in regulated mode.
 
-    An explicit ``observatory_settings_db_url`` overrides the capability
-      and creates a :class:`SettingsService` directly.
-
     This function is NOT cached: each call performs a fresh capability
-      resolution so that transient failures are never sticky.
+    resolution so that transient failures are never sticky.
     """
     config = ObservatorySettingsStorageConfig()
     backend = config.observatory_settings_backend
@@ -283,13 +154,9 @@ def get_settings_service() -> SettingsStore:
             logger.debug("observatory_settings_service_initialized", backend="memory")
         return _memory_service
 
-    # postgres mode (default) — explicit DSN override takes precedence
-    if config.observatory_settings_db_url:
-        logger.debug("observatory_settings_service_initialized", backend="postgres_explicit")
-        return SettingsService(config.observatory_settings_db_url)
-
-    # Resolve the durable settings store through the neutral capability
-    # registry.  Core never imports a provider package directly.
+    # postgres mode (default) — resolve the durable settings store through
+    # the neutral capability registry.  Core never imports a provider
+    # package directly.  The DSN override is read by the provider.
     from phlo.capabilities import resolve_capability
 
     result = resolve_capability("settings_store")

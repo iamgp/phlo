@@ -1,7 +1,7 @@
 """Tests for durable Observatory settings storage and fail-closed behaviour.
 
 Covers the acceptance criteria from issue #626:
-- Core settings code has no provider-package import.
+- Core settings code has no provider-package import, no psycopg2, no SQL.
 - Durable backend selected by default; memory only via explicit config.
 - PostgreSQL unavailable → 503 (StorageUnavailableError); no in-memory record.
 - Same-process recovery after the database returns.
@@ -15,7 +15,7 @@ from __future__ import annotations
 import ast
 import importlib
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,7 +23,6 @@ from phlo.plugins.observatory_settings import (
     InMemorySettingsService,
     ObservatorySettingsStorageConfig,
     SettingsScope,
-    SettingsService,
     SettingsStore,
     StorageUnavailableError,
     _reset_memory_service,
@@ -52,7 +51,6 @@ def _isolate(monkeypatch):
     """Ensure each test starts with a clean capability registry and memory cache."""
     _clear_settings_store_capability()
     _reset_memory_service()
-    # Default to postgres backend unless a test overrides it.
     monkeypatch.setenv("PHLO_OBSERVATORY_SETTINGS_BACKEND", "postgres")
     monkeypatch.delenv("PHLO_OBSERVATORY_SETTINGS_DB_URL", raising=False)
     yield
@@ -61,14 +59,18 @@ def _isolate(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Import boundary
+# Import boundary — core must not import provider packages or psycopg2
 # ---------------------------------------------------------------------------
+
+
+def _module_source(name: str) -> str:
+    mod = importlib.import_module(name)
+    return Path(mod.__file__).read_text()
 
 
 def test_core_observatory_settings_does_not_import_phlo_postgres() -> None:
     """Core settings module must not import any provider package."""
-    module_path = Path(importlib.import_module("phlo.plugins.observatory_settings").__file__)
-    tree = ast.parse(module_path.read_text())
+    tree = ast.parse(_module_source("phlo.plugins.observatory_settings"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -79,6 +81,48 @@ def test_core_observatory_settings_does_not_import_phlo_postgres() -> None:
             assert node.module is None or not node.module.startswith("phlo_postgres"), (
                 f"core imports provider package: {node.module}"
             )
+
+
+def test_core_observatory_settings_has_no_psycopg2_reference() -> None:
+    """Core settings module must not import or reference psycopg2 in code."""
+    tree = ast.parse(_module_source("phlo.plugins.observatory_settings"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                assert "psycopg2" not in alias.name, f"core imports psycopg2: {alias.name}"
+        elif isinstance(node, ast.ImportFrom):
+            assert node.module is None or "psycopg2" not in node.module, (
+                f"core imports psycopg2: {node.module}"
+            )
+
+
+def test_core_observatory_settings_has_no_sql_implementation() -> None:
+    """Core settings module must not contain SQL statements."""
+    source = _module_source("phlo.plugins.observatory_settings")
+    sql_keywords = ("CREATE TABLE", "INSERT INTO", "SELECT ", "ON CONFLICT", "DO UPDATE")
+    for keyword in sql_keywords:
+        assert keyword not in source, f"core source contains SQL: {keyword}"
+
+
+def test_core_observatory_settings_has_no_settings_service_class() -> None:
+    """Core settings module must not define a concrete SettingsService class."""
+    tree = ast.parse(_module_source("phlo.plugins.observatory_settings"))
+    class_defs = {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+    }
+    assert "SettingsService" not in class_defs, (
+        "core defines concrete SettingsService — provider behavior must live in phlo-postgres"
+    )
+
+
+def test_core_plugins_init_does_not_reexport_settings_service() -> None:
+    """phlo.plugins must not re-export SettingsService."""
+    import phlo.plugins as plugins
+
+    assert "SettingsService" not in plugins.__all__
+    assert not hasattr(plugins, "SettingsService")
 
 
 # ---------------------------------------------------------------------------
@@ -146,68 +190,21 @@ def test_postgres_mode_does_not_create_in_memory_record_on_failure() -> None:
     """When the durable backend is unavailable, no in-memory write occurs."""
     with pytest.raises(StorageUnavailableError):
         get_settings_service()
-    # The memory singleton must not have been populated.
     from phlo.plugins.observatory_settings import _memory_service
 
     assert _memory_service is None
 
 
 # ---------------------------------------------------------------------------
-# Postgres mode — connection failure and recovery
+# Postgres mode — same-process recovery
 # ---------------------------------------------------------------------------
-
-
-def test_connection_failure_raises_storage_unavailable() -> None:
-    """A psycopg2 connection failure must surface as StorageUnavailableError."""
-    store = SettingsService("postgresql://invalid:5432/phlo")
-    _register_mock_settings_store(store)
-
-    with (
-        patch("psycopg2.connect", side_effect=OSError("connection refused")),
-        pytest.raises(StorageUnavailableError, match="Settings storage is unavailable"),
-    ):
-        store.get(SettingsScope.GLOBAL, "observatory")
-
-
-def test_recovery_after_database_becomes_available() -> None:
-    """First call fails, second call succeeds in the same process."""
-    store = SettingsService("postgresql://localhost:5432/phlo")
-    _register_mock_settings_store(store)
-
-    mock_cursor = MagicMock()
-    mock_cursor.fetchone.return_value = ({"version": 1}, None)
-    mock_conn = MagicMock()
-    mock_conn.__enter__.return_value = mock_conn
-    mock_conn.__exit__.return_value = False
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_conn.cursor.return_value.__exit__.return_value = False
-
-    call_count = {"n": 0}
-
-    def fake_connect(*_args, **_kwargs):
-        call_count["n"] += 1
-        if call_count["n"] == 1:
-            raise OSError("connection refused")
-        return mock_conn
-
-    with patch("psycopg2.connect", side_effect=fake_connect):
-        # First call — database unavailable.
-        with pytest.raises(StorageUnavailableError):
-            store.get(SettingsScope.GLOBAL, "observatory")
-
-        # Second call — same process, no cache clear — succeeds.
-        record = store.get(SettingsScope.GLOBAL, "observatory")
-        assert record is not None
-        assert record.settings == {"version": 1}
 
 
 def test_get_settings_service_retries_capability_resolution_after_failure() -> None:
     """get_settings_service() must not cache a failure; later calls retry."""
-    # No capability registered → first call fails.
     with pytest.raises(StorageUnavailableError):
         get_settings_service()
 
-    # Register capability → second call succeeds without cache clear.
     mock_store = MagicMock(spec=SettingsStore)
     _register_mock_settings_store(mock_store)
     service = get_settings_service()
@@ -215,38 +212,19 @@ def test_get_settings_service_retries_capability_resolution_after_failure() -> N
 
 
 # ---------------------------------------------------------------------------
-# DSN safety
+# DSN safety — get_settings_service errors contain no credentials
 # ---------------------------------------------------------------------------
 
 
-def test_storage_unavailable_error_contains_no_dsn() -> None:
-    store = SettingsService("postgresql://user:secret@host:5432/db")
-    _register_mock_settings_store(store)
-
-    with patch("psycopg2.connect", side_effect=OSError("connection refused")):
-        try:
-            store.get(SettingsScope.GLOBAL, "observatory")
-            pytest.fail("expected StorageUnavailableError")
-        except StorageUnavailableError as exc:
-            msg = str(exc)
-            assert "user:secret" not in msg
-            assert "postgresql://" not in msg
-            assert "host:5432" not in msg
-
-
 def test_get_settings_service_error_contains_no_dsn(monkeypatch) -> None:
+    """When storage is unavailable, the error message must not leak the DSN."""
     monkeypatch.setenv("PHLO_OBSERVATORY_SETTINGS_DB_URL", "postgresql://user:secret@host:5432/db")
-    store = get_settings_service()
-    assert isinstance(store, SettingsService)
-
-    with patch("psycopg2.connect", side_effect=OSError("connection refused")):
-        try:
-            store.get(SettingsScope.GLOBAL, "observatory")
-            pytest.fail("expected StorageUnavailableError")
-        except StorageUnavailableError as exc:
-            msg = str(exc)
-            assert "user:secret" not in msg
-            assert "postgresql://" not in msg
+    with pytest.raises(StorageUnavailableError) as exc_info:
+        get_settings_service()
+    msg = str(exc_info.value)
+    assert "user:secret" not in msg
+    assert "postgresql://" not in msg
+    assert "host:5432" not in msg
 
 
 # ---------------------------------------------------------------------------
@@ -264,19 +242,6 @@ def test_global_and_extension_use_same_capability() -> None:
     service.get(SettingsScope.GLOBAL, "observatory.core")
     service.get(SettingsScope.EXTENSION, "observatory.extension.demo")
 
-    # Same provider instance for both scopes.
     assert mock_store.get.call_count == 2
     mock_store.get.assert_any_call(SettingsScope.GLOBAL, "observatory.core")
     mock_store.get.assert_any_call(SettingsScope.EXTENSION, "observatory.extension.demo")
-
-
-# ---------------------------------------------------------------------------
-# DSN override
-# ---------------------------------------------------------------------------
-
-
-def test_explicit_dsn_override_bypasses_capability(monkeypatch) -> None:
-    monkeypatch.setenv("PHLO_OBSERVATORY_SETTINGS_DB_URL", "postgresql://override:5432/phlo")
-    service = get_settings_service()
-    assert isinstance(service, SettingsService)
-    assert service._db_url == "postgresql://override:5432/phlo"
