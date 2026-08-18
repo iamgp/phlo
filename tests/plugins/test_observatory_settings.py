@@ -107,11 +107,7 @@ def test_core_observatory_settings_has_no_sql_implementation() -> None:
 def test_core_observatory_settings_has_no_settings_service_class() -> None:
     """Core settings module must not define a concrete SettingsService class."""
     tree = ast.parse(_module_source("phlo.plugins.observatory_settings"))
-    class_defs = {
-        node.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ClassDef)
-    }
+    class_defs = {node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)}
     assert "SettingsService" not in class_defs, (
         "core defines concrete SettingsService — provider behavior must live in phlo-postgres"
     )

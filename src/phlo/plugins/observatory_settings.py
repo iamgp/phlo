@@ -162,9 +162,7 @@ def get_settings_service() -> SettingsStore:
     result = resolve_capability("settings_store")
     if result is None:
         logger.warning("observatory_settings_storage_unavailable", reason="no_provider")
-        raise StorageUnavailableError(
-            "Durable settings storage backend is not available"
-        )
+        raise StorageUnavailableError("Durable settings storage backend is not available")
     logger.debug(
         "observatory_settings_service_initialized",
         backend="postgres_capability",

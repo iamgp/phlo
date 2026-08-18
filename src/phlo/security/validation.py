@@ -581,8 +581,7 @@ def _check_settings_backend() -> ValidationResult:
             name="settings_backend_durable",
             passed=False,
             message=(
-                "Regulated mode requires durable settings storage; "
-                "memory backend is not permitted"
+                "Regulated mode requires durable settings storage; memory backend is not permitted"
             ),
         )
 
