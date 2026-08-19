@@ -584,7 +584,6 @@ def configure_wap(config: RunConfig) -> None:
 def materialize_wap(config: RunConfig) -> WapRun:
     """Launch the generated ingestion asset through the public WAP CLI path."""
     token = service_token("phlo-api", wap_service_secret(config))
-    dagster_url = service_url(config, "dagster", 3000, "/graphql")
     nessie_url = service_url(config, "nessie", 19120)
     environment = {
         **os.environ,
