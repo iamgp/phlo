@@ -113,7 +113,6 @@ runtime_user="phlo"
 if [ -n "${PHLO_RUNTIME_UID:-}" ] && [ -n "${PHLO_RUNTIME_GID:-}" ]; then
     runtime_user="${PHLO_RUNTIME_UID}:${PHLO_RUNTIME_GID}"
 fi
-# `su-exec` preserves the root bootstrap environment. Use the world-writable
-# temporary directory for telemetry so it never falls back to the root filesystem.
-export HOME=/tmp
-exec su-exec "$runtime_user" "$@"
+# Numeric runtime users do not have a passwd entry, so `su-exec` resets HOME to
+# the root filesystem. Set it after the privilege drop for Dagster telemetry.
+exec su-exec "$runtime_user" env HOME=/tmp "$@"
