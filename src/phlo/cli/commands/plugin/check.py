@@ -61,8 +61,14 @@ def _plugin_package(plugin: Any) -> str:
 
 def _service_inventory() -> tuple[dict[str, str], list[str]]:
     """Return generated service-file owners and all currently installed service names."""
+    owners, service_names, _ = _service_inventory_with_helpers()
+    return owners, service_names
+
+
+def _service_inventory_with_helpers() -> tuple[dict[str, str], list[str], dict[str, str]]:
+    """Return installed service owners, requested IDs, and companion-service mappings."""
     owners: dict[str, str] = {}
-    service_names: list[str] = []
+    primary_service_names: set[str] = set()
     package_roots: dict[Path, str] = {}
     discovered = discover_plugins(plugin_type="service", auto_register=True)
     for discovered_plugin in discovered.get("service", []):
@@ -81,12 +87,14 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
         service_definition = plugin.service_definition
         service_name = service_definition.get("name")
         if service_name:
-            service_names.append(service_name)
-        for file_spec in plugin.get_files():
+            primary_service_names.add(service_name)
+        for file_spec in plugin.get_files() or []:
             destination = file_spec.get("dest")
             if destination:
                 owners[destination] = package
-    for service_name, definition in ServiceDiscovery().discover().items():
+    helper_mappings: dict[str, str] = {}
+    discovered_services = ServiceDiscovery().discover()
+    for service_name, definition in discovered_services.items():
         source_path = definition.source_path
         if not source_path:
             continue
@@ -99,11 +107,13 @@ def _service_inventory() -> tuple[dict[str, str], list[str]]:
         if matching_roots:
             package = max(matching_roots)[1]
             owners.setdefault(f"@service:{service_name}", package)
+            if service_name not in primary_service_names:
+                helper_mappings[service_name] = package
             for file_spec in definition.files:
                 destination = file_spec.get("dest")
                 if destination:
                     owners.setdefault(destination, package)
-    return owners, list(dict.fromkeys(service_names))
+    return owners, sorted(discovered_services), helper_mappings
 
 
 def _run_command(
@@ -330,6 +340,17 @@ def _run_trivy_image_scan(
         return f"{label} could not start: {exc}", None, False
 
     evidence = _trivy_vulnerability_evidence(result.stdout or "")
+    scanner_streams = {
+        "scanner_stdout": result.stdout or "",
+        "scanner_stderr": result.stderr or "",
+    }
+    if evidence is None:
+        evidence = {
+            "high_count": 0,
+            "critical_count": 0,
+            "vulnerable_components": [],
+        }
+    evidence.update(scanner_streams)
     if result.returncode:
         waivable = bool(
             result.returncode == 1
@@ -338,16 +359,7 @@ def _run_trivy_image_scan(
             and not (result.stderr or "").strip()
         )
         return _run_command_result_failure(result, label), evidence, waivable
-    return (
-        None,
-        evidence
-        or {
-            "high_count": 0,
-            "critical_count": 0,
-            "vulnerable_components": [],
-        },
-        False,
-    )
+    return None, evidence, False
 
 
 def _run_checked_command(
@@ -571,10 +583,11 @@ def check_generated_containers(
         raise ContainerCheckError("required tool 'docker' is not installed or not on PATH")
 
     if service_files is None:
-        owners, discovered_service_names = _service_inventory()
+        owners, discovered_service_names, helper_mappings = _service_inventory_with_helpers()
     else:
         owners = service_files
         discovered_service_names = service_names or []
+        helper_mappings = {}
     with tempfile.TemporaryDirectory(prefix="phlo-container-check-", dir=project_parent) as raw:
         project = Path(raw)
         project.mkdir(exist_ok=True)
@@ -650,6 +663,8 @@ def check_generated_containers(
                     )
 
         compose_file = generated_root / "docker-compose.yml"
+        env_file = generated_root / ".env"
+        env_local_file = generated_root / ".env.local"
         compose_command = [
             docker,
             "compose",
@@ -659,6 +674,10 @@ def check_generated_containers(
             str(compose_file),
             "--project-directory",
             str(generated_root),
+            "--env-file",
+            str(env_file),
+            "--env-file",
+            str(env_local_file),
             "config",
             "--format",
             "json",
@@ -678,6 +697,18 @@ def check_generated_containers(
             raise ContainerCheckError(
                 "docker compose config returned invalid service JSON"
             ) from exc
+
+        expected_services = set(discovered_service_names)
+        requested_services = set(discovered_service_names)
+        generated_services = set(compose_services)
+        if service_files is None and (
+            expected_services != requested_services or requested_services != generated_services
+        ):
+            raise ContainerCheckError(
+                "generated service matrix is incomplete: "
+                f"expected={sorted(expected_services)}, requested={sorted(requested_services)}, "
+                f"generated={sorted(generated_services)}"
+            )
 
         service_owners = {
             name.removeprefix("@service:"): package
@@ -1088,6 +1119,10 @@ def check_generated_containers(
             raise ContainerCheckError("\n".join(lines))
 
     return {
+        "expected_services": sorted(discovered_service_names),
+        "requested_services": sorted(discovered_service_names),
+        "generated_services": sorted(result["service"] for result in service_results),
+        "helper_mappings": helper_mappings,
         "dockerfiles": relative_dockerfiles,
         "owners": dockerfile_owners,
         "hadolint": "passed" if dockerfiles else "skipped (no generated Dockerfiles)",

@@ -92,4 +92,4 @@ hooks:
         - init-branches
       timeout_seconds: 60
 
-files:
+files: []

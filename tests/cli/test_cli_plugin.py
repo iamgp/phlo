@@ -272,6 +272,8 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             "high_count": 0,
             "critical_count": 0,
             "vulnerable_components": [],
+            "scanner_stdout": "",
+            "scanner_stderr": "",
         },
         {
             "service": "observatory",
@@ -283,6 +285,8 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             "high_count": 0,
             "critical_count": 0,
             "vulnerable_components": [],
+            "scanner_stdout": "",
+            "scanner_stderr": "",
         },
     ]
 
@@ -406,7 +410,13 @@ def test_trivy_image_scan_retains_a_parseable_bounded_json_report(monkeypatch, t
     assert capture["max_output_chars"] == check_module.MAX_TRIVY_JSON_CHARS
     assert capture["max_output_chars"] > check_module.MAX_TOOL_OUTPUT_CHARS
     assert failure is not None
-    assert evidence == {"high_count": 0, "critical_count": 0, "vulnerable_components": []}
+    assert evidence == {
+        "high_count": 0,
+        "critical_count": 0,
+        "vulnerable_components": [],
+        "scanner_stdout": '{"Results": []}',
+        "scanner_stderr": "findings",
+    }
     assert waivable is False
 
 
@@ -1148,6 +1158,13 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
                     "severity": "HIGH",
                 }
             ],
+            "scanner_stdout": (
+                '{"Results": [{"Target": "one-binary", "Class": "lang-pkgs", '
+                '"Type": "gobinary", "Vulnerabilities": [{"VulnerabilityID": "CVE-TEST", '
+                '"PkgName": "example/component", "InstalledVersion": "1.0.0", '
+                '"FixedVersion": "1.0.1", "Severity": "HIGH"}]}]}'
+            ),
+            "scanner_stderr": "",
             "vulnerability_waiver": "No patched upstream release is available",
             "vulnerability_evidence_sha256": (
                 "8f315d5e0ddd6c0d0c830665f6b519de3c1ace3cc7386651ebb0bee566fcad61"
