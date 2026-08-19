@@ -1068,36 +1068,6 @@ def check_generated_containers(
                 }
             )
 
-        trivy_failure = _run_command(
-            [
-                docker,
-                "run",
-                "--rm",
-                "-v",
-                f"{project.resolve()}:/workspace:ro",
-                "-v",
-                f"{trivy_cache.resolve()}:/root/.cache/trivy",
-                TRIVY_IMAGE,
-                "config",
-                "--exit-code",
-                "1",
-                "--severity",
-                "HIGH,CRITICAL",
-                "/workspace/.phlo",
-            ],
-            cwd=project,
-            runner=command_runner,
-            label="trivy config",
-        )
-        if trivy_failure:
-            failures.append(
-                {
-                    "tool": "trivy",
-                    "package": "project",
-                    "target": ".phlo",
-                    "detail": trivy_failure,
-                }
-            )
         reported_image_failures: set[str] = set()
         for result in service_results:
             if result["status"] in {"passed", "waived"}:

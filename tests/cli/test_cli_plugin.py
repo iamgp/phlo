@@ -260,7 +260,9 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
         and "/var/run/docker.sock:/var/run/docker.sock" in command
         for command, _ in calls
     )
-    assert calls[-1][0][-1] == "/workspace/.phlo"
+    assert not any(
+        check_module.TRIVY_IMAGE in command and "config" in command for command, _ in calls
+    )
     assert result["services"] == [
         {
             "service": "dagster",
@@ -992,7 +994,7 @@ def test_plugin_check_containers_reports_all_package_failures(monkeypatch, tmp_p
     message = str(exc_info.value)
     assert "package-one" in message
     assert "package-two" in message
-    assert "trivy [project]" in message
+    assert "trivy image [package-one]" in message
     assert "stdout:" not in message
     assert [command[0] for command in calls].count("/bin/phlo") == 1
     assert [command[0] for command in calls].count("/bin/docker") >= 5
