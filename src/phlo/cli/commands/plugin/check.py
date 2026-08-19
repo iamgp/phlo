@@ -347,17 +347,15 @@ def _run_trivy_image_scan(
         return f"{label} could not start: {exc}", None, False
 
     evidence = _trivy_vulnerability_evidence(result.stdout or "")
-    scanner_streams = {
-        "scanner_stdout": result.stdout or "",
-        "scanner_stderr": result.stderr or "",
-    }
     if evidence is None:
         evidence = {
             "high_count": 0,
             "critical_count": 0,
             "vulnerable_components": [],
         }
-    evidence.update(scanner_streams)
+    evidence = cast(dict[str, Any], evidence)
+    evidence["scanner_stdout"] = result.stdout or ""
+    evidence["scanner_stderr"] = result.stderr or ""
     if result.returncode:
         waivable = bool(
             result.returncode == 1
