@@ -244,6 +244,11 @@ def prepare_container_wheelhouse(wheelhouse: Path, consumer: Path) -> dict[str, 
     """Make the built wheels available to generated Dockerfiles, never repository sources."""
     destination = consumer / ".phlo" / "wheelhouse"
     shutil.copytree(wheelhouse, destination, dirs_exist_ok=True)
+    # The generated API container runs as an unprivileged user and bind-mounts this
+    # externally owned diagnostic directory. It must be writable for the health probe.
+    logs = consumer / ".phlo" / "logs"
+    logs.mkdir(exist_ok=True)
+    logs.chmod(0o777)
     environment = external_environment()
     environment["PHLO_WHEELHOUSE"] = "installed-artifacts"
     return environment
