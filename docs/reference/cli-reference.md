@@ -993,11 +993,12 @@ phlo-plugin-my-api-source/
 Validate installed plugins and, with `--containers`, the complete generated
 container matrix from a disposable consumer project. Container JSON records the
 service/provider attribution, resolved image identity, Trivy stdout/stderr, and
-HIGH/CRITICAL findings. Findings in Phlo-owned `phlo-api`, `phlo-dagster`, and
-`phlo-observatory` images block unless covered by the approved time-limited
-waiver policy. Findings in immutable official upstream images remain complete,
-non-blocking visibility; unresolved images, incomplete attribution, malformed
-reports, and scanner operational errors always fail.
+HIGH/CRITICAL findings. Images in Phlo's `ghcr.io/phlohouse/phlo-` publication
+namespace (currently `phlo-api`, `phlo-dagster`, and `phlo-observatory`) block
+unless covered by the approved time-limited waiver policy. Findings in immutable
+official upstream images remain complete, non-blocking visibility; unresolved
+images, incomplete attribution, malformed reports, and scanner operational
+errors always fail.
 
 ```bash
 phlo plugin check [OPTIONS]

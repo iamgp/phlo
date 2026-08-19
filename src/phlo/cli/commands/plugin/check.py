@@ -34,11 +34,7 @@ HADOLINT_IMAGE = (
 TRIVY_IMAGE = (
     "aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
 )
-FIRST_PARTY_IMAGE_PREFIXES = (
-    "ghcr.io/phlohouse/phlo-api:",
-    "ghcr.io/phlohouse/phlo-dagster:",
-    "ghcr.io/phlohouse/phlo-observatory:",
-)
+FIRST_PARTY_IMAGE_PREFIX = "ghcr.io/phlohouse/phlo-"
 MAX_TOOL_OUTPUT_CHARS = 64 * 1024
 MAX_TRIVY_JSON_CHARS = 8 * 1024 * 1024
 MAX_COMPOSE_CONFIG_CHARS = 4 * 1024 * 1024
@@ -59,7 +55,8 @@ class VulnerabilityWaiver:
 
 def _image_owner(image: str) -> str:
     """Return the security owner for a generated runtime image reference."""
-    return "phlo" if image.startswith(FIRST_PARTY_IMAGE_PREFIXES) else "upstream"
+    normalized_repository = image.split("@", 1)[0]
+    return "phlo" if normalized_repository.startswith(FIRST_PARTY_IMAGE_PREFIX) else "upstream"
 
 
 def _plugin_package(plugin: Any) -> str:

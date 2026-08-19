@@ -1232,6 +1232,14 @@ def test_first_party_vulnerability_findings_block_without_an_approved_waiver() -
     assert result["vulnerability_policy"] == "blocking"
 
 
+def test_future_phlo_published_image_is_blocking_but_a_lookalike_is_upstream() -> None:
+    """Ownership follows Phlo's publication namespace, not today's service list."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    assert check_module._image_owner("ghcr.io/phlohouse/phlo-new-service:1.2.3") == "phlo"
+    assert check_module._image_owner("ghcr.io/another-org/phlo-new-service:1.2.3") == "upstream"
+
+
 def test_scanner_operational_errors_block_upstream_visibility() -> None:
     """Visibility remains fail-closed when Trivy cannot produce finding evidence."""
     from phlo.cli.commands.plugin import check as check_module
