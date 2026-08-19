@@ -37,6 +37,7 @@ def test_core_does_not_import_provider_packages() -> None:
 
 def test_cli_contract_helpers_accept_fake_providers(monkeypatch, tmp_path) -> None:
     """The CLI works with neutral provider contracts rather than native packages."""
+
     class FakeValidator:
         def validate_workflow_file(self, path: Path) -> None:
             assert path == tmp_path / "workflow.py"
@@ -69,7 +70,10 @@ def test_cli_contract_helpers_accept_fake_providers(monkeypatch, tmp_path) -> No
         workflow._validate_workflow_file(str(tmp_path / "workflow.py"))
         workflow._validate_schema_file(str(tmp_path / "schema.py"))
         assert schema_migrate._find_native_schema("raw.orders", "OrdersSchema") is not None
-        assert schema_migrate._resolve_namespace_resolver().resolve_namespace("orders") == "staging.orders"
+        assert (
+            schema_migrate._resolve_namespace_resolver().resolve_namespace("orders")
+            == "staging.orders"
+        )
     finally:
         clear_capabilities("workflow_validation")
         clear_capabilities("schema_discovery")
