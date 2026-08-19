@@ -58,7 +58,9 @@ def test_read_model_cache_allows_different_key_loaders_to_overlap() -> None:
 
     threads = [
         threading.Thread(
-            target=lambda value=value: results.append(cache.cached(value, 30, lambda: loader(value)))
+            target=lambda value=value: results.append(
+                cache.cached(value, 30, lambda: loader(value))
+            )
         )
         for value in ("assets", "tables")
     ]
@@ -85,7 +87,10 @@ def test_read_model_cache_shares_same_key_loader_result() -> None:
         assert release_loader.wait(timeout=1)
         return {"value": "shared"}
 
-    threads = [threading.Thread(target=lambda: results.append(cache.cached("assets", 30, loader))) for _ in range(2)]
+    threads = [
+        threading.Thread(target=lambda: results.append(cache.cached("assets", 30, loader)))
+        for _ in range(2)
+    ]
     threads[0].start()
     assert loader_started.wait(timeout=1)
     threads[1].start()
