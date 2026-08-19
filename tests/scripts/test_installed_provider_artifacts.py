@@ -52,6 +52,7 @@ def test_health_shard_marks_a_service_without_a_healthcheck_not_applicable(tmp_p
         consumer=tmp_path,
         shard_index=0,
         shard_count=1,
+        env={},
     )
 
     assert results == [

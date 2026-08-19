@@ -240,8 +240,22 @@ print(json.dumps(result))
     return json.loads(_run([str(executable(environment, "python")), "-c", script], cwd=environment))
 
 
+def prepare_container_wheelhouse(wheelhouse: Path, consumer: Path) -> dict[str, str]:
+    """Make the built wheels available to generated Dockerfiles, never repository sources."""
+    destination = consumer / ".phlo" / "wheelhouse"
+    shutil.copytree(wheelhouse, destination, dirs_exist_ok=True)
+    environment = external_environment()
+    environment["PHLO_WHEELHOUSE"] = "installed-artifacts"
+    return environment
+
+
 def build_shard(
-    compose: dict[str, Any], *, consumer: Path, shard_index: int, shard_count: int
+    compose: dict[str, Any],
+    *,
+    consumer: Path,
+    shard_index: int,
+    shard_count: int,
+    env: dict[str, str],
 ) -> list[dict[str, Any]]:
     buildable = [
         (name, config)
@@ -261,6 +275,7 @@ def build_shard(
                 name,
             ],
             cwd=consumer,
+            env=env,
             text=True,
             capture_output=True,
         )
@@ -276,7 +291,12 @@ def build_shard(
 
 
 def health_shard(
-    compose: dict[str, Any], *, consumer: Path, shard_index: int, shard_count: int
+    compose: dict[str, Any],
+    *,
+    consumer: Path,
+    shard_index: int,
+    shard_count: int,
+    env: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Exercise declared container health checks without treating them as runtime acceptance."""
     buildable = [
@@ -307,12 +327,14 @@ def health_shard(
                 name,
             ],
             cwd=consumer,
+            env=env,
             text=True,
             capture_output=True,
         )
         subprocess.run(
             ["docker", "compose", "-f", str(compose_file), "rm", "--force", "--stop", name],
             cwd=consumer,
+            env=env,
             text=True,
             capture_output=True,
         )
@@ -353,6 +375,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             [str(phlo), "services", "list", "--all", "--json"], cwd=consumer, env=env
         )
         rendered, compose = render_services(phlo, environment, consumer, services, env)
+        container_env = prepare_container_wheelhouse(temporary / "wheelhouse", consumer)
         expected_services = {entry["name"] for entry in services}
         rendered_services = {entry["service"] for entry in rendered}
         checks["missing_services"] = sorted(expected_services - rendered_services)
@@ -377,6 +400,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 consumer=consumer,
                 shard_index=args.docker_shard_index,
                 shard_count=args.docker_shard_count,
+                env=container_env,
             )
             if args.include_docker_builds
             else []
@@ -390,6 +414,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 consumer=consumer,
                 shard_index=args.docker_shard_index,
                 shard_count=args.docker_shard_count,
+                env=container_env,
             )
             if args.include_docker_health
             else []
