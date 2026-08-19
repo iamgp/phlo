@@ -107,6 +107,10 @@ if [ -n "$PHLO_PROJECT_PATH" ] && [ -d "$PHLO_PROJECT_PATH" ]; then
     cd "$PHLO_PROJECT_PATH"
 fi
 
+# Signal that the bootstrap work is complete before the container drops
+# privileges and starts Dagster. The host CLI waits for this marker.
+touch /tmp/phlo-dagster-ready
+
 # Drop privileges after the one-time bootstrap. Linux development stacks retain
 # their host-owned project files; other stacks use the image's phlo account.
 runtime_user="phlo"
