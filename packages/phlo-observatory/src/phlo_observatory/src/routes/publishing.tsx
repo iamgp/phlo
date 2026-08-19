@@ -224,7 +224,10 @@ function PublicationSummary({
 }: {
   datasets: Array<ObservatoryDataset>
   drafts: number
-  profiles: Record<string, ObservatoryResourceResult<ObservatoryPublishingReadiness>>
+  profiles: Record<
+    string,
+    ObservatoryResourceResult<ObservatoryPublishingReadiness>
+  >
   promoted: number
   published: number
 }) {
@@ -233,7 +236,9 @@ function PublicationSummary({
   )
   const loadedProfiles = Object.values(profiles)
     .map((result) => result.data)
-    .filter((profile): profile is ObservatoryPublishingReadiness => Boolean(profile))
+    .filter((profile): profile is ObservatoryPublishingReadiness =>
+      Boolean(profile),
+    )
   const blocked = readinessList.filter(
     (readiness) => readiness.blockers.length > 0,
   ).length
@@ -320,9 +325,7 @@ function PublishingRow({
   const publishAction = profile?.actions.find(
     (action) => action.id === 'publish',
   )
-  const retireAction = profile?.actions.find(
-    (action) => action.id === 'retire',
-  )
+  const retireAction = profile?.actions.find((action) => action.id === 'retire')
 
   return (
     <div
@@ -614,8 +617,7 @@ function PublishingInspector({
         ))}
         {readiness.blockers.length === 0 &&
           readiness.missingEvidence.length === 0 &&
-          readiness.warnings.length === 0 &&
-          (
+          readiness.warnings.length === 0 && (
             <div className="phlo-observatory-mini-row" data-state="ok">
               <span>No release issues</span>
               <small>ready for publication action</small>

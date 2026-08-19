@@ -121,7 +121,9 @@ describe('observatory dataset resources', () => {
     const fetch = vi.fn().mockResolvedValue({
       json: () =>
         Promise.resolve({
-          items: [{ dataset_id: 'gold.orders', publishing: { state: 'unknown' } }],
+          items: [
+            { dataset_id: 'gold.orders', publishing: { state: 'unknown' } },
+          ],
         }),
       ok: true,
     })
@@ -133,7 +135,8 @@ describe('observatory dataset resources', () => {
     })
     vi.stubGlobal('fetch', fetch)
 
-    const { getObservatoryPublishingReadinessDirect } = await import('./resources')
+    const { getObservatoryPublishingReadinessDirect } =
+      await import('./resources')
     const result = await getObservatoryPublishingReadinessDirect()
 
     expect(result).toMatchObject({
