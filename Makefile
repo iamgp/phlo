@@ -5,11 +5,12 @@ DEFAULT_SERVICES ?= postgres minio pgweb dagster-webserver dagster-daemon supers
 DEFAULT_LOG_SERVICES ?= dagster-webserver dagster-daemon
 OBSERVATORY_DIR ?= packages/phlo-observatory/src/phlo_observatory
 NPM_OBSERVATORY := npm --prefix $(OBSERVATORY_DIR)
+TY_CHECK_SCOPE := src/phlo $(wildcard packages/*/src)
 CHECK_CMD := scripts/run-parallel \
 	"support manifest" "python3 scripts/validate_support_manifest.py" \
 	"py lint" "uv run --locked ruff check ." \
 	"py format" "uv run --locked ruff format --check ." \
-	"py typecheck" "uv run --locked python3 scripts/typecheck_python.py" \
+	"py typecheck" "uv run --locked ty check --error-on-warning $(TY_CHECK_SCOPE)" \
 	"py test" "uv run --locked pytest -m 'not integration'" \
 	"ts lint" "$(NPM_OBSERVATORY) run lint" \
 	"ts format" "$(NPM_OBSERVATORY) run format -- --check ." \
@@ -302,7 +303,7 @@ format-python:
 	uv run --locked ruff format --check .
 
 typecheck-python:
-	uv run --locked python3 scripts/typecheck_python.py
+	uv run --locked ty check --error-on-warning $(TY_CHECK_SCOPE)
 
 dependency-refresh:
 	python3 scripts/dependency_refresh_plan.py --lane $(LANE)
