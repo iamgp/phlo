@@ -249,6 +249,9 @@ def prepare_container_wheelhouse(wheelhouse: Path, consumer: Path) -> dict[str, 
     logs = consumer / ".phlo" / "logs"
     logs.mkdir(exist_ok=True)
     logs.chmod(0o777)
+    for log in logs.rglob("*"):
+        if log.is_file():
+            log.chmod(0o666)
     environment = external_environment()
     environment["PHLO_WHEELHOUSE"] = "installed-artifacts"
     return environment
@@ -324,7 +327,6 @@ def health_shard(
                 "-f",
                 str(compose_file),
                 "up",
-                "--no-deps",
                 "--detach",
                 "--wait",
                 "--wait-timeout",
@@ -344,7 +346,7 @@ def health_shard(
             capture_output=True,
         )
         subprocess.run(
-            ["docker", "compose", "-f", str(compose_file), "rm", "--force", "--stop", name],
+            ["docker", "compose", "-f", str(compose_file), "down", "--volumes"],
             cwd=consumer,
             env=env,
             text=True,
