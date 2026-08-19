@@ -275,6 +275,57 @@ def build_shard(
     return results
 
 
+def health_shard(
+    compose: dict[str, Any], *, consumer: Path, shard_index: int, shard_count: int
+) -> list[dict[str, Any]]:
+    """Exercise declared container health checks without treating them as runtime acceptance."""
+    buildable = [
+        (name, config)
+        for name, config in (compose.get("services") or {}).items()
+        if config.get("build")
+    ]
+    results = []
+    compose_file = consumer / ".phlo" / "docker-compose.yml"
+    for name, config in buildable[shard_index::shard_count]:
+        if not config.get("healthcheck"):
+            results.append(
+                {"service": name, "status": "not_applicable", "detail": "no healthcheck"}
+            )
+            continue
+        completed = subprocess.run(
+            [
+                "docker",
+                "compose",
+                "-f",
+                str(compose_file),
+                "up",
+                "--no-deps",
+                "--detach",
+                "--wait",
+                "--wait-timeout",
+                "180",
+                name,
+            ],
+            cwd=consumer,
+            text=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["docker", "compose", "-f", str(compose_file), "rm", "--force", "--stop", name],
+            cwd=consumer,
+            text=True,
+            capture_output=True,
+        )
+        results.append(
+            {
+                "service": name,
+                "status": "passed" if completed.returncode == 0 else "failed",
+                "detail": completed.stderr[-4000:],
+            }
+        )
+    return results
+
+
 def verify(args: argparse.Namespace) -> dict[str, Any]:
     repo_root = Path(args.repo_root).resolve()
     packages = workspace_packages(repo_root)
@@ -333,6 +384,19 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         checks["failed_builds"] = [
             entry["service"] for entry in builds if entry["status"] != "passed"
         ]
+        health = (
+            health_shard(
+                compose,
+                consumer=consumer,
+                shard_index=args.docker_shard_index,
+                shard_count=args.docker_shard_count,
+            )
+            if args.include_docker_health
+            else []
+        )
+        checks["failed_health_checks"] = [
+            entry["service"] for entry in health if entry["status"] == "failed"
+        ]
         return {
             "packages": [
                 {
@@ -347,9 +411,10 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             "rendered_services": rendered,
             "images": images,
             "builds": builds,
+            "health": health,
             "checks": checks,
             "acceptance": {
-                "runtime": "not asserted; this lane renders installed artifacts",
+                "runtime": "not asserted; container health evidence is not runtime acceptance",
                 "security": "not asserted; this lane does not run a pinned scanner",
             },
         }
@@ -363,6 +428,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo-root", default=Path(__file__).resolve().parents[1])
     parser.add_argument("--output", required=True)
     parser.add_argument("--include-docker-builds", action="store_true")
+    parser.add_argument("--include-docker-health", action="store_true")
     parser.add_argument("--docker-shard-index", type=int, default=0)
     parser.add_argument("--docker-shard-count", type=int, default=1)
     parser.add_argument("--keep-temp", action="store_true")

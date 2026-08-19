@@ -44,3 +44,16 @@ def test_missing_inventory_entries_are_reported(tmp_path: Path) -> None:
 
     assert checks["missing_packages"] == ["phlo-example"]
     assert checks["missing_wheels"] == ["phlo-example"]
+
+
+def test_health_shard_marks_a_service_without_a_healthcheck_not_applicable(tmp_path: Path) -> None:
+    results = HARNESS.health_shard(
+        {"services": {"generated": {"build": {"context": "."}}}},
+        consumer=tmp_path,
+        shard_index=0,
+        shard_count=1,
+    )
+
+    assert results == [
+        {"service": "generated", "status": "not_applicable", "detail": "no healthcheck"}
+    ]
