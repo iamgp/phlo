@@ -267,6 +267,7 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             "package": "phlo-dagster",
             "image": "example/dagster:1",
             "image_id": "sha256:test",
+            "image_owner": "upstream",
             "status": "passed",
             "image_scan": "passed",
             "high_count": 0,
@@ -274,12 +275,14 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             "vulnerable_components": [],
             "scanner_stdout": "",
             "scanner_stderr": "",
+            "vulnerability_policy": "visibility",
         },
         {
             "service": "observatory",
             "package": "phlo-observatory",
             "image": "example/observatory:1",
             "image_id": "sha256:test",
+            "image_owner": "upstream",
             "status": "passed",
             "image_scan": "passed",
             "high_count": 0,
@@ -287,6 +290,7 @@ def test_plugin_check_containers_checks_generated_project(monkeypatch, setup_reg
             "vulnerable_components": [],
             "scanner_stdout": "",
             "scanner_stderr": "",
+            "vulnerability_policy": "visibility",
         },
     ]
 
@@ -1080,7 +1084,7 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
                     "stdout": json.dumps(
                         {
                             "name": "test-project",
-                            "services": {"one": {"image": "example/one:1"}},
+                            "services": {"one": {"image": "ghcr.io/phlohouse/phlo-api:1"}},
                         }
                     ),
                     "stderr": "",
@@ -1127,7 +1131,7 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
         project_parent=tmp_path,
         service_files={"@service:one": "package-one"},
         vulnerability_waivers={
-            ("one", "example/one:1"): check_module.VulnerabilityWaiver(
+            ("one", "ghcr.io/phlohouse/phlo-api:1"): check_module.VulnerabilityWaiver(
                 evidence_sha256="8f315d5e0ddd6c0d0c830665f6b519de3c1ace3cc7386651ebb0bee566fcad61",
                 reason="No patched upstream release is available",
             )
@@ -1140,8 +1144,9 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
         {
             "service": "one",
             "package": "package-one",
-            "image": "example/one:1",
+            "image": "ghcr.io/phlohouse/phlo-api:1",
             "image_id": "sha256:one",
+            "image_owner": "phlo",
             "status": "waived",
             "image_scan": "waived",
             "high_count": 1,
@@ -1165,6 +1170,7 @@ def test_plugin_check_containers_reports_exact_image_vulnerability_waiver(monkey
                 '"FixedVersion": "1.0.1", "Severity": "HIGH"}]}]}'
             ),
             "scanner_stderr": "",
+            "vulnerability_policy": "blocking",
             "vulnerability_waiver": "No patched upstream release is available",
             "vulnerability_evidence_sha256": (
                 "8f315d5e0ddd6c0d0c830665f6b519de3c1ace3cc7386651ebb0bee566fcad61"
@@ -1186,6 +1192,59 @@ def test_plugin_check_rejects_ambiguous_vulnerability_waiver() -> None:
 
     with pytest.raises(click.BadParameter, match="SERVICE=IMAGE=EVIDENCE_SHA256=REASON"):
         check_module._parse_vulnerability_waivers(("one=example/one:1",))
+
+
+def test_upstream_vulnerability_findings_are_visible_and_non_blocking() -> None:
+    """Vendor findings remain attributable visibility, not Phlo release blockers."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    result = {"image_owner": "upstream", "status": "pending", "image_scan": "pending"}
+
+    check_module._apply_vulnerability_policy(
+        result,
+        trivy_failure="trivy found one HIGH",
+        waiver_eligible=True,
+        waiver=None,
+    )
+
+    assert result["status"] == "passed"
+    assert result["image_scan"] == "visible"
+    assert result["vulnerability_policy"] == "visibility"
+
+
+def test_first_party_vulnerability_findings_block_without_an_approved_waiver() -> None:
+    """Phlo-owned image findings remain a blocking release condition."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    result = {"image_owner": "phlo", "status": "pending", "image_scan": "pending"}
+
+    check_module._apply_vulnerability_policy(
+        result,
+        trivy_failure="trivy found one CRITICAL",
+        waiver_eligible=True,
+        waiver=None,
+    )
+
+    assert result["status"] == "failed"
+    assert result["image_scan"] == "failed"
+    assert result["vulnerability_policy"] == "blocking"
+
+
+def test_scanner_operational_errors_block_upstream_visibility() -> None:
+    """Visibility remains fail-closed when Trivy cannot produce finding evidence."""
+    from phlo.cli.commands.plugin import check as check_module
+
+    result = {"image_owner": "upstream", "status": "pending", "image_scan": "pending"}
+
+    check_module._apply_vulnerability_policy(
+        result,
+        trivy_failure="trivy registry authentication error",
+        waiver_eligible=False,
+        waiver=None,
+    )
+
+    assert result["status"] == "failed"
+    assert result["image_scan"] == "failed"
 
 
 def test_plugin_check_containers_is_available_at_public_cli_seam(monkeypatch, setup_registry):

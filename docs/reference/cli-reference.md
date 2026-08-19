@@ -990,7 +990,14 @@ phlo-plugin-my-api-source/
 
 ### phlo plugin check
 
-Validate installed plugins.
+Validate installed plugins and, with `--containers`, the complete generated
+container matrix from a disposable consumer project. Container JSON records the
+service/provider attribution, resolved image identity, Trivy stdout/stderr, and
+HIGH/CRITICAL findings. Findings in Phlo-owned `phlo-api`, `phlo-dagster`, and
+`phlo-observatory` images block unless covered by the approved time-limited
+waiver policy. Findings in immutable official upstream images remain complete,
+non-blocking visibility; unresolved images, incomplete attribution, malformed
+reports, and scanner operational errors always fail.
 
 ```bash
 phlo plugin check [OPTIONS]
@@ -1000,6 +1007,8 @@ phlo plugin check [OPTIONS]
 
 ```bash
 --json               # Output as JSON
+--containers         # Check generated Dockerfiles and exact service images
+--remote-images      # Resolve and scan registry images without local builds
 ```
 
 **Examples**:

@@ -34,6 +34,11 @@ HADOLINT_IMAGE = (
 TRIVY_IMAGE = (
     "aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
 )
+FIRST_PARTY_IMAGE_PREFIXES = (
+    "ghcr.io/phlohouse/phlo-api:",
+    "ghcr.io/phlohouse/phlo-dagster:",
+    "ghcr.io/phlohouse/phlo-observatory:",
+)
 MAX_TOOL_OUTPUT_CHARS = 64 * 1024
 MAX_TRIVY_JSON_CHARS = 8 * 1024 * 1024
 MAX_COMPOSE_CONFIG_CHARS = 4 * 1024 * 1024
@@ -50,6 +55,11 @@ class VulnerabilityWaiver:
 
     evidence_sha256: str
     reason: str
+
+
+def _image_owner(image: str) -> str:
+    """Return the security owner for a generated runtime image reference."""
+    return "phlo" if image.startswith(FIRST_PARTY_IMAGE_PREFIXES) else "upstream"
 
 
 def _plugin_package(plugin: Any) -> str:
@@ -362,6 +372,50 @@ def _run_trivy_image_scan(
     return None, evidence, False
 
 
+def _apply_vulnerability_policy(
+    result: dict[str, Any],
+    *,
+    trivy_failure: str | None,
+    waiver_eligible: bool,
+    waiver: VulnerabilityWaiver | None,
+    build_failed: bool = False,
+) -> None:
+    """Apply Phlo's blocking-first-party and visible-upstream vulnerability policy."""
+    first_party = result["image_owner"] == "phlo"
+    result["vulnerability_policy"] = "blocking" if first_party else "visibility"
+    waiver_matches = bool(
+        waiver and result.get("vulnerability_evidence_sha256") == waiver.evidence_sha256
+    )
+    if waiver and not first_party:
+        result["status"] = "failed"
+        result["image_scan"] = "failed"
+        result["detail"] = "vulnerability waivers are permitted only for Phlo-owned images"
+        return
+    if trivy_failure and not first_party and waiver_eligible:
+        result["status"] = "failed" if build_failed else "passed"
+        result["image_scan"] = "visible"
+        result["vulnerability_status"] = "visible"
+        result["detail"] = trivy_failure
+        return
+    if trivy_failure and waiver and waiver_eligible and waiver_matches:
+        result["image_scan"] = "waived"
+        result["vulnerability_waiver"] = waiver.reason
+        result["detail"] = _join_failure_details(result.get("detail"), trivy_failure)
+        result["status"] = "failed" if build_failed else "waived"
+        return
+    result["status"] = "failed" if trivy_failure or build_failed else "passed"
+    result["image_scan"] = "failed" if trivy_failure else "passed"
+    if trivy_failure:
+        result["detail"] = _join_failure_details(result.get("detail"), trivy_failure)
+        if waiver and waiver_eligible and not waiver_matches:
+            result["detail"] = _join_failure_details(
+                result["detail"],
+                "vulnerability waiver evidence does not match: "
+                f"expected {waiver.evidence_sha256}, observed "
+                f"{result.get('vulnerability_evidence_sha256', '<none>')}",
+            )
+
+
 def _run_checked_command(
     command: list[str],
     *,
@@ -500,6 +554,7 @@ def _check_remote_service_images(
             "package": package,
             "image": image,
             "image_id": image_id,
+            "image_owner": _image_owner(image),
             "status": "pending",
             "image_scan": "pending",
         }
@@ -540,26 +595,12 @@ def _check_remote_service_images(
             if evidence["vulnerable_components"]:
                 result["vulnerability_evidence_sha256"] = _vulnerability_evidence_sha256(evidence)
         waiver = vulnerability_waivers.get((service_name, image))
-        waiver_matches = bool(
-            waiver and result.get("vulnerability_evidence_sha256") == waiver.evidence_sha256
+        _apply_vulnerability_policy(
+            result,
+            trivy_failure=trivy_failure,
+            waiver_eligible=waiver_eligible,
+            waiver=waiver,
         )
-        if trivy_failure and waiver and waiver_eligible and waiver_matches:
-            result["status"] = "waived"
-            result["image_scan"] = "waived"
-            result["vulnerability_waiver"] = waiver.reason
-            result["detail"] = trivy_failure
-        else:
-            result["status"] = "failed" if trivy_failure else "passed"
-            result["image_scan"] = "failed" if trivy_failure else "passed"
-            if trivy_failure:
-                result["detail"] = trivy_failure
-                if waiver and waiver_eligible and not waiver_matches:
-                    result["detail"] = _join_failure_details(
-                        result["detail"],
-                        "vulnerability waiver evidence does not match: "
-                        f"expected {waiver.evidence_sha256}, observed "
-                        f"{result.get('vulnerability_evidence_sha256', '<none>')}",
-                    )
     return service_results
 
 
@@ -916,6 +957,7 @@ def check_generated_containers(
                     "package": package,
                     "image": image,
                     "image_id": image_id,
+                    "image_owner": _image_owner(image),
                     "status": "failed" if build_failure else "pending",
                     "image_scan": "pending",
                     **({"detail": build_failure} if build_failure else {}),
@@ -961,30 +1003,13 @@ def check_generated_containers(
                         )
                 waiver = vulnerability_waivers.get((service_name, image))
                 build_failed = result["status"] == "failed"
-                waiver_matches = bool(
-                    waiver and result.get("vulnerability_evidence_sha256") == waiver.evidence_sha256
+                _apply_vulnerability_policy(
+                    result,
+                    trivy_failure=trivy_image_failure,
+                    waiver_eligible=waiver_eligible,
+                    waiver=waiver,
+                    build_failed=build_failed,
                 )
-                if trivy_image_failure and waiver and waiver_eligible and waiver_matches:
-                    result["image_scan"] = "waived"
-                    result["vulnerability_waiver"] = waiver.reason
-                    result["detail"] = _join_failure_details(
-                        result.get("detail"), trivy_image_failure
-                    )
-                    result["status"] = "failed" if build_failed else "waived"
-                else:
-                    result["status"] = "failed" if trivy_image_failure or build_failed else "passed"
-                    result["image_scan"] = "failed" if trivy_image_failure else "passed"
-                    if trivy_image_failure:
-                        result["detail"] = _join_failure_details(
-                            result.get("detail"), trivy_image_failure
-                        )
-                        if waiver and waiver_eligible and not waiver_matches:
-                            result["detail"] = _join_failure_details(
-                                result.get("detail"),
-                                "vulnerability waiver evidence does not match: "
-                                f"expected {waiver.evidence_sha256}, observed "
-                                f"{result.get('vulnerability_evidence_sha256', '<none>')}",
-                            )
 
                 if first_resolution:
                     previous_image_id = previous_image_ids[image]
@@ -1092,7 +1117,8 @@ def check_generated_containers(
         missing_results = [
             result["service"]
             for result in service_results
-            if result.get("image_scan") not in {"passed", "failed", "unavailable", "waived"}
+            if result.get("image_scan")
+            not in {"passed", "failed", "unavailable", "visible", "waived"}
         ]
         if missing_results:
             failures.append(
@@ -1129,6 +1155,8 @@ def check_generated_containers(
         "trivy": (
             "passed with explicit vulnerability waiver(s)"
             if any(result.get("image_scan") == "waived" for result in service_results)
+            else "passed with upstream vulnerability visibility"
+            if any(result.get("image_scan") == "visible" for result in service_results)
             else "passed"
         ),
         "services": service_results,
