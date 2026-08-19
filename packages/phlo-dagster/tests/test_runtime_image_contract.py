@@ -140,9 +140,9 @@ def test_dagster_runtime_entrypoint_gives_an_unmapped_uid_an_isolated_writable_h
                 'test "$HOME" = /var/lib/phlo-runtime; '
                 'mkdir -p "$HOME/.dagster"; '
                 'touch "$HOME/.dagster/telemetry"; '
-                'test -f /tmp/phlo-dagster-ready; '
-                'printf runtime-log >> /tmp/phlo-20260819.log; '
-                'test -w /tmp/phlo-20260819.log',
+                "test -f /tmp/phlo-dagster-ready; "
+                "printf runtime-log >> /tmp/phlo-20260819.log; "
+                "test -w /tmp/phlo-20260819.log",
             ],
             capture_output=True,
             text=True,
