@@ -331,6 +331,13 @@ def health_shard(
             text=True,
             capture_output=True,
         )
+        logs = subprocess.run(
+            ["docker", "compose", "-f", str(compose_file), "logs", "--no-color", name],
+            cwd=consumer,
+            env=env,
+            text=True,
+            capture_output=True,
+        )
         subprocess.run(
             ["docker", "compose", "-f", str(compose_file), "rm", "--force", "--stop", name],
             cwd=consumer,
@@ -342,7 +349,7 @@ def health_shard(
             {
                 "service": name,
                 "status": "passed" if completed.returncode == 0 else "failed",
-                "detail": completed.stderr[-4000:],
+                "detail": f"{completed.stderr}\n{logs.stdout}\n{logs.stderr}"[-8000:],
             }
         )
     return results
