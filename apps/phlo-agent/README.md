@@ -11,6 +11,27 @@ The initial setup includes:
 - Agent Browser and the `before-and-after` CLI for visual verification
 - an isolated Vercel Sandbox containing a shallow Phlo checkout
 - approval-gated GitHub writes through the GitHub Tools extension
+- autonomous repository-health and Eve dependency maintenance schedules
+- guarded feature-branch pushes and draft pull requests from scheduled runs
+
+## Autonomous maintenance
+
+The agent runs two proactive workflows after deployment:
+
+| Workflow | UTC schedule | Outcome |
+| --- | --- | --- |
+| Repository health | Tuesday and Friday, 08:00 | Grounded documentation, example, test, CI, and convention findings |
+| Eve upstream sync | Monday and Thursday, 07:00 | Relevant agent dependency updates and migration findings |
+
+Each run searches existing issues and pull requests first. A mechanical,
+low-risk fix may become a verified **draft** pull request. A finding that needs
+product judgment may become a focused issue. Runs create nothing when there is
+no grounded work, and each skill limits how many artifacts one run can produce.
+
+The schedule identity can push feature branches, create issues, and open draft
+pull requests. It cannot push `main` or `master`, open a non-draft PR without
+approval, merge, publish, release, or modify secrets. Git credentials are
+injected by the sandbox network broker and are never exposed to its processes.
 
 ## Local setup
 
@@ -46,6 +67,9 @@ The generated/provisioned channel must keep the connector name
 `github/phlo-agent`. If the available GitHub App name is not `phlo-agent`, set
 `PHLO_AGENT_GITHUB_BOT` to the selected app slug in the Vercel project.
 
+The GitHub App installation needs repository contents, issues, and pull request
+write access so scheduled runs can push feature branches and deliver proposals.
+
 Deployment and connector provisioning change shared Vercel and GitHub state,
 so they are intentionally not performed by repository setup.
 
@@ -64,17 +88,15 @@ Gateway markup. Add paid AI Gateway credits when either:
 
 Buying credits moves the team to AI Gateway's paid tier and ends its monthly
 free-credit allocation. Production also consumes the Vercel resources used by
-Eve: Functions, Workflows, and Sandbox. Configure spend alerts before enabling
-GitHub webhooks or unattended schedules.
+Eve: Functions, Workflows, and Sandbox. Configure spend alerts before deploying:
+the four weekly scheduled runs begin automatically once Vercel enables the cron
+jobs.
 
 Current prices and eligibility can change. Check the
 [AI Gateway pricing page](https://vercel.com/docs/ai-gateway/pricing) and the
 DeepSeek V4 Flash model page in the Vercel dashboard before setting a budget.
 
-## Deferred automation
+## Deferred capabilities
 
-Evi's unattended issue triage, repository-health sweep, upstream dependency
-sync, Linear reporting, memory, telemetry, and automatic pull requests are not
-enabled in this first deployment. They require explicit trust policy,
-destinations, schedules, and spend limits. Add them after the GitHub identity
-and approval flow have been exercised interactively.
+Automatic first-response triage on every new community issue, Linear reporting,
+long-term memory, telemetry, automatic merging, and releases are not enabled.

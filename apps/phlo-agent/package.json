@@ -9,6 +9,7 @@
     "build": "eve build",
     "dev": "eve dev",
     "start": "eve start",
+    "test": "node --experimental-strip-types --test agent/**/*.test.ts",
     "typecheck": "tsc"
   },
   "dependencies": {
