@@ -9,7 +9,7 @@
     "build": "eve build",
     "dev": "eve dev",
     "start": "eve start",
-    "test": "node --experimental-strip-types --test agent/**/*.test.ts",
+    "test": "node --experimental-strip-types --test $(find agent -type f -name '*.test.ts' -print | sort)",
     "typecheck": "tsc"
   },
   "dependencies": {

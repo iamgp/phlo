@@ -1,7 +1,7 @@
 import githubExtension from '@github-tools/eve-extension'
 import type { ApprovalContext, ApprovalStatus } from 'eve/tools'
 import { GITHUB_CONNECTOR } from '../lib/github/credentials'
-import { isScheduleAppAuth } from '../lib/trust'
+import { autonomousWritesEnabled, isScheduleAppAuth } from '../lib/trust'
 
 function requireUserApproval(): ApprovalStatus {
   return 'user-approval'
@@ -16,6 +16,12 @@ function targetsPhlo(input: unknown): boolean {
 
 function scheduledWrite(ctx: ApprovalContext): ApprovalStatus {
   if (!isScheduleAppAuth(ctx.session.auth.current)) return requireUserApproval()
+  if (!autonomousWritesEnabled()) {
+    return {
+      type: 'denied',
+      reason: 'Autonomous writes are disabled. Set PHLO_AGENT_AUTONOMOUS_WRITES=1 to enable them.',
+    }
+  }
   if (!targetsPhlo(ctx.toolInput)) {
     return { type: 'denied', reason: 'Scheduled writes are restricted to phlohouse/phlo.' }
   }

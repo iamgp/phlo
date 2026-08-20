@@ -6,7 +6,7 @@ import {
   pushBrokerPolicy,
   validatePushBranch,
 } from '../lib/github/push'
-import { isScheduleAppAuth } from '../lib/trust'
+import { autonomousWritesEnabled, isScheduleAppAuth } from '../lib/trust'
 import { REPO_DIR, runOutput } from '../lib/workspace'
 
 const PUSH_URL = 'https://github.com/phlohouse/phlo.git'
@@ -14,14 +14,17 @@ const PUSH_URL = 'https://github.com/phlohouse/phlo.git'
 export default defineDynamic({
   events: {
     'turn.started': (_event, ctx) => {
-      if (!isScheduleAppAuth(ctx.session.auth.current)) return null
+      if (!isScheduleAppAuth(ctx.session.auth.current) || !autonomousWritesEnabled()) return null
       return {
         git__push: defineTool({
           description: `Push a committed feature branch from ${REPO_DIR}. Direct pushes to main and master are refused.`,
           inputSchema: z.object({ branch: z.string().min(1) }),
           async execute(input, toolCtx) {
-            if (!isScheduleAppAuth(toolCtx.session.auth.current)) {
-              return { success: false as const, error: 'Only scheduled maintenance may push.' }
+            if (!isScheduleAppAuth(toolCtx.session.auth.current) || !autonomousWritesEnabled()) {
+              return {
+                success: false as const,
+                error: 'Scheduled maintenance pushing is not enabled.',
+              }
             }
             const refusal = validatePushBranch(input.branch)
             if (refusal) return { success: false as const, error: refusal }

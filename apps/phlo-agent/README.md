@@ -34,6 +34,10 @@ pull requests. It cannot push `main` or `master`, open a non-draft PR without
 approval, merge, publish, release, or modify secrets. Git credentials are
 injected by the sandbox network broker and are never exposed to its processes.
 
+Autonomous writes are disabled by default. Scheduled audits still run, but they
+cannot create issues, push branches, or open pull requests until
+`PHLO_AGENT_AUTONOMOUS_WRITES=1` is set in the deployed Vercel environment.
+
 ## Local setup
 
 Requires Node.js 24 or newer.
@@ -73,6 +77,25 @@ write access so scheduled runs can push feature branches and deliver proposals.
 
 Deployment and connector provisioning change shared Vercel and GitHub state,
 so they are intentionally not performed by repository setup.
+
+## Canary and enable writes
+
+After deploying with autonomous writes disabled, trigger one maintenance run
+from a local Eve development session and inspect its Agent Run and logs:
+
+```bash
+cd apps/phlo-agent
+PHLO_AGENT_AUTONOMOUS_WRITES=0 npm run dev
+
+# In another terminal:
+curl -X POST http://localhost:2000/eve/v1/dev/schedules/maintenance
+```
+
+The response includes the schedule session ID. Confirm that the run loads both
+maintenance skills, reads current `main`, and creates no GitHub artifact. Then
+set `PHLO_AGENT_AUTONOMOUS_WRITES=1` in the Vercel project's production
+environment and redeploy. Setting it back to `0` and redeploying is the kill
+switch.
 
 ## Billing
 
