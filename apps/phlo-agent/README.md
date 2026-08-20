@@ -22,12 +22,14 @@ Each session performs both procedures:
 | Procedure | Outcome |
 | --- | --- |
 | Repository health | Grounded documentation, example, test, CI, and convention findings |
-| Upstream ecosystem sync | Compatibility-impacting changes in Dagster, dlt, dbt, Iceberg, Delta, Pandera, Trino, Nessie, MinIO, Sling, runtime images, and the agent's Eve dependencies |
+| Upstream ecosystem sync | Compatibility-impacting changes across every Phlo provider package and its external packages, APIs, protocols, service images, frontend dependencies, workflows, and the agent's Eve dependencies |
 
-Renovate continues to own routine version and image-digest bumps. The agent
-focuses on release-note analysis, API or default changes, migrations, security
-notices, test gaps, and other compatibility work that a version bot cannot
-infer.
+The upstream inventory is rebuilt from all package manifests, lockfiles,
+service definitions, workflows, and `registry/support/v1.json` on every run; it
+is not a fixed package list. Renovate continues to own routine version and
+image-digest bumps. The agent focuses on release-note analysis, API or default
+changes, migrations, security notices, test gaps, and other compatibility work
+that a version bot cannot infer.
 
 Each run searches existing issues and pull requests first. A mechanical,
 low-risk fix may become a verified **draft** pull request. A finding that needs

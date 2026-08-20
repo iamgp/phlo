@@ -6,16 +6,20 @@ description: Check Phlo's upstream lakehouse ecosystem for compatibility-impacti
 # Upstream sync
 
 Monitor the upstream projects that Phlo integrates, not only version numbers.
-Start from the current dependency declarations in the root and package
-`pyproject.toml` files, immutable service images, and `registry/support/v1.json`.
-Prioritize the v1 target and preview surfaces, including:
+Do not use a hard-coded package allowlist. Build the inventory from current
+`main` on every run by enumerating:
 
-- Dagster, Dagster GraphQL, and Dagster Webserver
-- dlt and Sling
-- dbt Core and Phlo's dbt adapters
-- PyIceberg, Delta Lake, and Pandera
-- Trino and Nessie clients and runtime images
-- MinIO and the other vendor runtime images declared by provider packages
+- the root `pyproject.toml`, `uv.lock`, and every `packages/*/pyproject.toml`
+- every provider's packaged YAML and other service definitions for image refs
+- `packages/phlo-observatory/src/phlo_observatory/package.json` and lockfile
+- dependency-bearing GitHub workflows and repository configuration
+- `registry/support/v1.json` for support tier, evidence, and runtime boundaries
+
+This inventory covers every Phlo package and its external Python, JavaScript,
+service, image, API, and protocol dependencies. Do not silently skip a package
+because it was absent from a prior prompt. Prioritize v1-target surfaces first,
+then preview surfaces, then development-only integrations, using the current
+support manifest rather than model memory.
 
 Also check the agent's Eve ecosystem dependencies, but treat those as one
 integration area rather than the whole upstream pass.
@@ -23,7 +27,8 @@ integration area rather than the whole upstream pass.
 Read authoritative release notes, migration guides, and changelogs. Map removed
 APIs, changed defaults, deprecations, security notices, image behavior, and
 support-window changes to the exact Phlo adapters, services, tests, docs, and
-version constraints they affect.
+version constraints they affect. When one upstream is shared by multiple Phlo
+packages, identify every affected consumer before proposing work.
 
 Renovate owns routine version and digest bumps. Do not duplicate its PRs or
 bypass Dependency Dashboard approval. Read `renovate.json`,
