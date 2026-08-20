@@ -45,6 +45,56 @@ Autonomous writes are disabled by default. Scheduled audits still run, but they
 cannot create issues, push branches, or open pull requests until
 `PHLO_AGENT_AUTONOMOUS_WRITES=1` is set in the deployed Vercel environment.
 
+## Post-merge rollout
+
+1. Update a local Phlo checkout and install the agent with Node.js 24:
+
+   ```bash
+   git switch main
+   git pull --ff-only origin main
+   cd apps/phlo-agent
+   npm ci
+   npm run typecheck
+   npm test
+   npm run build
+   ```
+
+2. In the Vercel team that will own the agent, enable AI Gateway, review its
+   available credit, and configure spend alerts. Do not buy credits merely to
+   install or build. Add paid credits before the canary only if DeepSeek V4
+   Flash is unavailable on the free tier, rate-limited, or the balance is
+   exhausted.
+
+3. Provision the `github/phlo-agent` Vercel Connect connector, link the Vercel
+   project, and install its GitHub App on `phlohouse/phlo`:
+
+   ```bash
+   npx eve add channel/github
+   npx eve link
+   ```
+
+   Grant repository contents, issues, and pull request write access. Keep the
+   connector name `github/phlo-agent`. If the selected GitHub App slug differs
+   from `phlo-agent`, set `PHLO_AGENT_GITHUB_BOT` to that slug.
+
+4. Set `PHLO_AGENT_AUTONOMOUS_WRITES=0` in the Vercel production environment,
+   then deploy:
+
+   ```bash
+   npx eve deploy
+   ```
+
+5. Verify the deployed health endpoint and confirm Vercel discovered the
+   `maintenance` cron job with expression `0 8 * * 2,4`.
+
+6. Run the write-disabled canary described below. Review its Agent Run and
+   confirm that it reads current `main`, loads both maintenance skills, and
+   creates no GitHub artifact.
+
+7. Set `PHLO_AGENT_AUTONOMOUS_WRITES=1` in Vercel production and redeploy.
+   Monitor the first Tuesday or Thursday run and review every issue or draft PR
+   it creates. To stop writes, restore the value to `0` and redeploy.
+
 ## Local setup
 
 Requires Node.js 24 or newer.
