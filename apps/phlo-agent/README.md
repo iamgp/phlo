@@ -16,12 +16,13 @@ The initial setup includes:
 
 ## Autonomous maintenance
 
-The agent runs two proactive workflows after deployment:
+The agent runs one maintenance session at 08:00 UTC every Tuesday and Thursday.
+Each session performs both procedures:
 
-| Workflow | UTC schedule | Outcome |
-| --- | --- | --- |
-| Repository health | Tuesday and Friday, 08:00 | Grounded documentation, example, test, CI, and convention findings |
-| Eve upstream sync | Monday and Thursday, 07:00 | Relevant agent dependency updates and migration findings |
+| Procedure | Outcome |
+| --- | --- |
+| Repository health | Grounded documentation, example, test, CI, and convention findings |
+| Eve upstream sync | Relevant agent dependency updates and migration findings |
 
 Each run searches existing issues and pull requests first. A mechanical,
 low-risk fix may become a verified **draft** pull request. A finding that needs
@@ -89,8 +90,8 @@ Gateway markup. Add paid AI Gateway credits when either:
 Buying credits moves the team to AI Gateway's paid tier and ends its monthly
 free-credit allocation. Production also consumes the Vercel resources used by
 Eve: Functions, Workflows, and Sandbox. Configure spend alerts before deploying:
-the four weekly scheduled runs begin automatically once Vercel enables the cron
-jobs.
+the two weekly scheduled runs begin automatically once Vercel enables the cron
+job.
 
 Current prices and eligibility can change. Check the
 [AI Gateway pricing page](https://vercel.com/docs/ai-gateway/pricing) and the
