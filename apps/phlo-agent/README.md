@@ -11,7 +11,7 @@ The initial setup includes:
 - Agent Browser and the `before-and-after` CLI for visual verification
 - an isolated Vercel Sandbox containing a shallow Phlo checkout
 - approval-gated GitHub writes through the GitHub Tools extension
-- autonomous repository-health and Eve dependency maintenance schedules
+- autonomous repository-health and upstream ecosystem maintenance schedules
 - guarded feature-branch pushes and draft pull requests from scheduled runs
 
 ## Autonomous maintenance
@@ -22,7 +22,12 @@ Each session performs both procedures:
 | Procedure | Outcome |
 | --- | --- |
 | Repository health | Grounded documentation, example, test, CI, and convention findings |
-| Eve upstream sync | Relevant agent dependency updates and migration findings |
+| Upstream ecosystem sync | Compatibility-impacting changes in Dagster, dlt, dbt, Iceberg, Delta, Pandera, Trino, Nessie, MinIO, Sling, runtime images, and the agent's Eve dependencies |
+
+Renovate continues to own routine version and image-digest bumps. The agent
+focuses on release-note analysis, API or default changes, migrations, security
+notices, test gaps, and other compatibility work that a version bot cannot
+infer.
 
 Each run searches existing issues and pull requests first. A mechanical,
 low-risk fix may become a verified **draft** pull request. A finding that needs
