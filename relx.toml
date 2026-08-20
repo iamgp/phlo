@@ -65,6 +65,7 @@ files = [
 packages = ["phlo-dagster"]
 search = "image: ghcr.io/phlohouse/{name}:{current_version}"
 replace = "image: ghcr.io/phlohouse/{name}:{next_version}"
+# ReleaseX checks this count independently for each package/file pair.
 expected_matches = 1
 
 [[release.replacements]]

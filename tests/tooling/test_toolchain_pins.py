@@ -54,9 +54,27 @@ def test_releasex_prepares_derived_workspace_versions_transactionally() -> None:
 
     replacements = config["release"]["replacements"]
     assert len(replacements) == 7
-    assert all(replacement["expected_matches"] > 0 for replacement in replacements)
-    assert all(replacement["files"] for replacement in replacements)
-    assert all(replacement["packages"] for replacement in replacements)
+
+    package_versions = {}
+    manifests = [REPO_ROOT / "pyproject.toml", *REPO_ROOT.glob("packages/*/pyproject.toml")]
+    for manifest in manifests:
+        with manifest.open("rb") as handle:
+            project = tomllib.load(handle)["project"]
+        package_versions[project["name"]] = project["version"]
+
+    for replacement in replacements:
+        for package in replacement["packages"]:
+            search = replacement["search"].format(
+                name=package,
+                current_version=package_versions[package],
+            )
+            for relative_path in replacement["files"]:
+                content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+                assert content.count(search) == replacement["expected_matches"], (
+                    package,
+                    relative_path,
+                    search,
+                )
 
 
 def test_makefile_project_commands_require_the_lockfile() -> None:
