@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import sys
+import tarfile
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
@@ -61,6 +64,54 @@ def test_source_manifest_rejects_packaged_support_copy_mismatch(tmp_path: Path) 
 
     with pytest.raises(ReleaseIdentityError, match="packaged support manifest"):
         validate_source(tmp_path, "v1.2.3")
+
+
+def _write_wheel(path: Path, name: str, version: str, support: bytes | None = None) -> None:
+    with ZipFile(path, "w") as archive:
+        archive.writestr(
+            f"{name.replace('-', '_')}-{version}.dist-info/METADATA",
+            f"Name: {name}\nVersion: {version}\n",
+        )
+        if support is not None:
+            archive.writestr("phlo/support_data/v1.json", support)
+
+
+def _write_sdist(path: Path, name: str, version: str, support: bytes | None = None) -> None:
+    with tarfile.open(path, "w:gz") as archive:
+        metadata = f"Name: {name}\nVersion: {version}\n".encode()
+        metadata_info = tarfile.TarInfo(f"{name}-{version}/PKG-INFO")
+        metadata_info.size = len(metadata)
+        archive.addfile(metadata_info, io.BytesIO(metadata))
+        if support is not None:
+            support_info = tarfile.TarInfo(f"{name}-{version}/src/phlo/support_data/v1.json")
+            support_info.size = len(support)
+            archive.addfile(support_info, io.BytesIO(support))
+
+
+def test_artifacts_for_validates_archive_metadata_and_packaged_support(tmp_path: Path) -> None:
+    _write_release(tmp_path)
+    support = (tmp_path / "registry/support/v1.json").read_bytes()
+    artifacts_dir = tmp_path / "dist"
+    artifacts_dir.mkdir()
+    artifacts = [
+        artifacts_dir / "phlo-1.2.3-py3-none-any.whl",
+        artifacts_dir / "phlo-1.2.3.tar.gz",
+        artifacts_dir / "phlo_example-4.5.6-py3-none-any.whl",
+        artifacts_dir / "phlo_example-4.5.6.tar.gz",
+    ]
+    _write_wheel(artifacts[0], "phlo", "1.2.3", support)
+    _write_sdist(artifacts[1], "phlo", "1.2.3", support)
+    _write_wheel(artifacts[2], "phlo-example", "4.5.6")
+    _write_sdist(artifacts[3], "phlo-example", "4.5.6")
+
+    manifest = release_identity.artifacts_for(tmp_path, artifacts)
+
+    assert {(artifact.project, artifact.kind) for artifact in manifest} == {
+        ("phlo", "wheel"),
+        ("phlo", "sdist"),
+        ("phlo-example", "wheel"),
+        ("phlo-example", "sdist"),
+    }
 
 
 def test_publish_plan_rejects_conflicting_or_unexpected_remote_artifacts(

@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import asdict, dataclass
+from email.parser import Parser
 from pathlib import Path
 
 from packaging.utils import canonicalize_name
@@ -121,11 +122,11 @@ def _metadata_from_sdist(path: Path) -> tuple[str, str]:
 
 
 def _metadata_fields(path: Path, content: str) -> tuple[str, str]:
-    fields = dict(line.split(": ", 1) for line in content.splitlines() if ": " in line)
-    try:
-        return canonicalize_name(fields["Name"]), fields["Version"]
-    except KeyError as exc:
-        raise ReleaseIdentityError(f"{path} metadata must declare Name and Version") from exc
+    fields = Parser().parsestr(content, headersonly=True)
+    name, version = fields.get("Name"), fields.get("Version")
+    if name is None or version is None:
+        raise ReleaseIdentityError(f"{path} metadata must declare Name and Version")
+    return canonicalize_name(name), version
 
 
 def _validate_packaged_support(path: Path, kind: str, expected: bytes) -> None:
@@ -208,6 +209,10 @@ def _pypi_files(project: str, version: str) -> dict[str, tuple[str, bool]]:
         if exc.code == 404:
             return {}
         raise
+    except urllib.error.URLError as exc:
+        raise ReleaseIdentityError(
+            f"could not retrieve PyPI metadata for {project} {version}: {exc.reason}"
+        ) from exc
     return {
         entry["filename"]: (entry["digests"]["sha256"], bool(entry["yanked"]))
         for entry in payload["urls"]

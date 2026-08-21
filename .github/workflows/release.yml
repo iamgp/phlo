@@ -243,7 +243,8 @@ jobs:
 
       - name: Build packages
         run: |
-          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH
           repo_root="$PWD"
           rm -rf dist
           uv build --out-dir "$repo_root/dist"
