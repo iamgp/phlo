@@ -6,3 +6,5 @@ sources:
       - name: raw_sales
       - name: raw_products
       - name: raw_inventory
+      - name: raw_stores
+      - name: raw_promotions

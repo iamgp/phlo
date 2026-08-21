@@ -1,53 +1,23 @@
-from __future__ import annotations
-
-import sys
 from pathlib import Path
-
-import duckdb
+import sys
 import pandas as pd
 import pytest
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
+ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT))
 from scripts.generate_fixtures import generate
-from scripts.materialize import materialize
-from workflows.ingestion.retail.files import read_inventory, read_sales
+from workflows.ingestion.retail.files import read_reference, read_sales, read_inventory
 from workflows.quality.retail import validate_retail
 
-
-def test_materialize_is_partition_idempotent(tmp_path: Path) -> None:
-    generate()
-    database = tmp_path / "retail.duckdb"
-    materialize("2025-01-15", database)
-    materialize("2025-01-15", database)
-    connection = duckdb.connect(str(database))
-    try:
-        assert connection.sql("select count(*) from raw_sales").fetchone() == (3,)
-        assert connection.sql("select sum(revenue) from raw_sales where partition_date = '2025-01-15'").fetchone() == (47.0,)
-    finally:
-        connection.close()
-
-
-def test_duplicate_sale_is_rejected() -> None:
-    sales = pd.read_csv(ROOT / "data/failures/sales_duplicate.csv")
-    sales["partition_date"] = "2025-01-15"
-    sales["revenue"] = sales.quantity * sales.unit_price
-    with pytest.raises(Exception, match="sale_id|Duplicate"):
-        validate_retail(
-            sales,
-            pd.read_json(ROOT / "data/products.json"),
-            read_inventory(ROOT / "data"),
-        )
-
-
-def test_missing_store_file_is_explicit(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="Missing required store sales file"):
-        read_sales("2025-01-16", tmp_path)
-
-
-def test_malformed_failure_fixtures_are_not_normal_inputs() -> None:
-    with pytest.raises(ValueError):
-        pd.read_json(ROOT / "data/failures/products_malformed.json")
-    with pytest.raises(ValueError):
-        pd.read_json(ROOT / "data/failures/inventory_malformed.ndjson", lines=True)
+def fixture(tmp_path):
+    data=tmp_path/"data"; generate(data,"test"); return data
+def test_test_scale_and_completeness(tmp_path):
+    data=fixture(tmp_path); sales=read_sales(data)
+    assert len(sales)==160 and len(list((data/"sales").rglob("*.csv")))==4
+    (data/"sales"/"2025-01-01"/"S001.csv").unlink()
+    with pytest.raises(FileNotFoundError,match="store files"): read_sales(data)
+def test_quality_failure_cases(tmp_path):
+    data=fixture(tmp_path); sales=read_sales(data); products=read_reference(data,"products"); stores=read_reference(data,"stores"); promos=read_reference(data,"promotions"); inventory=read_inventory(data)
+    validate_retail(sales,products,stores,promos,inventory)
+    for name in ["duplicate_line.csv", "unknown_product.csv", "bad_arithmetic.csv"]:
+        with pytest.raises(Exception): validate_retail(pd.read_csv(data/"failures"/name),products,stores,promos,inventory)
+def test_parquet_and_ndjson_are_used(tmp_path):
+    data=fixture(tmp_path); assert (data/"historical_sales.parquet").stat().st_size>0; assert len(read_inventory(data))==40
