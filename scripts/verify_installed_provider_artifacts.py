@@ -199,7 +199,7 @@ def render_services(
     services: list[dict[str, Any]],
     env: dict[str, str],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    _run([str(phlo), "services", "init", "--no-dev"], cwd=consumer, env=env)
+    _run([str(phlo), "services", "init", "--local", "--no-dev"], cwd=consumer, env=env)
     rendered: list[dict[str, Any]] = []
     for service in services:
         before = set(consumer.rglob("*"))
