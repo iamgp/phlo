@@ -734,7 +734,15 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         source_hash = _branch_hash(catalog, branch_name)
         target_hash_before = _branch_hash(catalog, "main")
         already_merged = prior_report is not None and prior_report.get("merge_state") == "merged"
+        merge_started = prior_report is not None and prior_report.get("merge_state") == "merge_started"
         if already_merged:
+            source_hash = prior_report.get("source_hash") or source_hash
+            target_hash_before = prior_report.get("target_hash_before") or target_hash_before
+            merged = True
+        elif merge_started and prior_report.get("target_hash_before") != target_hash_before:
+            # The catalog changed after our durable intent.  Treat that as the
+            # missing receipt and resume the idempotent post-merge work; doing
+            # so avoids repeating an external merge after a process crash.
             source_hash = prior_report.get("source_hash") or source_hash
             target_hash_before = prior_report.get("target_hash_before") or target_hash_before
             merged = True
@@ -807,11 +815,18 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         ):
             logger.warning("wap_promotion_merge_receipt_write_failed", run_id=run.run_id)
             continue
-        source_deleted = _cleanup_owned_wap_branch(
-            catalog,
-            branch_name,
-            query_catalog_manager,
-        )
+        source_deleted = bool(prior_report and prior_report.get("source_deleted"))
+        if already_merged and not source_deleted:
+            # A deleted ref is an idempotent cleanup success.  In particular,
+            # do not turn a crash after cleanup into an endless retry because
+            # providers correctly reject deletion of an absent branch.
+            source_deleted = _branch_hash(catalog, branch_name) is None
+        if not source_deleted:
+            source_deleted = _cleanup_owned_wap_branch(
+                catalog,
+                branch_name,
+                query_catalog_manager,
+            )
         if not source_deleted:
             write_wap_report(
                 logical_run_id,
@@ -825,6 +840,21 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
                 source_deleted=False,
             )
             logger.warning("wap_promotion_cleanup_pending", run_id=run.run_id, branch_name=branch_name)
+            continue
+        # Checkpoint cleanup independently of the terminal report.  A retry
+        # after reconciliation or tag failure must not try to delete it again.
+        if not write_wap_report(
+            logical_run_id,
+            status="promotion_pending",
+            merge_state="merged",
+            branch=branch_name,
+            source_hash=source_hash,
+            target_branch="main",
+            target_hash_before=target_hash_before,
+            target_hash_after=target_hash_after,
+            source_deleted=True,
+        ):
+            logger.warning("wap_promotion_cleanup_receipt_write_failed", run_id=run.run_id)
             continue
         if not _reconcile_promoted_wap_run(run, instance):
             logger.warning("wap_promotion_reconciliation_pending", run_id=run.run_id)
