@@ -19,22 +19,26 @@ jobs:
   ci:
     name: release candidate / CI evidence
     uses: ./.github/workflows/ci.yml
-    secrets: inherit
 
   integration:
     name: release candidate / integration evidence
     uses: ./.github/workflows/integration.yml
-    secrets: inherit
+    secrets:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+      SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
 
   security:
     name: release candidate / security evidence
     uses: ./.github/workflows/security.yml
-    secrets: inherit
 
   nightly:
     name: release candidate / release evidence
     uses: ./.github/workflows/nightly.yml
-    secrets: inherit
+    secrets:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+      SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
 
   status:
     name: release candidate / status

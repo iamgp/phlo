@@ -19,7 +19,11 @@ def test_release_golden_path_is_required_candidate_evidence() -> None:
     assert candidate["jobs"]["nightly"] == {
         "name": "release candidate / release evidence",
         "uses": "./.github/workflows/nightly.yml",
-        "secrets": "inherit",
+        "secrets": {
+            "POSTGRES_PASSWORD": "${{ secrets.POSTGRES_PASSWORD }}",
+            "MINIO_ROOT_PASSWORD": "${{ secrets.MINIO_ROOT_PASSWORD }}",
+            "SUPERSET_ADMIN_PASSWORD": "${{ secrets.SUPERSET_ADMIN_PASSWORD }}",
+        },
     }
     assert ci["jobs"]["windows-release-contract"]["name"] == (
         "windows / release golden path contract"

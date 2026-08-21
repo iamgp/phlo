@@ -14,7 +14,7 @@ WORKFLOW_ROOT = REPO_ROOT / ".github" / "workflows"
 def test_candidate_status_fails_closed_on_every_release_critical_lane() -> None:
     candidate = yaml.safe_load((WORKFLOW_ROOT / "release-candidate.yml").read_text())
 
-    triggers = candidate[True]
+    triggers = candidate.get("on") or candidate[True]
     assert triggers["pull_request"]["branches"] == ["main", "beta"]
     assert triggers["push"]["branches"] == ["main", "beta"]
     assert "merge_group" in triggers
@@ -30,8 +30,22 @@ def test_candidate_status_fails_closed_on_every_release_critical_lane() -> None:
 def test_reusable_evidence_workflows_do_not_cancel_one_another() -> None:
     for name in ("ci.yml", "integration.yml", "security.yml", "nightly.yml"):
         workflow = yaml.safe_load((WORKFLOW_ROOT / name).read_text())
-        assert "workflow_call" in workflow[True]
+        assert "workflow_call" in (workflow.get("on") or workflow[True])
         assert "concurrency" not in workflow
+
+
+def test_candidate_passes_only_required_service_secrets_to_reusable_workflows() -> None:
+    candidate = yaml.safe_load((WORKFLOW_ROOT / "release-candidate.yml").read_text())
+
+    expected = {
+        "POSTGRES_PASSWORD": "${{ secrets.POSTGRES_PASSWORD }}",
+        "MINIO_ROOT_PASSWORD": "${{ secrets.MINIO_ROOT_PASSWORD }}",
+        "SUPERSET_ADMIN_PASSWORD": "${{ secrets.SUPERSET_ADMIN_PASSWORD }}",
+    }
+    assert candidate["jobs"]["integration"]["secrets"] == expected
+    assert candidate["jobs"]["nightly"]["secrets"] == expected
+    assert "secrets" not in candidate["jobs"]["ci"]
+    assert "secrets" not in candidate["jobs"]["security"]
 
 
 def test_ci_status_includes_every_installed_provider_artifact_shard() -> None:
