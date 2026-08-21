@@ -2372,14 +2372,20 @@ def _table_rows(
 def _relation_from_metadata(table: ObservatoryTable) -> str | None:
     relation = table.metadata.get("relation")
     if isinstance(relation, str) and relation.strip():
-        return relation.strip()
+        parts = [part.strip().strip('"') for part in relation.split(".")]
+        if len(parts) == 3 and all(parts):
+            from phlo_api.observatory_api.trino_sql import qualify_table_name
+
+            return qualify_table_name(*parts)
 
     catalog = table.metadata.get("catalog") or table.metadata.get("database")
     schema = table.metadata.get("schema") or table.schema_name or table.namespace
     name = table.metadata.get("table_name") or table.metadata.get("table") or table.name
     if all(isinstance(value, str) and value.strip() for value in (catalog, schema, name)):
-        return ".".join(
-            f'"{str(value).strip().strip(chr(34))}"' for value in (catalog, schema, name)
+        from phlo_api.observatory_api.trino_sql import qualify_table_name
+
+        return qualify_table_name(
+            *(str(value).strip().strip('"') for value in (catalog, schema, name))
         )
     return None
 
@@ -2408,11 +2414,11 @@ def _select_sql_for_table(
 
 
 def _preview_from_query_engine(
-    table: ObservatoryTable, limit: int, offset: int
+    table: ObservatoryTable, limit: int, offset: int, *, relation: str | None = None
 ) -> ObservatoryTablePreview | None:
     """Fetch one page through the selected neutral query-engine capability."""
     effective_limit = max(1, min(limit, 500))
-    relation = _query_relation_for_table(table)
+    relation = relation or _query_relation_for_table(table)
     if relation is None:
         return None
     from phlo.capabilities import QueryPreviewResult, resolve_capability
@@ -2823,11 +2829,14 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> ObservatoryTa
     if table is None:
         raise _not_found("table", table_id)
 
-    query_preview = _preview_from_query_engine(table, limit=limit, offset=max(0, offset))
+    relation = _query_relation_for_table(table)
+    query_preview = _preview_from_query_engine(
+        table, limit=limit, offset=max(0, offset), relation=relation
+    )
     if query_preview is not None:
         return query_preview
 
-    relation_missing = _query_relation_for_table(table) is None
+    relation_missing = relation is None
 
     row_count_raw = table.metadata.get("records")
     preview_rows = table.metadata.get("preview_rows")
@@ -2881,22 +2890,7 @@ def _run_read_query(request: ObservatoryQueryRequest) -> ObservatoryQueryResult:
     if table is None:
         raise _not_found("table", table_id)
 
-    sql = _select_sql_for_table(table, limit=limit, offset=max(0, request.offset))
-    if sql is not None:
-        trino_result = _try_run_query_engine(
-            sql,
-            branch=table.schema_name or table.namespace or request.branch,
-            limit=limit,
-            offset=max(0, request.offset),
-        )
-        if trino_result is not None:
-            warnings = list(trino_result.warnings)
-            if requested_limit > limit:
-                warnings.append("Limit capped at 500 rows.")
-            return trino_result.model_copy(update={"warnings": warnings})
-
     preview = _load_table_preview(table_id, limit=limit, offset=max(0, request.offset))
-    effective_sql = f"select * from {preview.table.name} limit {limit}"
     warnings = []
     if requested_limit > limit:
         warnings.append("Limit capped at 500 rows.")
@@ -2904,7 +2898,7 @@ def _run_read_query(request: ObservatoryQueryRequest) -> ObservatoryQueryResult:
         columns=preview.columns,
         rows=preview.rows,
         row_count=preview.row_count,
-        effective_sql=effective_sql,
+        effective_sql=request.sql,
         limit=limit,
         offset=preview.offset,
         warnings=warnings,
@@ -2968,22 +2962,6 @@ async def _contributing_rows_page(
         column_types=result.column_types,
         rows=result.rows,
     )
-
-
-def _try_run_query_engine(
-    sql: str,
-    *,
-    branch: str | None,
-    limit: int,
-    offset: int,
-) -> ObservatoryQueryResult | None:
-    """Ad-hoc reads fall back to the bounded table-preview capability path.
-
-    A generic QueryEngine only promises normalized relation previews; it does
-    not expose provider SQL transport to Observatory.
-    """
-    del sql, branch, limit, offset
-    return None
 
 
 def _load_row_journey(table_id: str, row_id: str) -> ObservatoryRowJourney:

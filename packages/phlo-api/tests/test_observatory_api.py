@@ -3073,18 +3073,17 @@ def test_observatory_query_endpoint_rejects_unknown_tables(monkeypatch) -> None:
 
 
 def test_observatory_query_engine_preserves_known_table_request_offset(monkeypatch) -> None:
-    async def fake_execute_trino_query(sql, *, schema=None, timeout_ms=None):
-        return {
-            "columns": ["order_id"],
-            "rows": [{"order_id": 3}],
-            "effective_query": sql,
-        }
-
     table = ObservatoryTable(id="orders", name="orders", namespace="raw", schema_name="silver")
     monkeypatch.setattr("phlo_api.observatory_api.observatory._load_tables", lambda: [table])
     monkeypatch.setattr(
-        "phlo_api.observatory_api.trino.execute_trino_query",
-        fake_execute_trino_query,
+        "phlo_api.observatory_api.observatory._preview_from_query_engine",
+        lambda table, limit, offset, **_: ObservatoryTablePreview(
+            table=table,
+            columns=["order_id"],
+            rows=[{"order_id": 3}],
+            limit=limit,
+            offset=offset,
+        ),
     )
 
     result = _run_read_query(
