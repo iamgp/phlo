@@ -138,7 +138,7 @@ def test_api_profile_uses_the_shared_run_evidence_store() -> None:
         "postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}"
         "@postgres:5432/${POSTGRES_DB:-phlo}"
     ) in service
-    assert "depends_on:" not in service
+    assert "depends_on:\n        postgres:\n            condition: service_healthy" in service
 
 
 def test_api_image_accepts_direct_and_generated_build_contexts() -> None:

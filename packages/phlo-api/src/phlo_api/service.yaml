@@ -16,6 +16,9 @@ build:
 
 compose:
     restart: unless-stopped
+    depends_on:
+        postgres:
+            condition: service_healthy
     labels:
         phlo.metrics.enabled: "true"
         phlo.metrics.port: "phlo-api:4000"
