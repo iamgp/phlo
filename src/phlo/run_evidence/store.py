@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from phlo.run_evidence.models import (
+    RUN_EVIDENCE_SCHEMA_VERSION,
     EvidenceCompleteness,
     PipelineRun,
     RunArtifact,
@@ -37,6 +39,18 @@ from phlo.run_evidence.reconciliation import (
     normalize_status,
 )
 from phlo.run_evidence.redaction import canonical_json, payload_checksum, redact_payload
+
+_RUN_EVIDENCE_MIGRATIONS = (
+    (1, "002_create_run_evidence.sql", "002_create_run_evidence_sqlite.sql"),
+    (2, "003_reconcile_run_evidence.sql", "003_reconcile_run_evidence_sqlite.sql"),
+    (3, "004_run_evidence_instrumentation.sql", "004_run_evidence_instrumentation_sqlite.sql"),
+    (4, "005_run_evidence_resource_identity.sql", "005_run_evidence_resource_identity_sqlite.sql"),
+)
+
+
+def _migration_checksum(sql: str) -> str:
+    return hashlib.sha256(sql.encode("utf-8")).hexdigest()
+
 
 _REPORT_ORDER_BY = {
     "pipeline_run": "attempt",
@@ -1628,52 +1642,73 @@ class SQLiteRunEvidenceStore(_SqlRunEvidenceStore):
 
     def _initialize_schema(self) -> None:
         sql_root = Path(__file__).parent.parent / "sql"
-        sql = (sql_root / "002_create_run_evidence.sql").read_text(encoding="utf-8")
-        replacements = {
-            "CREATE SCHEMA IF NOT EXISTS phlo;": "",
-            "phlo.": "",
-            "BIGSERIAL": "INTEGER",
-            "TIMESTAMPTZ": "TEXT",
-            "JSONB": "TEXT",
-            "DOUBLE PRECISION": "REAL",
-            "BOOLEAN": "INTEGER",
-            "DEFAULT NOW()": "DEFAULT CURRENT_TIMESTAMP",
-            "DEFAULT '{}'::jsonb": "DEFAULT '{}'",
-            "DEFAULT '[]'::jsonb": "DEFAULT '[]'",
-            "INSERT INTO run_evidence_schema_version(version) VALUES (1)\nON CONFLICT (version) DO NOTHING;": "INSERT OR IGNORE INTO run_evidence_schema_version(version) VALUES (1);",
-        }
-        for old, new in replacements.items():
-            sql = sql.replace(old, new)
-        sql = "\n".join(
-            line for line in sql.splitlines() if not line.strip().startswith("COMMENT ON")
+        migrations = [
+            (version, (sql_root / sqlite_name).read_text(encoding="utf-8"))
+            for version, _, sqlite_name in _RUN_EVIDENCE_MIGRATIONS
+        ]
+        # executescript commits implicitly, so put BEGIN and the version write in
+        # the same script. A killed process therefore leaves neither DDL nor a
+        # misleading version marker behind.
+        existing_table = self._connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='run_evidence_schema_version'"
+        ).fetchone()
+        if existing_table:
+            columns = {
+                row[1]
+                for row in self._connection.execute(
+                    "PRAGMA table_info(run_evidence_schema_version)"
+                ).fetchall()
+            }
+            if "checksum" not in columns:
+                self._connection.execute(
+                    "ALTER TABLE run_evidence_schema_version ADD COLUMN checksum TEXT"
+                )
+                self._connection.commit()
+        rows = (
+            self._connection.execute(
+                "SELECT version, checksum FROM run_evidence_schema_version ORDER BY version"
+            ).fetchall()
+            if existing_table
+            else []
         )
-        self._connection.executescript(sql)
-        self._migrate_sqlite_reconciliation_schema()
-        migration = (sql_root / "004_run_evidence_instrumentation_sqlite.sql").read_text(
-            encoding="utf-8"
-        )
-        for statement in migration.split(";"):
-            statement = statement.strip()
-            if not statement:
+        known = {version: _migration_checksum(sql) for version, sql in migrations}
+        for version, checksum in rows:
+            if version not in known or version > RUN_EVIDENCE_SCHEMA_VERSION:
+                raise RuntimeError(f"unsupported run-evidence schema version {version}")
+            if checksum is not None and checksum != known[version]:
+                raise RuntimeError(f"run-evidence migration checksum drift at version {version}")
+        applied = {row[0] for row in rows}
+        if applied and applied != set(range(1, max(applied) + 1)):
+            raise RuntimeError("run-evidence schema has non-contiguous migration versions")
+        # Old databases predate checksum tracking. Trust their contiguous version
+        # markers once, then pin them to the shipped migration bytes.
+        if rows:
+            self._connection.executemany(
+                "UPDATE run_evidence_schema_version SET checksum=? WHERE version=? AND checksum IS NULL",
+                [(known[version], version) for version in applied],
+            )
+            self._connection.commit()
+        for version, sql in migrations:
+            if version in applied:
                 continue
+            checksum = known[version]
+            script = (
+                "BEGIN IMMEDIATE;\n"
+                + sql
+                + "\nALTER TABLE run_evidence_schema_version ADD COLUMN checksum TEXT;\n"
+                if version == 1
+                else "BEGIN IMMEDIATE;\n" + sql
+            )
+            script += (
+                "\nUPDATE run_evidence_schema_version SET checksum="
+                f"'{checksum}' WHERE version={version};\nCOMMIT;"
+            )
             try:
-                self._connection.execute(statement)
-            except sqlite3.OperationalError as exc:
-                if "duplicate column name" not in str(exc).lower():
-                    raise
-        migration = (sql_root / "005_run_evidence_resource_identity_sqlite.sql").read_text(
-            encoding="utf-8"
-        )
-        for statement in migration.split(";"):
-            statement = statement.strip()
-            if not statement:
-                continue
-            try:
-                self._connection.execute(statement)
-            except sqlite3.OperationalError as exc:
-                if "duplicate column name" not in str(exc).lower():
-                    raise
-        self._connection.commit()
+                self._connection.executescript(script)
+            except Exception:
+                if self._connection.in_transaction:
+                    self._connection.rollback()
+                raise
 
     def _migrate_sqlite_reconciliation_schema(self) -> None:
         """Backfill v2 columns for SQLite files created by the foundation PR."""
@@ -1864,24 +1899,56 @@ class PostgresRunEvidenceStore(_SqlRunEvidenceStore):
         sql_root = Path(__file__).parent.parent / "sql"
         connection = self._connect()
         try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    (sql_root / "002_create_run_evidence.sql").read_text(encoding="utf-8")
-                )
-                cursor.execute(
-                    (
-                        Path(__file__).parent.parent / "sql" / "003_reconcile_run_evidence.sql"
-                    ).read_text(encoding="utf-8")
-                )
-                cursor.execute(
-                    (sql_root / "004_run_evidence_instrumentation.sql").read_text(encoding="utf-8")
-                )
-                cursor.execute(
-                    (sql_root / "005_run_evidence_resource_identity.sql").read_text(
-                        encoding="utf-8"
+            for version, postgres_name, _ in _RUN_EVIDENCE_MIGRATIONS:
+                sql = (sql_root / postgres_name).read_text(encoding="utf-8")
+                checksum = _migration_checksum(sql)
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT to_regclass('phlo.run_evidence_schema_version')")
+                    exists = cursor.fetchone()[0] is not None
+                    if exists:
+                        cursor.execute(
+                            "ALTER TABLE phlo.run_evidence_schema_version ADD COLUMN IF NOT EXISTS checksum TEXT"
+                        )
+                        cursor.execute(
+                            "SELECT version, checksum FROM phlo.run_evidence_schema_version ORDER BY version"
+                        )
+                        rows = cursor.fetchall()
+                        for found_version, found_checksum in rows:
+                            expected = next(
+                                (
+                                    _migration_checksum(
+                                        (sql_root / name).read_text(encoding="utf-8")
+                                    )
+                                    for candidate, name, _ in _RUN_EVIDENCE_MIGRATIONS
+                                    if candidate == found_version
+                                ),
+                                None,
+                            )
+                            if expected is None or found_version > RUN_EVIDENCE_SCHEMA_VERSION:
+                                raise RuntimeError(
+                                    f"unsupported run-evidence schema version {found_version}"
+                                )
+                            if found_checksum is not None and found_checksum != expected:
+                                raise RuntimeError(
+                                    f"run-evidence migration checksum drift at version {found_version}"
+                                )
+                        if any(row[0] == version for row in rows):
+                            cursor.execute(
+                                "UPDATE phlo.run_evidence_schema_version SET checksum=%s "
+                                "WHERE version=%s AND checksum IS NULL",
+                                (checksum, version),
+                            )
+                            connection.commit()
+                            continue
+                    cursor.execute(sql)
+                    cursor.execute(
+                        "ALTER TABLE phlo.run_evidence_schema_version ADD COLUMN IF NOT EXISTS checksum TEXT"
                     )
-                )
-            connection.commit()
+                    cursor.execute(
+                        "UPDATE phlo.run_evidence_schema_version SET checksum=%s WHERE version=%s",
+                        (checksum, version),
+                    )
+                connection.commit()
         except Exception:
             connection.rollback()
             raise
