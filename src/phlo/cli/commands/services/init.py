@@ -127,11 +127,6 @@ def _get_service_overrides(project_config: dict) -> dict[str, dict]:
     help="Also apply service-specific `dev:` runtime overrides (opt-in)",
 )
 @click.option(
-    "--local",
-    is_flag=True,
-    help="Acknowledge that this generated stack is only for a trusted local machine.",
-)
-@click.option(
     "--profile",
     "profiles",
     multiple=True,
@@ -145,7 +140,6 @@ def init_cmd(
     no_dev: bool,
     phlo_source: str | None,
     service_dev: bool,
-    local: bool,
     profiles: tuple[str, ...],
 ):
     """Initialize Phlo infrastructure in .phlo/ directory.
@@ -161,24 +155,23 @@ def init_cmd(
     - Optional: PostgREST, Hasura (--profile api)
 
     This beta stack is for a trusted local machine only. It is not safe for shared,
-    remote, internet-facing, or production deployment. Pass --local to acknowledge
-    this boundary.
+    remote, internet-facing, or production deployment.
 
     Use --dev to mount local phlo source for development iteration.
     Use --service-dev to opt into service-specific `dev:` runtimes as well.
     Use --no-dev to explicitly generate config without dev mounts.
 
     Examples:
-        phlo services init --local
-        phlo services init --local --name my-lakehouse
-        phlo services init --local --force
-        phlo services init --local --profile observability
-        phlo services init --local --profile api --profile observability
-        phlo services init --local --dev
-        phlo services init --local --dev --phlo-source ../../src/phlo
-        phlo services init --local --dev --service-dev
-        phlo services init --local --no-dev --force  # Regenerate without dev mode
-        phlo services init --local --no-dev
+        phlo services init
+        phlo services init --name my-lakehouse
+        phlo services init --force
+        phlo services init --profile observability
+        phlo services init --profile api --profile observability
+        phlo services init --dev
+        phlo services init --dev --phlo-source ../../src/phlo
+        phlo services init --dev --service-dev
+        phlo services init --no-dev --force  # Regenerate without dev mode
+        phlo services init --no-dev
     """
     phlo_dir = get_phlo_dir()
     config_file = Path.cwd() / PHLO_CONFIG_FILE
@@ -195,11 +188,6 @@ def init_cmd(
     if service_dev and no_dev:
         click.echo("Error: Cannot specify both --service-dev and --no-dev.", err=True)
         sys.exit(1)
-    if not local:
-        raise click.UsageError(
-            "Phlo beta only supports a trusted local stack. Re-run with --local to acknowledge "
-            "that it must not be shared, remotely exposed, internet-facing, or used in production."
-        )
 
     # --no-dev takes precedence
     if no_dev:

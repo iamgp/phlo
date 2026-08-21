@@ -169,7 +169,7 @@ def test_documented_quickstart_bootstrap_path_reaches_services_start(
 
     project_dir = tmp_path / "demo"
     monkeypatch.chdir(project_dir)
-    services_init_result = runner.invoke(init_module.init_cmd, ["--local", "--no-dev"])
+    services_init_result = runner.invoke(init_module.init_cmd, ["--no-dev"])
     assert services_init_result.exit_code == 0, services_init_result.output
     assert (project_dir / "phlo.yaml").exists()
     assert (project_dir / ".phlo" / "docker-compose.yml").exists()

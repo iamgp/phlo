@@ -85,7 +85,7 @@ def _write_project_readme(
     template_commands: tuple[str, ...] = (),
 ) -> None:
     command_lines = [
-        "- `phlo services init --local` - Generate trusted local-only runtime files under `.phlo/`",
+        "- `phlo services init` - Generate trusted local-only runtime files under `.phlo/`",
         "- `phlo services start` - Start the local stack",
         "- `phlo services status` - Check generated service state",
         "- `phlo doctor` - Diagnose setup and service readiness",
@@ -120,7 +120,7 @@ Phlo data workflows for {project_name}.
 
 2. **Generate local runtime state:**
    ```bash
-   phlo services init --local
+   phlo services init
    ```
 
    This creates `.phlo/docker-compose.yml`, `.phlo/.env`, and `.phlo/.env.local`.
@@ -240,7 +240,7 @@ class MinimalTemplate:
             "workflows/__init__.py",
             "tests/__init__.py",
         ),
-        next_steps=("phlo services init --local", "phlo workflow create"),
+        next_steps=("phlo services init", "phlo workflow create"),
     )
 
     def render(self, context: TemplateRenderContext) -> None:

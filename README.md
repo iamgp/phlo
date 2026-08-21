@@ -78,7 +78,7 @@ cd my-lakehouse
 uv pip install -e .
 
 # Generate and start the trusted local-only beta stack
-phlo services init --local
+phlo services init
 phlo services start
 
 # Check that services are healthy

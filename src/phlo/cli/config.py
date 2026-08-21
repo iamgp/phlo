@@ -89,9 +89,7 @@ def validate():
     if not config_path.exists():
         logger.warning("config_validate_file_missing", path=str(config_path))
         console.print("[yellow]Warning: No phlo.yaml found in current directory[/yellow]")
-        console.print(
-            "Run [cyan]phlo services init --local[/cyan] to create infrastructure configuration"
-        )
+        console.print("Run [cyan]phlo services init[/cyan] to create infrastructure configuration")
         sys.exit(1)
 
     console.print(f"Validating: {config_path}\n")
@@ -191,7 +189,7 @@ def upgrade(force: bool):
     if not config_path.exists():
         logger.warning("config_upgrade_file_missing", path=str(config_path))
         error_console.print("[red]Error: No phlo.yaml found in current directory[/red]")
-        error_console.print("Run [cyan]phlo services init --local[/cyan] to create a new project")
+        error_console.print("Run [cyan]phlo services init[/cyan] to create a new project")
         sys.exit(1)
 
     project_config = _load_phlo_yaml(config_path)

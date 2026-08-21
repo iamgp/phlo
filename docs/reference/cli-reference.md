@@ -314,26 +314,25 @@ phlo services init [OPTIONS]
 --service-dev        # Also apply service-specific dev runtimes
 --no-dev             # Explicitly disable dev mode
 --phlo-source PATH   # Path to phlo repo or src/phlo for dev mode
---local              # Acknowledge the trusted local-machine beta boundary (required)
 ```
 
 **Examples**:
 
 ```bash
 # Basic trusted local-only initialization
-phlo services init --local
+phlo services init
 
 # Force overwrite existing
-phlo services init --local --force
+phlo services init --force
 
 # With custom project name
-phlo services init --local --name my-lakehouse
+phlo services init --name my-lakehouse
 
 # Development mode with local source
-phlo services init --local --dev --phlo-source /path/to/phlo
+phlo services init --dev --phlo-source /path/to/phlo
 
 # Development mode plus service-level dev runtimes
-phlo services init --local --dev --service-dev
+phlo services init --dev --service-dev
 ```
 
 ### phlo services start

@@ -90,7 +90,7 @@ def ensure_compose_project() -> Path:
         raise user_error(
             "Phlo services have not been initialized",
             missing=".phlo/.env",
-            run="phlo services init --local",
+            run="phlo services init",
         )
     return phlo_dir
 

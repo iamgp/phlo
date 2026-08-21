@@ -313,7 +313,7 @@ def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
     assert "ICEBERG_WAREHOUSE_PATH=s3://other-lake/warehouse" in env
 
 
-def test_services_init_requires_local_boundary_acknowledgement(
+def test_services_init_generates_local_stack_by_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     postgres = _service("postgres", default=True)
@@ -349,13 +349,13 @@ def test_services_init_requires_local_boundary_acknowledgement(
 
     result = CliRunner().invoke(init_module.init_cmd, [])
 
-    assert result.exit_code == 2
-    assert "trusted local stack" in result.output
-    assert "--local" in result.output
-    assert captured == {}
+    assert result.exit_code == 0, result.output
+    assert captured["dev_mode"] is False
+    assert captured["env_overrides"] == {}
+    assert "local-only beta" in result.output
 
 
-def test_services_init_generates_local_stack_after_acknowledgement(
+def test_services_init_generates_local_stack_without_dev_mode(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     postgres = _service("postgres", default=True)
@@ -389,7 +389,7 @@ def test_services_init_generates_local_stack_after_acknowledgement(
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--no-dev"])
+    result = CliRunner().invoke(init_module.init_cmd, ["--no-dev"])
 
     assert result.exit_code == 0, result.output
     assert captured["dev_mode"] is False
@@ -1097,7 +1097,7 @@ def test_services_init_excludes_profile_services_by_default(
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--local"])
+    result = CliRunner().invoke(init_module.init_cmd, [])
     assert result.exit_code == 0
     compose = (tmp_path / ".phlo" / "docker-compose.yml").read_text()
     assert "postgres" in compose
@@ -1112,7 +1112,7 @@ def test_services_init_reports_malformed_phlo_yaml_without_traceback(
 
     from phlo.cli.commands.services import init as init_module
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--force", "--no-dev"])
+    result = CliRunner().invoke(init_module.init_cmd, ["--force", "--no-dev"])
 
     assert result.exit_code == 1
     assert "invalid phlo.yaml" in result.output
@@ -1152,7 +1152,7 @@ def test_services_init_allows_logs_only_phlo_dir(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--local"])
+    result = CliRunner().invoke(init_module.init_cmd, [])
 
     assert result.exit_code == 0
     assert (tmp_path / ".phlo" / "docker-compose.yml").exists()
@@ -1194,7 +1194,7 @@ def test_services_init_includes_requested_profile_services(
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--profile", "observability"])
+    result = CliRunner().invoke(init_module.init_cmd, ["--profile", "observability"])
     assert result.exit_code == 0
     compose = (tmp_path / ".phlo" / "docker-compose.yml").read_text()
     assert "postgres" in compose
@@ -1239,7 +1239,7 @@ def test_services_init_uses_lifecycle_planner_for_profiles(
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--profile", "observability"])
+    result = CliRunner().invoke(init_module.init_cmd, ["--profile", "observability"])
 
     assert result.exit_code == 0
     assert copied == ["postgres", "grafana"]
