@@ -1,0 +1,8 @@
+name: retail_files
+version: "1.0"
+config-version: 2
+profile: retail_files
+model-paths: ["models"]
+models:
+  retail_files:
+    +materialized: table

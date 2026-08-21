@@ -1,0 +1,19 @@
+[project]
+name = "phlo-retail-files-example"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "phlo==0.14.0",
+    "phlo-dlt==0.14.0",
+    "phlo-pandera==0.14.0",
+    "pandas",
+    "pyarrow",
+    "duckdb",
+    "dbt-duckdb",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

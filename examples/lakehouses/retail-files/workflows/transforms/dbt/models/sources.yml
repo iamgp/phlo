@@ -1,0 +1,8 @@
+version: 2
+sources:
+  - name: retail_raw
+    schema: main
+    tables:
+      - name: raw_sales
+      - name: raw_products
+      - name: raw_inventory

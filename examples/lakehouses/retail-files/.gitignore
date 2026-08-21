@@ -1,0 +1,6 @@
+.phlo/
+.pytest_cache/
+__pycache__/
+*.duckdb
+workflows/transforms/dbt/logs/
+workflows/transforms/dbt/target/
