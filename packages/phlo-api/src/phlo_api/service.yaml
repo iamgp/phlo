@@ -14,11 +14,11 @@ build:
         PHLO_API_VERSION: ${PHLO_API_VERSION:-}
         PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
 
+depends_on:
+    - postgres
+
 compose:
     restart: unless-stopped
-    depends_on:
-        postgres:
-            condition: service_healthy
     labels:
         phlo.metrics.enabled: "true"
         phlo.metrics.port: "phlo-api:4000"
