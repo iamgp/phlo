@@ -3,13 +3,10 @@ name: Integration Lane
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, beta]
   pull_request:
-    branches: [main]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main, beta]
+  workflow_call:
 
 permissions:
   contents: read
