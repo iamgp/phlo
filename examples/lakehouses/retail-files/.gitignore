@@ -1,6 +1,9 @@
 .phlo/
+.venv/
 .pytest_cache/
 __pycache__/
+generated-data/
 *.duckdb
+workflows/transforms/dbt/profiles/.user.yml
 workflows/transforms/dbt/logs/
 workflows/transforms/dbt/target/
