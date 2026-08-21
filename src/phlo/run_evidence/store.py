@@ -1710,168 +1710,6 @@ class SQLiteRunEvidenceStore(_SqlRunEvidenceStore):
                     self._connection.rollback()
                 raise
 
-    def _migrate_sqlite_reconciliation_schema(self) -> None:
-        """Backfill v2 columns for SQLite files created by the foundation PR."""
-        for table, column, definition in (
-            ("pipeline_run", "last_heartbeat_at", "TEXT"),
-            ("pipeline_run", "reconciled_at", "TEXT"),
-            ("pipeline_run", "reconciliation_reason", "TEXT"),
-            ("run_event", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
-            ("run_resource", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
-            ("run_catalog_change", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
-            ("run_quality_result", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
-            ("run_artifact", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
-        ):
-            columns = {
-                row[1] for row in self._connection.execute(f"PRAGMA table_info({table})").fetchall()
-            }
-            if column not in columns:
-                self._connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-        self._make_sqlite_started_at_nullable()
-        self._connection.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS run_reconciliation_decision (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                decision_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                run_id TEXT NOT NULL,
-                attempt INTEGER NOT NULL CHECK (attempt > 0),
-                profile_id TEXT NOT NULL,
-                profile_version TEXT NOT NULL,
-                status TEXT NOT NULL,
-                evidence_completeness TEXT NOT NULL CHECK (
-                    evidence_completeness IN ('complete', 'incomplete', 'missing', 'expired', 'redacted')
-                ),
-                reason TEXT NOT NULL,
-                missing_evidence TEXT NOT NULL DEFAULT '[]',
-                evidence_checksum TEXT NOT NULL,
-                observed_event_count INTEGER NOT NULL DEFAULT 0,
-                source TEXT NOT NULL,
-                heartbeat_at TEXT,
-                stale_after_seconds INTEGER,
-                decided_at TEXT NOT NULL,
-                finished_at TEXT,
-                record_checksum TEXT NOT NULL,
-                UNIQUE (project_id, decision_id),
-                FOREIGN KEY (project_id, run_id) REFERENCES pipeline_run(project_id, run_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_pipeline_run_project_heartbeat
-                ON pipeline_run(project_id, last_heartbeat_at);
-            CREATE INDEX IF NOT EXISTS idx_pipeline_run_project_started
-                ON pipeline_run(project_id, started_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_run_reconciliation_project_run
-                ON run_reconciliation_decision(project_id, run_id, attempt, decided_at);
-            CREATE INDEX IF NOT EXISTS idx_run_resource_project_run_attempt
-                ON run_resource(project_id, run_id, attempt);
-            CREATE INDEX IF NOT EXISTS idx_run_catalog_change_project_run_attempt
-                ON run_catalog_change(project_id, run_id, attempt);
-            CREATE INDEX IF NOT EXISTS idx_run_quality_project_run_attempt
-                ON run_quality_result(project_id, run_id, attempt);
-            CREATE INDEX IF NOT EXISTS idx_run_artifact_project_run_attempt
-                ON run_artifact(project_id, run_id, attempt);
-            CREATE TRIGGER IF NOT EXISTS trg_run_event_attempt_positive_insert
-                BEFORE INSERT ON run_event
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_event attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_event_attempt_positive_update
-                BEFORE UPDATE OF attempt ON run_event
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_event attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_resource_attempt_positive_insert
-                BEFORE INSERT ON run_resource
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_resource attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_resource_attempt_positive_update
-                BEFORE UPDATE OF attempt ON run_resource
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_resource attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_catalog_change_attempt_positive_insert
-                BEFORE INSERT ON run_catalog_change
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_catalog_change attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_catalog_change_attempt_positive_update
-                BEFORE UPDATE OF attempt ON run_catalog_change
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_catalog_change attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_quality_result_attempt_positive_insert
-                BEFORE INSERT ON run_quality_result
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_quality_result attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_quality_result_attempt_positive_update
-                BEFORE UPDATE OF attempt ON run_quality_result
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_quality_result attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_artifact_attempt_positive_insert
-                BEFORE INSERT ON run_artifact
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_artifact attempt must be positive'); END;
-            CREATE TRIGGER IF NOT EXISTS trg_run_artifact_attempt_positive_update
-                BEFORE UPDATE OF attempt ON run_artifact
-                WHEN NEW.attempt <= 0
-                BEGIN SELECT RAISE(ABORT, 'run_artifact attempt must be positive'); END;
-            INSERT OR IGNORE INTO run_evidence_schema_version(version) VALUES (2);
-            """
-        )
-
-    def _make_sqlite_started_at_nullable(self) -> None:
-        """Mirror the v2 PostgreSQL relaxation for v1 SQLite files."""
-        started_at_not_null = any(
-            row[1] == "started_at" and row[3] == 1
-            for row in self._connection.execute("PRAGMA table_info(pipeline_run)").fetchall()
-        )
-        if not started_at_not_null:
-            return
-        self._connection.execute("PRAGMA foreign_keys = OFF")
-        try:
-            self._connection.executescript(
-                """
-                CREATE TABLE pipeline_run_v2 (
-                    project_id TEXT NOT NULL,
-                    run_id TEXT NOT NULL,
-                    pipeline_name TEXT,
-                    provider_run_id TEXT,
-                    trigger TEXT,
-                    initiator TEXT,
-                    effective_identity TEXT,
-                    partition_key TEXT,
-                    code_version TEXT,
-                    config_version TEXT,
-                    attempt INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0),
-                    trace_id TEXT,
-                    status TEXT NOT NULL,
-                    started_at TEXT,
-                    finished_at TEXT,
-                    failure_summary TEXT,
-                    evidence_completeness TEXT NOT NULL CHECK (
-                        evidence_completeness IN ('complete', 'incomplete', 'missing', 'expired', 'redacted')
-                    ),
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    last_heartbeat_at TEXT,
-                    reconciled_at TEXT,
-                    reconciliation_reason TEXT,
-                    PRIMARY KEY (project_id, run_id)
-                );
-                INSERT INTO pipeline_run_v2 (
-                    project_id, run_id, pipeline_name, provider_run_id, trigger, initiator,
-                    effective_identity, partition_key, code_version, config_version, attempt,
-                    trace_id, status, started_at, finished_at, failure_summary,
-                    evidence_completeness, created_at, updated_at, last_heartbeat_at,
-                    reconciled_at, reconciliation_reason
-                )
-                SELECT project_id, run_id, pipeline_name, provider_run_id, trigger, initiator,
-                    effective_identity, partition_key, code_version, config_version, attempt,
-                    trace_id, status, started_at, finished_at, failure_summary,
-                    evidence_completeness, created_at, updated_at, last_heartbeat_at,
-                    reconciled_at, reconciliation_reason
-                FROM pipeline_run;
-                DROP TABLE pipeline_run;
-                ALTER TABLE pipeline_run_v2 RENAME TO pipeline_run;
-                """
-            )
-        finally:
-            self._connection.execute("PRAGMA foreign_keys = ON")
-
 
 class PostgresRunEvidenceStore(_SqlRunEvidenceStore):
     """Production PostgreSQL adapter using the runtime psycopg2 dependency."""
@@ -1932,6 +1770,11 @@ class PostgresRunEvidenceStore(_SqlRunEvidenceStore):
                                 raise RuntimeError(
                                     f"run-evidence migration checksum drift at version {found_version}"
                                 )
+                        applied = {row[0] for row in rows}
+                        if applied and applied != set(range(1, max(applied) + 1)):
+                            raise RuntimeError(
+                                "run-evidence schema has non-contiguous migration versions"
+                            )
                         if any(row[0] == version for row in rows):
                             cursor.execute(
                                 "UPDATE phlo.run_evidence_schema_version SET checksum=%s "

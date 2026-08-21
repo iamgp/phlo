@@ -1420,6 +1420,21 @@ def test_sqlite_migration_fails_closed_for_unknown_or_non_contiguous_versions(tm
         SQLiteRunEvidenceStore(database)._initialize_schema()
 
 
+def test_postgres_migration_fails_closed_for_non_contiguous_versions() -> None:
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    cursor.fetchone.return_value = ("phlo.run_evidence_schema_version",)
+    cursor.fetchall.return_value = [(1, None), (3, None)]
+    store = PostgresRunEvidenceStore("unused", connection_factory=lambda: connection)
+
+    with pytest.raises(RuntimeError, match="non-contiguous migration versions"):
+        store._initialize_schema()
+
+    connection.rollback.assert_called_once_with()
+    connection.commit.assert_not_called()
+    connection.close.assert_called_once_with()
+
+
 def test_sqlite_migration_fails_closed_for_checksum_drift(tmp_path) -> None:
     database = tmp_path / "checksum-drift.db"
     store = SQLiteRunEvidenceStore(database)
