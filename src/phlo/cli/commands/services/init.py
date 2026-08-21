@@ -24,15 +24,6 @@ from phlo.cli.output import user_error
 from phlo.plugins.compose import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
-_PRODUCTION_USERNAME_DEFAULTS = {
-    "POSTGRES_USER": "phlo",
-    "MINIO_ROOT_USER": "minio",
-}
-_PRODUCTION_PASSWORD_DEFAULTS = {
-    "POSTGRES_PASSWORD": "phlo",
-    "MINIO_ROOT_PASSWORD": "minio123",
-}
-
 
 def _expand_selected_services(
     discovery: ServiceDiscovery,
@@ -112,40 +103,6 @@ def _get_service_overrides(project_config: dict) -> dict[str, dict]:
     return overrides
 
 
-def _validate_production_credentials(
-    env_overrides: dict,
-    existing_local_values: dict[str, str],
-) -> None:
-    """Reject bundled credential values before rendering a production profile."""
-    invalid: list[str] = []
-
-    for variable, default in _PRODUCTION_USERNAME_DEFAULTS.items():
-        value = env_overrides.get(variable)
-        if not isinstance(value, str) or not value.strip() or value.strip() == default:
-            invalid.append(variable)
-
-    supplied_passwords: dict[str, str] = {}
-    for variable, default in _PRODUCTION_PASSWORD_DEFAULTS.items():
-        value = existing_local_values.get(variable, env_overrides.get(variable))
-        if value is None:
-            continue  # generate_env_local creates an independent secret for new deployments.
-        if not isinstance(value, str) or not value.strip() or value.strip() == default:
-            invalid.append(variable)
-        else:
-            supplied_passwords[variable] = value
-
-    if len(set(supplied_passwords.values())) != len(supplied_passwords):
-        invalid.extend(sorted(supplied_passwords))
-
-    if invalid:
-        variables = ", ".join(sorted(set(invalid)))
-        raise click.ClickException(
-            "Production credentials must be non-empty, non-default, and independent: "
-            f"{variables}. Set POSTGRES_USER and MINIO_ROOT_USER under phlo.yaml env:, "
-            "then replace any existing default passwords in .phlo/.env.local."
-        )
-
-
 @click.command("init")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")
 @click.option("--name", "project_name", help="Project name (default: directory name)")
@@ -170,9 +127,9 @@ def _validate_production_credentials(
     help="Also apply service-specific `dev:` runtime overrides (opt-in)",
 )
 @click.option(
-    "--production",
+    "--local",
     is_flag=True,
-    help="Render the production deployment profile without core host ports.",
+    help="Acknowledge that this generated stack is only for a trusted local machine.",
 )
 @click.option(
     "--profile",
@@ -188,7 +145,7 @@ def init_cmd(
     no_dev: bool,
     phlo_source: str | None,
     service_dev: bool,
-    production: bool,
+    local: bool,
     profiles: tuple[str, ...],
 ):
     """Initialize Phlo infrastructure in .phlo/ directory.
@@ -203,21 +160,25 @@ def init_cmd(
     - Optional: Prometheus, Loki, Grafana (--profile observability)
     - Optional: PostgREST, Hasura (--profile api)
 
+    This beta stack is for a trusted local machine only. It is not safe for shared,
+    remote, internet-facing, or production deployment. Pass --local to acknowledge
+    this boundary.
+
     Use --dev to mount local phlo source for development iteration.
     Use --service-dev to opt into service-specific `dev:` runtimes as well.
     Use --no-dev to explicitly generate config without dev mounts.
 
     Examples:
-        phlo services init
-        phlo services init --name my-lakehouse
-        phlo services init --force
-        phlo services init --profile observability
-        phlo services init --profile api --profile observability
-        phlo services init --dev
-        phlo services init --dev --phlo-source ../../src/phlo
-        phlo services init --dev --service-dev
-        phlo services init --no-dev --force  # Regenerate without dev mode
-        phlo services init --production --no-dev
+        phlo services init --local
+        phlo services init --local --name my-lakehouse
+        phlo services init --local --force
+        phlo services init --local --profile observability
+        phlo services init --local --profile api --profile observability
+        phlo services init --local --dev
+        phlo services init --local --dev --phlo-source ../../src/phlo
+        phlo services init --local --dev --service-dev
+        phlo services init --local --no-dev --force  # Regenerate without dev mode
+        phlo services init --local --no-dev
     """
     phlo_dir = get_phlo_dir()
     config_file = Path.cwd() / PHLO_CONFIG_FILE
@@ -234,16 +195,15 @@ def init_cmd(
     if service_dev and no_dev:
         click.echo("Error: Cannot specify both --service-dev and --no-dev.", err=True)
         sys.exit(1)
-    if production and (dev or service_dev):
-        click.echo("Error: Production cannot be combined with --dev or --service-dev.", err=True)
-        sys.exit(1)
+    if not local:
+        raise click.UsageError(
+            "Phlo beta only supports a trusted local stack. Re-run with --local to acknowledge "
+            "that it must not be shared, remotely exposed, internet-facing, or used in production."
+        )
 
     # --no-dev takes precedence
     if no_dev:
         dev = False
-    if production:
-        no_dev = True
-
     # Auto-enable dev mode if we can detect a local Phlo checkout and the user didn't opt out.
     phlo_src_path: str | None = None
     if not dev and not no_dev and not phlo_source and (detected := detect_phlo_source_path()):
@@ -327,10 +287,6 @@ def init_cmd(
     existing_config["services"] = user_overrides
     env_overrides = _get_env_overrides(existing_config)
     existing_env_local = parse_env_file(phlo_dir / ".env.local")
-    if production:
-        _validate_production_credentials(env_overrides, existing_env_local)
-        env_overrides = {**env_overrides, "PHLO_ENVIRONMENT": "production"}
-
     # Collect inline custom services (those with type: inline)
     inline_services = [
         ServiceDefinition.from_inline(name, cfg)
@@ -373,7 +329,6 @@ def init_cmd(
         phlo_src_path=phlo_src_path,
         user_overrides=user_overrides,
         env_values={**os.environ, **env_overrides, **existing_env_local},
-        deployment_profile="production" if production else "development",
     )
 
     compose_file = phlo_dir / "docker-compose.yml"
@@ -410,7 +365,7 @@ def init_cmd(
 
     # Summary
     click.echo("")
-    click.echo("Phlo infrastructure initialized.")
+    click.echo("Phlo local-only beta infrastructure initialized.")
     click.echo("")
 
     default_services = discovery.get_default_services(
@@ -427,5 +382,5 @@ def init_cmd(
     click.echo("Next steps:")
     click.echo("  1. Commit non-secret defaults in phlo.yaml (env:)")
     click.echo("  2. Set secrets in .phlo/.env.local")
-    click.echo("  3. Run: phlo services start")
+    click.echo("  3. Run: phlo services start (trusted local machine only)")
     click.echo("  4. Inspect services with: phlo services list")

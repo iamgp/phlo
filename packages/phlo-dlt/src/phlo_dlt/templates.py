@@ -149,7 +149,7 @@ class ObservabilityDemoTemplate:
         description="Pipeline with telemetry wiring",
         required_packages=("phlo", "phlo-dlt", "phlo-pandera", "phlo-otel"),
         generated_paths=("workflows/ingestion/observability/events.py",),
-        next_steps=("phlo services init", "phlo services start --profile observability"),
+        next_steps=("phlo services init --local", "phlo services start --profile observability"),
     )
 
     def render(self, context: TemplateRenderContext) -> None:

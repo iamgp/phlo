@@ -1,6 +1,9 @@
 # Security Setup Guide
 
-This guide covers enterprise security configuration for Phlo, including authentication, authorization, encryption, and audit logging.
+> **Beta deployment boundary:** Phlo currently supports only a trusted local-machine beta.
+> This applies to the entire stack, including Observatory, the API, and bundled services.
+> Do not share it, expose it remotely or to the internet, or use it in production. The
+> configuration described below is future-facing guidance, not a supported secure deployment.
 
 ## What regulated mode now means
 

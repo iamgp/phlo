@@ -75,7 +75,7 @@ def test_regulated_backend_boundary_requires_a_production_render(
     result = _check_internal_backend_boundary()
 
     assert result.passed is False
-    assert "phlo services init --production" in result.message
+    assert "not available in the local-only beta" in result.message
 
 
 def test_regulated_backend_boundary_rejects_invalid_utf8_compose(

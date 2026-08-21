@@ -284,8 +284,8 @@ def _check_internal_backend_boundary() -> ValidationResult:
             name="internal_backend_boundary",
             passed=False,
             message=(
-                "Regulated mode requires a generated .phlo/docker-compose.yml; "
-                "render it with 'phlo services init --production'"
+                "Regulated mode requires a hardened deployment profile, which is not "
+                "available in the local-only beta."
             ),
         )
 
@@ -327,7 +327,8 @@ def _check_internal_backend_boundary() -> ValidationResult:
             passed=False,
             message=(
                 "Regulated backend boundary is not internal: "
-                f"{'; '.join(violations)}. Regenerate with 'phlo services init --production'."
+                f"{'; '.join(violations)}. A hardened deployment profile is not available "
+                "in the local-only beta."
             ),
         )
 

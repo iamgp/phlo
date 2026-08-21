@@ -77,8 +77,8 @@ phlo init my-lakehouse --template csv-batch
 cd my-lakehouse
 uv pip install -e .
 
-# Generate and start the local lakehouse stack
-phlo services init
+# Generate and start the trusted local-only beta stack
+phlo services init --local
 phlo services start
 
 # Check that services are healthy
@@ -131,7 +131,10 @@ Phlo's core stays small. Installed provider packages contribute capabilities thr
 
 ## Project status
 
-Phlo is **alpha**. The local development workflow is usable and exercised in CI, but APIs, provider contracts, and the on-disk project layout may change before 1.0. Pin exact versions in production.
+Phlo is **alpha** and supports a **trusted local-machine beta only**. This applies to the
+entire stack, including Observatory, the API, and all bundled data services. Do not share it,
+expose it remotely or to the internet, or use it in production. APIs, provider contracts, and
+the on-disk project layout may change before 1.0.
 
 The machine-readable [v1 support boundary](registry/support/v1.json) defines the blessed target profile, preview and development-only packages, current runtime evidence, production prerequisites, exclusions, and release-gate status. A v1-target component is not a production-ready guarantee until those gates pass.
 

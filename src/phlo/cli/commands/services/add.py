@@ -166,7 +166,9 @@ def add_cmd(
 
     if not phlo_dir.exists():
         logger.error("services_add_missing_phlo_dir", phlo_dir=str(phlo_dir))
-        raise click.ClickException(".phlo directory not found. Run 'phlo services init' first.")
+        raise click.ClickException(
+            ".phlo directory not found. Run 'phlo services init --local' first."
+        )
 
     config = _load_project_config(config_file)
     discovery = ServiceDiscovery()

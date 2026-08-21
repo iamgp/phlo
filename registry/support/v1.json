@@ -996,7 +996,7 @@
       "scope": "blessed_core",
       "target_status": "required",
       "current_maturity": "blocked",
-      "reason": "Current generated services include development credentials, public ports, or disabled authentication; the secure production profile is not implemented.",
+      "reason": "The beta supports only a trusted local machine. Generated services include development credentials, public ports, or disabled authentication, so shared, remote, internet-facing, and production deployment are unsupported.",
       "evidence": [
         "docs/setup/security.md",
         "packages/phlo-postgres/src/phlo_postgres/service.yaml",

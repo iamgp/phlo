@@ -5,7 +5,6 @@ import re
 from pathlib import Path
 from typing import cast
 
-import click
 import pytest
 import yaml
 from click.testing import CliRunner
@@ -37,28 +36,6 @@ def test_bundled_service_images_have_explicit_default_versions() -> None:
             unpinned.append(f"{service_file.relative_to(repository)}: {image}")
 
     assert unpinned == []
-
-
-def test_production_credentials_reject_defaults_and_require_safe_usernames() -> None:
-    from phlo.cli.commands.services.init import _validate_production_credentials
-
-    with pytest.raises(click.ClickException, match="MINIO_ROOT_USER, POSTGRES_USER"):
-        _validate_production_credentials({}, {})
-
-    with pytest.raises(click.ClickException, match="POSTGRES_PASSWORD"):
-        _validate_production_credentials(
-            {"POSTGRES_USER": "lakehouse", "MINIO_ROOT_USER": "object-admin"},
-            {"POSTGRES_PASSWORD": "phlo", "MINIO_ROOT_PASSWORD": "independent-secret"},
-        )
-
-
-def test_production_credentials_allow_generated_passwords_and_safe_usernames() -> None:
-    from phlo.cli.commands.services.init import _validate_production_credentials
-
-    _validate_production_credentials(
-        {"POSTGRES_USER": "lakehouse", "MINIO_ROOT_USER": "object-admin"},
-        {},
-    )
 
 
 @pytest.mark.parametrize(
@@ -336,7 +313,7 @@ def test_nessie_compose_uses_project_warehouse_location(tmp_path) -> None:
     assert "ICEBERG_WAREHOUSE_PATH=s3://other-lake/warehouse" in env
 
 
-def test_services_init_production_selects_the_secure_compose_profile(
+def test_services_init_requires_local_boundary_acknowledgement(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     postgres = _service("postgres", default=True)
@@ -364,25 +341,60 @@ def test_services_init_production_selects_the_secure_compose_profile(
         def copy_service_files(self, _services, _output_dir) -> list[str]:
             return []
 
-    (tmp_path / "phlo.yaml").write_text(
-        "env:\n  POSTGRES_USER: lakehouse\n  MINIO_ROOT_USER: object-admin\n"
-    )
     monkeypatch.chdir(tmp_path)
     from phlo.cli.commands.services import init as init_module
 
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--production"])
+    result = CliRunner().invoke(init_module.init_cmd, [])
+
+    assert result.exit_code == 2
+    assert "trusted local stack" in result.output
+    assert "--local" in result.output
+    assert captured == {}
+
+
+def test_services_init_generates_local_stack_after_acknowledgement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    postgres = _service("postgres", default=True)
+    discovery = FakeDiscovery({postgres.name: postgres}, default_names=(postgres.name,))
+    captured: dict[str, object] = {}
+
+    class FakeComposer:
+        def __init__(self, _discovery) -> None:
+            pass
+
+        def generate_compose(self, _services, _output_dir, **kwargs) -> str:
+            captured.update(kwargs)
+            return "services: {}\n"
+
+        def generate_env(self, _services, env_overrides=None) -> str:
+            captured["env_overrides"] = env_overrides
+            return ""
+
+        def generate_env_local(self, _services, **_kwargs) -> str:
+            return ""
+
+        def generate_gitignore(self, _services) -> str:
+            return ""
+
+        def copy_service_files(self, _services, _output_dir) -> list[str]:
+            return []
+
+    monkeypatch.chdir(tmp_path)
+    from phlo.cli.commands.services import init as init_module
+
+    monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: discovery)
+    monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
+
+    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--no-dev"])
 
     assert result.exit_code == 0, result.output
-    assert captured["deployment_profile"] == "production"
     assert captured["dev_mode"] is False
-    assert captured["env_overrides"] == {
-        "POSTGRES_USER": "lakehouse",
-        "MINIO_ROOT_USER": "object-admin",
-        "PHLO_ENVIRONMENT": "production",
-    }
+    assert captured["env_overrides"] == {}
+    assert "local-only beta" in result.output
 
 
 def test_select_services_to_install_respects_enabled_disabled_and_profiles() -> None:
@@ -611,6 +623,7 @@ def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
     assert trino["ulimits"] == {"nofile": {"soft": 16384, "hard": 16384}}
 
 
+@pytest.mark.skip(reason="The unsupported production profile was removed for the local-only beta.")
 def test_compose_generator_production_profile_hides_core_host_ports_and_requires_credentials(
     tmp_path,
 ) -> None:
@@ -669,7 +682,7 @@ def test_compose_generator_production_profile_hides_core_host_ports_and_requires
     assert data["services"]["dagster"]["ports"] == ["10000:5432"]
 
 
-def test_compose_generator_development_profile_keeps_core_host_ports(tmp_path) -> None:
+def test_compose_generator_keeps_local_core_host_ports(tmp_path) -> None:
     service = ServiceDefinition(
         name="postgres",
         description="postgres",
@@ -684,8 +697,7 @@ def test_compose_generator_development_profile_keeps_core_host_ports(tmp_path) -
     assert data["services"]["postgres"]["ports"] == ["10000:5432"]
 
 
-def test_development_profile_keeps_bundled_backends_open(tmp_path) -> None:
-    """The regulated production boundary must not change development access."""
+def test_local_profile_keeps_bundled_backends_open(tmp_path) -> None:
     discovery = ServiceDiscovery()
     data = yaml.safe_load(
         ComposeGenerator(discovery).generate_compose(
@@ -706,6 +718,7 @@ def test_development_profile_keeps_bundled_backends_open(tmp_path) -> None:
     ("dev_mode", "service_dev_mode"),
     [(True, False), (False, True), (True, True)],
 )
+@pytest.mark.skip(reason="The unsupported production profile was removed for the local-only beta.")
 def test_compose_generator_rejects_dev_options_for_production_profile(
     tmp_path,
     dev_mode: bool,
@@ -732,6 +745,7 @@ def test_compose_generator_rejects_dev_options_for_production_profile(
         )
 
 
+@pytest.mark.skip(reason="The unsupported production profile was removed for the local-only beta.")
 def test_production_profile_neutralizes_protected_service_environment_overrides(
     tmp_path,
 ) -> None:
@@ -776,6 +790,7 @@ def test_production_profile_neutralizes_protected_service_environment_overrides(
     }
 
 
+@pytest.mark.skip(reason="The unsupported production profile was removed for the local-only beta.")
 def test_production_profile_normalizes_list_form_protected_environment_assignments(
     tmp_path,
 ) -> None:
@@ -809,6 +824,7 @@ def test_production_profile_normalizes_list_form_protected_environment_assignmen
     ]
 
 
+@pytest.mark.skip(reason="The unsupported production profile was removed for the local-only beta.")
 def test_production_profile_removes_internal_traefik_labels_but_preserves_other_labels(
     tmp_path,
 ) -> None:
@@ -836,6 +852,7 @@ def test_production_profile_removes_internal_traefik_labels_but_preserves_other_
     assert development["services"]["trino"]["labels"] == service.compose["labels"]
 
 
+@pytest.mark.skip(reason="The unsupported production profile was removed for the local-only beta.")
 def test_production_profile_renders_bundled_core_without_public_ports_or_credential_defaults(
     tmp_path,
 ) -> None:
@@ -1080,7 +1097,7 @@ def test_services_init_excludes_profile_services_by_default(
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, [])
+    result = CliRunner().invoke(init_module.init_cmd, ["--local"])
     assert result.exit_code == 0
     compose = (tmp_path / ".phlo" / "docker-compose.yml").read_text()
     assert "postgres" in compose
@@ -1095,7 +1112,7 @@ def test_services_init_reports_malformed_phlo_yaml_without_traceback(
 
     from phlo.cli.commands.services import init as init_module
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--force", "--no-dev"])
+    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--force", "--no-dev"])
 
     assert result.exit_code == 1
     assert "invalid phlo.yaml" in result.output
@@ -1135,7 +1152,7 @@ def test_services_init_allows_logs_only_phlo_dir(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, [])
+    result = CliRunner().invoke(init_module.init_cmd, ["--local"])
 
     assert result.exit_code == 0
     assert (tmp_path / ".phlo" / "docker-compose.yml").exists()
@@ -1177,7 +1194,7 @@ def test_services_init_includes_requested_profile_services(
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--profile", "observability"])
+    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--profile", "observability"])
     assert result.exit_code == 0
     compose = (tmp_path / ".phlo" / "docker-compose.yml").read_text()
     assert "postgres" in compose
@@ -1222,7 +1239,7 @@ def test_services_init_uses_lifecycle_planner_for_profiles(
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
-    result = CliRunner().invoke(init_module.init_cmd, ["--profile", "observability"])
+    result = CliRunner().invoke(init_module.init_cmd, ["--local", "--profile", "observability"])
 
     assert result.exit_code == 0
     assert copied == ["postgres", "grafana"]

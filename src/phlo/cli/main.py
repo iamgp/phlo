@@ -261,7 +261,7 @@ def _render_next_steps(selected_template) -> list[str]:
         if install_step not in steps:
             steps.append(install_step)
     else:
-        steps.append("phlo services init")
+        steps.append("phlo services init --local")
         if template_service_start_steps:
             steps.extend(template_service_start_steps)
         else:
@@ -269,7 +269,7 @@ def _render_next_steps(selected_template) -> list[str]:
         steps.append("phlo doctor")
 
     for step in template_steps:
-        if step == "phlo services init" or step.startswith("phlo services start"):
+        if step == "phlo services init --local" or step.startswith("phlo services start"):
             continue
         if step == "phlo workflow create" and importlib.util.find_spec("phlo_dlt") is None:
             install_step = 'Install workflow plugins: uv pip install "phlo[defaults]"'

@@ -17,7 +17,7 @@ class BasicTemplate:
             "pyproject.toml",
             "workflows/transforms/dbt/dbt_project.yml",
         ),
-        next_steps=("phlo services init", "phlo workflow create"),
+        next_steps=("phlo services init --local", "phlo workflow create"),
     )
 
     def render(self, context: TemplateRenderContext) -> None:
