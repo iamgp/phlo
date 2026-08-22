@@ -2627,7 +2627,7 @@ wheels = [
 [[package]]
 name = "phlo-dagster"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=2e1088baaeeecf74b000192c7bd436caebb5a24f#2e1088baaeeecf74b000192c7bd436caebb5a24f" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=main#d1ae216193312a851db2cb3a97e6b71a99a2bf42" }
 dependencies = [
     { name = "cryptography" },
     { name = "dagster" },
@@ -2643,7 +2643,7 @@ dependencies = [
 [[package]]
 name = "phlo-dbt"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=3cab35dc9ab041cc0077948cc471e743b4aba860#3cab35dc9ab041cc0077948cc471e743b4aba860" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main#d1ae216193312a851db2cb3a97e6b71a99a2bf42" }
 dependencies = [
     { name = "dbt-core" },
     { name = "dbt-postgres" },
@@ -2725,7 +2725,7 @@ wheels = [
 [[package]]
 name = "phlo-pandera"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-pandera&rev=main#f678e8c1e7c9c677120062120369f13814c068d0" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-pandera&rev=main#d1ae216193312a851db2cb3a97e6b71a99a2bf42" }
 dependencies = [
     { name = "click" },
     { name = "pandas" },
@@ -2772,8 +2772,8 @@ dev = [
 requires-dist = [
     { name = "pandas", specifier = ">=2.3,<3.1" },
     { name = "phlo", extras = ["defaults"], specifier = "==0.14.0" },
-    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=2e1088baaeeecf74b000192c7bd436caebb5a24f" },
-    { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=3cab35dc9ab041cc0077948cc471e743b4aba860" },
+    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=main" },
+    { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main" },
     { name = "pyarrow", specifier = ">=21,<26" },
 ]
 

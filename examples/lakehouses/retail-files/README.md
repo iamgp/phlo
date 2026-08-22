@@ -6,9 +6,12 @@ configured assets, builds seven dbt models, and promotes successful writes from
 isolated Nessie branches through WAP.
 
 The project owns its uv environment. Released `phlo[defaults]==0.14.0` comes
-from the package index; capability fixes that are still in the 0.14.0 release
-train are pinned directly from GitHub. Nothing imports the Phlo repository or
-uses its development virtual environment.
+from the package index; capability packages use the merged GitHub `main`
+implementation. Nothing imports the Phlo repository or uses its development
+virtual environment.
+
+Read the [end-to-end case study](docs/retail-files-e2e.md) for the verified
+table counts, WAP lifecycle evidence, native dbt checks, and Dagster screenshots.
 
 ## What it exercises
 
