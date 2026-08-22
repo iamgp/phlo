@@ -5,10 +5,9 @@ Phlo consumer. It ingests four file formats, validates five independently
 configured assets, builds seven dbt models, and promotes successful writes from
 isolated Nessie branches through WAP.
 
-The project owns its uv environment. Released `phlo[defaults]==0.14.0` comes
-from the package index; capability packages use the merged GitHub `main`
-implementation. Nothing imports the Phlo repository or uses its development
-virtual environment.
+The project owns its uv environment, deterministic fixtures, workflow
+configuration, and local lakehouse services. It does not depend on another
+example's runtime state.
 
 Read the [end-to-end case study](docs/retail-files-e2e.md) for the verified
 table counts, WAP lifecycle evidence, native dbt checks, and Dagster screenshots.
@@ -118,7 +117,7 @@ discount 62.84, tax 483.03, and net amount 6,520.99.
   blocking dbt uniqueness check fail and prevents WAP promotion.
 - A terminal failed Dagster run updates its durable WAP report to `failed` with
   `failure_reason: dagster_run_failed`; its ref remains available for the normal
-  audit-retention cleanup policy and `main` is unchanged.
+  audit-retention cleanup policy and published data is unchanged.
 - dbt relationship tests are owned by `sales_facts`; they are emitted as five
   native Dagster check evaluations when that asset runs, not when either
   dimension runs.

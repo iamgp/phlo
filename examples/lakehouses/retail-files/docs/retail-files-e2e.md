@@ -1,8 +1,5 @@
 # From retail files to promoted Iceberg tables
 
-_A worked end-to-end Phlo lakehouse, verified against GitHub `main` on
-2026-08-22._
-
 The Retail Files example started with a deliberately ordinary question: what
 happens when a real batch lakehouse—not a hello-world pipeline—meets Phlo's
 public interfaces?
@@ -11,27 +8,21 @@ The answer is a standalone project that turns deterministic retail files into
 12 Iceberg tables. DLT ingests five assets, dbt builds seven transformations,
 Dagster orchestrates daily partitions and native quality checks, and Phlo's
 write-audit-publish (WAP) lifecycle isolates every write on its own Nessie
-branch before promotion. Building it also exposed product gaps that smaller
-examples had missed.
+branch before promotion.
 
 This is an end-to-end result, not a direct provider demo. Every write described
 below was launched with `phlo materialize` or `phlo backfill`.
 
-## A consumer, not a monorepo fixture
+## A standalone lakehouse
 
-The example is intentionally self-contained. Its own uv environment installs
-released `phlo[defaults]==0.14.0` from the package index and the capability
-packages from the public Phlo repository's `main` branch. It does not import
-the surrounding checkout or use Phlo's development virtual environment.
+The example is intentionally self-contained. It owns its Python environment,
+deterministic fixtures, workflow configuration, transformations, quality
+checks, and local lakehouse services. After installing its dependencies, it can
+run without external data sources or credentials.
 
-The final run resolved `phlo-dagster`, `phlo-dbt`, and `phlo-pandera` to GitHub
-commit `d1ae216193312a851db2cb3a97e6b71a99a2bf42`. The generated runtime used
-uv 0.12.5 and installed the mounted consumer from `/app`, so the consumer's own
-uv overrides remained in effect.
-
-That packaging boundary matters. It tests the experience a real downstream
-project gets, including image bootstrapping and direct Git dependencies, rather
-than accidentally succeeding because source files are nearby.
+That boundary makes it useful as both a learning project and a repeatable
+reference implementation: copy it, generate the same inputs, and observe the
+same tables and business results.
 
 ## The scenario
 
@@ -69,7 +60,7 @@ outputs.
 └──────────────┬───────────────┘
                ▼
 ┌──────────────────────────────┐
-│ Promote to main · query Trino│
+│ Publish safely · query Trino │
 └──────────────────────────────┘
 ```
 
@@ -86,18 +77,17 @@ contract.
 
 ## What a successful publish looks like
 
-The merged-main confirmation materialized `product_dimension` and then
-`sales_facts` for partition `2025-01-01`.
+The end-to-end scenario materializes `product_dimension` and `sales_facts` for
+partition `2025-01-01`.
 
-| Asset | Logical run | Dagster run | WAP result |
+| Asset | Partition | Quality result | Publication result |
 |---|---|---|---|
-| `product_dimension` | `5efaf429993744b0ba8b06368028a2f7` | `552d28d7-056a-49bd-a5fc-03d71dbed540` | `promoted` |
-| `sales_facts` | `0469bfe6904247a6bec372bd88cdc4bd` | `3ea5062b-2ce1-4caf-86e6-3e5faac515f3` | `promoted` |
+| `product_dimension` | `2025-01-01` | Passed | Promoted |
+| `sales_facts` | `2025-01-01` | Five checks passed | Promoted |
 
-The first report advanced `main` from `d02515…` to `76c98d…`; the second began
-at that exact hash and advanced it to `9d282a…`. Both reports recorded
-`source_deleted: true`, proving their temporary branches were removed only
-after promotion.
+Each asset writes to an isolated version of the catalog. Once the run and its
+quality checks succeed, Phlo promotes the result atomically and removes the
+temporary source branch.
 
 This sequence is the important WAP guarantee: Dagster success is necessary but
 not sufficient. Phlo validates the immutable launch manifest and native asset
@@ -120,14 +110,13 @@ selected execution passed with zero failed rows.
 
 ![Five successful native dbt checks on the sales_facts asset](images/sales-facts-checks.png)
 
-This required a subtle ownership rule: materializing one asset must not emit or
-fail on a relationship test owned by another selected model. The runtime takes
-a snapshot of `run_results.json` immediately after `dbt build`, uses dbt's
-empty indirect selection, and filters extracted results to the executing asset.
+Checks stay attached to the asset they describe. Materializing a dimension does
+not accidentally execute or report a relationship check owned by
+`sales_facts`.
 
 ## The resulting lakehouse
 
-The catalog contained 12 tables on Nessie `main`:
+The published catalog contained 12 tables:
 
 | Table | Rows |
 |---|---:|
@@ -154,23 +143,18 @@ commits, Nessie promotion, dbt SQL, and Trino queries.
 
 ## Backfill means lifecycle completion
 
-A two-day sales backfill ran sequentially with `--parallel 1`. Its reports were
-`backfill-04a306fd28f54b2e9958ef493ed13b69` and
-`backfill-b1559739ab2d4c0eb9f4897306078e4a`. Both promoted, both deleted their
-source branches, and the second report's `target_hash_before` exactly matched
-the first report's `target_hash_after`.
+A two-day sales backfill ran sequentially with `--parallel 1`. Both partitions
+promoted and removed their temporary branches. The second partition started
+from the catalog state published by the first.
 
-That ordering prevents the second partition from branching from stale `main`.
-If the process times out after Dagster accepts a run, resume state binds the
-partition to that exact Dagster run instead of launching a duplicate.
+That ordering prevents a later partition from building on stale data. If the
+process is interrupted, `--resume` continues the accepted in-flight run instead
+of launching a duplicate.
 
-The opposite path was exercised on merged `main` too. Missing partition
-`2026-01-02` launched logical run `c7fa62fa63ec40868f4327cf12e6f660`
-(Dagster run `baf6980e-4b37-4462-b0e4-24c6e2edea4c`) and exhausted its configured
-retries. The durable WAP report terminalized as `failed` with
-`failure_reason: dagster_run_failed`. Nessie `main` remained at `9d282a…`, no
-`target_hash_after` was recorded, and the source ref remained at that base hash
-for the configured audit-retention period.
+The opposite path was exercised too. A missing partition exhausted its
+configured retries and ended with a durable failed WAP report. Published data
+did not change, and the isolated source remained available for the configured
+audit-retention period.
 
 ## Operational shape
 
@@ -185,30 +169,20 @@ Different assets also carry different retry, timeout, freshness, owner,
 consumer, SLA, validation, and write-mode settings. Those differences are part
 of the example's contract, not decorative metadata.
 
-## What the example found
+## What this demonstrates
 
-Building the lakehouse exposed issues that focused tests had not connected:
+The project shows how the pieces of a production-shaped batch lakehouse fit
+together without hiding provider behavior:
 
-- the public `@phlo.ingest.dlt(...)` facade was not recognized by workflow
-  validation ([#752](https://github.com/phlohouse/phlo/pull/752));
-- Alpine runtime installs needed a C++ compiler, and current uv needed to honor
-  consumer-owned source configuration ([#753](https://github.com/phlohouse/phlo/pull/753),
-  [#756](https://github.com/phlohouse/phlo/pull/756));
-- local WAP defaults, immutable project/attempt tags, GraphQL diagnostics, and
-  sequential backfill completion needed tightening
-  ([#754](https://github.com/phlohouse/phlo/pull/754),
-  [#755](https://github.com/phlohouse/phlo/pull/755),
-  [#757](https://github.com/phlohouse/phlo/pull/757));
-- dbt needed to provision a WAP-scoped query catalog before connecting
-  ([#759](https://github.com/phlohouse/phlo/pull/759)); and
-- dbt tests needed stable native check identities, preserved build artifacts,
-  selected-asset ownership, and terminal failed-run reports
-  ([#760](https://github.com/phlohouse/phlo/pull/760),
-  [#761](https://github.com/phlohouse/phlo/pull/761),
-  [#762](https://github.com/phlohouse/phlo/pull/762)).
+- source-specific ingestion contracts can share one orchestrated project;
+- append history can remain available while curated models stay idempotent;
+- dbt tests can become visible, actionable orchestration evidence;
+- sequential backfills can publish each partition from the latest catalog
+  state; and
+- failed runs can preserve diagnostics without exposing partial data.
 
-That is the value of a production-shaped example: it is documentation, a
-consumer contract, and an integration probe at the same time.
+The result is small enough to run locally but broad enough to serve as a useful
+starting point for a real file-based lakehouse.
 
 ## Reproduce it
 
@@ -235,5 +209,5 @@ queries, expected failures, and shutdown command.
 Example 1 is complete. It is deterministic, network-independent after package
 installation, runnable as a real consumer, and green through Phlo's public
 orchestration path. More importantly, it now demonstrates both halves of WAP:
-good data reaches `main` atomically, and bad runs terminate with durable evidence
-without publishing.
+good data publishes atomically, and bad runs terminate with durable evidence
+without exposing partial results.
