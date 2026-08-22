@@ -113,6 +113,9 @@ discount 62.84, tax 483.03, and net amount 6,520.99.
   duplicate raw snapshots; `inventory_balances` ranks by Phlo ingestion metadata
   and keeps the newest stable snapshot ID. Removing that deduplication makes its
   blocking dbt uniqueness check fail and prevents WAP promotion.
+- A terminal failed Dagster run updates its durable WAP report to `failed` with
+  `failure_reason: dagster_run_failed`; its ref remains available for the normal
+  audit-retention cleanup policy and `main` is unchanged.
 - dbt relationship tests are owned by `sales_facts`; they are emitted as five
   native Dagster check evaluations when that asset runs, not when either
   dimension runs.
