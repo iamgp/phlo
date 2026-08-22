@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from phlo._attempt import attempt_from_tags
 from phlo._correlation import resolve_project_identity
 from phlo.capabilities.interfaces import VersionedCatalog
 from phlo.capabilities.resolver import resolve_capability
@@ -220,12 +219,7 @@ def prepare_wap_launch(*, logical_run_id: str) -> WapLaunch:
             message="WAP materialization requires PHLO_PROJECT for run correlation.",
             suggestions=["Set PHLO_PROJECT before retrying the WAP materialization."],
         )
-    attempt, _attempt_error = attempt_from_tags({})
-    if attempt is None:
-        raise PhloConfigError(
-            message="WAP materialization could not resolve a positive launch attempt.",
-            suggestions=["Set a valid positive WAP attempt before retrying."],
-        )
+    attempt = 1
     resolution = resolve_capability("catalog")
     if resolution is None or not (
         resolution.support.supports_refs and resolution.support.supports_promote
