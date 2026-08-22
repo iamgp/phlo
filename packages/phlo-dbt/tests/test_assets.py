@@ -73,3 +73,58 @@ def test_build_dbt_asset_specs_raises_when_manifest_shape_is_invalid(monkeypatch
 
     with pytest.raises(PhloCapabilitySetupError, match="manifest_shape_invalid"):
         build_dbt_asset_specs()
+
+
+def test_build_dbt_asset_specs_marks_dlt_sources_as_partitioned_dependencies(
+    monkeypatch, tmp_path
+) -> None:
+    project_path = tmp_path / "dbt"
+    profiles_path = project_path / "profiles"
+    target_path = project_path / "target"
+    project_path.mkdir(parents=True)
+    target_path.mkdir(parents=True)
+    (project_path / "dbt_project.yml").write_text("name: test\nversion: '1.0'\n", encoding="utf-8")
+    (target_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "nodes": {
+                    "model.project.sales_facts": {
+                        "resource_type": "model",
+                        "name": "sales_facts",
+                        "depends_on": {
+                            "nodes": ["source.project.dagster_assets.retail_sales_lines"]
+                        },
+                    }
+                },
+                "sources": {
+                    "source.project.dagster_assets.retail_sales_lines": {
+                        "resource_type": "source",
+                        "source_name": "dagster_assets",
+                        "name": "retail_sales_lines",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "phlo_dbt.assets.get_settings",
+        lambda: type(
+            "Settings",
+            (),
+            {
+                "dbt_project_path": project_path,
+                "dbt_profiles_path": profiles_path,
+            },
+        )(),
+    )
+    monkeypatch.setattr("phlo_dbt.assets.ensure_dbt_profile", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("phlo_dbt.assets.ensure_dbt_manifest", lambda *_args, **_kwargs: True)
+
+    [sales_facts] = build_dbt_asset_specs()
+
+    assert sales_facts.partitions is not None
+    assert sales_facts.partitions.kind == "daily"
+    assert sales_facts.deps == ["dlt_retail_sales_lines"]
+    assert sales_facts.metadata["phlo/partitioned_deps"] == ["dlt_retail_sales_lines"]

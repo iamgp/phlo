@@ -4,7 +4,13 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
-from dagster import AssetExecutionContext, Definitions, asset, materialize
+from dagster import (
+    AssetExecutionContext,
+    AssetKey,
+    Definitions,
+    asset,
+    materialize,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -231,3 +237,48 @@ def test_materialize_result_failure_status_fails_step():
     result = materialize([asset_def], raise_on_error=False)
 
     assert not result.success
+
+
+def test_partitioned_asset_preserves_default_mapping_for_external_partitioned_dependency():
+    """Separately discovered daily assets retain Dagster's partition-aware dependency mapping."""
+    from phlo.capabilities import AssetSpec, MaterializeResult, PartitionSpec, RunSpec
+    from phlo_dagster.adapter import DagsterOrchestratorAdapter
+
+    def _run(_runtime):
+        return [MaterializeResult()]
+
+    adapter = DagsterOrchestratorAdapter()
+    ingestion_definitions = adapter.build_definitions(
+        assets=[
+            AssetSpec(
+                key="ingestion",
+                group=None,
+                description=None,
+                partitions=PartitionSpec(kind="daily"),
+                run=RunSpec(fn=_run),
+            ),
+        ],
+        checks=[],
+        resources=[],
+    )
+    transform_definitions = adapter.build_definitions(
+        assets=[
+            AssetSpec(
+                key="transform",
+                group=None,
+                description=None,
+                deps=["ingestion"],
+                metadata={"phlo/partitioned_deps": ["ingestion"]},
+                partitions=PartitionSpec(kind="daily"),
+                run=RunSpec(fn=_run),
+            ),
+        ],
+        checks=[],
+        resources=[],
+    )
+    definitions = Definitions.merge(ingestion_definitions, transform_definitions)
+    transform = definitions.get_assets_def(AssetKey("transform"))
+
+    assert transform.partitions_def is not None
+    assert transform.get_partition_mapping(AssetKey("ingestion")) is None
+    assert materialize([transform], partition_key="2025-01-15").success

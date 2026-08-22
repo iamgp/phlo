@@ -64,6 +64,7 @@ from phlo.capabilities.specs import (
     AssetSpec,
     CheckResult,
     MaterializeResult,
+    PartitionSpec,
     ResourceSpec,
 )
 from phlo.logging import get_logger
@@ -71,6 +72,8 @@ from phlo.plugins.base import OrchestratorAdapterPlugin, PluginMetadata
 from phlo_dagster.framework.asset_diagnostics import raise_duplicate_asset_specs_if_present
 
 logger = get_logger(__name__)
+
+_PARTITIONED_DEPS_METADATA_KEY = "phlo/partitioned_deps"
 
 
 def _asset_key_from_string(key: str) -> dg.AssetKey:
@@ -86,6 +89,14 @@ def _asset_key_from_string(key: str) -> dg.AssetKey:
     if "." in key:
         return dg.AssetKey(key.split("."))
     return dg.AssetKey([key])
+
+
+def _partitioned_deps_from_metadata(metadata: Mapping[str, Any]) -> set[str]:
+    """Return explicit partitioned dependency keys recorded by an asset provider."""
+    value = metadata.get(_PARTITIONED_DEPS_METADATA_KEY)
+    if not isinstance(value, (list, tuple, set)):
+        return set()
+    return {str(dep) for dep in value}
 
 
 def _metadata_value(value: Any) -> dg.MetadataValue:
@@ -332,7 +343,12 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             else:
                 resources_map[resource.name] = dg.ResourceDefinition.hardcoded_resource(value)
 
-        asset_defs = [self._build_asset(spec) for spec in assets_list if spec.run is not None]
+        asset_partitions = {spec.key: spec.partitions for spec in assets_list}
+        asset_defs = [
+            self._build_asset(spec, asset_partitions)
+            for spec in assets_list
+            if spec.run is not None
+        ]
         check_defs = [self._build_check(check) for check in checks_list if check.fn is not None]
 
         logger.info(
@@ -348,11 +364,16 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             resources=resources_map,
         )
 
-    def _build_asset(self, spec: AssetSpec) -> dg.AssetsDefinition:
+    def _build_asset(
+        self,
+        spec: AssetSpec,
+        asset_partitions: Mapping[str, PartitionSpec | None] | None = None,
+    ) -> dg.AssetsDefinition:
         """Create a Dagster asset definition from a capability asset spec.
 
         Args:
             spec: Asset capability spec.
+            asset_partitions: Partition metadata keyed by known asset key.
 
         Returns:
             Dagster assets definition function.
@@ -398,7 +419,20 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             )
 
         asset_key = _asset_key_from_string(spec.key)
-        deps = [_asset_key_from_string(dep) for dep in spec.deps]
+        partitioned_deps = _partitioned_deps_from_metadata(spec.metadata)
+        deps = [
+            dg.AssetDep(
+                _asset_key_from_string(dep),
+                partition_mapping=dg.AllPartitionMapping(),
+            )
+            if spec.partitions is None
+            and (
+                dep in partitioned_deps
+                or (asset_partitions is not None and asset_partitions.get(dep) is not None)
+            )
+            else _asset_key_from_string(dep)
+            for dep in spec.deps
+        ]
         required_resources = set(spec.resources)
         asset_metadata = _convert_metadata(spec.metadata) if spec.metadata else None
 

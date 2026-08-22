@@ -81,6 +81,30 @@ def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, 
     return deps
 
 
+def _partitioned_source_deps(
+    unique_id: str,
+    nodes: Mapping[str, Any],
+    sources: Mapping[str, Any],
+    asset_keys: dict[str, str],
+) -> set[str]:
+    """Return DLT-backed source dependencies that are partitioned by their provider."""
+    props = nodes.get(unique_id, {})
+    depends_on = props.get("depends_on") or {}
+    depends_nodes = depends_on.get("nodes") or []
+    if not isinstance(depends_nodes, list):
+        return set()
+
+    partitioned_deps: set[str] = set()
+    for upstream_id in depends_nodes:
+        upstream_id = str(upstream_id)
+        if upstream_id not in sources:
+            continue
+        asset_key = asset_keys.get(upstream_id)
+        if asset_key and asset_key.startswith("dlt_"):
+            partitioned_deps.add(asset_key)
+    return partitioned_deps
+
+
 def _run_dbt_model(
     *,
     model_name: str,
@@ -220,10 +244,13 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
             continue
         model_name = str(props.get("name") or asset_key)
         deps = _asset_deps(str(unique_id), nodes, asset_keys)
+        partitioned_deps = _partitioned_source_deps(str(unique_id), nodes, sources, asset_keys)
         description = translator.get_description(props)
         group = translator.get_group_name(props)
         kinds = translator.get_kinds(props)
         metadata = translator.get_metadata(props)
+        if partitioned_deps:
+            metadata["phlo/partitioned_deps"] = sorted(partitioned_deps)
         tags = {"tool": "dbt"}
 
         def _runner(runtime: RuntimeContext, model=model_name) -> list[MaterializeResult]:
