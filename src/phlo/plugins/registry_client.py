@@ -1,4 +1,11 @@
-"""Registry client for Phlo plugins."""
+"""Registry client for Phlo plugins.
+
+Fetches the plugin registry with a TTL cache: remote URL first, then a
+bundled local copy as fallback. A fallback result is cached like a remote
+success, so a transient network failure is not retried until the TTL
+expires. Entries are normalized into RegistryPlugin records for lookup and
+search.
+"""
 
 from __future__ import annotations
 

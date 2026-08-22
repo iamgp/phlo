@@ -1,4 +1,12 @@
-"""Capability discovery for asset and resource providers."""
+"""Capability discovery for asset and resource providers.
+
+discover_capabilities() registers built-in authentication, authorization,
+and observability providers first, then auto-registers discovered
+plugins and converts each provider's specs into capability registrations.
+A provider that raises for missing required config is an expected
+deployment shape: it is logged as a warning without a traceback and
+does not abort discovery of other providers.
+"""
 
 from __future__ import annotations
 

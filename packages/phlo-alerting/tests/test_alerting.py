@@ -1,4 +1,8 @@
-"""Unit tests for phlo-alerting."""
+"""Unit tests for phlo-alerting.
+
+Covers alert construction and severity mapping plus AlertManager delivery,
+deduplication, and targeted destination routing against in-memory stubs.
+"""
 
 from phlo_alerting.manager import Alert, AlertManager, AlertDestination, AlertSeverity
 from phlo_alerting.hooks_plugin import (

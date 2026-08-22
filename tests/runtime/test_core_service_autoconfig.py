@@ -1,4 +1,10 @@
-"""Integration tests for core service auto-configuration."""
+"""Integration tests for core service auto-configuration.
+
+Every core service (postgres, minio, nessie, trino, dagster) must
+declare its dependencies and auto-setup hooks, reference only
+placeholders defined in env_vars, and own its host-port defaults so
+auto-configuration never depends on undeclared configuration.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,11 @@
-"""Provider-neutral transformation authoring decorators."""
+"""Provider-neutral transformation authoring decorators.
+
+The sql() decorator registers a transform asset at import time: SQL is
+captured eagerly by calling the function with no arguments, and
+functions with required parameters yield no static SQL rather than
+deferring evaluation. Assets accumulate in a module-level list owned by
+the core provider; clear_transform_assets() exists for test isolation.
+"""
 
 from __future__ import annotations
 

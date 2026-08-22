@@ -1,4 +1,8 @@
-"""Sling CLI plugin registration."""
+"""Sling CLI plugin registration.
+
+Declares the Sling replication CLI command group through the shared CLI plugin
+factory; registration metadata only.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""phlo_minio CLI authorization table."""
+"""phlo_minio CLI authorization table.
+
+Declares which phlo-minio commands are reads versus mutations and maps each
+to its storage resource/action pair; builds a singleton surface adapter
+from those tables for the shared policy layer.
+"""
 
 from __future__ import annotations
 

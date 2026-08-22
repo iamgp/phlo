@@ -1,4 +1,10 @@
-"""Provider-neutral workflow wizard contracts."""
+"""Provider-neutral workflow wizard contracts.
+
+Dataclasses describing wizard stages, contributions, fields, proposals, and
+apply actions, with to_browser_dict() serializers that strip sensitive keys
+(_SENSITIVE_KEY_PARTS) before anything reaches the browser. Also provides
+proposal request validation and file-conflict detection against disk state.
+"""
 
 from __future__ import annotations
 

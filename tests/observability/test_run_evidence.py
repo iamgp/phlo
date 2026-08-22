@@ -1,4 +1,9 @@
-"""Focused tests for the versioned run-evidence contract and sink."""
+"""Focused tests for the versioned run-evidence contract and sink.
+
+Exercises append idempotency, redaction and checksums, project/producer
+identity scoping, payload-conflict rollback, and report projections over a
+SQLite-backed store.
+"""
 
 from __future__ import annotations
 

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Derive container inventories, validate reports, and apply Phlo scan policy."""
+"""Derive container inventories, validate Trivy reports, and enforce Phlo scan policy.
+
+Waivers are temporary exceptions: each needs approval and expiry dates, may
+last at most 30 days, and only unfixed CRITICAL or HIGH findings may rely on
+one; findings with an available fix block publication regardless of waivers.
+"""
 
 from __future__ import annotations
 

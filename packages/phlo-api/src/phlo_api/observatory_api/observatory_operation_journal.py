@@ -1,4 +1,11 @@
-"""Persistent operation journal for Observatory."""
+"""Persistent operation journal for Observatory.
+
+Stores validated ObservatoryOperation records in the project's durable
+state collection, capped at MAX_OPERATION_RECORDS and kept sorted newest
+first on every write. Corrupt records raise StorageCorruptionError rather
+than surfacing partially valid state. Also derives the stable v1
+agent-readable observability context contract from each operation.
+"""
 
 from __future__ import annotations
 

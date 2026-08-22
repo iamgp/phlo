@@ -1,4 +1,10 @@
-"""Phlo's authenticated Dagster webserver entrypoint."""
+"""Phlo's authenticated Dagster webserver entrypoint.
+
+Every inherited Dagster HTTP route must be classified at startup; an
+unclassified route fails startup rather than bypassing auth. GraphQL passes a
+mandatory authorization middleware and graphql-ws connections authenticate at
+connection_init; the secured class is patched into dagster_webserver.app.
+"""
 
 from __future__ import annotations
 

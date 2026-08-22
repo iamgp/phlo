@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Verify provider wheels work only from an installed external consumer environment."""
+"""Verify provider wheels work only from an installed external consumer
+environment.
+
+Builds all workspace wheels, installs them into a clean uv environment with
+repository sources stripped from the path, renders services from the
+installed CLI, and checks that declared entry points and modules resolve
+from installed distributions only.
+"""
 
 from __future__ import annotations
 

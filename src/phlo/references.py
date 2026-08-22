@@ -1,4 +1,10 @@
-"""Logical relation references for workflow authors."""
+"""Logical relation references for workflow authors.
+
+``ref`` resolves an asset name through the capability registry into a
+LogicalRelation; rendering quotes each physical segment with ANSI
+double-quote escaping and falls back to the bare asset key when no physical
+metadata is known.
+"""
 
 from __future__ import annotations
 

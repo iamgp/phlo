@@ -1,3 +1,7 @@
+/**
+ * Effective settings resolution for the browser: stored overrides beat
+ * server defaults.
+ */
 import type { ObservatorySettings } from '@/lib/observatorySettings'
 import { loadStoredObservatorySettings } from '@/lib/observatorySettings'
 import { getObservatorySettingsDefaults } from '@/observatory/api/settings'

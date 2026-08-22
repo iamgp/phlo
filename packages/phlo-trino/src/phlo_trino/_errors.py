@@ -1,4 +1,8 @@
-"""Shared exception-chain utilities."""
+"""Shared exception-chain utilities.
+
+Walks an exception's __cause__/__context__ chain root-first so callers can
+classify Trino failures by the originating error rather than the wrapper.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Provider-neutral workflow authoring helpers."""
+"""Provider-neutral workflow authoring helpers.
+
+Routes workflow creation through the resolved workflow-authoring capability
+so core never imports a specific provider; provider results are normalized
+into WorkflowCreateResult, and malformed results raise
+WorkflowAuthoringError instead of leaking provider shapes.
+"""
 
 from __future__ import annotations
 

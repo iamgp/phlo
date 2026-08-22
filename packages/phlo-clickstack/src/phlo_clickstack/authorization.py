@@ -1,4 +1,8 @@
-"""phlo_clickstack CLI authorization table."""
+"""Authorization table for the phlo-clickstack CLI surface.
+
+Declares which commands mutate state and maps every command onto the resource
+and action names evaluated by the shared CLI surface adapter.
+"""
 
 from __future__ import annotations
 

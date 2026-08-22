@@ -1,4 +1,11 @@
-"""Configuration loader for canonical RBAC files."""
+"""Configuration loader for canonical RBAC files.
+
+RBACConfigLoader reads roles.yaml and policies.yaml from
+<base>/authorization/ (default .phlo in the cwd), validates them through the
+CanonicalRBAC model, and exposes compute_version_hash() for sync drift
+detection. The hash covers raw parsed YAML, so two files projecting to the
+same canonical model can still hash differently.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Hook plugin interfaces and registration types."""
+"""Hook plugin interfaces and registration types.
+
+Hooks register as frozen HookRegistration records with priority ordering,
+optional event/asset/tag filters, and a FailurePolicy deciding whether a
+handler error is ignored, logged (default), or raised. Handlers may be sync
+callables, async callables, or HookProvider plugins.
+"""
 
 from __future__ import annotations
 

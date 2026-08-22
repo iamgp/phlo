@@ -1,4 +1,12 @@
-"""Plugin validation command."""
+"""Plugin validation command.
+
+Validates installed plugins by generating a disposable project and checking
+only its generated files: hadolint and Trivy run as digest-pinned container
+images so results stay reproducible, remote images are resolved to immutable
+manifest digests before scanning, and tool output is captured at bounded
+size. Trivy HIGH/CRITICAL findings can be waived only per exact finding
+fingerprint.
+"""
 
 from __future__ import annotations
 

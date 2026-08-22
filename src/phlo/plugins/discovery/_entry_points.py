@@ -1,4 +1,8 @@
-"""Compatibility helpers for loading package entry points."""
+"""Compatibility helpers for loading package entry points.
+
+Shields callers from entry_points() signature drift across supported Python
+versions by normalizing group filtering behind one function.
+"""
 
 from __future__ import annotations
 

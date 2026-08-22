@@ -1,4 +1,10 @@
-"""Compatibility adapters for sync and async operation contracts."""
+"""Compatibility adapters for sync and async operation contracts.
+
+Adapt ingesters and transformers in both directions: sync implementations run
+on worker threads behind the async contract, async implementations run on a
+private event loop behind the sync contract. The sync wrappers refuse to run
+inside an active event loop instead of failing opaquely.
+"""
 
 from __future__ import annotations
 

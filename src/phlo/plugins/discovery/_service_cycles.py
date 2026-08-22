@@ -1,4 +1,9 @@
-"""Cycle detection utilities for service dependency graphs."""
+"""Cycle detection utilities for service dependency graphs.
+
+Finds closed cycles within a restricted node subset and deduplicates them
+via a canonical rotation/reflection signature, so each cycle is reported
+once regardless of start node or direction.
+"""
 
 from __future__ import annotations
 

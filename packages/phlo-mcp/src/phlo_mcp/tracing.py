@@ -1,4 +1,10 @@
-"""Local tracing utilities for phlo-mcp."""
+"""Local tracing utilities for phlo-mcp.
+
+Spans are exported as JSON lines to the file named by PHLO_MCP_TRACE_FILE
+using a SimpleSpanProcessor; tracing stays disabled when no file is
+configured. load_spans/render_trace_tree read that same file back for
+local debugging.
+"""
 
 from __future__ import annotations
 

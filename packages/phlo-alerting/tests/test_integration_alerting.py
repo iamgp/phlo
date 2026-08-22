@@ -1,4 +1,9 @@
-"""Integration tests for phlo-alerting."""
+"""Integration tests for phlo-alerting.
+
+Covers AlertManager initialization, destination registration and dispatch,
+deduplication of repeated alerts, targeted delivery to a single destination,
+and the hooks plugin plus public package surface.
+"""
 
 import pytest
 

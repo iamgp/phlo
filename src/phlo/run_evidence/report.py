@@ -1,4 +1,10 @@
-"""Attempt-scoped, provider-neutral run report projection."""
+"""Attempt-scoped, provider-neutral projection of durable run evidence.
+
+build_run_report projects exactly one store-read snapshot into typed report
+rows. Payloads are redacted, error text reduced to fingerprints, resource
+identities taken only from producer data, and terminal outcomes fail closed on
+any ambiguity instead of electing a winner.
+"""
 
 from __future__ import annotations
 

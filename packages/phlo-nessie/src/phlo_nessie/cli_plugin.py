@@ -1,4 +1,8 @@
-"""Nessie CLI plugin registration."""
+"""Nessie CLI plugin registration.
+
+Wires the catalog and branch command groups into the plugin system via
+cli_command_plugin_class; owns no logic beyond registration.
+"""
 
 from __future__ import annotations
 

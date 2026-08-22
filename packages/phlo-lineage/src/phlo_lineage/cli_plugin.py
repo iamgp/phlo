@@ -1,4 +1,8 @@
-"""Lineage CLI plugin registration."""
+"""Register the lineage CLI command group as a phlo CLI plugin.
+
+LineageCliPlugin is built via cli_command_plugin_class so plugin discovery
+exposes the lineage commands through the phlo CLI.
+"""
 
 from __future__ import annotations
 

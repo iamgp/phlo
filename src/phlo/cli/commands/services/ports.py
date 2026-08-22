@@ -1,4 +1,10 @@
-"""Ports command for showing service port mappings."""
+"""Ports command for showing service port mappings.
+
+Resolves effective host ports per service by preferring live Docker
+container mappings, then compose-configured ports, then env defaults, and
+augments them with Traefik routes when the proxy is running. Detects
+cross-service host-port conflicts and reports table or JSON output.
+"""
 
 import json
 import os

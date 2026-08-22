@@ -1,4 +1,8 @@
-"""Pgweb service plugin registration."""
+"""Pgweb service plugin registration.
+
+PgwebServicePlugin is built via service_plugin_class so discovery offers pgweb
+as a managed PostgreSQL browser service.
+"""
 
 from __future__ import annotations
 

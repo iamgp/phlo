@@ -1,4 +1,10 @@
-"""Start command for starting services."""
+"""Start command for Phlo infrastructure services.
+
+Builds a preflight plan (requested services, profiles, host ports, required
+env) and fails before touching the container backend if anything is missing.
+Supports compose-backed and native subprocess modes; starting is a mutation
+and requires authorization via services.start.
+"""
 
 import asyncio
 import signal

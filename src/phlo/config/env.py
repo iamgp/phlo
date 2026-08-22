@@ -1,4 +1,11 @@
-"""Project environment helpers."""
+"""Project environment helpers.
+
+Resolves the project root (explicit argument, per-context override, or
+cwd; traversal is rejected) and layers configuration from phlo.yaml
+env:, .phlo/.env, and .phlo/.env.local, with later sources winning.
+The ContextVar-based use_project_root keeps nested settings
+construction correct under async without touching process cwd.
+"""
 
 from __future__ import annotations
 

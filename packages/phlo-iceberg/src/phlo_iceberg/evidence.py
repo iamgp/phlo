@@ -1,4 +1,11 @@
-"""Iceberg provider adapter for authoritative mutation readback."""
+"""Iceberg provider adapter for authoritative mutation readback.
+
+Reads table state back from the catalog after mutations and emits evidence
+observations for each operation. Only NoSuchTableError proves absence: any
+other load failure yields an "unavailable" readback state so callers can
+never mistake an outage for a missing table. Payloads carry checksums and
+safe error summaries before leaving the process boundary.
+"""
 
 from __future__ import annotations
 

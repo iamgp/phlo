@@ -1,4 +1,11 @@
-"""Phlo doctor: diagnose the local environment and running services."""
+"""Phlo doctor: diagnose the local environment and running services.
+
+Runs grouped probes (container backend, project config, plugin
+discovery, ports, live services) that each yield a DiagnosticResult with
+ok/warn/fail/skip status and an optional fix hint; individual probe
+failures are captured, never fatal. Output renders as a table or JSON,
+and diagnostics run with stdout silenced to keep CLI output clean.
+"""
 
 from __future__ import annotations
 

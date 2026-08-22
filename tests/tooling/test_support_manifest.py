@@ -1,4 +1,11 @@
-"""Tests for the machine-readable v1 support boundary."""
+"""Tests for the machine-readable v1 support boundary.
+
+The checked-in registry/support/v1.json manifest must validate against
+the repository inventory, stay byte-identical to the packaged copy, and
+enforce its rules: release-set metadata derived from package sources,
+v1-only schema compatibility, maturity-gated promotions, and no
+deletions of required capabilities still referenced elsewhere.
+"""
 
 from __future__ import annotations
 

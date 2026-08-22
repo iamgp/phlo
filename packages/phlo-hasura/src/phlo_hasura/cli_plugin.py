@@ -1,4 +1,8 @@
-"""Hasura CLI plugin registration."""
+"""Registers the Hasura CLI plugin.
+
+Built declaratively via cli_command_plugin_class(): the module only wires the
+hasura command group into the plugin registry under a fixed name and version.
+"""
 
 from __future__ import annotations
 

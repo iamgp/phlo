@@ -1,4 +1,11 @@
-"""Discover and cache service definitions from plugins and optional directories."""
+"""Discover and cache service definitions from plugins and optional directories.
+
+ServiceDiscovery loads definitions from installed service plugins and,
+when a services_dir is given, extra service.yaml files; results are
+cached per instance until refresh=True. Dependency cycles are rejected
+via shared cycle detection, and manifest errors surface as
+ServiceManifestError.
+"""
 
 from pathlib import Path
 from typing import Any, cast

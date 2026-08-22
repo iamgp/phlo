@@ -1,4 +1,8 @@
-"""Tests for workflow CLI commands."""
+"""Tests for the workflow CLI commands.
+
+Covers non-interactive `workflow create` scaffolding and actionable
+`workflow check` failures, including missing validators and dependencies.
+"""
 
 import json
 from pathlib import Path

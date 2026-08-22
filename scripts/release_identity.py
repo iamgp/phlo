@@ -1,4 +1,9 @@
-"""Validate the source, distribution, and PyPI identities of a Phlo release."""
+"""Validate the source, distribution, and PyPI identities of a Phlo release.
+
+Hashes sdist/wheel artifacts, cross-checks project name and version across
+pyproject metadata, packaged metadata, and PyPI listings, verifies remote
+sdist content hashes, then emits the resulting publish plan.
+"""
 
 from __future__ import annotations
 

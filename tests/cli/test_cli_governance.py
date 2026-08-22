@@ -1,4 +1,10 @@
-"""Tests for the governance CLI commands, run against a cleared flow-declaration registry."""
+"""Tests for the governance CLI commands, run against a cleared flow-declaration registry.
+
+Each test starts from an empty global flow-declaration registry and
+leaves nothing behind. Covers unsafe publishes failing with structured
+warnings, contract-governed publishes passing, read-model export, and
+clean errors for bad declaration modules.
+"""
 
 from __future__ import annotations
 

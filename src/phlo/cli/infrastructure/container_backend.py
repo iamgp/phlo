@@ -1,4 +1,9 @@
-"""Container backend detection and control for Docker and Podman."""
+"""Container backend detection and control for Docker and Podman.
+
+Both backends implement a common protocol over their compose tooling. Backend
+selection follows CLI override, then environment, then phlo.yaml infrastructure
+config; an unsupported choice is an error, never a fallback.
+"""
 
 from __future__ import annotations
 

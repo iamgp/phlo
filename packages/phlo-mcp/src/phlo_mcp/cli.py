@@ -1,4 +1,8 @@
-"""CLI entrypoint for phlo-mcp."""
+"""CLI entrypoint for phlo-mcp.
+
+Parses transport and phlo-api connection options into McpConfig, merging CLI
+flags over PHLO_MCP_* environment defaults, then builds and runs the server.
+"""
 
 from __future__ import annotations
 

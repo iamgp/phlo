@@ -1,4 +1,10 @@
-"""Saved-query read model persistence for Observatory."""
+"""Saved-query read model persistence for Observatory.
+
+Saved queries live in the durable-state collection under
+.phlo/observatory. Only simple SELECT preview queries can be saved;
+anything else is rejected. Unreadable stored state raises
+StorageCorruptionError rather than surfacing validation details.
+"""
 
 from __future__ import annotations
 

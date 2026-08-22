@@ -1,4 +1,9 @@
-"""Shared validation for positive execution-attempt correlation."""
+"""Shared validation for positive execution-attempt correlation.
+
+Normalizes attempt values from tags or payloads without ever aliasing invalid
+retry metadata to attempt 1; malformed values surface as errors or explicit
+"invalid" markers instead of a silent first-attempt retry.
+"""
 
 from __future__ import annotations
 

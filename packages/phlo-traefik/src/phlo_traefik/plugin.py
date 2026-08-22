@@ -1,4 +1,8 @@
-"""Traefik service plugin registration."""
+"""Traefik service plugin registration.
+
+TraefikServicePlugin is built via service_plugin_class so discovery offers
+traefik as a managed reverse-proxy service.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Openmetadata CLI plugin registration."""
+"""OpenMetadata CLI plugin registration.
+
+Wraps the openmetadata click group as a discoverable CLI command plugin; this
+file carries registration metadata only.
+"""
 
 from __future__ import annotations
 

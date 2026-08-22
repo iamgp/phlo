@@ -1,4 +1,11 @@
-"""Project-root-aware caches for configuration entry points."""
+"""Project-root-aware caches for configuration entry points.
+
+``project_root_cached`` keys an lru_cache on the resolved project root and
+keeps the context var active while the factory runs, so nested config objects
+resolve their env files against the same root. ``cache_clear`` and
+``cache_info`` are re-exposed for deliberate invalidation by tests and
+long-running processes.
+"""
 
 from __future__ import annotations
 

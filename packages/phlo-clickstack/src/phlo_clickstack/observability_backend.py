@@ -1,4 +1,10 @@
-"""ClickStack-backed observability capability provider."""
+"""ClickStack-backed observability capability provider.
+
+Span queries post SQL to ClickStack's HTTP endpoint and decode its
+newline-delimited JSON reply into TraceSpans. The endpoint resolves from
+CLICKSTACK_QUERY_URL, falling back to the in-container service address or
+localhost depending on environment.
+"""
 
 from __future__ import annotations
 

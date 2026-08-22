@@ -1,4 +1,9 @@
-"""Workflow settings loaded from ``phlo.yaml`` and local environment overrides."""
+"""Workflow settings loaded from ``phlo.yaml`` and local environment overrides.
+
+Per namespace, settings layer shared ``settings``, then ``settings.<namespace>``,
+then ``workflows.<namespace>.settings`` with later layers winning; non-mapping
+blocks raise WorkflowSettingsError.
+"""
 
 from __future__ import annotations
 

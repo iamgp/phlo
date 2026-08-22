@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Run the Phlo release artifact golden path in an owned temporary project."""
+"""Run the Phlo release artifact golden path in an owned temporary project.
+
+Drives the full release path end to end: build a wheelhouse, install
+the operator, scaffold and configure a non-dev project, start the
+stack, materialize fixture partitions, then exercise WAP promotion
+including one deliberately rejected run. The script owns every
+directory it creates and removes them on exit unless --keep-project is
+given; any failure triggers runtime diagnostics before cleanup.
+"""
 
 from __future__ import annotations
 

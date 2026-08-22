@@ -1,4 +1,9 @@
-"""Add command for rendering optional services into the project stack."""
+"""Add command for rendering optional services into the project stack.
+
+Persists the enabled/disabled service state to phlo.yaml, re-renders the
+compose stack, and starts newly-added services unless --no-start is given.
+The mutation requires authorization before any state changes.
+"""
 
 from __future__ import annotations
 

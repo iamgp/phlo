@@ -1,4 +1,11 @@
-"""Controls for scoped operation routes: auth scopes, audit, rate limits, idempotency."""
+"""Controls for scoped operation routes: auth scopes, audit, rate limits, idempotency.
+
+Mutating operations claim an idempotency key in SQLite before touching
+the provider; a pending or unknown claim yields a stable 409 instead of
+a duplicate mutation. Audit records append under a cross-process file
+lock with rotation, and a committed-but-unaudited mutation raises
+MutationSucceededAuditFailed rather than reporting failure.
+"""
 
 from __future__ import annotations
 

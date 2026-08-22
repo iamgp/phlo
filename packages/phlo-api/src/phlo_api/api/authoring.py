@@ -1,4 +1,9 @@
-"""Agent-facing authoring API routes."""
+"""Agent-facing authoring API routes.
+
+Routes delegate workflow creation and validation to phlo.workflow_authoring and
+the CLI validators, gated by scope checks, rate limits, and operation auditing.
+A module-level lock serialises project working-directory changes across requests.
+"""
 
 from __future__ import annotations
 

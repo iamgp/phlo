@@ -1,4 +1,9 @@
-"""Reset command for resetting services and volumes."""
+"""`phlo services reset` command.
+
+Stops compose services and deletes their data volumes after confirmation.
+Selective resets resolve and validate each service volume path against the
+project's volumes directory before anything is removed.
+"""
 
 import shutil
 from pathlib import Path

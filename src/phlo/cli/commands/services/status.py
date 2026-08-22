@@ -1,4 +1,9 @@
-"""Status command for showing service status."""
+"""``phlo services status`` command.
+
+Wraps ``compose ps`` for the project, emitting either a table or JSON; a
+failed compose invocation surfaces as a ClickException rather than a
+traceback.
+"""
 
 import json
 

@@ -1,4 +1,8 @@
-"""Tests for core quality check plugins."""
+"""Tests for core quality check plugins.
+
+Each plugin is exercised through create_check() to confirm the generated check
+name matches the expected identifier for its check kind.
+"""
 
 from phlo_core.quality.freshness_check import FreshnessCheckPlugin
 from phlo_core.quality.null_check import NullCheckPlugin

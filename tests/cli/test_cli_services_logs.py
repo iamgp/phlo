@@ -1,4 +1,10 @@
-"""Tests for "phlo services logs": option and service passthrough to compose logs."""
+"""Tests for "phlo services logs" passthrough to compose logs.
+
+Verifies that service names and log options reach the container backend
+unchanged (including package-selector aliases), that a requested backend
+is honored, that `phlo logs` is the same command, and that uninitialized
+projects get an actionable init hint.
+"""
 
 from __future__ import annotations
 

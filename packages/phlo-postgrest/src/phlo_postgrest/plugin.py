@@ -1,4 +1,9 @@
-"""Postgrest service plugin registration."""
+"""Postgrest service plugin registration.
+
+Declares the schema-generated REST API as a service plugin. The class
+object is created at import time via service_plugin_class so plugin
+discovery can pick it up without instantiation.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Transactional durable state for project-scoped Observatory collections."""
+"""Transactional durable state for project-scoped Observatory collections.
+
+Collections live in durable state namespaced by a hashed project root, so
+different projects never share records. A schema_version mismatch or unreadable
+state raises StorageCorruptionError instead of degrading to empty data; legacy
+JSON files are imported into the store exactly once on first load.
+"""
 
 from __future__ import annotations
 

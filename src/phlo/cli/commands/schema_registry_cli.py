@@ -1,4 +1,9 @@
-"""Schema registry CLI commands."""
+"""Schema registry CLI commands.
+
+Implements the ``contracts`` group: snapshot a JSON schema into the
+registry and check a table's schema compatibility against its previous
+snapshot, exiting non-zero when compatibility fails.
+"""
 
 from __future__ import annotations
 

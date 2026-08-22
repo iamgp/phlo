@@ -1,4 +1,9 @@
-"""Built-in telemetry hook providers."""
+"""Built-in telemetry hook providers.
+
+CoreTelemetryHookProvider subscribes to telemetry.log and telemetry.metric
+events and forwards TelemetryEvent instances into a module-local
+TelemetryRecorder; non-telemetry events are silently ignored.
+"""
 
 from __future__ import annotations
 

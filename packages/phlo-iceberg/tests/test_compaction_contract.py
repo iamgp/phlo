@@ -1,4 +1,9 @@
-"""Provider-neutral Iceberg compaction operation contract tests."""
+"""Provider-neutral contract tests for Iceberg table compaction.
+
+Pins dry-run planning, executor identity passing, ref overrides, and
+fail-closed outcome handling where any failure reports outcome unknown and is
+not retry-safe.
+"""
 
 from types import SimpleNamespace
 from typing import Any, cast

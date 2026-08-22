@@ -1,4 +1,9 @@
-"""Governance CLI commands."""
+"""Governance CLI commands.
+
+`check` validates governed tables and exits non-zero on failure for CI gating;
+`export` prints the browser-safe read model. Both optionally import user
+modules first so declarations register before the surface is built.
+"""
 
 from __future__ import annotations
 

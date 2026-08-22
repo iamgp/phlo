@@ -1,4 +1,9 @@
-"""Dagster CLI plugin registration."""
+"""Dagster CLI plugin registration.
+
+Wires the dev, logs, status, backfill, and materialize command groups
+into the plugin system via cli_command_plugin_class; owns no logic
+beyond registration.
+"""
 
 from __future__ import annotations
 

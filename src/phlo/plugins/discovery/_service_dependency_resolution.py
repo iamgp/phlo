@@ -1,4 +1,9 @@
-"""Dependency resolution for discovered services."""
+"""Dependency resolution for discovered services.
+
+Kahn's topological sort over service depends_on edges; dependencies naming
+unknown services are ignored rather than failing. A dependency cycle raises
+ValueError with the cycle path instead of returning a partial order.
+"""
 
 from __future__ import annotations
 

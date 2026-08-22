@@ -1,4 +1,8 @@
-"""phlo_nessie CLI authorization table."""
+"""Authorization table for the phlo-nessie CLI surface.
+
+Classifies branch and catalog commands as mutating or read-only and maps each
+onto catalog resources and actions for the shared CLI surface adapter.
+"""
 
 from __future__ import annotations
 

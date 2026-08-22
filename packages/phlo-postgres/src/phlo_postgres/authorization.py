@@ -1,4 +1,8 @@
-"""phlo_postgres CLI authorization table."""
+"""Authorization surface table for the phlo-postgres CLI.
+
+Declares which postgres commands mutate state plus their dataset resources and
+required actions; the shared CLI surface adapter enforces these mappings.
+"""
 
 from __future__ import annotations
 

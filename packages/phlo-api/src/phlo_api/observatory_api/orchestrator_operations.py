@@ -1,4 +1,9 @@
-"""Capability-backed orchestrator operation resolution for Observatory."""
+"""Capability-backed orchestrator operation resolution for the Observatory API.
+
+Resolves run-operation providers through the capability registry and installs a
+built-in Dagster adapter when none are registered; unresolvable or ambiguous
+providers surface as HTTP 422 instead of silently picking one.
+"""
 
 from __future__ import annotations
 

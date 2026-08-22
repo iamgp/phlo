@@ -1,4 +1,8 @@
-"""Tests for "phlo services stop": compose down invocation against the selected backend."""
+"""Tests for "phlo services stop".
+
+Pins that stop runs compose down through the backend selected with --backend,
+with infrastructure wiring stubbed out.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Tests for infrastructure CLI helpers such as .env file parsing."""
+"""Tests for infrastructure CLI helpers such as .env file parsing.
+
+parse_env_file ignores comments and malformed lines and only strips
+quotes on request. get_project_config falls back to a derived default
+when phlo.yaml is missing or not a mapping; container naming prefers an
+explicit override over the "{project}_{service}" pattern.
+"""
 
 from __future__ import annotations
 

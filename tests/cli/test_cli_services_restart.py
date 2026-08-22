@@ -1,4 +1,8 @@
-"""Tests for "phlo services restart": refuses to run before services are initialized."""
+"""Tests for "phlo services restart": refuses to run before services are initialized.
+
+Verifies the uninitialized-project failure and that an initialized compose
+project restarts through the compose preflight path.
+"""
 
 from __future__ import annotations
 

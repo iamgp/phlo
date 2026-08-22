@@ -1,4 +1,9 @@
-"""Lifecycle-aware registration helpers for discovered plugins."""
+"""Lifecycle-aware registration helpers for discovered plugins.
+
+Replacement ordering guarantee: the incoming plugin initializes before the
+existing one is cleaned up, and any failure path re-raises with the registry
+never left holding a half-initialized plugin.
+"""
 
 from __future__ import annotations
 

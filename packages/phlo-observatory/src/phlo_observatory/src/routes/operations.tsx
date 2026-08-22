@@ -1,3 +1,7 @@
+/**
+ * /operations route. Operation records with detail drill-down, a dependency
+ * graph on the flow canvas, operation actions, and linked quality checks.
+ */
 import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   CheckCircle2,
@@ -846,15 +850,13 @@ function wapOperationFlow(
     'branch'
   const sourceHash = textMetric(operation.metadata, 'source_hash')
   const targetHash = textMetric(operation.metadata, 'target_hash_after')
-  const tableNodes = tables.slice(0, 6).map(
-    (table): ObservatoryFlowNode => ({
-      id: `table:${table.id}`,
-      kind: 'table',
-      label: table.name,
-      lane: 'table',
-      metric: table.records ? `${table.records} rows` : undefined,
-    }),
-  )
+  const tableNodes = tables.slice(0, 6).map((table): ObservatoryFlowNode => ({
+    id: `table:${table.id}`,
+    kind: 'table',
+    label: table.name,
+    lane: 'table',
+    metric: table.records ? `${table.records} rows` : undefined,
+  }))
   const nodes: Array<ObservatoryFlowNode> = [
     {
       id: 'branch',

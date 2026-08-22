@@ -1,4 +1,9 @@
-"""Provider-neutral table naming and table-store helpers."""
+"""Provider-neutral table naming and table-store helpers.
+
+Parses catalog.namespace.table names, resolves the active TableStore from the
+runtime, and routes ensure/exists/schema/stats/append/merge/overwrite calls
+through one helper surface.
+"""
 
 from __future__ import annotations
 

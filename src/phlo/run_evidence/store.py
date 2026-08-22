@@ -1,4 +1,10 @@
-"""Transactional stores for the run-evidence contract."""
+"""Transactional stores for the run-evidence contract.
+
+A single SQL implementation backs both backends; SQLite serves local
+development, PostgreSQL production. Reusing an event identity with different
+content raises IdempotencyConflict. Payloads are redacted and resource
+identity checksummed for tamper evidence; migrations verify their checksums.
+"""
 
 from __future__ import annotations
 

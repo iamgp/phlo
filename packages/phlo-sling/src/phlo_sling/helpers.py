@@ -1,4 +1,11 @@
-"""Ergonomic helpers for Sling-backed lakehouse ingestion."""
+"""Ergonomic helpers for Sling-backed lakehouse ingestion.
+
+build_replication_plan turns stream names or small mappings into
+SlingReplication definitions; connection summaries deliberately
+over-redact, treating any key containing a secret fragment (including
+"primary_key") as a secret and dropping its value. Partition windows
+are rendered as quoted SQL predicates into a WHERE fragment.
+"""
 
 from __future__ import annotations
 

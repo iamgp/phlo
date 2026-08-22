@@ -1,4 +1,10 @@
-"""Stop command for stopping services."""
+"""Stop command for stopping services.
+
+Stops compose-project services (optionally removing volumes) or native
+dev processes, emits service-lifecycle events, and reports containers
+left running under the project. Mutation is authorization-gated; a
+failed leftover-container check only warns, it never fails the stop.
+"""
 
 from pathlib import Path
 from uuid import uuid4

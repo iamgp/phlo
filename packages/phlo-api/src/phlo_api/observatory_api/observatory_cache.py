@@ -1,4 +1,12 @@
-"""Shared Observatory read model cache helpers."""
+"""Shared TTL cache backing Observatory read model queries.
+
+Entries are keyed by project and read model name; loads are single-flight
+per key so concurrent callers share one loader run instead of stampeding
+it. clear() bumps a generation counter so an in-flight load never
+republishes state the caller asked to forget. When db_path is configured,
+values also persist to SQLite with wall-clock expiry as a cross-process
+fallback source.
+"""
 
 from __future__ import annotations
 

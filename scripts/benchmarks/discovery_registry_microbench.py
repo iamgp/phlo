@@ -1,4 +1,10 @@
-"""Micro-benchmarks for discovery and registry hot paths."""
+"""Micro-benchmarks for discovery and registry hot paths.
+
+Benchmarks service YAML discovery and registry-client payload handling with
+plugin entry-point scans disabled, reporting percentile timings per scenario
+after warmup. Fixture services and registry payloads are generated in-process
+so runs do not depend on repository state.
+"""
 
 from __future__ import annotations
 

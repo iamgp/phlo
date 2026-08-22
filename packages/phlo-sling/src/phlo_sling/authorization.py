@@ -1,4 +1,9 @@
-"""phlo_sling CLI authorization table."""
+"""phlo_sling CLI authorization table.
+
+Declares which sling CLI commands mutate versus read and maps them to
+resource/action pairs. The adapter is built once by
+cli_surface_adapter_class and handed out as a singleton.
+"""
 
 from __future__ import annotations
 

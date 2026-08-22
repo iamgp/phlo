@@ -1,4 +1,9 @@
-"""Quality provider plugin classes."""
+"""Quality provider plugin classes.
+
+QualityProviderPlugin is the abstract extension point for quality engines:
+it supplies the check decorator, check classes, schema extraction, and schema
+module rendering used when scaffolding typed quality schemas.
+"""
 
 from __future__ import annotations
 

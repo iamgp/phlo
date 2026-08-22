@@ -1,4 +1,9 @@
-"""Testing helpers for lightweight workflow unit tests."""
+"""Testing helpers for lightweight workflow unit tests.
+
+FakeRuntimeContext stands in for the orchestrator runtime so workflow
+functions can be unit tested without Dagster installed; logging defaults to
+a null logger unless one is supplied.
+"""
 
 from __future__ import annotations
 

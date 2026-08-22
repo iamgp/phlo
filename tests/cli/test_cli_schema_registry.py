@@ -1,4 +1,8 @@
-"""Tests for the schema registry CLI: invalid input surfaces as a clean user error."""
+"""Tests for the schema registry CLI: invalid input surfaces as a clean user error.
+
+Malformed schema files and registry backend failures both exit nonzero with a
+readable message and never leak an unhandled traceback.
+"""
 
 from __future__ import annotations
 

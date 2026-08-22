@@ -1,4 +1,10 @@
-"""Remove command for removing services from the project."""
+"""Remove command for removing services from the project.
+
+Computes the transitive dependent closure of the target service and refuses
+to remove a service others still depend on. Removal is mutation-gated,
+stops the containers unless --keep-running is given, regenerates compose,
+and rewrites phlo.yaml service config.
+"""
 
 from collections.abc import Mapping
 from pathlib import Path

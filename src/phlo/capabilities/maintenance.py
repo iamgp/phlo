@@ -1,4 +1,11 @@
-"""Default maintenance read-model implementation."""
+"""Default maintenance read-model implementation.
+
+Builds a provider-neutral maintenance status from telemetry events and
+renders it as Prometheus exposition. Defines the shared operation lifecycle
+states, precondition/execution errors with failure-phase classification,
+and SAFE_MIN_RETENTION_HOURS as the floor destructive retention requests
+must respect (providers reject, not clamp).
+"""
 
 from __future__ import annotations
 

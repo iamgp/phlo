@@ -1,4 +1,8 @@
-"""Clickhouse CLI plugin registration."""
+"""Register the ClickHouse CLI command group as a phlo CLI plugin.
+
+ClickHouseCliPlugin is built via cli_command_plugin_class so plugin discovery
+exposes the ClickHouse commands through the phlo CLI.
+"""
 
 from __future__ import annotations
 

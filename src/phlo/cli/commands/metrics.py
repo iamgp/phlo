@@ -1,4 +1,11 @@
-"""Core metrics CLI commands."""
+"""Core metrics CLI commands.
+
+Exposes pipeline and per-asset metric summaries from the shared
+metrics collector, plus export to JSON, CSV, or Prometheus text.
+Every command accepts --json for stable machine-readable output;
+period strings (24h/7d/2w) are parsed to hours with a documented
+fallback for unknown suffixes.
+"""
 
 from __future__ import annotations
 

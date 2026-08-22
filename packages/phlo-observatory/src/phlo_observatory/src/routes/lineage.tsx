@@ -1,3 +1,8 @@
+/**
+ * /lineage route. Asset-level lineage rendered on the flow canvas, plus
+ * table previews, quality checks, and recent operations for the selected
+ * asset.
+ */
 import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   Activity,
@@ -888,16 +893,14 @@ function buildAssetNeighborhood(
   }
 
   const neighborhood = assets.filter((asset) => relatedIds.has(asset.id))
-  const nodes = neighborhood.map(
-    (asset): ObservatoryFlowNode => ({
-      id: asset.id,
-      label: asset.name,
-      kind: 'asset',
-      lane: assetLane(asset),
-      subtitle: asset.description,
-      metric: `${qualityCounts.get(asset.id) ?? asset.checks.length} checks · ${downstreamCounts.get(asset.id) ?? 0} down`,
-    }),
-  )
+  const nodes = neighborhood.map((asset): ObservatoryFlowNode => ({
+    id: asset.id,
+    label: asset.name,
+    kind: 'asset',
+    lane: assetLane(asset),
+    subtitle: asset.description,
+    metric: `${qualityCounts.get(asset.id) ?? asset.checks.length} checks · ${downstreamCounts.get(asset.id) ?? 0} down`,
+  }))
   const edges = neighborhood.flatMap((asset) => {
     const assetEdges: Array<ObservatoryFlowEdge> = []
     for (const dependency of asset.dependencies) {

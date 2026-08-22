@@ -1,4 +1,10 @@
-"""Observatory service plugin registration."""
+"""Observatory service plugin registration.
+
+Declares the Observatory UI as a service plugin tagged for
+observability. The class object is created at import time via
+service_plugin_class so plugin discovery can pick it up without
+instantiation.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Grafana service plugin registration."""
+"""Grafana service plugin registration.
+
+Declares the Grafana metrics/dashboards service through the shared service
+plugin factory; behavior lives in the generic plugin machinery.
+"""
 
 from __future__ import annotations
 

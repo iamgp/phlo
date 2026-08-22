@@ -1,4 +1,9 @@
-"""Service package manifest resolution primitives."""
+"""Service package manifest resolution primitives.
+
+Resolves a service's primary manifest and picks up sibling *-setup.yaml /
+*-daemon.yaml manifests beside the plugin source, skipping already-registered
+names; dependency resolution layers on top of the resolved manifests.
+"""
 
 from __future__ import annotations
 

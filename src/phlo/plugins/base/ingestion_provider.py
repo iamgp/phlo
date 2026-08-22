@@ -1,4 +1,11 @@
-"""Ingestion provider plugin classes."""
+"""Ingestion provider plugin classes.
+
+IngestionProviderPlugin is the abstract contract for packages that
+supply ingestion primitives. Implementations must expose plugin
+metadata, an ingestion decorator factory (get_decorator), and an
+asset-retriever callable; imports of concrete backends are deferred to
+method call time so the base class stays import-light.
+"""
 
 from __future__ import annotations
 

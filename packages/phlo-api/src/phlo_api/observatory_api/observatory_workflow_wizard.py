@@ -1,4 +1,12 @@
-"""Provider-neutral Observatory workflow wizard helpers."""
+"""Provider-neutral Observatory workflow wizard helpers.
+
+Builds stage-by-stage workflow proposals from user selections and applies
+them within the project workflow root. Proposals are generated and stored
+server-side, HMAC-signed with a per-project integrity key so the browser can
+only apply actions this process previously issued; state I/O opens paths
+relative to O_NOFOLLOW directory descriptors and lands via temp-file plus
+rename, never exposing partially written records.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Capability registry for named capability families."""
+"""Capability registry for named capability families.
+
+Defines the canonical capability families and a thread-safe process-global
+registry keyed by family name. Resource providers register specs per family;
+clearing is per-family or global, which keeps tests isolated when discovery
+runs repeatedly in one process.
+"""
 
 from __future__ import annotations
 

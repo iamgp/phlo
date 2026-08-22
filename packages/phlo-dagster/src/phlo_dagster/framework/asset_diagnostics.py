@@ -1,4 +1,9 @@
-"""Diagnostics for ambiguous Dagster asset definition failures."""
+"""Diagnostics for ambiguous Dagster asset definition failures.
+
+Duplicate asset keys become Phlo discovery errors that name each spec's
+provider/module/file origin; Definitions.merge failures are re-inspected so the
+same guidance replaces Dagster's opaque duplicate-key error.
+"""
 
 from __future__ import annotations
 

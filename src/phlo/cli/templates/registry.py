@@ -1,4 +1,10 @@
-"""Template registry merging built-in templates with plugin-provided ones."""
+"""Template registry merging built-in templates with plugin-provided ones.
+
+Plugin providers load through the phlo.project_templates entry-point group;
+load failures and duplicate template names raise TemplateDiscoveryError so
+conflicts surface at discovery time. Results are sorted by name for stable
+listing.
+"""
 
 from __future__ import annotations
 

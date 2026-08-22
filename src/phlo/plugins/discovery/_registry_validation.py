@@ -1,4 +1,10 @@
-"""Plugin interface validation helpers for registry operations."""
+"""Plugin interface validation helpers for registry operations.
+
+Checks each plugin against the required methods of its concrete base class;
+unknown plugin types pass unvalidated rather than rejected. Failures return
+False and log at debug level instead of raising, so one bad plugin never
+breaks discovery.
+"""
 
 from __future__ import annotations
 

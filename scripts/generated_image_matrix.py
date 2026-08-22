@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Build a unique GHCR publication matrix from rendered Compose JSON."""
+"""Build a unique GHCR publication matrix from rendered Compose JSON.
+
+Emits one build target per unique published image; services sharing an image
+collapse into a single target. Built services must publish a ghcr.io/phlohouse
+image whose context and Dockerfile resolve inside the generated or source root,
+otherwise matrix construction fails.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Tests for the Observatory provider-neutral API contract."""
+"""Tests for the Observatory provider-neutral API contract.
+
+Covers payload serialization shape (no provider URLs leak), scoped run-report
+identity and idempotency on operational routes, read-model caching, service
+and docker status resolution, capability inventory gating, bounded log tails,
+and the saved-query, branch, and WAP-report contracts.
+"""
 
 from __future__ import annotations
 

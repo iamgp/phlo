@@ -1,4 +1,9 @@
-"""Runtime context protocol and helpers for capability execution."""
+"""Runtime context protocol and routing resolution shared across capabilities.
+
+RuntimeRouting is the canonical routing record; ref, partition, and capability
+overrides are recovered from orchestrator tags using fixed key precedence so
+every capability resolves identical values from the same tag set.
+"""
 
 from __future__ import annotations
 

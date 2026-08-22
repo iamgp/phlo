@@ -1,4 +1,11 @@
-"""Core hook sink that records correlated lifecycle events."""
+"""Core hook sink that records correlated lifecycle events.
+
+CoreRunEvidenceHookProvider translates lifecycle hook events into rows
+in the run-evidence store. Persistence is observational: failures are
+logged, never raised, and events without a complete (project_id,
+run_id) correlation are intentionally skipped rather than persisted
+under partial keys.
+"""
 
 from __future__ import annotations
 

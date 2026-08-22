@@ -1,4 +1,8 @@
-"""Tests for "phlo services add" install selection after removal and re-enable."""
+"""Tests for "phlo services add" install selection after removal and re-enable.
+
+Removing then re-adding a service must clear its disabled state so the
+service is selected for install again on the next compose regeneration.
+"""
 
 from __future__ import annotations
 

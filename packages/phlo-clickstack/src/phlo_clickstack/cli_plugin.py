@@ -1,4 +1,8 @@
-"""Clickstack CLI plugin registration."""
+"""Clickstack CLI plugin registration.
+
+Registers the clickstack command group with the plugin system via
+cli_command_plugin_class; owns no logic beyond registration.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""Transformation operation contracts."""
+"""Transformation operation contracts.
+
+Sync and async transformer base classes share one result type and a minimal
+logger protocol, so orchestration code drives dbt-style engines without
+depending on any concrete implementation.
+"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

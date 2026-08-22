@@ -1,4 +1,10 @@
-"""Migration execution engine."""
+"""Migration execution engine.
+
+MigrationExecutor.validate()/execute() stream CSV chunks through optional
+quality validation and column mapping, writing to the table store in append
+or overwrite mode; every run appends a result record to a local JSON history
+file that backfills migration list/status reporting.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""Planning helpers for services lifecycle commands."""
+"""Planning helpers for services lifecycle commands.
+
+Resolves requested service names, profiles, and config into pure plan objects:
+ServiceSelectionPlan for what will start, StartPreflightPlan for paths and
+project identity before startup.
+"""
 
 from __future__ import annotations
 

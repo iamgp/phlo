@@ -1,4 +1,10 @@
-"""Unit tests for dbt row ID injection."""
+"""Unit tests for dbt row ID injection.
+
+Exercises _phlo_row_id injection against mocked connections: tables that
+already carry the column are skipped without ALTER TABLE, only successful
+dbt run results are processed, schemas are inferred from model name
+prefixes, and per-table errors are captured without failing the batch.
+"""
 
 from unittest.mock import MagicMock, patch
 

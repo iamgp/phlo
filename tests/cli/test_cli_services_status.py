@@ -1,4 +1,9 @@
-"""Tests for "phlo services status" rendering, including guidance when nothing is running."""
+"""Tests for "phlo services status" rendering, including guidance when nothing is running.
+
+Status must report service names (never raw container names), support
+JSON output and --service filtering, fail with an actionable error on
+unparsable compose output, and require an initialized .phlo project.
+"""
 
 from __future__ import annotations
 

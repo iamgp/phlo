@@ -1,4 +1,10 @@
-"""Dagster operational capability adapter for Phlo API mutation routes."""
+"""Dagster GraphQL adapter for Phlo API mutation routes.
+
+Launches materializations, re-executions, cancels, and partition backfills
+through raw GraphQL mutations, querying run status and partition keys. Every
+mutation honours dry_run and idempotency keys; payloads normalize into
+provider-neutral DagsterOperationResult dicts regardless of response shape.
+"""
 
 from __future__ import annotations
 

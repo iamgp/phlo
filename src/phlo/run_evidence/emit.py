@@ -1,4 +1,9 @@
-"""Provider-neutral emission helpers for authoritative run observations."""
+"""Provider-neutral emission helpers for authoritative run observations.
+
+Observation ids hash identity parts so identical observations dedupe downstream
+across retries and processes. Emission sits outside provider control flow: sink
+failures are logged and contained at this boundary, never propagated.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Tests for SQL verb extraction and mutation classification, skipping leading comments."""
+"""Tests for SQL verb extraction and mutation classification.
+
+Parametrized cases confirm the leading verb is found after comments and other
+leading noise, and mutating statements classify consistently.
+"""
 
 from __future__ import annotations
 

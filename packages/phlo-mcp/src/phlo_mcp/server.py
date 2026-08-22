@@ -1,4 +1,10 @@
-"""MCP server exposing curated Phlo observability tools."""
+"""MCP server exposing curated Phlo observability tools.
+
+Builds a FastMCP instance whose tools and resources delegate to one shared
+PhloApiClient; configuration comes from the environment, OpenTelemetry
+tracing is configured at creation, and package docs are read from
+docs/packages/ under the project root.
+"""
 
 from __future__ import annotations
 

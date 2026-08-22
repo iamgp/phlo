@@ -1,4 +1,10 @@
-"""Tests for Trino publishing helpers."""
+"""Tests for Trino publishing helpers.
+
+Covers table-reference candidate ordering with fallback from
+catalog-qualified to schema-qualified names, retry rules keyed on
+table-not-found introspection errors only, publish-target default
+resolution, and correlation propagation onto publish and lineage events.
+"""
 
 from __future__ import annotations
 

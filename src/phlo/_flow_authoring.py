@@ -1,4 +1,10 @@
-"""Shared helpers for terse flow authoring decorators."""
+"""Shared helpers for terse flow authoring decorators.
+
+Private to the decorator layer: normalizes asset keys and dependency
+references, builds owner/consumer/SLA contract metadata, and wraps user
+functions into RunSpec/AssetSpec objects, injecting RuntimeContext only when
+the authored signature asks for it.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Ingestion engine contract implemented by backends and consumed by orchestrators."""
+"""Ingestion engine contract implemented by backends and consumed by orchestrators.
+
+BaseIngester (sync) and AsyncIngester define the common run_ingestion()
+contract so backends such as DLT stay interchangeable under orchestrators
+such as Dagster. partition_key is None for unpartitioned runs; every
+execution returns an IngestionResult with row counts and metadata.
+"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

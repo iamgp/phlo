@@ -1,4 +1,9 @@
-"""Read and write convenience helpers for workflow authors."""
+"""Read and write convenience helpers for workflow authors.
+
+Every query path resolves the active query engine capability and funnels SQL
+through read-only validation plus optional LIMIT enforcement before
+execution, so helper-generated reads can never mutate data.
+"""
 
 from __future__ import annotations
 

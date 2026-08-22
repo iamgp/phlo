@@ -1,4 +1,9 @@
-"""Tests for "phlo services list": container state from the backend, table and JSON output."""
+"""Tests for "phlo services list".
+
+Container status must come from the backend listing with graceful handling of
+backend, config, and discovery failures; running optional services appear by
+default, declared ports render correctly, and long names align.
+"""
 
 from __future__ import annotations
 

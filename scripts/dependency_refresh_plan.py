@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Plan the release dependency refresh lanes without mutating dependency files."""
+"""Plan the release dependency refresh lanes without mutating dependency files.
+
+Read-only: scans every pyproject.toml (skipping .venv/dist/docs-site),
+maps each declared dependency to its patch or risk-managed lane, and
+reports locked versions and manifest locations as JSON or Markdown.
+Unmatched or missing-lock dependencies fail validation instead of
+defaulting to a lane.
+"""
 
 from __future__ import annotations
 

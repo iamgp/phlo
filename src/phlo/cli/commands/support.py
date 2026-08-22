@@ -1,4 +1,10 @@
-"""Offline support-status CLI command."""
+"""Offline support-status CLI command.
+
+Compares installed Phlo artifacts against the bundled release manifest
+without network access. Exit codes are contractual: 0 compatible,
+1 incompatible, 2 unknown (no manifest). JSON output is stable and
+sorted for machine consumption.
+"""
 
 from __future__ import annotations
 

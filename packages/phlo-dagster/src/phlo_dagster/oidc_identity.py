@@ -1,4 +1,12 @@
-"""Cryptographically verified OIDC identity for the Dagster boundary."""
+"""Cryptographically verified OIDC identity for the Dagster boundary.
+
+OIDCIdentityValidator checks RS256 tokens against an explicitly
+configured issuer/audience/JWKS triple. All settings come from
+environment variables with hard upper bounds; JWKS responses are size-
+and key-count-limited and cached under a lock with rate-limited
+refresh. Insecure HTTP is accepted only for loopback hosts and only
+when explicitly enabled; validation failures return None, never raise.
+"""
 
 from __future__ import annotations
 

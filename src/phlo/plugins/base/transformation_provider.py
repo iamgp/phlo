@@ -1,4 +1,11 @@
-"""Transformation provider plugin classes."""
+"""Transformation provider plugin classes.
+
+TransformationProviderPlugin is the abstract contract core uses to talk to
+transformation backends (dbt and similar) without importing them: only
+metadata and the asset retriever are required; CLI, compiler, and manifest
+hooks default to None. Concrete providers keep their imports lazy inside
+methods so the base class stays dependency-free.
+"""
 
 from __future__ import annotations
 

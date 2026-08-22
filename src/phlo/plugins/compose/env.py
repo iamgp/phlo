@@ -1,4 +1,10 @@
-"""Render `.env` and `.env.local` content from discovered service definitions."""
+"""Render `.env` and `.env.local` content from discovered service definitions.
+
+Non-secret defaults go to `.env`; secrets and local overrides go to
+`.env.local` with freshly generated secret material for new variables.
+Values are normalized to strings (None becomes empty, bools become
+true/false) before rendering.
+"""
 
 import secrets
 from importlib.metadata import PackageNotFoundError, version

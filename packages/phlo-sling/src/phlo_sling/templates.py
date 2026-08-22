@@ -1,4 +1,8 @@
-"""Sling-owned project templates."""
+"""Sling-owned project templates.
+
+SlingReplicationTemplate renders replication configuration into a scaffolded
+project using shared builtin helpers; templates() lists it for the registry.
+"""
 
 from __future__ import annotations
 

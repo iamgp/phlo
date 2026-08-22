@@ -1,4 +1,10 @@
-"""Subprocess execution helpers that redact sensitive arguments before logging."""
+"""Subprocess execution helpers that redact sensitive arguments before logging.
+
+Secret-valued arguments are redacted in both `--name value` and
+`--name=value` shapes, so logs never contain credentials. Non-zero exits
+raise CommandError carrying the redacted command, status, and captured
+output.
+"""
 
 from __future__ import annotations
 

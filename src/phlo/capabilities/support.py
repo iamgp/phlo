@@ -1,4 +1,9 @@
-"""Structured capability support metadata."""
+"""Structured capability support metadata.
+
+CapabilitySupport lets providers advertise optional behaviour without forcing
+every implementation to fake advanced semantics; coerce_capability_support
+normalises raw payloads or returns all-False defaults.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,11 @@
-"""Tests for plugin CLI commands."""
+"""Tests for plugin CLI commands.
+
+Exercises list/info/search/install/update against an isolated plugin
+registry with stub providers, and the generated-container check command in
+depth: bounded tool output, exact vulnerability waivers, disposable image
+lifecycle (never clobbering pre-existing tags), remote digest scanning,
+and pip/uv fallbacks for installs.
+"""
 
 import json
 import sys

@@ -1,4 +1,8 @@
-"""Tests for CLI user-error formatting: message ordering and actionable next steps."""
+"""Tests for CLI user-error formatting.
+
+Locks the message contract: summary first, then Missing, detail, and a
+Run: hint, so every CLI error tells the user the next actionable command.
+"""
 
 from __future__ import annotations
 

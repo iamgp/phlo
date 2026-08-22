@@ -1,4 +1,9 @@
-"""Hook bus implementation for dispatching plugin events."""
+"""Hook bus dispatching events to registered plugin handlers.
+
+Handlers run in ascending priority order with deterministic tie-breaking;
+per-handler failure policy decides whether an error aborts dispatch or lets
+remaining handlers run. Core hook providers register lazily on first emit.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Superset service plugin registration."""
+"""Superset service plugin registration.
+
+Declares the Superset BI service through the shared service plugin factory;
+behavior lives in the generic plugin machinery.
+"""
 
 from __future__ import annotations
 

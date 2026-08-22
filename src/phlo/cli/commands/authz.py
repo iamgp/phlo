@@ -1,4 +1,9 @@
-"""CLI commands for RBAC authorization management."""
+"""CLI commands for RBAC authorization management.
+
+Exposes the validate/plan/sync/verify/revert workflow over RBACConfigLoader
+and SyncController. Mutating commands (real sync, any revert) are gated by
+require_mutation_authorization; read-only commands run unauthenticated.
+"""
 
 from __future__ import annotations
 

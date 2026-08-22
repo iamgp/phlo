@@ -1,4 +1,8 @@
-"""Tests for "phlo env export" error handling of malformed project configuration."""
+"""Tests for "phlo env export" error handling of malformed project config.
+
+A malformed phlo.yaml is a user error: it must exit nonzero with a readable
+message, never an unhandled traceback.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,12 @@
-"""Metrics collection models and helpers."""
+"""Metrics collection models and helpers.
+
+MetricsCollector gathers run/asset/summary metrics from the
+observability backends (Prometheus, Postgres, Iceberg, query engine)
+behind a TTL cache keyed per backend response; psycopg2 is imported
+lazily so Postgres paths raise MetricsDependencyError only when used.
+Backend failures surface as MetricsCollectorError subclasses rather than
+crashing callers.
+"""
 
 from __future__ import annotations
 

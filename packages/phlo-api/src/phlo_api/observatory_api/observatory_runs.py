@@ -1,4 +1,10 @@
-"""Provider-neutral Observatory run read model."""
+"""Provider-neutral Observatory run read model.
+
+Legacy Dagster runs degrade to an empty list when the backend is unreachable so
+the view renders "no runs" instead of failing the request. Only rows sourced
+from complete durable run evidence carry a ``report_identity``; legacy,
+manifest, and recovered-operation rows never do.
+"""
 
 from __future__ import annotations
 

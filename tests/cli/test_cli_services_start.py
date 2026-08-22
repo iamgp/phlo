@@ -1,4 +1,10 @@
-"""Tests for "phlo services start": profile selection, preflight plans, and backend interaction."""
+"""Tests for "phlo services start": profile selection, preflight plans, and backend interaction.
+
+Covers profile/target resolution and dependency expansion, the preflight
+contract (unknown profiles or targets fail fast; port collisions and invalid
+or missing required env abort before the backend runs), setup-companion
+matching, native interpreter selection, and polished errors without tracebacks.
+"""
 
 from __future__ import annotations
 

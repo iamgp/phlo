@@ -1,4 +1,9 @@
-"""Default observability capability provider."""
+"""Default observability capability provider owned by core.
+
+Resolves public URLs for dashboards, logs, metrics, and query endpoints from
+environment overrides with service-discovery fallbacks, and registers these
+default providers when no plugin supplies its own.
+"""
 
 from __future__ import annotations
 

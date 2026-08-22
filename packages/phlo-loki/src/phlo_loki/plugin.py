@@ -1,4 +1,8 @@
-"""Loki service plugin registration."""
+"""Registers the Loki service plugin.
+
+Built declaratively via service_plugin_class(): the module declares plugin
+metadata only, with no behaviour of its own.
+"""
 
 from __future__ import annotations
 

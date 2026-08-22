@@ -1,4 +1,9 @@
-"""Prometheus service plugin registration."""
+"""Prometheus service plugin registration.
+
+Builds the prometheus service plugin (observability and metrics tags) from
+the shared service_plugin_class factory; no plugin-specific behavior is
+defined here.
+"""
 
 from __future__ import annotations
 

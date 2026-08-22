@@ -1,4 +1,9 @@
-"""Tests for service dependency resolution, focused on circular dependency detection."""
+"""Tests for service dependency resolution.
+
+Focuses on circular dependencies: cycles are detected with reported paths, and
+reported cycle paths stay open (start node not repeated). Runs the resolver
+in-memory, bypassing filesystem discovery.
+"""
 
 from __future__ import annotations
 

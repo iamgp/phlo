@@ -1,4 +1,10 @@
-"""Provider-neutral resolution of single-project runtime identity."""
+"""Provider-neutral resolution of single-project runtime identity.
+
+Resolves the project id from the phlo/project_id tag and the configured
+project. The two sources may not disagree: a conflict returns an explicit
+project_conflict error instead of letting either side win, and absence of
+both yields project_missing.
+"""
 
 from __future__ import annotations
 

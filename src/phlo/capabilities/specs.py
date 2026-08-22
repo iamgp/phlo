@@ -1,4 +1,11 @@
-"""Capability specs for orchestrator-agnostic assets and checks."""
+"""Capability specs for orchestrator-agnostic assets and checks.
+
+Frozen dataclass contracts describing assets, checks, runs, and every
+provider capability (auth, observability, table stores, catalogs, query
+engines, quality backends, and more). Orchestrator adapters translate
+these specs into their own primitives, so nothing here imports a
+specific orchestrator.
+"""
 
 from __future__ import annotations
 

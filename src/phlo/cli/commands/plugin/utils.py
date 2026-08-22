@@ -1,4 +1,9 @@
-"""Shared utilities for plugin commands."""
+"""Shared utilities for plugin commands.
+
+Normalizes plugin type names between internal, CLI, and registry vocabularies,
+collects installed and registry plugins, renders listing tables, and compares
+versions to surface available updates.
+"""
 
 from __future__ import annotations
 

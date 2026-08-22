@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Validate the checked-in v1 support boundary without network access."""
+"""Validate the checked-in v1 support boundary without network access.
+
+Checks registry/support/v1.json against its schema (a minimal in-repo
+validator, not a full JSON Schema implementation), verifies that manifest
+paths, markdown anchors, and named claims bind to committed files, and that
+provider packages declare the current core compatibility epoch. Exits 0
+only when the boundary is internally consistent with the repository.
+"""
 
 from __future__ import annotations
 

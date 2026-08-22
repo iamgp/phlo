@@ -1,4 +1,9 @@
-"""Service definition data model and parsing helpers."""
+"""Service definition data model and parsing helpers.
+
+ServiceDefinition loads from service.yaml files, dictionaries, or inline
+phlo.yaml config. A declared source_path resolves relative to the phlo package
+tree; an undeclared one defaults to the definition's own directory.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""Workflow management commands."""
+"""Workflow management commands.
+
+create scaffolds a workflow through the lazily resolved authoring provider and
+prints next steps; check validates workflow and schema files, optionally
+emitting JSON.
+"""
 
 from __future__ import annotations
 

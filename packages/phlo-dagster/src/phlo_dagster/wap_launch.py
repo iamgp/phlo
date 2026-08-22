@@ -1,4 +1,9 @@
-"""Pre-launch Write-Audit-Publish coordination for Dagster runs."""
+"""Pre-launch Write-Audit-Publish coordination for Dagster runs.
+
+Prepares an isolated WAP branch and tags before Dagster starts work, then keeps
+content-addressed launch manifests and lifecycle reports under .phlo/wap-reports
+so promotion binds to the exact audited launch.
+"""
 
 from __future__ import annotations
 

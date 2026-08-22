@@ -1,4 +1,9 @@
-"""Shared catalog storage for capability registrations."""
+"""Shared catalog storage for capability registrations.
+
+CapabilityFamily is plain keyed dict storage; CapabilityFamilyDefinition layers
+on the family's spec type, key function, and optional provider-method hook so
+specs can be harvested straight off provider instances.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""Migration spec parsing and validation."""
+"""Migration spec parsing and validation.
+
+Parses YAML migration specs into typed MigrationSpec values; every field
+violation raises MigrationSpecError with the offending key, so callers see
+one failure mode for malformed specs.
+"""
 
 from __future__ import annotations
 

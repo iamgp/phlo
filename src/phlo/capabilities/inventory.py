@@ -1,4 +1,10 @@
-"""Provider-neutral evidence for a complete object-prefix inventory."""
+"""Provider-neutral evidence for a complete object-prefix inventory.
+
+Defines frozen evidence records only; enumeration itself lives behind the
+TableStore capability. A failed traversal yields no partial object set or
+digest, and consumers must not treat an inventory as usable for destructive
+operations unless ``complete`` is true.
+"""
 
 from __future__ import annotations
 

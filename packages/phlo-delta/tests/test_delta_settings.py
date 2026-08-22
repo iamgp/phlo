@@ -1,4 +1,8 @@
-"""Tests for Delta Lake settings alias handling."""
+"""Tests for Delta Lake settings alias handling.
+
+Credentials and region come from the shared AWS env aliases while the S3
+endpoint deliberately stays host-reachable for host-side usage.
+"""
 
 from phlo_delta.settings import DeltaSettings
 

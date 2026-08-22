@@ -1,4 +1,11 @@
-"""HTTP client helpers for phlo-mcp."""
+"""HTTP client helpers for phlo-mcp.
+
+PhloApiClient wraps phlo-api and Observatory routes for MCP tool calls.
+Transport failures are never raised: they come back as {"error": ...}
+envelopes so each tool call yields a structured result the agent can
+act on. Requests carry a bearer token when configured, span OpenTelemetry
+traces, and use fixed timeouts (10s GET, 30s POST).
+"""
 
 from __future__ import annotations
 

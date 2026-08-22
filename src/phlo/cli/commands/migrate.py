@@ -1,4 +1,9 @@
-"""Data migration CLI commands."""
+"""Data migration CLI commands.
+
+Subcommands validate and run migration specs (with dry-run override and
+recorded execution history), list specs, report status, and run the dated
+codemod that rewrites flow decorators.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Helper emitters for publishing hook events."""
+"""Helper emitters for publishing hook events.
+
+One context dataclass and emitter per event family: ingestion, transform,
+publish, quality results, lineage, telemetry, service lifecycle, and schema
+and data migrations. Correlation fields merge with the bound logging context
+first, then explicit base, then per-event overrides; only non-None wins.
+"""
 
 from __future__ import annotations
 

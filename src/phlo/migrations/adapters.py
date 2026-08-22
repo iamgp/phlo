@@ -1,4 +1,11 @@
-"""Source adapters for data migration reads."""
+"""Source adapters for data migration reads.
+
+Adapters implement the SourceAdapter protocol: chunked row iteration,
+config validation returning error strings, and an optional row-count
+estimate. CSV is the only built-in; other types resolve at call time
+from registered "data_migration_source" capabilities and are accepted
+only if they satisfy the protocol.
+"""
 
 from __future__ import annotations
 

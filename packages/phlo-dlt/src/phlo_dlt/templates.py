@@ -1,4 +1,8 @@
-"""DLT-owned project templates."""
+"""DLT-owned project templates shipped with phlo.
+
+Each template renders on top of MinimalTemplate and reuses the core template
+writers so generated projects share one layout; templates() enumerates the set.
+"""
 
 from __future__ import annotations
 

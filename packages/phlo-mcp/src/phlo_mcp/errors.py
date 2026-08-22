@@ -1,4 +1,8 @@
-"""Structured MCP error envelopes."""
+"""Structured error envelopes for MCP tool results.
+
+Maps httpx failures onto stable, agent-readable error codes with retryability
+flags so callers can react to transport problems without parsing exception text.
+"""
 
 from __future__ import annotations
 

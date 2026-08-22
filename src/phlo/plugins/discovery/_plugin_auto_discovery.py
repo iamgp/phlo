@@ -1,4 +1,9 @@
-"""Auto-discovery toggle and bootstrap logic for plugins."""
+"""Auto-discovery toggle and bootstrap logic for plugins.
+
+Auto-discovery is on by default and disabled by PHLO_NO_AUTO_DISCOVER or the
+settings default. In regulated mode discovery failures abort startup;
+otherwise they are logged as warnings so the CLI stays usable.
+"""
 
 from __future__ import annotations
 

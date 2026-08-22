@@ -1,4 +1,12 @@
-"""Default authorization policy backend capability provider."""
+"""Default authorization policy backend capability provider.
+
+Implements a simple RBAC-backed policy engine: declarative rules match
+principal roles and attributes, actions, resource types/ids/patterns
+(fnmatch wildcards), with deny-by-default when no rule grants access.
+explain_decision returns the full reasoning so callers can audit
+verdicts; register_default_capability_providers wires the backend from
+the authoritative project policy file.
+"""
 
 from __future__ import annotations
 

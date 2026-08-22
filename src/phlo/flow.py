@@ -1,4 +1,9 @@
-"""Terse flow authoring decorators for provider-neutral flow declarations."""
+"""Terse flow authoring decorators for provider-neutral flow declarations.
+
+publish(), observe(), backfill(), contract(), access(), and schedule() append
+specs to module-level registries; get_* accessors drain them and clear_*
+resets them. Declaration order at import time is the only ordering guarantee.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""Tests for NativeProcessManager."""
+"""Tests for NativeProcessManager.
+
+Units cover dev-command gating, environment expansion with defaults, path
+placeholder resolution (project root, source path, alias), process tracking
+and stopping, and PATH setup prepending the project venv bin directory.
+"""
 
 from __future__ import annotations
 

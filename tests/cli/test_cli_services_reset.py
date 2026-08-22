@@ -1,4 +1,8 @@
-"""Tests for "phlo services reset": refuses to run before services are initialized."""
+"""Tests for `phlo services reset` preflight behavior.
+
+Ensures reset refuses to run before services are initialized and goes through
+the compose project preflight.
+"""
 
 from __future__ import annotations
 

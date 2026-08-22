@@ -1,4 +1,9 @@
-"""Shared CLI utilities for schema commands."""
+"""Shared CLI utilities for schema commands.
+
+Discovers Pandera schema classes from configured search paths, renders Rich
+tables for listings, performs basic schema-file syntax checks, and
+classifies schema changes as SAFE, WARNING, or BREAKING.
+"""
 
 import importlib
 from importlib import import_module

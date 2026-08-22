@@ -1,4 +1,8 @@
-"""Tests for phlo.logging helpers."""
+"""Tests for phlo.logging helpers.
+
+Covers record-to-event routing, correlation context binding, log path
+rendering, and logging setup behaviour.
+"""
 
 from __future__ import annotations
 

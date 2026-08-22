@@ -1,4 +1,11 @@
-"""Service read models for Observatory."""
+"""Service read models for Observatory.
+
+Builds service status from registry metadata plus live Docker state: the
+Docker CLI is tried first, then the daemon socket over HTTP. When several
+containers map to one service the highest-ranked status wins, so a healthy
+replica outranks but never hides an unhealthy one. Registry loading stays
+quiet: no remote fetches or logging hooks on these paths.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
-"""Guarded Observatory action family dispatcher."""
+"""Guarded Observatory action family dispatcher.
+
+Resolves action ids against declared action families, each carrying the
+capability its execution needs. Never raises: unknown ids return a failed
+result and known families without an executable provider path return
+skipped, so callers render outcomes from the result alone.
+"""
 
 from __future__ import annotations
 

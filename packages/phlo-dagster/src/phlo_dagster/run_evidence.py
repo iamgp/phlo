@@ -1,4 +1,9 @@
-"""Dagster event-log adapter for the provider-neutral run reconciler."""
+"""Dagster event-log adapter for the provider-neutral run reconciler.
+
+Translates Dagster runs and event-log records into core evidence types so
+core code never imports Dagster. Message payloads are redacted before use,
+and stage ids hash deterministically from run, asset, and attempt identity.
+"""
 
 from __future__ import annotations
 

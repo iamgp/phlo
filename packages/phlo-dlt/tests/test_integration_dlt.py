@@ -1,4 +1,9 @@
-"""Integration tests for phlo-dlt using shared infrastructure."""
+"""Integration tests for phlo-dlt using shared infrastructure.
+
+Runs real ingestion through dlt -> parquet -> pyiceberg against the shared
+MinIO-backed Iceberg catalog fixture, with the catalog getter patched to a
+test-scoped catalog.
+"""
 
 from unittest.mock import patch
 

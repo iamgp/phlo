@@ -1,4 +1,8 @@
-"""phlo_trino CLI authorization table."""
+"""Authorization surface table for the phlo-trino CLI.
+
+Declares the trino query commands as mutations on dataset resources; the shared
+CLI surface adapter enforces these mappings.
+"""
 
 from __future__ import annotations
 

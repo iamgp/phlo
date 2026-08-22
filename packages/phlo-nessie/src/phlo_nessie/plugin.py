@@ -1,4 +1,8 @@
-"""Nessie service plugin registration."""
+"""Nessie service plugin registration.
+
+Declares the core Nessie catalog service plugin through the shared service
+plugin factory; the module carries metadata only.
+"""
 
 from __future__ import annotations
 

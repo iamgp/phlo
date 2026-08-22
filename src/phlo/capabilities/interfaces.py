@@ -1,4 +1,10 @@
-"""Runtime capability interfaces used by capability providers."""
+"""Runtime capability interfaces used by capability providers.
+
+Declares the Protocol contracts every provider-backed capability must satisfy
+(table stores, versioned catalogs, governance, authn/authz, orchestration,
+query engines, maintenance, lineage sinks) plus the neutral dataclasses
+exchanged across them.
+"""
 
 from __future__ import annotations
 

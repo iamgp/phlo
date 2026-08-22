@@ -1,4 +1,8 @@
-"""Postgrest CLI plugin registration."""
+"""Postgrest CLI plugin registration.
+
+Declares the PostgREST CLI command plugin through the shared CLI plugin
+factory; registration metadata only.
+"""
 
 from __future__ import annotations
 

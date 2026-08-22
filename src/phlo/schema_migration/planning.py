@@ -1,4 +1,11 @@
-"""Shared schema migration planning over normalized schemas."""
+"""Shared schema migration planning over normalized schemas.
+
+Diffing is provider-neutral: dtype widening pairs are lossless, every
+other dtype change classifies as narrowing, and providers can override
+risk/recommendations per change via SchemaPlanningPolicy. Explicit
+renames must be injective and reference fields that exist on both
+sides; violations raise SchemaMigrationPlanningError.
+"""
 
 from __future__ import annotations
 

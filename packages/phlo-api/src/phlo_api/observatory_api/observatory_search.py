@@ -1,4 +1,8 @@
-"""Search result composition for Observatory."""
+"""Search result composition for Observatory.
+
+Ranks services, assets, tables, operations, quality checks, and extensions
+against a free-text query and maps each hit to its route path segment.
+"""
 
 from __future__ import annotations
 

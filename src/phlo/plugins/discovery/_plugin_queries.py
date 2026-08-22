@@ -1,4 +1,8 @@
-"""Query helpers for discovered and registered plugins."""
+"""Query helpers over the global plugin registry.
+
+Read-only wrappers around list/get/info/validation; none of these trigger
+discovery, so callers populate the registry first.
+"""
 
 from __future__ import annotations
 

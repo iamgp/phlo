@@ -1,4 +1,8 @@
-"""Tests for REST API plugin."""
+"""Tests for the REST API source plugin.
+
+Uses a stubbed ``requests.get`` to verify record extraction from top-level
+list payloads and from nested payloads addressed via ``records_path``.
+"""
 
 from phlo_core.sources.rest_api import RestAPIPlugin
 

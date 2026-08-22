@@ -1,4 +1,8 @@
-"""Resource provider for ClickStack observability capabilities."""
+"""Resource provider for ClickStack observability capabilities.
+
+ClickStackResourceProvider registers under the "clickstack" name and reports
+ClickStack as an observability backend; it declares no standalone resources.
+"""
 
 from __future__ import annotations
 

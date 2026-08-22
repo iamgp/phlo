@@ -1,4 +1,9 @@
-"""Exec command for running a process inside a service container."""
+"""``phlo services exec`` command.
+
+Runs an arbitrary command inside a running service container via the compose
+backend. Treated as a mutation: the command passes through mutation
+authorization before any container is touched.
+"""
 
 from __future__ import annotations
 

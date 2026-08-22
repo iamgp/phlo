@@ -1,4 +1,10 @@
-"""Plugin entry-point discovery and loading."""
+"""Plugin entry-point discovery and loading.
+
+Scans entry-point groups by plugin type, applies the configured
+blacklist/whitelist, and validates each loaded object against its
+expected type. In strict mode load failures raise PluginDiscoveryError;
+otherwise they are recorded to the failure sink or logged.
+"""
 
 from __future__ import annotations
 

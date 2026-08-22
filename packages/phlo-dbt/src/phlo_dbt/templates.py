@@ -1,4 +1,10 @@
-"""dbt-owned project templates."""
+"""dbt-owned project templates.
+
+Both templates build on the CLI's MinimalTemplate and add a dbt
+scaffold under workflows/transforms/dbt; DbtMedallionTemplate layers
+bronze/silver/gold sample models on top of BasicTemplate. templates()
+is the discovery entry point consumed by the template registry.
+"""
 
 from __future__ import annotations
 

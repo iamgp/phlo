@@ -1,4 +1,10 @@
-"""Built-in project template: scaffolds a minimal starter Phlo project."""
+"""Built-in project template: scaffolds a minimal starter Phlo project.
+
+MinimalTemplate is the base every other template composes. It writes
+phlo.yaml, pyproject.toml, a README, and a .env.example that lists
+secret variable names discovered from installed services — names only,
+never values.
+"""
 
 from __future__ import annotations
 

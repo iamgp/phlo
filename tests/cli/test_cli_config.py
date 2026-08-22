@@ -1,4 +1,9 @@
-"""Tests for the "phlo config" CLI group."""
+"""Tests for the "phlo config" CLI group.
+
+Covers show in YAML and JSON, validate behavior for missing or defaulted
+infrastructure, schema-error and malformed-YAML reporting without tracebacks,
+and upgrade writing defaults while respecting --force.
+"""
 
 from __future__ import annotations
 

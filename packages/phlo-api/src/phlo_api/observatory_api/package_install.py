@@ -1,4 +1,10 @@
-"""Trusted package installation endpoint for Observatory."""
+"""Trusted package installation endpoint for Observatory.
+
+Only packages listed in the trusted Phlo registry may be installed; anything
+else is rejected with a 400 before any subprocess runs. The pinned spec is
+only honored when it names the registry's own package, and on success import
+caches are invalidated so the new distribution is immediately visible.
+"""
 
 from __future__ import annotations
 

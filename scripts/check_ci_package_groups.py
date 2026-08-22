@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Validate that CI package test groups cover every package test directory."""
+"""Validate that CI package test groups cover every package test directory.
+
+Parses the group:/packages: pairs from .github/workflows/ci.yml and compares
+them against packages/ on disk. A package may appear in exactly one group;
+missing, duplicate, or empty assignments fail with a nonzero exit.
+"""
 
 from __future__ import annotations
 

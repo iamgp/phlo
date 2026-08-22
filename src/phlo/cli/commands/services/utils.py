@@ -1,4 +1,8 @@
-"""Shared utilities for services commands."""
+"""Shared utilities for services commands.
+
+Holds the phlo.yaml project template, native-process state tracking, and
+compose/config plumbing shared across the services command group.
+"""
 
 import json
 import os

@@ -1,4 +1,9 @@
-"""Mechanical guard for API tests that call protected HTTP routes."""
+"""Mechanical guard for API tests that call protected HTTP routes.
+
+Parses sibling test modules with ast and fails when a direct TestClient call
+hits a manifest-listed route without auth headers, an explicit 401
+assertion, or an unregulated development-test opt-out.
+"""
 
 from __future__ import annotations
 

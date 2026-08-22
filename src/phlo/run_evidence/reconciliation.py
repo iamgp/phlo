@@ -1,4 +1,11 @@
-"""Provider-neutral reconciliation of durable pipeline-run evidence."""
+"""Provider-neutral reconciliation of durable pipeline-run evidence.
+
+Evaluates run state from explicit provider observations plus durable store
+records only; a provider outage raises RunEvidenceUnavailable so no run
+state is ever changed on missing evidence. Evidence degradation uses max
+precedence (missing/expired/redacted override complete), and the reconciler
+commits decisions through one transactional store call.
+"""
 
 from __future__ import annotations
 

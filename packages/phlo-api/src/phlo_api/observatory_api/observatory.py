@@ -1,4 +1,11 @@
-"""Provider-neutral Observatory API resources."""
+"""Provider-neutral Observatory API resources.
+
+Exposes the Observatory read/write surface (overview, services, operations,
+runs, assets, datasets, tables, quality, logs, branches, capabilities,
+settings, search, actions) with provider-neutral payloads: provider URLs never
+reach the browser. Project read models are TTL-cached, dataset workflow state
+writes are lock-serialized, and log tails read only a bounded file suffix.
+"""
 
 from __future__ import annotations
 

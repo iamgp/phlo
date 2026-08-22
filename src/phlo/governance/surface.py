@@ -1,4 +1,10 @@
-"""Derived governance surface from existing Phlo declarations."""
+"""Derived governance surface from existing Phlo declarations.
+
+Folds every registered flow, contract, access-policy, and observability
+declaration into one immutable GovernanceSurface of GovernedTable entries,
+emitting GovernanceWarnings for inconsistencies instead of failing the
+build. Merged values are deep-copied into JSON-serializable form.
+"""
 
 from __future__ import annotations
 

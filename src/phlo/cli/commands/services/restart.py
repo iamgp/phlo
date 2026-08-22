@@ -1,4 +1,10 @@
-"""Restart command for restarting services."""
+"""Restart command for restarting services.
+
+Restarts rendered compose services, optionally scoped with --profile or
+--service, with optional pre-start image builds and dev-mode source mounts.
+Requires an initialized compose project and passes mutation authorization
+before touching running services.
+"""
 
 import click
 

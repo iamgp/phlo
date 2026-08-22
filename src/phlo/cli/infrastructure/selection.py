@@ -1,4 +1,10 @@
-"""Resolve the final service set to install from defaults and CLI overrides."""
+"""Resolve the final service set to install from defaults and CLI overrides.
+
+Selection order is stable: defaults first, then explicitly enabled names in
+CLI order, then profile services in discovery order. Explicitly disabled
+names are removed from every source, and duplicates across sources are
+deduplicated by name.
+"""
 
 from __future__ import annotations
 
