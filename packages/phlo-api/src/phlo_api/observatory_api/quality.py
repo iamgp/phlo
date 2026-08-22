@@ -369,6 +369,8 @@ async def fetch_quality_snapshot(dagster_url: str, recent_limit: int = 50) -> di
         for asset in assets_with_checks:
             asset_key = asset["asset_key"]
             checks = asset["checks"]
+            # Over-fetch executions so every check has at least a few recent
+            # runs even when execution history is skewed toward some checks.
             per_asset_limit = max(50, len(checks) * 3)
 
             exec_data = await dagster_query(
@@ -448,6 +450,8 @@ async def fetch_quality_snapshot(dagster_url: str, recent_limit: int = 50) -> di
         recent_executions.sort(key=lambda e: to_epoch_ms(e.timestamp), reverse=True)
 
         # Calculate quality score
+        # WARN-severity failures count as passing here: only ERROR failures
+        # reduce the score.
         evaluated = passing_checks + failing_checks + warning_checks
         quality_score = (
             round(((passing_checks + warning_checks) / evaluated) * 100) if evaluated > 0 else 0

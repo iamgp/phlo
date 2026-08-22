@@ -1,3 +1,5 @@
+"""Data model for project templates: metadata, render context, and result."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

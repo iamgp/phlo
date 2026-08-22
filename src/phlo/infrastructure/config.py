@@ -164,7 +164,11 @@ def get_project_name_from_config(project_root: Path | None = None) -> str | None
 
 
 def get_capability_defaults_from_config(project_root: Path | None = None) -> dict[str, str]:
-    """Return capability defaults declared in phlo.yaml."""
+    """Return capability defaults declared in phlo.yaml.
+
+    Entries whose key or value is missing, empty, or not a string are dropped
+    silently rather than raising.
+    """
     project_config = load_project_config(project_root)
     capabilities = project_config.get("capabilities", {})
     if not isinstance(capabilities, dict):
@@ -223,6 +227,9 @@ def get_regulated_config(project_root: Path | None = None) -> bool | None:
 
     Returns:
         True or False when explicitly configured, otherwise None.
+
+    Falls back to the deprecated ``regulated_mode`` key with a DeprecationWarning
+    when ``regulated`` is absent.
 
     Raises:
         ValueError: If the configured value is not a boolean.

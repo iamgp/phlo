@@ -179,6 +179,9 @@ def build_wheelhouse(config: RunConfig) -> None:
     )
 
 
+# The ordering matters: dependency resolution may still pick a same-named
+# workspace package from PyPI, so every run ends by re-pinning all workspace
+# packages to the local wheelhouse with --no-index/--no-deps.
 def install_operator(config: RunConfig) -> None:
     run(command("uv", "venv", str(config.operator_env), "--python", "3.11"), cwd=config.repo_root)
     run(
@@ -877,6 +880,8 @@ def cleanup(
         except FileNotFoundError:
             pass
         except PermissionError:
+            # Containers write root-owned files the host user cannot delete;
+            # remove them through a throwaway container and retry as the host.
             try:
                 run(
                     command(

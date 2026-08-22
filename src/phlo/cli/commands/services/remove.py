@@ -152,6 +152,8 @@ def remove_cmd(service_name: str, keep_running: bool):
     enabled, disabled = normalize_services_enabled_disabled_config(config)
     canonical_service_name = service.name
 
+    # Removing a service also removes anything that depends on it, directly
+    # or transitively; those services cannot run once their dependency is gone.
     dependent_names = _dependent_closure(all_services, canonical_service_name)
     names_to_disable = [canonical_service_name, *dependent_names]
 

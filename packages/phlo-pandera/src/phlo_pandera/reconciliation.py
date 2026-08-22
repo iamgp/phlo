@@ -519,6 +519,8 @@ class AggregateConsistencyCheck(QualityCheck):
             target_val = float(target) if target is not None else 0.0
             source_val = float(source) if source is not None else 0.0
 
+            # A zero source baseline makes the relative tolerance undefined
+            # (division by zero), so only the absolute tolerance can decide.
             if source_val == 0 and target_val == 0:
                 return True
             if source_val == 0:
@@ -1311,6 +1313,9 @@ class ChecksumReconciliationCheck(QualityCheck):
         source_hashes, source_duplicates = self._rows_to_hash_map(source_rows)
         target_hashes, target_duplicates = self._rows_to_hash_map(target_rows)
 
+        # The LIMIT applies only to the source query, so restrict the target
+        # to the sampled source keys; extra target rows would otherwise all
+        # count as missing_in_source.
         if self.limit is not None:
             target_hashes = {
                 key: value for key, value in target_hashes.items() if key in source_hashes
@@ -1433,6 +1438,9 @@ class ChecksumReconciliationCheck(QualityCheck):
             return None
         if self.sample <= 0 or self.sample > 1:
             raise ValueError("sample must be within (0, 1]")
+        # Bucket on the key hash so sampling is deterministic: a given key is
+        # either sampled in both tables or in neither, keeping the comparison
+        # meaningful.
         key_expr = " || '|' || ".join(
             [f"coalesce(cast({col} as varchar), '__NULL__')" for col in self.key_columns]
         )
@@ -1453,6 +1461,10 @@ class ChecksumReconciliationCheck(QualityCheck):
             ValueError: If hash_algorithm is not supported.
 
         """
+        # Normalize every value to a string before hashing: floats are rounded
+        # so equivalent values from different engines hash identically, and
+        # NULLs become a sentinel because a NULL would otherwise poison the
+        # whole concatenation.
         normalized_columns = []
         for column in hash_columns:
             normalized_columns.append(
@@ -1546,6 +1558,10 @@ def _get_context_resource(context: RuntimeContext, name: str) -> Any | None:
                 return resource
 
     try:
+        # A plain unittest.mock.MagicMock fabricates any attribute, so calling
+        # get_resource on one would return a fake resource instead of None.
+        # Detect mocks (no spec, but mock_calls present) and treat them as
+        # having no resources.
         if hasattr(context, "get_resource"):
             get_resource = getattr(context, "get_resource", None)
             if get_resource is None:

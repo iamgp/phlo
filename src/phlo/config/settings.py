@@ -143,21 +143,10 @@ class Settings(BaseConfig):
 
 @project_root_cached
 def _get_config(project_root: Path) -> Settings:
-    """Get cached config for the selected project root.
+    """Build Settings for an already-resolved project root.
 
-    Configuration is cached per resolved project root, with up to 16 entries,
-    and reused across the application lifecycle. This avoids repeated file
-    I/O and parsing while keeping project configuration isolated.
-
-    Args:
-        project_root: Resolved project root used for cache selection.
-
-    Returns:
-        Settings: Validated Settings instance with all configuration values.
-
-    Note:
-        This is an internal function. Use :func:`get_settings` for public access.
-
+    Cached by ``project_root_cached`` (LRU, 16 entries) so repeated calls
+    skip env-file I/O and validation. Internal; use :func:`get_settings`.
     """
     return Settings()
 

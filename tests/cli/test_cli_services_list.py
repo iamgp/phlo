@@ -1,3 +1,5 @@
+"""Tests for "phlo services list": container state from the backend, table and JSON output."""
+
 from __future__ import annotations
 
 import pytest

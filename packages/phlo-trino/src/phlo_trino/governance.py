@@ -169,7 +169,11 @@ class TrinoGovernanceBackend:
         self._trino.execute(sql)
 
     def check_access(self, *, principal: str, table_name: str, action: str) -> bool:
-        """Check if principal has the specified privilege on a table."""
+        """Check if principal has the specified privilege on a table.
+
+        Only positive grants are inspected: a DENY applied via apply_policy
+        does not make this return False.
+        """
         policies = self.list_policies(table_name=table_name)
         action_upper = action.upper()
         for policy in policies:

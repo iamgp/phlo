@@ -1,3 +1,9 @@
+"""Tests publishing-config scaffolding idempotence.
+
+Re-scaffolding must preserve user-customized fields (description, tables,
+dependencies) and only append entries for models not yet present.
+"""
+
 from __future__ import annotations
 
 import json

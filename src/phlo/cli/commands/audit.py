@@ -27,6 +27,8 @@ def _read_records(limit: int | None = None, since: str | None = None) -> list[di
         return []
     lines = path.read_text(encoding="utf-8").splitlines()
     records = []
+    # Malformed lines are kept as records instead of being dropped; an audit
+    # trail must not lose entries it cannot parse.
     for line in lines:
         try:
             records.append(json.loads(line))
@@ -45,6 +47,8 @@ def _record_timestamp(record: dict[str, Any]) -> datetime:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
+        # Sorts before every real timestamp, so `--since` filters out
+        # records lacking a valid one.
         return datetime.min.replace(tzinfo=UTC)
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=UTC)

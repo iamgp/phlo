@@ -493,6 +493,9 @@ class PhloApiClient:
             return payload["items"]
         return payload
 
+    # Transport failures are returned as {"error": ...} payloads instead of being
+    # raised, so every tool call yields a structured envelope the agent can act
+    # on rather than crashing the MCP request.
     def _get_json(
         self,
         path: str,

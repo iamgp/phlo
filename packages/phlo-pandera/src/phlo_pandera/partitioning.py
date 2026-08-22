@@ -251,6 +251,9 @@ def _append_where(sql: str, condition: str) -> str:
 
     """
 
+    # Detection is a substring match and the condition is always appended at
+    # the end, so base queries must not keep WHERE after ORDER BY/LIMIT or
+    # contain "where" inside a string literal.
     if "where" in sql.lower():
         return f"{sql}\nAND {condition}"
     return f"{sql}\nWHERE {condition}"

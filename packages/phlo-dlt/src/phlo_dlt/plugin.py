@@ -211,23 +211,23 @@ class DltAssetProvider(AssetProviderPlugin):
 class DLTIngestionProvider(IngestionProviderPlugin):
     """DLT-based ingestion provider for Phlo.
 
-        Ingestion provider plugin that exposes DLT-based ingestion
+    Ingestion provider plugin that exposes DLT-based ingestion
     capabilities through the standardized ingestion provider interface.
 
     Attributes:
-            metadata: Static plugin metadata for discovery.
+        metadata: Static plugin metadata for discovery.
 
     Methods:
-            get_decorator: Return the @phlo_ingestion decorator.
-            get_asset_retriever: Return function to get registered assets.
+        get_decorator: Return the @phlo_ingestion decorator.
+        get_asset_retriever: Return function to get registered assets.
 
     Example:
-            This class is auto-discovered by Phlo:
-            ```python
-            from phlo_dlt.plugin import DLTIngestionProvider
-            provider = DLTIngestionProvider()
-            decorator = provider.get_decorator()
-            ```
+        This class is auto-discovered by Phlo:
+        ```python
+        from phlo_dlt.plugin import DLTIngestionProvider
+        provider = DLTIngestionProvider()
+        decorator = provider.get_decorator()
+        ```
 
     """
 

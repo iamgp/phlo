@@ -77,7 +77,11 @@ def snapshot(table: str, schema_file: str, run_id: str | None, source: str) -> N
     help="Exit non-zero when worst classification meets or exceeds this level",
 )
 def check(table: str, fail_on: str) -> None:
-    """Check schema compatibility for a table against its previous snapshot."""
+    """Check schema compatibility for a table against its previous snapshot.
+
+    Exits with status 1 when the change classification ranks at or beyond
+    ``--fail-on`` (safe < warning < breaking), so it can gate CI.
+    """
     db_url = _require_registry_db_url()
 
     registry = SchemaRegistry(db_url)

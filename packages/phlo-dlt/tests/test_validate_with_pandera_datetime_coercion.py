@@ -1,3 +1,6 @@
+"""Tests validate_with_pandera coercing datetime columns before Pandera
+validation, including failure logging."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

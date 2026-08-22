@@ -76,6 +76,11 @@ class CsvSourceAdapter:
                 yield buffer
 
     def estimate_row_count(self, source: MigrationSource) -> int | None:
+        """Estimate source row count by counting physical lines minus the header.
+
+        Quoted fields containing embedded newlines inflate the count, so treat
+        the result as a progress hint rather than an exact total.
+        """
         if not source.path:
             return None
         csv_path = Path(source.path)

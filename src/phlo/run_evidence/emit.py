@@ -20,6 +20,8 @@ def _safe_text(value: object) -> str:
         return "<unavailable>"
 
 
+# Hash the identity parts so identical observations always produce the same
+# event id across retries and processes; downstream idempotency relies on it.
 def _stable_id(*parts: object) -> str:
     payload = json.dumps(parts, sort_keys=True, default=str, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]

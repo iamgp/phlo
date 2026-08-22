@@ -383,18 +383,17 @@ def configure_schemas() -> None:
     schemas_str = ",".join(schemas)
     logger.info("Discovered schemas: %s", schemas_str)
 
-    # Update PostgREST config file
     config_file = _get_config_file()
 
     if not config_file.exists():
         logger.warning("Config file not found at %s", config_file)
         return
 
-    # Read existing config
     content = config_file.read_text()
     lines = content.splitlines()
 
-    # Update db-schemas line
+    # Rewrite db-schemas in place, inserting the directive after db-anon-role
+    # when the config does not have one yet.
     updated = False
     new_lines = []
     for line in lines:
@@ -430,6 +429,8 @@ def configure_schemas() -> None:
             _wait_for_healthy(container_name, timeout=30)
         else:
             logger.warning("Failed to restart PostgREST: %s", result.stderr)
+            # Restart failed, but the running container can still pick up new
+            # tables in already-exposed schemas via a schema-cache reload.
             try:
                 reload_schema()
             except Exception as e:
@@ -476,7 +477,8 @@ def _wait_for_healthy(container_name: str, timeout: int = 30) -> None:
                 logger.info("PostgREST container is healthy")
                 return
             if status in ("unhealthy", ""):
-                # No health check or unhealthy, just wait a bit
+                # Empty status means no healthcheck is defined; treat both as
+                # ready instead of blocking configuration on container health.
                 time.sleep(2)
                 logger.info("PostgREST container ready (no healthcheck)")
                 return

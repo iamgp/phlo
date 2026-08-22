@@ -116,6 +116,9 @@ def discover_pandera_schemas(
             added_import_root = True
             importlib.invalidate_caches()
 
+        # Snapshot the module cache: anything imported here is dropped again
+        # in the finally block so repeated discovery re-imports current file
+        # contents instead of serving classes cached by an earlier scan.
         old_modules = dict(sys.modules)
         try:
             for py_file in path.glob("**/schemas/*.py"):
@@ -126,6 +129,9 @@ def discover_pandera_schemas(
                     parts = py_file.relative_to(path.parent).parts[:-1] + (py_file.stem,)
                     module_name = ".".join(parts)
                     module_parts = module_name.split(".")
+                    # Purge this module and its parent packages so the import
+                    # below re-executes the file rather than reusing a module
+                    # cached by a previous scan.
                     for index in range(1, len(module_parts) + 1):
                         sys.modules.pop(".".join(module_parts[:index]), None)
 
@@ -145,6 +151,9 @@ def discover_pandera_schemas(
                             and obj is not DataFrameModel
                             and obj.__module__ == module.__name__
                         ):
+                            # Tag the class with its source file so later
+                            # commands (e.g. schema diff) can reload the
+                            # definition without re-discovering it.
                             setattr(obj, "__phlo_schema_source_path__", str(py_file.resolve()))
                             schemas[name] = obj
 

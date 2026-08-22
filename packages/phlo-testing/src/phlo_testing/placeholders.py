@@ -299,25 +299,20 @@ def test_asset_execution(
 
     """
     try:
-        # Execute asset function
         if mock_data is not None:
-            # Use mock data - wrap in MockDLTSource if it's not already a source
             if isinstance(mock_data, (list, pd.DataFrame)):
                 source = MockDLTSource(data=mock_data)
-                # Asset functions typically return a DLT source, not the data
-                # So we simulate this by returning the mock source
+                # With mock data the asset function is never called; the mock
+                # source stands in for what the asset would have returned.
                 result_source = source
             else:
                 result_source = mock_data
         else:
-            # No mock data - execute actual asset function
             result_source = asset_fn(partition)
 
-        # Convert source to DataFrame
         if hasattr(result_source, "to_pandas"):
             df = result_source.to_pandas()
         elif hasattr(result_source, "__iter__"):
-            # DLT source is iterable
             data_list = list(result_source)
             df = pd.DataFrame(data_list)
         elif isinstance(result_source, pd.DataFrame):
@@ -328,7 +323,6 @@ def test_asset_execution(
                 "Expected DLT source, DataFrame, or iterable."
             )
 
-        # Validate with schema if provided
         if validation_schema is not None:
             try:
                 df = validation_schema.validate(df)
@@ -371,7 +365,7 @@ def test_asset_execution(
         )
 
 
-# Fixture Management - ✅ Implemented
+# Fixture Management
 
 
 def load_fixture(
@@ -416,8 +410,8 @@ def load_fixture(
     if suffix == ".json":
         with open(path, "r") as f:
             data = json.load(f)
-        # If it's a list of dicts, return as-is for easy use with MockDLTSource
-        # If it's a dict, return as-is
+        # JSON payloads pass through unchanged so they can feed MockDLTSource
+        # directly.
         return data
 
     elif suffix == ".csv":
@@ -470,7 +464,6 @@ def save_fixture(
     """
     path = Path(path)
 
-    # Create parent directories if needed
     path.parent.mkdir(parents=True, exist_ok=True)
 
     suffix = path.suffix.lower()
@@ -486,7 +479,6 @@ def save_fixture(
         if isinstance(data, pd.DataFrame):
             data.to_csv(path, index=False)
         else:
-            # Convert to DataFrame first
             df: pd.DataFrame = (
                 pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
             )
@@ -496,7 +488,6 @@ def save_fixture(
         if isinstance(data, pd.DataFrame):
             data.to_parquet(path, index=False)
         else:
-            # Convert to DataFrame first
             df: pd.DataFrame = (
                 pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
             )
@@ -506,18 +497,3 @@ def save_fixture(
         raise ValueError(
             f"Unsupported fixture format: {suffix}. Supported formats: .json, .csv, .parquet"
         )
-
-
-# Implementation Roadmap
-# =====================
-#
-# ✅ Phase 1 (Complete): MockDLTSource and fixture management
-# ⚠️  Phase 2 (Planned - 20h): Mock Iceberg catalog using DuckDB
-# ⚠️  Phase 3 (Planned - 30h): Test asset execution framework
-# ⚠️  Phase 4 (Planned - 10h): Test coverage reporting
-#
-# Total estimated: ~60 hours remaining
-#
-# Priority: HIGH (significantly improves developer experience)
-#
-# See: docs/audit/testing_experience_audit.md for full requirements

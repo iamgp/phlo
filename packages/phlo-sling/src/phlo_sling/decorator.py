@@ -35,19 +35,17 @@ from phlo.logging import log_event
 from phlo_sling.registry import ReplicationConfig, SlingReplication
 from phlo_sling.settings import get_settings
 
+# Populated at decoration time and kept for the process lifetime. Cleared only
+# by clear_sling_assets(), which tests and plugin reloads use to reset state.
 _SLING_ASSETS: list[AssetSpec] = []
 
 
 def get_sling_assets() -> list[AssetSpec]:
     """Return registered Sling replication asset specifications.
 
-        Retrieves all Sling replication assets that have been registered via
-    the
-        @phlo_sling_replication or @phlo_sling_assets decorators.
-
-    Returns:
-            List of AssetSpec objects representing all registered Sling
-            replication pipelines.
+    Returns AssetSpec objects registered via the @phlo_sling_replication or
+    @phlo_sling_assets decorators. The returned list is a copy; mutating it
+    does not affect the registry.
 
     """
     return list(_SLING_ASSETS)
@@ -539,6 +537,10 @@ def phlo_sling_assets(
         func: Callable[[], Iterable[SlingReplication]],
     ) -> Callable[[], Iterable[SlingReplication]]:
         replications = list(func())
+        # Discovery runs once, here at decoration time. Registered assets never
+        # call func again at runtime: each asset's run uses a no-op override
+        # resolver, so per-run overrides are only available through
+        # @phlo_sling_replication.
 
         for replication in replications:
             repl_config = _build_replication_config(

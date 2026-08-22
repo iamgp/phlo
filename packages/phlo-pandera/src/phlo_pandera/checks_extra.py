@@ -472,6 +472,8 @@ class PatternCheck(QualityCheck):
         flags = 0 if self.case_sensitive else re.IGNORECASE
         pattern_compiled = re.compile(self.pattern, flags)
 
+        # str.match anchors only at the start of the value; patterns must
+        # carry their own end anchor ($) for full-string validation.
         matches = column_data.str.match(pattern_compiled, na=False)
         non_match_count = (~matches).sum()
         non_match_pct = non_match_count / len(column_data)

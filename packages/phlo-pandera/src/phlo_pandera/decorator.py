@@ -97,9 +97,10 @@ def phlo_pandera(
             The original function after registering checks.
 
         """
-        # Derive asset key from table name if not provided
         nonlocal asset_key, description, full_table
 
+        # Without partition awareness there is no partition filter to apply,
+        # so validation always runs against the full table.
         if not partition_aware:
             full_table = True
 
@@ -201,6 +202,8 @@ def phlo_pandera(
                         },
                     )
 
+                # An empty frame contains no violations, so the contract
+                # passes; the no_data note explains why total_count is zero.
                 if df.empty:
                     contract = QualityCheckContract(
                         source="pandera",
@@ -376,6 +379,8 @@ def phlo_pandera(
                         },
                     )
 
+                # No rows means nothing to violate: report a pass so an empty
+                # partition does not block downstream assets.
                 if df.empty:
                     runtime.logger.warning("No rows returned; marking check as skipped.")
                     emitter.emit_result(
@@ -484,6 +489,9 @@ def phlo_pandera(
                         warn_threshold=warn_threshold,
                     )
 
+                # Emit one event per individual check so the UI can render
+                # per-check outcomes; the aggregate verdict is the CheckResult
+                # returned below.
                 severity_label = severity if not all_passed else None
                 for check, result in zip(non_schema_checks, check_results):
                     failed_count = _estimate_failed_count([result])

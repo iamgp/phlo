@@ -480,6 +480,8 @@ def _operation_index() -> dict[tuple[str, str], GraphQLOperationSpec]:
 
 _GRAPHQL_OPERATION_INDEX = _operation_index()
 
+# Root fields that exist only in some Dagster versions; excluded from the
+# extra-classification check so a version skew does not fail validation.
 _OPTIONAL_DAGSTER_FIELDS: dict[str, frozenset[str]] = {
     "query": frozenset(
         {

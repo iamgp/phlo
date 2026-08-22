@@ -631,12 +631,7 @@ export function analyzeSQLTransformation(sql: string): SQLAnalysis {
  * Column priority type for smart matching
  */
 type ColumnPriority =
-  | 'primary_key'
-  | 'id'
-  | 'timestamp'
-  | 'categorical'
-  | 'numeric'
-  | 'other'
+  'primary_key' | 'id' | 'timestamp' | 'categorical' | 'numeric' | 'other'
 
 /**
  * Key column info for smarter row matching
@@ -784,6 +779,7 @@ export function buildSmartWhereClause(
         : 'none',
     )
 
+    // Without an explicit mapping, assume the key column keeps its name upstream.
     const sourceCol = mapping?.sourceColumn || keyCol.name
 
     console.log(`[buildSmartWhereClause] Using sourceCol: ${sourceCol}`)
@@ -845,7 +841,8 @@ function buildCondition(column: string, value: unknown): string | null {
     return `${column} = ${value}`
   }
 
-  // For dates/timestamps, format appropriately
+  // Unlike the string branch above, Date values are emitted as plain ISO
+  // literals without the TIMESTAMP cast.
   if (value instanceof Date) {
     return `${column} = '${value.toISOString()}'`
   }

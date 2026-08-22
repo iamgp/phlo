@@ -1,3 +1,5 @@
+"""Tests the dlt REST API source contribution to the workflow wizard."""
+
 from phlo.capabilities import WorkflowContributionMode
 from phlo_dlt.plugin import get_workflow_wizard_contributions
 

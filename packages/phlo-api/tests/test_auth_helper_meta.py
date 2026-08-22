@@ -40,6 +40,8 @@ def _direct_test_client_calls(function: ast.AST) -> list[ast.Call]:
 
 
 def _is_explicit_development_test(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    # Opt-out for tests of unregulated (development-only) routes; the explicit
+    # 200 assertion shows the request is meant to succeed without auth headers.
     return "unregulated" in function.name and _contains_status_assertion(function, 200)
 
 

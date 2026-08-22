@@ -34,6 +34,9 @@ def project_root_cached(factory: Callable[[Path], T]) -> ProjectRootCached[T]:
     @wraps(factory)
     def get_cached(project_root: Path | str | None = None) -> T:
         root = resolve_project_root(project_root)
+        # The context var must be active while the factory runs: nested
+        # BaseConfig instances resolve their env files through
+        # resolve_project_root(None) and must land on this same root.
         with use_project_root(root):
             return cached(root)
 

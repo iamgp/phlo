@@ -65,6 +65,8 @@ def _load_extensions() -> list[Any]:
             if now - _cache_timestamp < _CACHE_TTL_SECONDS:
                 return _cached_extensions
 
+    # Discovery runs outside the lock so a slow plugin scan cannot serialize
+    # requests; concurrent discoverers simply race and the last publish wins.
     observatory_version = _get_observatory_version()
     extensions = []
     for plugin in discover_observatory_extensions():
@@ -194,6 +196,9 @@ def get_extension_asset(name: str, asset_path: str, background_tasks: Background
     except (AttributeError, OSError):
         raise HTTPException(status_code=404, detail="Asset not found")
 
+    # as_file may resolve to a path inside a zip or a temporary extract
+    # location that disappears when the context exits. Copy to a temp file the
+    # response can still read while streaming; the background task reclaims it.
     try:
         with as_file(asset) as resolved:
             temp_dir = Path(tempfile.mkdtemp())

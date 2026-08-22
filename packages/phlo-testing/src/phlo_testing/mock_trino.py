@@ -75,16 +75,12 @@ class MockCursor:
 
         """
         try:
-            # Translate Trino SQL to DuckDB if needed
             query = self._translate_query(query)
 
-            # Execute query
             result = self._connection.execute(query)
             self._result = result
 
-            # Get column names and types
             try:
-                # Try to get columns from result
                 cols = getattr(result, "columns", None)
                 if cols:
                     self._description = [
@@ -202,9 +198,9 @@ class MockCursor:
             common differences here.
 
         """
-        # Replace common Trino functions with DuckDB equivalents
-
-        # For now, most Trino queries work directly in DuckDB
+        # Trino and DuckDB SQL overlap enough that queries currently pass
+        # through unchanged. Add rewrites here when a test needs a Trino-only
+        # construct that DuckDB rejects.
         return query
 
 
@@ -464,7 +460,6 @@ class MockTrinoResource:
         cursor.execute(query)
         df = cursor.fetchdf()
 
-        # Apply schema-aware type conversions
         return apply_schema_types(df, schema_class)
 
     def load_table(self, table_name: str, df: pd.DataFrame) -> None:
@@ -486,7 +481,6 @@ class MockTrinoResource:
         """
         self._tables[table_name] = df
 
-        # Register DataFrame with DuckDB
         _validate_identifier(table_name.replace(".", "_"), "table name")
         self._db.register(table_name.replace(".", "_"), df)
 

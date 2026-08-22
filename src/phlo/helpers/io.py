@@ -108,6 +108,8 @@ def read_table(
             columns=columns,
             limit=limit,
         )
+    # A partition scope forces the SQL path: the native read_table fast path
+    # cannot apply the rendered partition predicate.
     selected = ", ".join(quote_identifier(column) for column in columns) if columns else "*"
     rendered_table = table_name.render() if isinstance(table_name, LogicalRelation) else table_name
     sql = f"SELECT {selected} FROM {rendered_table}"

@@ -284,7 +284,6 @@ def setup_test_catalog(
     from pyiceberg.schema import Schema
     from pyiceberg.types import DoubleType, IntegerType, NestedField, StringType
 
-    # Create sample table
     schema = Schema(
         NestedField(field_id=1, name="id", type=IntegerType(), required=True),
         NestedField(field_id=2, name="name", type=StringType(), required=True),

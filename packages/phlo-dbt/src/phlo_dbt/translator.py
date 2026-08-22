@@ -121,6 +121,8 @@ def get_compiled_sql_from_resource_props(
 
     compiled_path = dbt_resource_props.get("compiled_path")
     if compiled_path:
+        # compiled_path comes from the manifest, so confine reads to the dbt
+        # project directory; anything escaping it is treated as traversal.
         dbt_project_path = get_settings().dbt_project_path
         compiled_file = (dbt_project_path / str(compiled_path)).resolve()
         if not str(compiled_file).startswith(str(dbt_project_path.resolve()) + os.sep):

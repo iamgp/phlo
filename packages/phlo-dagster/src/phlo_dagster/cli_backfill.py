@@ -378,6 +378,9 @@ def _run_wap_backfill(
                     "logical_run_id": logical_run_id,
                     "dagster_run_id": dagster_run_id,
                 }
+                # Persist the in-flight mapping immediately after Dagster
+                # accepts the run, so an interrupted CLI resumes by
+                # reconciling that run instead of launching a duplicate.
                 _save_backfill_state(
                     asset_name,
                     [
@@ -455,6 +458,9 @@ def _wait_for_wap_lifecycle(
             report = read_wap_report(logical_run_id)
         except Exception as exc:
             poll_failures += 1
+            # Transient poll failures (Dagster restarts, network blips) are
+            # tolerated with capped exponential backoff before giving up;
+            # the run itself is untouched and --resume can retry later.
             if poll_failures >= max_poll_failures:
                 raise click.ClickException(
                     f"WAP lifecycle polling failed {poll_failures} times for logical run "

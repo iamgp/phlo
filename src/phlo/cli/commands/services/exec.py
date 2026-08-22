@@ -66,6 +66,8 @@ def exec_cmd(
         backend_name=backend_name,
     )
     cmd.append("exec")
+    # Without a caller-side terminal, disable the compose pseudo-TTY so piped
+    # stdin and captured output work instead of failing on TTY allocation.
     if not tty:
         cmd.append("-T")
     cmd.append(service_name)

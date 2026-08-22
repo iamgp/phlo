@@ -270,6 +270,10 @@ class AuditEventEmitter:
         Args:
             event: The audit event to emit.
             require_durable: Require a durable sink to persist the event.
+
+        Raises:
+            AuditPersistenceError: If require_durable is set and no configured
+                durable sink persists the event.
         """
         # Create a new event with the correct surface if not set
         if not event.surface:
@@ -287,6 +291,11 @@ class AuditEventEmitter:
             decision=event.decision,
         )
 
+        # Write to every sink even after an earlier sink fails, so one broken
+        # sink cannot drop events from healthy ones. Non-durable sinks are
+        # best-effort: their failures are logged and swallowed. A failure only
+        # escalates when durability was required and no durable sink persisted
+        # the event.
         durable_sink_seen = False
         durable_sink_succeeded = False
         durable_error: Exception | None = None
@@ -442,6 +451,8 @@ class AuditEventSink:
     """
 
     is_durable = False
+    # Sinks that guarantee durable persistence set this True; the emitter
+    # consults it when deciding whether a require_durable emit succeeded.
 
     def write(self, event: CanonicalAuditEvent) -> None:
         """Write an audit event to the sink.

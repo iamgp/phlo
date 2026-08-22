@@ -110,7 +110,13 @@ def _dbt_check_name(test_type: str, target: str, identity: str) -> str:
 
 
 def _severity_for_dbt_test(*, test_type: str | None, tags: Iterable[str] | None) -> str:
-    """Map dbt test metadata to severity."""
+    """Map dbt test metadata to a Phlo severity label.
+
+    Explicit tags take precedence over test-type defaults: ``blocking`` forces
+    ``error`` and ``warn``/``anomaly`` forces ``warn``. Without tags, structural
+    integrity tests (not_null, unique, relationships) default to ``error`` and
+    every other test type warns.
+    """
     warn_tags = {"warn", "anomaly"}
     blocking_tags = {"blocking"}
     blocking_test_types = {"not_null", "unique", "relationships"}

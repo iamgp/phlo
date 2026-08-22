@@ -457,6 +457,10 @@ def _import_project_workflows(project_root: Path) -> None:
     if str(parent_dir) not in sys.path:
         sys.path.insert(0, str(parent_dir))
 
+    # Workflows load under synthetic "phlo_observatory_..." module names so a
+    # project file can never shadow a real package. A file that raises during
+    # exec is removed from sys.modules again, leaving no half-initialized
+    # import behind.
     for py_file in sorted(workflows_path.rglob("*.py")):
         if py_file.name == "__init__.py" or py_file.name.startswith("_"):
             continue
@@ -1239,6 +1243,10 @@ def _load_publishing_readiness() -> ObservatoryPublishingReadinessList:
 
 def _load_dataset_profile(dataset_id: str) -> ObservatoryDatasetProfile:
     assets = _load_assets()
+    # A dataset id may name a listed manifest dataset, a "candidate:<table>"
+    # workflow candidate, or a table promoted from one. The cascade below
+    # resolves those identities in that order; the first match decides which
+    # read model backs this profile.
     tables = _load_tables_without_catalog()
     quality = _load_quality()
     listed_dataset = next((item for item in _load_datasets() if item.id == dataset_id), None)
@@ -1617,6 +1625,9 @@ def _access_activity_from_mapping(
         "status",
         "warehouse",
     }
+    # Privacy shaping happens here: unless the manifest policy grants full
+    # "identity" detail, only the aggregate metadata allow-list survives and
+    # every actor-identifying key is stripped before the record reaches the UI.
     metadata_source = (
         item
         if policy.identity_detail == "identity"
@@ -2082,6 +2093,11 @@ def _iter_reverse_log_lines(log_path: Path) -> Iterable[tuple[str, str]]:
             position = file_size
             pending = b""
             pending_truncated = False
+            # Read backwards one chunk at a time. `pending` carries the leading
+            # fragment of the oldest line in the chunk; it is prepended to the
+            # next (earlier) chunk where that line begins. A single line longer
+            # than MAX_LOG_EVENT_BYTES is clipped and flagged, and the flag
+            # travels across chunks until the line is fully consumed.
             while position:
                 chunk_size = min(LOG_TAIL_CHUNK_BYTES, position)
                 position -= chunk_size
@@ -2364,6 +2380,9 @@ def _table_rows(
         rows = [dict(row) for row in preview_rows if isinstance(row, Mapping)]
         return rows[offset : offset + max(0, min(limit, 500))]
 
+    # No stored preview rows but a record count exists: synthesize
+    # deterministic placeholder rows from column names so the UI has something
+    # to render. These are shaped samples, not real table contents.
     row_count_raw = table.metadata.get("records")
     if not isinstance(row_count_raw, int):
         return []
@@ -2438,6 +2457,8 @@ def _preview_from_query_engine(
     resolution = resolve_capability("query_engine")
     if resolution is None or not hasattr(resolution.provider, "preview"):
         return None
+    # Any query-engine failure degrades to None; the caller then serves a
+    # metadata-derived preview instead of failing the endpoint.
     try:
         result = resolution.provider.preview(
             relation,
@@ -3011,6 +3032,9 @@ def _load_row_journey(table_id: str, row_id: str) -> ObservatoryRowJourney:
 
 
 def _row_offset(row_id: str) -> int:
+    # A trailing ":N" marks a 1-based positional reference into the table's
+    # current ordering, not a durable key; the journey resolves it by reading
+    # the preview at that offset.
     tail = row_id.rsplit(":", 1)[-1]
     if tail.isdigit():
         return max(0, int(tail) - 1)
@@ -4118,6 +4142,8 @@ def _workflow_action_result(
 
 
 def _record_observatory_telemetry(*, name: str, resource_id: str, action_id: str) -> None:
+    # Best-effort by design: a telemetry failure is swallowed so it can never
+    # fail the user-visible action being recorded.
     try:
         from phlo.capabilities.telemetry import TelemetryRecorder
         from phlo.hooks import HookCorrelation, TelemetryEvent

@@ -119,6 +119,9 @@ def observe(
     def _decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         key = asset_key("observe", table)
         checks: list[AssetCheckSpec] = []
+        # These checks carry fn=None: they are declarative specs (thresholds in
+        # metadata/description) that the runtime adapter evaluates, not callables
+        # executed here. Both are advisory -- blocking=False, warning severity.
         if freshness_hours is not None:
             checks.append(
                 AssetCheckSpec(

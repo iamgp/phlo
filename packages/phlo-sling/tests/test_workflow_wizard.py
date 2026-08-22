@@ -1,3 +1,5 @@
+"""Tests the sling replication source contribution to the workflow wizard."""
+
 from phlo.capabilities import WorkflowContributionMode
 from phlo_sling.plugin import get_workflow_wizard_contributions
 

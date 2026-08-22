@@ -317,6 +317,8 @@ def _get_asset_status(
 
 def _get_asset_last_run(asset_name: str) -> dict[str, Any] | None:
     """Get last run info for an asset."""
+    # Not wired up yet: always returns no run data, so every asset is
+    # reported as never_run/stale regardless of actual materializations.
     return None
 
 

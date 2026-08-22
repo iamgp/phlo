@@ -154,6 +154,9 @@ def evaluate_pandera_contract(
         for name, column in schema.columns.items()
         if isinstance(column.dtype, pandas_engine.DateTime)
     ]
+    # Pandera rejects object/string columns on a datetime dtype check, so
+    # coerce them in place first; values that cannot be parsed are left alone
+    # and surface as ordinary validation failures below.
     for column_name in datetime_columns:
         if column_name not in df.columns:
             continue

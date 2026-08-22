@@ -404,6 +404,8 @@ def stage_to_parquet(
     )
 
     load_info: LoadInfo = pipeline.run(dlt_source, loader_file_format="parquet")
+    # Best-effort diagnostic hook: stash the load info on the pipeline for
+    # later inspection. Failure is ignored because it must never break staging.
     try:
         setattr(pipeline, "_phlo_last_load_info", load_info)
     except Exception:
@@ -626,6 +628,8 @@ def merge_to_table_store(
                 try:
                     casted = pc.cast(col, target_type)
                 except Exception:
+                    # Direct cast failed; route through string, which Arrow
+                    # accepts from any column, then re-cast to the target.
                     logger.warning(
                         "dlt_merge_schema_cast_fallback",
                         table_name=table_name,

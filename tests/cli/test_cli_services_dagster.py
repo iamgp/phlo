@@ -1,3 +1,5 @@
+"""Tests for Dagster container lookup: configured name first, then new and legacy fallbacks."""
+
 from __future__ import annotations
 
 import pytest

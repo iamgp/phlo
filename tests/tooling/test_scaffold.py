@@ -1,3 +1,6 @@
+"""Tests for the phlo-dlt ingestion scaffold: field spec parsing and
+validation, generated workflow structure, dependency requirements."""
+
 from __future__ import annotations
 
 import re

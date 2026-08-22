@@ -146,6 +146,9 @@ def _run_retention_resource_operation(
     if config.dry_run:
         return plan
     before_revision = cast(int | str | None, plan.get("before_revision"))
+    # Execute only if the catalog is still at the revision observed during
+    # planning; a moved revision makes the provider refuse rather than delete
+    # against a stale plan.
     if operation == "expire_snapshots":
         common["executor"] = _load_snapshot_expiry_executor()
     return method(

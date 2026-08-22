@@ -50,7 +50,6 @@ def _normalize_type(dtype: str) -> str:
     """
     dtype_str = str(dtype).lower()
 
-    # Map PyIceberg/Pandera types to DuckDB types
     type_mapping = {
         "int32": "INTEGER",
         "int64": "BIGINT",
@@ -145,10 +144,8 @@ class MockTable:
         namespace, table_name = self.name.split(".")
         full_name = f"{namespace}_{table_name}"
 
-        # Validate schema
         self._validate_schema(df)
 
-        # Insert into DuckDB
         self._db.from_df(df).insert_into(full_name)
 
     def overwrite(self, df: pd.DataFrame) -> None:
@@ -161,10 +158,8 @@ class MockTable:
         namespace, table_name = self.name.split(".")
         full_name = f"{namespace}_{table_name}"
 
-        # Validate schema
         self._validate_schema(df)
 
-        # Truncate and insert
         _validate_identifier(full_name, "table name")
         self._db.execute(f"DELETE FROM {full_name}")
         self._db.from_df(df).insert_into(full_name)
@@ -303,7 +298,8 @@ class MockIcebergCatalog:
         self._tables: dict[str, MockTable] = {}
         self._namespaces: set[str] = set()
 
-        # Create default namespaces
+        # Pre-create the standard Phlo namespaces so tests can use them without
+        # setup calls.
         for ns in ["raw", "bronze", "silver", "gold", "marts"]:
             self.create_namespace(ns)
 
@@ -322,7 +318,6 @@ class MockIcebergCatalog:
 
         self._namespaces.add(namespace)
 
-        # Create schema in DuckDB
         try:
             self._db.execute(f'CREATE SCHEMA "{namespace}"')
         except duckdb.CatalogException:
@@ -369,7 +364,6 @@ class MockIcebergCatalog:
                 return self._tables[identifier]
             raise ValueError(f"Table {identifier} already exists")
 
-        # Extract namespace and ensure it exists
         namespace = identifier.split(".")[0]
         if namespace not in self._namespaces:
             self.create_namespace(namespace)
@@ -466,7 +460,6 @@ class MockIcebergCatalog:
         table.name = new_identifier
         self._tables[new_identifier] = table
 
-        # Rename in DuckDB
         old_full = old_identifier.replace(".", "_")
         new_full = new_identifier.replace(".", "_")
         _validate_identifier(old_full, "old table name")

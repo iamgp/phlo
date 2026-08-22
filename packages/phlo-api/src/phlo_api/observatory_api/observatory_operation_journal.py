@@ -58,6 +58,9 @@ def append_operation(
     timestamp = recorded_at or datetime.now(UTC).isoformat()
     original_id = operation.id
     operation_id = record_id or f"op-{uuid4().hex[:12]}"
+    # The journal copy gets its own record id; the in-memory operation's id is
+    # preserved in metadata so a recorded entry stays traceable to the action
+    # that produced it.
     metadata = safe_metadata(
         {
             **operation.metadata,

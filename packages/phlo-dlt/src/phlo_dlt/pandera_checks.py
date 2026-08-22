@@ -297,6 +297,8 @@ def evaluate_pandera_contract(
             )
     else:
         validated_df = df
+    # Best-effort datetime coercion: only string/object columns are parsed and
+    # a failed parse is left untouched so Pandera reports it as a failure case.
 
     datetime_columns = [
         name

@@ -40,7 +40,16 @@ def _emit_lifecycle_signal(
 
 
 def register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: bool = True) -> None:
-    """Register plugin with initialize/cleanup lifecycle hooks and rollback safeguards."""
+    """Register a plugin, running its lifecycle hooks with rollback safeguards.
+
+    Replacement ordering guarantee: the incoming plugin initializes before the
+    existing one is cleaned up, so a failed initialization leaves the previously
+    registered instance untouched and still serving. If ``registry.register``
+    fails after the old instance was already cleaned up, this attempts to
+    restore it via ``initialize({})`` (best effort) and cleans up the incoming
+    instance, then re-raises. Either way the caller observes an exception and
+    never a registry containing a half-initialized plugin.
+    """
     registry = get_global_registry()
     existing_plugin = registry.get(plugin_type, plugin.metadata.name)
 

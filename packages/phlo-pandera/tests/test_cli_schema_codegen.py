@@ -1,3 +1,5 @@
+"""Unit tests for schema codegen helpers such as identifier snake-casing."""
+
 from __future__ import annotations
 
 from phlo_pandera.cli_schema_codegen import _snake_case

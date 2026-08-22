@@ -1,3 +1,5 @@
+"""Tests the OpenMetadata catalog contribution to the workflow wizard."""
+
 from phlo.capabilities import WorkflowContributionMode
 from phlo_openmetadata.plugin import get_workflow_wizard_contributions
 

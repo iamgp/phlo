@@ -194,6 +194,9 @@ class SyncController:
     ) -> dict[str, VerifyResult]:
         """Verify backend state matches desired state.
 
+        A backend whose verification raises is logged and omitted from the
+        result dict rather than reported as a failed entry.
+
         Args:
             backends: List of backend names to verify. Defaults to all registered.
             environment: Environment name for context.

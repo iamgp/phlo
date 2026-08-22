@@ -1,3 +1,5 @@
+"""Tests for the governance CLI commands, run against a cleared flow-declaration registry."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,8 @@ pytestmark = pytest.mark.core_regression
 
 @pytest.fixture(autouse=True)
 def _clear_flow_declarations() -> Iterator[None]:
+    # Decorator-declared flows accumulate in global registry state, so every
+    # test starts from an empty registry and leaves nothing behind.
     phlo.clear_flow_declarations()
     yield
     phlo.clear_flow_declarations()

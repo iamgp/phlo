@@ -315,6 +315,9 @@ class NullCheck(QualityCheck):
                     f"(threshold: {self.allow_threshold:.2%})"
                 )
 
+                # Sample only once, from the first failing column: the sample
+                # exists for debugging context, and per-column samples would
+                # bloat the result metadata.
                 if not sample_rows:
                     existing_columns = [c for c in self.columns if c in df.columns]
                     if existing_columns:
@@ -559,7 +562,8 @@ class FreshnessCheck(QualityCheck):
                 failure_message=f"Column '{self.timestamp_column}' not found in DataFrame",
             )
 
-        # Convert to datetime if needed
+        # Coerce unparsable values to NaT; they drop out of the max() below
+        # instead of aborting the whole check.
         timestamp_data = pd.Series(pd.to_datetime(df[self.timestamp_column], errors="coerce"))
 
         if len(timestamp_data.dropna()) == 0:
@@ -573,7 +577,8 @@ class FreshnessCheck(QualityCheck):
         # Get most recent timestamp
         max_timestamp = timestamp_data.max()
 
-        # Calculate age
+        # Default the reference clock to the timestamps' own timezone so naive
+        # and tz-aware columns both compare without raising.
         reference = self.reference_time or datetime.now(tz=max_timestamp.tzinfo)
         age = reference - max_timestamp
         age_hours = age.total_seconds() / 3600
@@ -676,7 +681,9 @@ class UniqueCheck(QualityCheck):
                 failure_message=f"Columns not found: {', '.join(missing_columns)}",
             )
 
-        # Check for duplicates
+        # keep=False marks every row of a duplicated group, so duplicate_count
+        # is the number of rows involved in duplicates, not just the excess
+        # copies.
         duplicates = df.duplicated(subset=self.columns, keep=False)
         duplicate_count = duplicates.sum()
         duplicate_pct = duplicate_count / len(df) if len(df) > 0 else 0.0

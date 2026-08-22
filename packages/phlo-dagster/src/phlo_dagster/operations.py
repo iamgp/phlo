@@ -139,6 +139,9 @@ async def launch_materialize(
     if partition_key:
         execution_tags.setdefault("dagster/partition", partition_key)
     if idempotency_key:
+        # Reconcile against any run already tagged with this idempotency key
+        # before launching, so a client retry after a lost GraphQL response
+        # reuses the prior run instead of materializing twice.
         existing = await _graphql(
             dagster_url,
             EXISTING_MATERIALIZATION_RUN_QUERY,
@@ -362,6 +365,9 @@ async def _graphql(
         try:
             headers.update(build_service_headers("phlo-api", initiator="observatory"))
         except RuntimeError:
+            # Service identity is best-effort here; without a configured
+            # identity the request proceeds without auth headers and Dagster
+            # decides whether to accept it.
             pass
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(

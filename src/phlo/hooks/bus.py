@@ -39,7 +39,13 @@ class RegisteredHook:
 
 
 class HookBus:
-    """Dispatch hook events to registered handlers."""
+    """Dispatch hook events to registered handlers.
+
+    Handlers run in ascending priority order, with ties broken by plugin name
+    then hook name so dispatch order is fully deterministic. A handler failure
+    stops dispatch only when the failure policy says so; IGNORE and LOG let
+    remaining handlers run.
+    """
 
     def __init__(self) -> None:
         """Initialize hook bus storage and lazy-discovery state."""
@@ -54,6 +60,10 @@ class HookBus:
         ):
             if hook.filters and not self._matches_filters(hook.filters, event):
                 continue
+            # TypeErrors always propagate and never reach the failure policy:
+            # they signal a dispatch misuse such as an async handler invoked
+            # through the sync path, which no policy should absorb. Handler
+            # bugs surface as any other exception type instead.
             try:
                 self._invoke_handler(hook.handler, event)
             except TypeError:
@@ -141,6 +151,8 @@ class HookBus:
             handler.handle_event(event)
             return
         result = handler(event)
+        # Close the orphaned coroutine before raising so it does not linger
+        # until garbage collection and emit a "never awaited" warning.
         if inspect.isawaitable(result):
             if inspect.iscoroutine(result):
                 result.close()

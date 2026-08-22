@@ -61,6 +61,9 @@ def configure_tracing(
     """Configure local tracing if a trace file is configured."""
     global _CONFIGURED_PATH
     resolved_trace_file = trace_file or os.environ.get(_TRACE_FILE_ENV)
+    # Tracing is configured at most once per process. The global tracer provider
+    # cannot be swapped after installation, so a call with a different path keeps
+    # whichever file won the race rather than silently redirecting spans.
     if _CONFIGURED_PATH == resolved_trace_file:
         return resolved_trace_file
     if _CONFIGURED_PATH is not None and _CONFIGURED_PATH != resolved_trace_file:

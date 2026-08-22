@@ -400,9 +400,6 @@ class DbtTransformer(BaseTransformer):
         if env:
             full_env.update(env)
 
-        # Ensure DBT_PROFILES_DIR is set if not passed explicitly in args (though we pass it)
-        # But for 'subprocess', arguments are better.
-
         log_event(
             self.logger,
             "info",
@@ -441,7 +438,6 @@ class DbtTransformer(BaseTransformer):
         skip_build = parameters.get("skip_build", False)
         ensure_dbt_profile(self.profiles_dir, runtime=self.context, target=self.target)
 
-        # Build dbt args
         build_args = [
             "build",
             "--profiles-dir",
@@ -470,9 +466,8 @@ class DbtTransformer(BaseTransformer):
                 partition_key=partition_key,
             )
 
-        # Setup Emitters
-        # We need model names for context. If select args are passed, we use those as proxy
-        # or we might parse the output.
+        # Model names for event context are approximated from --select; the
+        # resolved dbt selection is not known before the build runs.
         model_names = select_args if select_args else ["all"]
         run_id = getattr(self.context, "run_id", None)
         asset_key = getattr(self.context, "asset_key", None)
@@ -517,8 +512,6 @@ class DbtTransformer(BaseTransformer):
         start_time = time.time()
         elapsed = 0.0
         result_stdout = ""
-
-        # Only emit start if we're actually running build
         if not skip_build:
             emitter.emit_start()
 
@@ -538,7 +531,7 @@ class DbtTransformer(BaseTransformer):
 
                 elapsed = time.time() - start_time
 
-                # 2. Emit Success Metrics
+                # 2. Emit success metrics.
                 emitter.emit_end(status="success", metrics={"dbt_args": build_args})
                 telemetry.emit_metric(
                     name="transform.duration_seconds",
@@ -547,8 +540,7 @@ class DbtTransformer(BaseTransformer):
                     payload={"models": model_names},
                 )
 
-            # 3. Emit Lineage
-            # We assume manifest is at target/manifest.json
+            # 3. Emit lineage from the manifest left by the build.
             manifest_path = self.project_dir / "target" / "manifest.json"
             translator = DbtSpecTranslator()
 
@@ -560,8 +552,8 @@ class DbtTransformer(BaseTransformer):
                 reader=json.loads,
             )
 
-            # 4. Generate Docs (Optional, but legacy implementation did it)
-            # We skip it for optimization unless requested, but to match legacy behavior:
+            # 4. Generate Docs. On by default to preserve legacy behavior;
+            # a docs failure must not fail the transform, so its result is ignored.
             if parameters.get("generate_docs", True):
                 docs_args = [
                     "docs",
@@ -572,7 +564,6 @@ class DbtTransformer(BaseTransformer):
                     self.target,
                 ]
                 self._run_command(docs_args)
-                # We don't fail hard on docs gen failure usually
 
             if skip_build:
                 elapsed = time.time() - start_time

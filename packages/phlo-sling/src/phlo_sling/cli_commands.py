@@ -296,6 +296,7 @@ def _parse_discovery_output(output: str) -> list[dict[str, str]]:
         values = [part.strip() for part in line.split("|")]
         if len(values) != len(headers):
             continue
+        # Skip the ASCII table's dash-only separator rows.
         if all(set(value) <= {"-"} for value in values):
             continue
         rows.append(dict(zip(headers, values, strict=True)))

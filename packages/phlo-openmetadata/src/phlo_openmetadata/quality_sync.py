@@ -25,6 +25,10 @@ from typing import TYPE_CHECKING, Any, Optional, TypeAlias, TypeVar
 
 from phlo.logging import get_logger
 
+# phlo_pandera is an optional dependency. When it is absent, the stub classes
+# below keep this module importable and every isinstance() dispatch against
+# them simply returns False, degrading mapped checks to OpenMetadata's
+# generic customCheck.
 try:
     from phlo_pandera.checks import (
         CountCheck as _CountCheck,

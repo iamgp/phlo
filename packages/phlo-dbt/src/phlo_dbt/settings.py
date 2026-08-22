@@ -170,6 +170,11 @@ class DbtSettings(BaseConfig):
     def dbt_project_path(self) -> Path:
         """Return the dbt project path as a ``Path``.
 
+        Auto-discovery only applies when the default directory is configured
+        and does not exist on disk: the shallowest dbt project under
+        workflows/ wins, while an explicitly configured custom path is
+        returned as-is even if missing.
+
         Returns:
             Filesystem path to the dbt project root.
 
@@ -182,6 +187,10 @@ class DbtSettings(BaseConfig):
     @property
     def dbt_profiles_path(self) -> Path:
         """Return the dbt profiles path as a ``Path``.
+
+        Profiles follow project auto-discovery: when the discovered project
+        differs from the configured default directory, its own profiles/
+        subdirectory is used instead of the default location.
 
         Returns:
             Filesystem path to the dbt profiles directory.

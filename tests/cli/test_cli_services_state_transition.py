@@ -1,3 +1,5 @@
+"""Tests for enabled/disabled service state transitions across lifecycle commands."""
+
 from __future__ import annotations
 
 import json

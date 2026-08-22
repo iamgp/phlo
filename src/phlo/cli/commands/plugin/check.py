@@ -28,6 +28,8 @@ from phlo.plugins.discovery._service_loading import resolve_plugin_source_path
 
 logger = get_logger(__name__)
 
+# Scanner tools are pinned by digest, not tag: results stay reproducible and
+# a moved tag can never change what these checks run.
 HADOLINT_IMAGE = (
     "hadolint/hadolint@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e"
 )

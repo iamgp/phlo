@@ -864,6 +864,8 @@ async def get_row_by_id(
         else qualify_table_name(effective_catalog, effective_schema, table)
     )
 
+    # row_id is interpolated straight into the SQL literal below; the
+    # character whitelist here is what keeps that interpolation injection-safe.
     if not _SAFE_ROW_ID_RE.match(row_id):
         return {"error": "Invalid row_id: contains disallowed characters"}
 

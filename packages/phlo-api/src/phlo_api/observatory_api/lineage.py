@@ -203,6 +203,9 @@ def _build_asset_graph(
             for target in targets:
                 edge_details.append(AssetEdge(source=source, target=target))
 
+    # A provider may reference an asset in edges without listing it under
+    # "assets"; synthesize a bare node for each missing endpoint so every edge
+    # in the returned graph points at an existing node.
     for edge in edge_details:
         assets.setdefault(edge.source, AssetNode(name=edge.source))
         assets.setdefault(edge.target, AssetNode(name=edge.target))

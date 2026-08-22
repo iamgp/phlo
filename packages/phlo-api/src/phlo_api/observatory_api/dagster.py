@@ -694,6 +694,9 @@ def build_asset_graph_payload(asset_nodes: list[dict[str, Any]]) -> AssetGraphPa
             )
         )
 
+    # Dependencies may point at assets outside the fetched node set; emit an
+    # edge only when both endpoints exist, so the UI never renders dangling
+    # arrows.
     for asset in asset_nodes:
         target_key_path = "/".join(asset["key"]["path"])
         dependencies = (asset.get("definition") or {}).get("dependencyKeys") or []

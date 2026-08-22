@@ -1,3 +1,5 @@
+"""Built-in project template: scaffolds a minimal starter Phlo project."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,6 +13,11 @@ def _write_text(path: Path, content: str) -> None:
 
 
 def _build_env_example_content() -> str:
+    """Build `.env.example`: secret variable names only, never values.
+
+    The file documents which secrets each discovered service expects; real
+    values belong in the uncommitted `.phlo/.env.local`.
+    """
     from phlo.plugins.discovery import ServiceDiscovery
 
     lines = [

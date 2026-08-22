@@ -1,3 +1,5 @@
+"""Subprocess execution helpers that redact sensitive arguments before logging."""
+
 from __future__ import annotations
 
 import subprocess
@@ -25,6 +27,8 @@ _SENSITIVE_ARGUMENT_NAMES = frozenset(
 )
 
 
+# Redact secret values in both argument shapes: `--name value` consumes the
+# next token, while `--name=value` is caught by pattern matching alone.
 def _redact_command_args(cmd: tuple[str, ...]) -> tuple[str, ...]:
     redacted: list[str] = []
     redact_next = False
@@ -44,7 +48,11 @@ def _redact_command_args(cmd: tuple[str, ...]) -> tuple[str, ...]:
 
 @dataclass(frozen=True, slots=True)
 class CommandError(RuntimeError):
-    """Error raised when a subprocess command exits with a non-zero status."""
+    """Error raised when a subprocess command exits with a non-zero status.
+
+    Arguments, stdout, and stderr are redacted at construction time, so an
+    instance is safe to log or display without leaking credentials.
+    """
 
     cmd: tuple[str, ...]
     returncode: int

@@ -169,6 +169,10 @@ def ensure_table(
     opts = _default_storage_options(storage_options)
     delta_table_cls, write_deltalake = _load_deltalake()
 
+    # Open before creating: any load failure is treated as "table missing". The
+    # create path then uses mode="error", so if another process creates the same
+    # table concurrently, this call fails instead of committing a second,
+    # possibly divergent initial version.
     try:
         dt = delta_table_cls(table_uri, storage_options=opts)
         logger.info(
@@ -179,7 +183,6 @@ def ensure_table(
         return dt
     except Exception:
         pass
-
     logger.info(
         "delta_table_creating",
         table_name=table_name,
@@ -592,6 +595,9 @@ def remove_orphan_files(
 
     try:
         dt = delta_table_cls(table_uri, storage_options=opts)
+        # Bypasses Delta's built-in 7-day minimum retention so the caller's
+        # retain_hours is honored exactly; without this flag shorter windows
+        # are silently widened to the default.
         removed = dt.vacuum(retention_hours=retain_hours, enforce_retention_duration=False)
     except Exception as exc:
         logger.error(

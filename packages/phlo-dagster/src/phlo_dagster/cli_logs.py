@@ -365,6 +365,8 @@ def _get_logs_from_postgres(filters: dict) -> list[dict]:
 
     requested_limit = int(filters.get("limit", 100))
     query_limit = requested_limit
+    # Level filtering happens after decoding rows in Python, so over-fetch
+    # enough raw rows to still fill the requested limit post-filter.
     if filters.get("level"):
         query_limit = max(requested_limit * 20, 200)
 

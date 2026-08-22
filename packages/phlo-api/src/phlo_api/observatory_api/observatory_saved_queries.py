@@ -39,6 +39,9 @@ def load_saved_queries(project_root: Path) -> list[ObservatorySavedQuery]:
 
 def dedupe_saved_queries(queries: list[ObservatorySavedQuery]) -> list[ObservatorySavedQuery]:
     unique: dict[tuple[str, str, str], ObservatorySavedQuery] = {}
+    # Identity is casefolded name + whitespace-collapsed SQL + branch. Sorting
+    # newest-first and keeping the first occurrence per identity means the most
+    # recently updated duplicate wins.
     for query in sorted(queries, key=lambda item: item.updated_at, reverse=True):
         key = (
             query.name.strip().casefold(),
@@ -75,6 +78,8 @@ def save_query(project_root: Path, request: ObservatorySavedQueryRequest) -> Obs
         updated_at=now,
         metadata=safe_metadata(request.metadata),
     )
+    # dedupe returns entries sorted newest-first, so truncating to 100 drops the
+    # oldest rather than an arbitrary subset.
     mutate_collection(
         project_root,
         "saved_queries",

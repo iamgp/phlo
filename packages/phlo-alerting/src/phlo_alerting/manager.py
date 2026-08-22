@@ -179,7 +179,9 @@ class AlertManager:
     Attributes:
             destinations: Dictionary mapping destination names to AlertDestination instances.
             _sent_alerts: Set of alert keys for deduplication tracking.
-            _dedup_window_minutes: Time window for deduplication in minutes.
+            _dedup_window_minutes: Displayed window length in minutes. Informational
+                only: dedup keys are never expired, so duplicates are suppressed
+                for the manager's lifetime.
 
     Examples:
             >>> manager = AlertManager()
@@ -204,7 +206,7 @@ class AlertManager:
 
         """
         self.destinations: dict[str, AlertDestination] = {}
-        self._sent_alerts: set[str] = set()  # For deduplication
+        self._sent_alerts: set[str] = set()
         self._dedup_window_minutes = 60
 
     def register_destination(self, name: str, destination: AlertDestination) -> None:
@@ -240,8 +242,7 @@ class AlertManager:
         """Send an alert to registered destinations.
 
                 Routes the alert to specified or all registered destinations.
-                Implements deduplication to prevent sending duplicate alerts within
-        the configured time window.
+                Implements deduplication to prevent sending duplicate alerts.
 
         Args:
                     alert: Alert object to be sent.
@@ -329,8 +330,9 @@ class AlertManager:
     def _is_duplicate(self, key: str) -> bool:
         """Check if alert is a duplicate.
 
-        Determines whether an alert with the given key has already been
-        sent within the current deduplication window.
+        Determines whether an alert with the given key has already been sent.
+        Dedup keys are never expired, so duplicates stay suppressed for the
+        manager's lifetime.
 
         Args:
             key: Deduplication key to check.

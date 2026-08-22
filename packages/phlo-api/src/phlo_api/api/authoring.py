@@ -73,6 +73,10 @@ def _resolve_project_path(path: str) -> Path:
 
 @contextmanager
 def _project_cwd() -> Iterator[None]:
+    """Enter the project root for code that resolves relative paths against it.
+
+    os.chdir is process-global, so the lock serializes concurrent requests.
+    """
     with _project_cwd_lock:
         previous = Path.cwd()
         os.chdir(_project_root())

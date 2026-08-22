@@ -261,6 +261,8 @@ def _map_scalar(field_name: str, t: Any) -> pa.DataType:
     if t in (bytes,):
         return pa.binary()
     if t in (Decimal,):
+        # Stored as float64 instead of a fixed-precision Arrow decimal; exact
+        # decimal precision is not preserved through this conversion.
         return pa.float64()
 
     raise SchemaConversionError(f"Unsupported type for field {field_name}: {t}")

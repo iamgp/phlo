@@ -1,14 +1,18 @@
+/**
+ * Shared wire contracts between the Observatory UI and phlo-api.
+ *
+ * Types that pass through from backend JSON keep snake_case field names;
+ * shapes built or normalized client-side use camelCase. These are transport
+ * contracts, not internal models: renaming a field here silently breaks the
+ * matching Python serializer.
+ */
 export type ObservatoryHealthState = 'ok' | 'warning' | 'error' | 'unknown'
 
 export type ObservatoryMetadata = Record<string, NonNullable<unknown>>
 type ObservatoryRecord = Record<string, NonNullable<unknown>>
 
 export type ObservatoryServiceStatus =
-  | 'running'
-  | 'stopped'
-  | 'unhealthy'
-  | 'starting'
-  | 'unknown'
+  'running' | 'stopped' | 'unhealthy' | 'starting' | 'unknown'
 
 interface ObservatoryHealth {
   state: ObservatoryHealthState
@@ -159,11 +163,7 @@ export interface ObservatoryPublishingReadinessItem {
 }
 
 export type ObservatoryControlStatus =
-  | 'pass'
-  | 'fail'
-  | 'warning'
-  | 'unknown'
-  | 'not_applicable'
+  'pass' | 'fail' | 'warning' | 'unknown' | 'not_applicable'
 
 export interface ObservatoryControlEvidence {
   kind: string
@@ -427,12 +427,7 @@ export interface ObservatoryOperationDetail {
 }
 
 type ObservatoryRunStatus =
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'cancelled'
-  | 'unknown'
+  'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 
 export interface ObservatoryRunReportIdentity {
   project_id: string

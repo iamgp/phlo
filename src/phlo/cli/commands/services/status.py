@@ -92,6 +92,8 @@ def _parse_compose_json_status(stdout: str) -> list[dict[str, object]]:
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
+        # Compose v2 emits a single JSON array; some builds emit one object
+        # per line instead. Fall back to line-delimited parsing.
         parsed = [json.loads(line) for line in text.splitlines() if line.strip()]
 
     items = [parsed] if isinstance(parsed, dict) else list(parsed)

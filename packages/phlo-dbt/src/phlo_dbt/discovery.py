@@ -76,6 +76,8 @@ def find_dbt_projects(
             discovered.append(candidate.parent)
             logger.info("Discovered dbt project: %s", candidate.parent)
 
+    # Explicit search paths disable this scan: callers that narrow the search
+    # opt out of the full workflows walk, which can be slow on large trees.
     if search_paths is None:
         workflows_root = root_dir / "workflows"
         if workflows_root.exists():

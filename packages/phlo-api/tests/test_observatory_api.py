@@ -60,6 +60,8 @@ from phlo_api.observatory_api.observatory_services import (
 )
 from phlo_api.security_manifest import RUN_REPORT_RESOURCE_ID_ATTRIBUTE
 
+# Lowercase concatenations catch camelCase spellings that `.lower()` would
+# otherwise merge past the snake_case names (e.g. "dagsterGraphqlUrl").
 _PROVIDER_URL_SETTING_NAMES = (
     "dagster_url",
     "trino_url",

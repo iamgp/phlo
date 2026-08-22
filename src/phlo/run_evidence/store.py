@@ -694,6 +694,10 @@ class _SqlRunEvidenceStore:
             current_status = normalize_status(str(run_row["status"])) or "running"
             aggregate_status = decision.status
             aggregate_finished_at: datetime | str | None = decision.finished_at
+            # A terminal status already stored for this attempt wins over a
+            # contradicting later observation, lower attempts never rewrite a
+            # higher one, and a terminal run may not regress to a non-terminal
+            # status. The guards below encode those three precedence rules.
             if (
                 current_attempt == observation.attempt
                 and current_status in TERMINAL_STATUSES

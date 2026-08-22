@@ -18,7 +18,13 @@ def resolve_project_identity(
     tags: Mapping[str, object] | None = None,
     configured_project: str | None = None,
 ) -> ProjectIdentity:
-    """Resolve tags and configured identity without allowing silent disagreement."""
+    """Resolve tags and configured identity without allowing silent disagreement.
+
+    When the tag and the configured project disagree, no id is returned at all:
+    callers get ``error="project_conflict"`` instead of one side winning. A
+    missing tag is filled from configuration; neither source yields
+    ``error="project_missing"``.
+    """
     tag_values = {
         str(key): str(value).strip()
         for key, value in (tags or {}).items()

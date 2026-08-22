@@ -161,6 +161,7 @@ def _severity_from_string(value: str | None) -> dg.AssetCheckSeverity | None:
     """
     if not value:
         return None
+    # Dagster has no INFO severity; informational checks surface as WARN.
     normalized = value.strip().lower()
     if normalized in {"info", "informational"}:
         return dg.AssetCheckSeverity.WARN
@@ -358,6 +359,8 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             Dagster assets definition function.
 
         """
+        # Declarative checks (no callable) attach to the asset as check specs;
+        # checks with a fn become standalone definitions via _build_check.
         check_specs = [
             dg.AssetCheckSpec(
                 name=check.name,
@@ -443,6 +446,9 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
                     metadata = _convert_metadata(result.metadata)
                     if result.status:
                         metadata.setdefault("status", dg.MetadataValue.text(result.status))
+                    # An in-band failure status must surface as a real step
+                    # failure, not a successful materialization with bad
+                    # metadata, so retry policies and failure alerts apply.
                     status = str(result.status or "").lower()
                     if status in {"failure", "failed", "error"}:
                         logger.warning(

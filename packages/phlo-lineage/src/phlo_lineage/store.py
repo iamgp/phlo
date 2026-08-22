@@ -236,9 +236,11 @@ class LineageStore:
         >>> ancestors = store.get_ancestors("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 
     Note:
-        Schema initialization is lazy and thread-safe via a class-level flag.
-        The first operation on any LineageStore instance will trigger schema
-        creation if it doesn't already exist.
+        Schema initialization is lazy: the first operation on any LineageStore
+        instance creates the schema if it is missing. A class-level flag skips
+        the check after the first success. The flag is not lock-protected, so
+        concurrent initializations may race, but migrations use IF NOT EXISTS
+        and "already exists" errors are treated as success.
 
     """
 
@@ -538,7 +540,6 @@ class LineageStore:
             self._ensure_schema()
             with psycopg2.connect(self.connection_string) as conn:
                 with conn.cursor() as cur:
-                    # Use execute_values for efficient batch insert
                     from psycopg2.extras import execute_values
 
                     execute_values(

@@ -364,6 +364,8 @@ def _format_hook_command(command: object, substitutions: dict[str, str]) -> list
     if not isinstance(command, list):
         return []
 
+    # Values are brace-escaped before substitution so user-controlled data
+    # cannot inject additional format placeholders into the command.
     safe_substitutions = {
         k: v.replace("{", "{{").replace("}", "}}") for k, v in substitutions.items()
     }
@@ -615,6 +617,10 @@ def _stop_native_processes(project_root: Path, service_names: list[str] | None =
             state.pop(name, None)
             continue
 
+        # Termination protocol: SIGTERM the process group first (falling back
+        # to the bare pid if the group is gone), allow up to 10 seconds for
+        # exit, then SIGKILL any survivor. Exited services are dropped from
+        # persisted state as soon as they are confirmed gone.
         try:
             os.killpg(pid, signal.SIGTERM)
         except ProcessLookupError:

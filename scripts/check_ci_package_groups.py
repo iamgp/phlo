@@ -15,6 +15,9 @@ PACKAGES_DIR = REPO_ROOT / "packages"
 
 def main() -> int:
     workflow_text = CI_WORKFLOW.read_text(encoding="utf-8")
+    # Parse only the `group:`/`packages:` pair shape used by ci.yml; any other
+    # formatting change in the workflow silently yields no groups and is caught
+    # by the empty-groups check below.
     group_pattern = re.compile(
         r"^\s*-\s+group:\s+([A-Za-z0-9_-]+)\n\s+packages:\s+(.+)$",
         re.MULTILINE,

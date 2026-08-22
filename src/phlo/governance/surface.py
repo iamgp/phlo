@@ -200,6 +200,8 @@ class _TableBuilder:
             pii=self.pii,
             published=self.published,
             audience=tuple(sorted(self.audience)),
+            # Dict consumers have no natural ordering; repr provides a stable
+            # total order so repeated builds yield identical output.
             consumers=tuple(sorted((_copy_json_like(item) for item in self.consumers), key=repr)),
             sla=_copy_json_like(self.sla),
             access_policies=tuple(sorted(self.access_policies, key=lambda item: item.key)),
@@ -209,6 +211,13 @@ class _TableBuilder:
 
 
 def build_governance_surface() -> GovernanceSurface:
+    """Build the governance surface from all registered declarations.
+
+    Sources are applied in a fixed order: contracts, publish metadata,
+    observe metadata, then access policies. Scalar fields keep their first
+    non-empty value, so whichever source declares a field earliest wins;
+    list-valued fields accumulate with deduplication instead.
+    """
     builders: dict[str, _TableBuilder] = {}
 
     for spec in get_contract_specs():
@@ -227,6 +236,10 @@ def build_governance_surface() -> GovernanceSurface:
                 [check.name for check in asset.checks],
             )
 
+    # Access policies may reference tables that never declare a contract,
+    # publish, or observe asset. Track those before applying any policy so
+    # validation can flag them: carrying a policy alone does not count as
+    # declaring the table.
     access_only_tables: set[str] = set()
     for spec in get_access_policies():
         builder = _builder(builders, spec.table)
@@ -323,6 +336,12 @@ def _merge_dict_lists(
 
 
 def _copy_json_like(value: Any) -> Any:
+    """Deep-copy a JSON-like value into JSON-serializable form.
+
+    Mapping keys become strings, sequences become lists, and sets become
+    lists ordered by repr, since set elements may not define a comparison
+    that sorted() can use directly.
+    """
     if isinstance(value, dict):
         return {str(key): _copy_json_like(item) for key, item in value.items()}
     if isinstance(value, list | tuple):

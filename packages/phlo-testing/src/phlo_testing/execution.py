@@ -109,7 +109,6 @@ class MockAssetContext:
         std_logger.propagate = False
         std_logger.handlers = []
 
-        # Add custom handler to capture logs
         class LogCapture(logging.Handler):
             """Logging handler that appends formatted records to a list."""
 
@@ -249,19 +248,17 @@ def test_asset_execution(
     )
 
     try:
-        # Call asset function with mock context
         result = asset_fn(partition_date=partition)
 
-        # Convert result to DataFrame if needed
+        # Normalise whatever the asset returns (DataFrame, record list, or
+        # generator) into a single DataFrame.
         if isinstance(result, pd.DataFrame):
             data = result
         elif isinstance(result, list):
             data = pd.DataFrame(result) if result else pd.DataFrame()
         else:
-            # Assume it's an iterator/generator
             data = pd.DataFrame(list(result)) if result else pd.DataFrame()
 
-        # Validate against expected schema if provided
         if expected_schema is not None:
             try:
                 expected_schema.validate(data)

@@ -281,6 +281,7 @@ def _resource_identity(
 
 
 def _fingerprint(value: Any) -> str | None:
+    # Error text never reaches reports; only its SHA-256 fingerprint does.
     if value is None:
         return None
     return hashlib.sha256(str(value).encode("utf-8")).hexdigest()
@@ -359,6 +360,9 @@ def _resource(row: dict[str, Any]) -> ReportResource:
 def _terminal_outcome(
     events: list[dict[str, Any]], decisions: list[dict[str, Any]]
 ) -> tuple[TerminalOutcome | None, str | None]:
+    # Terminal outcome fails closed: any malformed terminal status, or any
+    # disagreement between terminal sources, suppresses the outcome entirely
+    # instead of electing a winner.
     candidates: list[tuple[str, str, str, str | None]] = []
     invalid = False
     for event in events:

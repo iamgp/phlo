@@ -1,3 +1,5 @@
+"""Container backend detection and control for Docker and Podman."""
+
 from __future__ import annotations
 
 import json
@@ -73,6 +75,8 @@ def _compose_base_cmd(
             str(env_file),
         ]
     )
+    # The local overrides file is appended last on purpose: compose resolves
+    # conflicting keys in favor of the later --env-file.
     if env_local_file.exists():
         cmd.extend(["--env-file", str(env_local_file)])
     for profile in profiles:
@@ -268,6 +272,8 @@ class PodmanBackend:
         return True, None
 
     def list_project_containers(self, project_name: str) -> list[ContainerInfo]:
+        # Containers may carry either docker-compose or podman-compose project
+        # labels, so both filters run and deduplicate by container name.
         containers_by_name: dict[str, ContainerInfo] = {}
         for label in (
             "com.docker.compose.project",

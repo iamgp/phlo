@@ -18,7 +18,9 @@ def test_delta_settings_use_standard_aws_aliases(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("AWS_REGION", "eu-west-2")
 
     settings = DeltaSettings(_project_root=tmp_path)
-
+    # Only credentials and region come from the shared AWS aliases; the
+    # endpoint deliberately stays host-reachable even though AWS_S3_ENDPOINT
+    # names the in-network service address.
     assert settings.delta_s3_endpoint == "http://localhost:9000"
     assert settings.delta_s3_access_key == "example-key"
     assert settings.delta_s3_secret_key == "example-secret"

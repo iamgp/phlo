@@ -169,6 +169,8 @@ class OIDCIdentityValidator:
         now = time.monotonic()
         if kid in self._keys and now - self._keys_fetched_at < self.cache_ttl:
             return self._keys[kid]
+        # Cache unknown kids briefly so a flood of forged tokens cannot force
+        # one JWKS fetch per request.
         if kid in self._negative_kids and now < self._negative_kids[kid]:
             return None
         refreshed = self._refresh_keys(force=kid not in self._keys)
@@ -184,6 +186,9 @@ class OIDCIdentityValidator:
             now = time.monotonic()
             if not force and now - self._keys_fetched_at < self.cache_ttl and self._keys:
                 return True
+            # Rate-limit refresh attempts and back off after failures so an
+            # unreachable identity provider does not turn every token
+            # validation into a network call.
             if now < self._refresh_backoff_until:
                 return False
             if (

@@ -1,3 +1,5 @@
+"""Tests for "phlo services stop": compose down invocation against the selected backend."""
+
 from __future__ import annotations
 
 from subprocess import CompletedProcess
@@ -83,6 +85,8 @@ def test_services_stop_down_includes_optional_profiles(monkeypatch, tmp_path) ->
     result = CliRunner().invoke(stop_cmd)
 
     assert result.exit_code == 0, result.output
+    # Compose only considers default services unless every profile is passed
+    # explicitly; stop must enumerate them all so profile services go down too.
     assert "--profile" in calls[0]
     assert calls[0].count("--profile") == 2
     assert "api" in calls[0]

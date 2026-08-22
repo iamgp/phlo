@@ -52,6 +52,9 @@ def _attempt(instance: Any, run: Any) -> int:
         except (KeyError, TypeError, ValueError):
             pass
     attempt = 1
+    # No tag records the attempt number, so derive it by walking Dagster's
+    # retry parent chain; the chain length is the only authoritative count.
+    # A cycle or missing parent fails reconciliation rather than guessing.
     parent_id = getattr(run, "parent_run_id", None)
     seen: set[str] = {str(run.run_id)}
     while parent_id:
@@ -143,6 +146,9 @@ def _stage_id(
             check_identity,
         )
     ]
+    # Materializations include the storage ID because one run can
+    # materialize the same asset several times; steps and checks are unique
+    # per (step, asset) within an attempt.
     if stage_type == "materialization":
         identity.append(str(storage_id))
     return hashlib.sha256("\0".join(identity).encode()).hexdigest()[:32]
@@ -178,6 +184,8 @@ class DagsterRunEvidenceSource:
                     for entry in self.instance.get_event_log_entries(run_id=run_id)
                 ]
             records: list[tuple[Any, Any]] = []
+            # Dagster pagination can return a stale cursor; detect a
+            # non-advancing loop and fail closed rather than spin forever.
             cursor = None
             seen_cursors: set[Any] = set()
             while True:

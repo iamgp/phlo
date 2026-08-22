@@ -148,6 +148,8 @@ def fetch_registry(force_refresh: bool = False) -> dict[str, Any]:
     if registry is None:
         registry = _load_registry_from_local()
         _validate_registry(registry)
+        # A local fallback is cached exactly like a remote success, so a
+        # transient network failure is not retried until the TTL expires.
 
     _REGISTRY_CACHE["loaded_at"] = now
     _REGISTRY_CACHE["data"] = registry

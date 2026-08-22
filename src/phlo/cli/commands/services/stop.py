@@ -175,6 +175,9 @@ def stop_cmd(
         )
 
     compose_profiles = profile
+    # Enable every discovered profile for a full stop: compose only operates
+    # on services whose profile is active, so without these flags `down`
+    # would leave profile-scoped services running.
     if not services_list and not profile:
         compose_profiles = tuple(sorted(ServiceDiscovery().get_available_profiles()))
 

@@ -1,3 +1,5 @@
+"""Build docker/podman compose commands for a Phlo project's selected backend."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable

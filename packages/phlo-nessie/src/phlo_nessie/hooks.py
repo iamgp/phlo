@@ -317,6 +317,9 @@ def init_branches() -> int:
         0
 
     """
+    # Initialization is deliberately best-effort: every failure path below logs
+    # a warning and returns 0 so a slow or half-ready Nessie never fails the
+    # surrounding service startup.
     base_url = _resolve_nessie_url()
     trees_url = f"{base_url}/api/v1/trees"
     logger.info(

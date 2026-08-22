@@ -355,6 +355,11 @@ class DeltaSchemaMigrator:
 
         from deltalake import write_deltalake
 
+        # The schema change is committed by writing an empty table with
+        # mode="overwrite", schema_mode="overwrite": Delta records the new
+        # schema as the latest table version. Note that an overwrite commit
+        # replaces the table contents, so existing rows are not carried through
+        # this call.
         write_deltalake(
             table_uri,
             empty,
@@ -362,7 +367,6 @@ class DeltaSchemaMigrator:
             schema_mode="overwrite",
             storage_options=opts,
         )
-
         logger.info(
             "delta_schema_migration_applied",
             table_name=plan.table_name,

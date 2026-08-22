@@ -379,9 +379,8 @@ class DltIngester(BaseIngester):
                 dataset_name=pipeline_name,
             )
 
-            # We pass 'self' as context because dlt_helpers expects an object with .log
-            # In a real refactor, dlt_helpers should take logger explicitly.
-            # Helpers consume context.log, so wrap logger behind a tiny shim.
+            # dlt_helpers log through a context object exposing ``.log``;
+            # this shim adapts the plain logger to that contract.
 
             class ContextShim:
                 """Expose a `.log` attribute expected by DLT helpers."""
@@ -659,5 +658,4 @@ class DltIngester(BaseIngester):
                     level="error",
                     payload={"error": safe_error, "elapsed_seconds": total_elapsed},
                 )
-            # Re-raise so the orchestrator knows it failed
             raise

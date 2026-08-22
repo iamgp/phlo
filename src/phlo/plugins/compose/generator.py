@@ -149,7 +149,14 @@ class ComposeGenerator:
         return self._require_production_credentials(value)
 
     def _require_production_credentials(self, value: Any) -> Any:
-        """Replace bundled credential fallbacks with Compose required-variable syntax."""
+        """Replace bundled credential fallbacks with Compose required-variable syntax.
+
+        Rewrites happen in place on the generated config. Two shapes carry
+        credentials: dict/list entries keyed or assigned by variable name, and
+        string interpolation with a bundled default (``${VAR:-default}``). Both
+        are converted to ``${VAR:?...}`` so Compose fails the stack instead of
+        silently starting with a known default password.
+        """
         if isinstance(value, dict):
             for key, nested_value in value.items():
                 if key in _PRODUCTION_CREDENTIAL_DEFAULTS:

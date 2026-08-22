@@ -27,7 +27,10 @@ def governance_group() -> None:
     help="Import a Python module or .py file that registers Phlo declarations.",
 )
 def check_cmd(output_json: bool, modules: tuple[str, ...]) -> None:
-    """Validate governed tables for publish and production readiness."""
+    """Validate governed tables for publish and production readiness.
+
+    Exits with status 1 when any check fails, so it can be used as a CI gate.
+    """
     _load_modules(modules)
     surface = build_governance_surface()
     payload = surface.to_check_result()

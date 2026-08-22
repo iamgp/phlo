@@ -166,6 +166,8 @@ class LoggingSettings:
         )
 
 
+# Configuration runs once per process; force=True re-runs it, first detaching
+# handlers this module attached previously so they are not duplicated.
 def setup_logging(settings: LoggingSettings | None = None, *, force: bool = False) -> None:
     """Configure structlog + stdlib logging with configurable output and routing."""
     global _LOGGING_CONFIGURED
@@ -359,6 +361,8 @@ class LogRouterHandler(logging.Handler):
         if _ROUTER_ACTIVE.get():
             return
         token = _ROUTER_ACTIVE.set(True)
+        # Routing is marked active while emitting so log records produced by
+        # hook-bus subscribers cannot re-enter this handler and recurse.
         try:
             event = _record_to_event(record, self._service_name)
             if event is None:

@@ -71,6 +71,8 @@ def _write_launch_manifest(
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             path.write_text(serialized, encoding="utf-8")
+            # Read-only so a later launch cannot silently rewrite a binding
+            # that promotion verifies by digest.
             path.chmod(0o444)
     except OSError:
         logger.warning(

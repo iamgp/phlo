@@ -141,13 +141,11 @@ async def get_search_index(
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()
-        # Fetch assets and tables in parallel
         assets_result, tables_result = await asyncio.gather(
             get_assets(dagster_url),
             get_tables(branch, effective_catalog, None, trino_url),
         )
 
-        # Handle errors
         if isinstance(assets_result, dict) and "error" in assets_result:
             return {"error": f"Failed to fetch assets: {assets_result['error']}"}
         if isinstance(tables_result, dict) and "error" in tables_result:
@@ -155,7 +153,6 @@ async def get_search_index(
         if not isinstance(assets_result, list) or not isinstance(tables_result, list):
             return {"error": "Failed to fetch search index data."}
 
-        # Convert assets
         assets = [
             SearchableAsset(
                 id=asset.id,
@@ -166,7 +163,6 @@ async def get_search_index(
             for asset in assets_result
         ]
 
-        # Convert tables
         tables = [
             SearchableTable(
                 catalog=table.catalog,

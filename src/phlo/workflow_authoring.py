@@ -43,7 +43,12 @@ def create_workflow_with_provider(
     source_kind: str | None = None,
     values: Mapping[str, Any] | None = None,
 ) -> WorkflowCreateResult:
-    """Create a workflow through the resolved workflow authoring capability."""
+    """Create a workflow through the resolved workflow authoring capability.
+
+    Raises WorkflowAuthoringError when no provider can be resolved or the
+    provider's result is malformed; see _resolve_workflow_authoring for the
+    no-provider / ambiguous-provider error cases.
+    """
     resolution = _resolve_workflow_authoring(provider)
     request = {
         "workflow_type": workflow_type,
@@ -58,6 +63,9 @@ def create_workflow_with_provider(
         "source_kind": source_kind,
         "values": dict(values or {}),
     }
+    # FileExistsError (target already exists) and WorkflowAuthoringError pass
+    # through unchanged; any other provider failure is wrapped so callers only
+    # need to handle those two types.
     try:
         raw_result = resolution.provider.create_workflow(
             project_root=project_root.resolve(),

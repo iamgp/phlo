@@ -151,6 +151,8 @@ class TrinoResource:
         """
         base_catalog = self.catalog or config.trino_catalog
         ref = self._resolved_ref()
+        # Non-main refs route to a dedicated per-ref catalog created by
+        # _provision_catalog; its name must keep the {base}_{ref} convention.
         if ref and ref != "main":
             return f"{base_catalog}_{ref}"
         return base_catalog
@@ -685,6 +687,7 @@ def _is_transient_trino_error(exc: Exception) -> bool:
             )
         ):
             return True
+        # errno values are Linux socket codes: ECONNRESET, ECONNREFUSED, EHOSTUNREACH.
         errno = getattr(error, "errno", None)
         if errno in {104, 111, 113}:
             return True

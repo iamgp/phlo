@@ -1,3 +1,5 @@
+"""Tests for "phlo services add" install selection after removal and re-enable."""
+
 from __future__ import annotations
 
 import pytest

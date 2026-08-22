@@ -40,6 +40,8 @@ _DURABLE_STATUS_MAP: dict[str, RunStatus] = {
 
 def load_runs() -> list[ObservatoryRun]:
     """Load provider-neutral orchestrator runs."""
+    # Degrade to an empty list when the legacy Dagster backend is unreachable or
+    # errors; the read model renders "no runs" instead of failing the request.
     try:
         legacy_runs = asyncio.run(_load_legacy_dagster_runs())
     except Exception:

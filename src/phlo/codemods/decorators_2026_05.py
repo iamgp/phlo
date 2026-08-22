@@ -1,4 +1,12 @@
-"""May 2026 codemod for migrating legacy Phlo decorators."""
+"""May 2026 codemod for migrating legacy Phlo decorators.
+
+Rewrites imports of ``phlo_ingestion`` (from ``phlo_dlt``/``phlo_dlt.decorator``)
+and ``phlo_quality`` (from ``phlo.quality``), plus their decorator usages, into
+attribute references on the top-level ``phlo`` package (``phlo.ingest.dlt`` and
+``phlo.quality.pandera``), inserting ``import phlo`` when the module lacks one.
+
+The rewrite runs on libcst so untouched code keeps its exact formatting.
+"""
 
 from __future__ import annotations
 
@@ -24,6 +32,9 @@ def migrate_decorators_2026_05_source(source: str) -> Decorators202605Migration:
 
 
 def _load_libcst() -> Any:
+    # libcst is an optional dependency (the codemods extra). Every helper
+    # imports it lazily through here so importing phlo.codemods itself never
+    # requires it, and a missing install surfaces as an actionable error.
     try:
         import libcst as cst
     except ImportError as exc:
@@ -35,7 +46,13 @@ def _load_libcst() -> Any:
 
 def _decorators_202605_transformer(cst: Any) -> Any:
     class Decorators202605Transformer(cst.CSTTransformer):
-        """Rewrite legacy Phlo decorator references."""
+        """Rewrite legacy Phlo decorator references.
+
+        Works in two phases: visit_Import/visit_ImportFrom first record every
+        local name bound to phlo_ingestion/phlo_quality, then leave_* rewrites
+        decorators using those bindings. leave_Module runs last, so it can
+        decide from the accumulated state whether ``import phlo`` is needed.
+        """
 
         def __init__(self) -> None:
             self.has_import_phlo = False
@@ -92,6 +109,9 @@ def _decorators_202605_transformer(cst: Any) -> Any:
             )
 
         def leave_Module(self, original_node: Any, updated_node: Any) -> Any:
+            # Runs after the whole module is walked, so needs_import_phlo
+            # already covers every rewritten decorator and has_import_phlo is
+            # final. A visit-time check could not know either yet.
             if not self.needs_import_phlo or self.has_import_phlo:
                 return updated_node
 
@@ -109,6 +129,9 @@ def _decorators_202605_transformer(cst: Any) -> Any:
             return self._migrate_decorator_target(expression)
 
         def _migrate_decorator_target(self, expression: Any) -> Any:
+            # Match on the local bindings recorded during the visit pass, so
+            # aliased imports migrate too. Flagging needs_import_phlo from a
+            # leave hook is safe because leave_Module runs last.
             if isinstance(expression, cst.Name):
                 if expression.value in self.ingestion_names:
                     self.needs_import_phlo = True
@@ -128,6 +151,8 @@ def _decorators_202605_transformer(cst: Any) -> Any:
 
 def _aliases(names: Any) -> tuple[Any, ...]:
     cst = _load_libcst()
+    # A star import binds no explicit local names, so there is nothing to
+    # record for the alias-matching phase.
     if isinstance(names, cst.ImportStar):
         return ()
     return names
@@ -171,12 +196,16 @@ def _replace_import_aliases(
     aliases: list[Any],
 ) -> Any:
     cst = _load_libcst()
+    # Dropping the final alias removes the whole statement: an import with no
+    # names would be invalid syntax.
     if not aliases:
         return cst.RemoveFromParent()
     return import_from.with_changes(names=tuple(aliases))
 
 
 def _import_insert_index(body: list[Any]) -> int:
+    # Python fixes the position of the module docstring and __future__ imports;
+    # the new import must land after both.
     index = 0
     if body and _is_module_docstring(body[0]):
         index = 1

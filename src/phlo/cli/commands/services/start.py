@@ -739,6 +739,9 @@ def start_cmd(
 
             started_services: list[str] = []
             if not skip_docker_compose:
+                # A zero exit from `compose up` does not guarantee health: a
+                # container can exit immediately after being created. Verify
+                # the actual container states before reporting success.
                 compose_service_names = load_compose_service_names(compose_file)
                 if docker_services_list:
                     started_services = [

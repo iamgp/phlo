@@ -114,6 +114,9 @@ class ServiceDiscovery:
             )
             raise
 
+        # Plugin manifests are inserted first, so setdefault makes a
+        # plugin-provided definition win over a same-named file from
+        # services_dir. Directory files can only fill gaps.
         for manifest in plugin_manifests:
             self._services.setdefault(manifest.name, manifest.definition)
         for manifest in directory_manifests:

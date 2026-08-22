@@ -118,6 +118,9 @@ def _load_module_from_file(file_path: Path) -> Any:
     """
     import_root = _project_import_root(file_path)
     import_root_str = str(import_root)
+    # The project root goes on sys.path only while the module executes so
+    # workflow-local imports resolve; it is removed afterwards to avoid
+    # polluting the CLI process for later loads.
     inserted_import_root = import_root_str not in sys.path
     try:
         if inserted_import_root:

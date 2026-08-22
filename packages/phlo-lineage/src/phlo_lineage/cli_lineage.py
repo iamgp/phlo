@@ -72,7 +72,8 @@ def _resolve_asset_name(graph, asset_name: str) -> tuple[str | None, list[str]]:
     Implements a multi-stage resolution strategy for flexible asset naming:
     1. Exact match on asset_name
     2. Normalized match ("/" replaced with ".")
-    3. Suffix matching on path segments (handles partial paths)
+    3. "dlt_" prefix stripping ("dlt_orders" matches raw table "orders")
+    4. Suffix matching on path segments (handles partial paths)
 
     Args:
         graph: LineageGraph instance to search.

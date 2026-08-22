@@ -54,6 +54,10 @@ def resolve_host(host: str, port: int, *, port_env_var: str | None = None) -> tu
         return host, port
 
     try:
+        # DNS resolution doubles as the container-detection probe: a
+        # hostname that only exists inside the Docker network fails to
+        # resolve on the host, which is the signal to rewrite to localhost
+        # with the exposed port.
         socket.gethostbyname(host)
         return host, port
     except socket.gaierror:

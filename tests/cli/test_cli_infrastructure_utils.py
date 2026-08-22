@@ -1,3 +1,5 @@
+"""Tests for infrastructure CLI helpers such as .env file parsing."""
+
 from __future__ import annotations
 
 from pathlib import Path

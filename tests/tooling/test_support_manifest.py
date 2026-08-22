@@ -34,6 +34,10 @@ def _package(manifest: dict[str, object], name: str) -> dict[str, object]:
     return entry
 
 
+# Build a disposable mirror of the repository layout so the validator can be
+# run against mutated manifests: symlinks keep inventory and classifier reads
+# pointed at the real workspace, while docs/ is copied so evidence checks
+# never touch the live tree.
 def _linked_repo(tmp_path: Path) -> Path:
     for name in (".github", "packages", "registry", "src"):
         (tmp_path / name).symlink_to(ROOT / name, target_is_directory=True)

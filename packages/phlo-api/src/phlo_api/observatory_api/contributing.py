@@ -177,6 +177,9 @@ def to_sql_equality(column_name: str, column_type: str, value: Primitive) -> str
 
     normalized_type = column_type.lower()
 
+    # Trino renders timestamp values with exactly six fractional digits.
+    # Normalize the incoming value to that shape and compare as varchar so a
+    # precision mismatch on either side cannot silently break the predicate.
     if normalized_type.startswith("timestamp") or normalized_type.startswith("time"):
         raw = str(value)
         normalized = raw
@@ -239,6 +242,7 @@ def to_safe_page_size(page_size: int | None) -> int:
     """Clamp page size to the supported range."""
     if page_size is None:
         return DEFAULT_PAGE_SIZE
+    # NaN compares unequal to itself, so this rejects NaN input before int().
     if page_size != page_size:
         return DEFAULT_PAGE_SIZE
     return max(1, min(MAX_PAGE_SIZE, int(page_size)))
@@ -248,6 +252,7 @@ def to_safe_page(page: int | None) -> int:
     """Clamp page number to the supported range."""
     if page is None:
         return 0
+    # NaN compares unequal to itself, so this rejects NaN input before int().
     if page != page:
         return 0
     return max(0, min(MAX_PAGE, int(page)))

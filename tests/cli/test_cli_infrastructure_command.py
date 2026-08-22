@@ -1,3 +1,5 @@
+"""Tests for run_command error reporting: stderr rendering and credential redaction."""
+
 from __future__ import annotations
 
 from subprocess import CompletedProcess

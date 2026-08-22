@@ -61,7 +61,6 @@ class LocalTestMode:
         self._original_env: dict[str, Any] = {}
         self._fixtures: dict[str, Any] = {}
 
-        # Initialize mock resources
         self.table_store = MockIcebergCatalog()
         self.trino = MockTrinoResource()
 
@@ -74,17 +73,13 @@ class LocalTestMode:
             Self for context manager use.
 
         """
-        # Save original environment
+        # Snapshot the whole environment so nested overrides cannot leak out of
+        # the with-block.
         self._original_env = os.environ.copy()
-
-        # Set local test mode flag
         os.environ["PHLO_TEST_LOCAL"] = "1"
         os.environ["PHLO_LOG_LEVEL"] = "DEBUG"
-
-        # Load recorded fixtures if available
         if self.use_recorded_fixtures:
             self._load_fixtures()
-
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -92,11 +87,9 @@ class LocalTestMode:
 
         Restores original environment and cleans up resources.
         """
-        # Restore original environment
         os.environ.clear()
         os.environ.update(self._original_env)
 
-        # Clean up resources
         self.table_store.close()
         self.trino.close()
 
@@ -110,7 +103,8 @@ class LocalTestMode:
         """
         fixture_file = self.fixture_dir / f"{name}.json"
 
-        # Convert to JSON-serializable format
+        # Normalise DataFrame-like objects first; default=str below covers any
+        # remaining non-JSON-native values.
         if hasattr(data, "to_dict"):
             data = data.to_dict()
         elif hasattr(data, "to_json"):
@@ -295,11 +289,9 @@ class FixtureRecorder:
             List of records from source.
 
         """
-        # Call source function to get data
         source = source_func(*args, **kwargs)
         data = list(source)
 
-        # Save to fixture
         fixture_file = self.fixture_dir / f"{name}_dlt.json"
 
         with open(fixture_file, "w") as f:
@@ -326,16 +318,13 @@ class FixtureRecorder:
             Query results.
 
         """
-        # Execute query
         results = query_func(*args, **kwargs)
-
-        # Convert to list of dicts if needed
+        # Accept DataFrames or any iterable of records.
         if hasattr(results, "to_dict"):
             data = results.to_dict("records")
         else:
             data = list(results)
 
-        # Save to fixture
         fixture_file = self.fixture_dir / f"{name}_sql.json"
 
         with open(fixture_file, "w") as f:

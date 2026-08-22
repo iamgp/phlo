@@ -312,6 +312,8 @@ async def fetch_tables(
     seen_tables: set[str] = set()
     errors: list[str] = []
 
+    # Deduped by bare table name across schemas: when the same name appears in
+    # several queried schemas, only the first schema's entry is kept.
     for schema in schemas_to_query:
         sql = f"SHOW TABLES FROM {quote_identifier(catalog)}.{quote_identifier(schema)}"
         result = await execute_trino_query(sql, catalog, schema, trino_url, timeout_ms)

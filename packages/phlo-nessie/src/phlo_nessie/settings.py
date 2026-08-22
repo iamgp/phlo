@@ -43,6 +43,8 @@ class NessieSettings(BaseConfig):
     def model_post_init(self, __context: Any) -> None:
         """Post-initialization hook to resolve host and port."""
         host, port = resolve_host(self.nessie_host, self.nessie_port, port_env_var="NESSIE_PORT")
+        # object.__setattr__ skips pydantic's validated assignment, which is
+        # fine here: the resolved values keep the declared types.
         object.__setattr__(self, "nessie_host", host)
         object.__setattr__(self, "nessie_port", port)
 

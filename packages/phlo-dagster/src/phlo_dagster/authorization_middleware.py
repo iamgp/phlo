@@ -152,6 +152,8 @@ class DagsterGraphQLAuthorizationMiddleware:
         except GraphQLError:
             raise
         except Exception:
+            # Fail closed: a middleware crash must never let the resolver run
+            # unenforced, so convert any unexpected error into an auth failure.
             logger.exception("dagster_authorization_middleware_error")
             raise GraphQLError(
                 "Authorization check failed",

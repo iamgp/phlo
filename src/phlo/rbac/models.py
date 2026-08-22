@@ -137,6 +137,9 @@ class RolesConfig:
         if role_name not in self.roles:
             raise ValueError(f"Unknown role: {role_name}")
 
+        # `path` is the current DFS stack and detects inheritance cycles;
+        # `result_set` memoizes fully expanded roles so diamond hierarchies
+        # contribute each role once and expansion terminates.
         path: list[str] = []
         result_set: set[str] = set()
 
@@ -315,6 +318,7 @@ class CanonicalRBAC:
 
     def effective_roles_for_subject(self, subject: str, principal_type: str) -> frozenset[str]:
         """Return assigned roles plus their inherited roles for one principal."""
+        # Platform principals share the service assignment table.
         assignments = (
             self.roles.subjects.services
             if principal_type in {"service", "platform"}

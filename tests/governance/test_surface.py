@@ -1,3 +1,5 @@
+"""Tests for build_governance_surface: deriving the governed table surface from declarations."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator

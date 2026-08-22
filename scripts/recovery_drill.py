@@ -597,6 +597,8 @@ def owned_directory(path: Path, token: str) -> None:
     (path / OWNER_MARKER).write_text(json.dumps({"token": token}), encoding="utf-8")
 
 
+# Delete only when the marker proves this run created the directory; anything
+# else (foreign data, a marker from another run) is left in place.
 def remove_owned(path: Path, token: str) -> None:
     marker = path / OWNER_MARKER
     if marker.exists() and json.loads(marker.read_text(encoding="utf-8")).get("token") == token:

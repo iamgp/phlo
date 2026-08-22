@@ -1,3 +1,6 @@
+"""Tests PostgresResource lifecycle: transactions, health checks, query
+helpers, and pool teardown under failure."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch

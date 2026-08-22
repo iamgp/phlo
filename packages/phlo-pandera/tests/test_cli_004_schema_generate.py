@@ -1,3 +1,6 @@
+"""Integration tests for `phlo schema generate`: dry-run rendering of
+inferred Pandera schemas from ingestion assets and existing source tables."""
+
 from __future__ import annotations
 
 from pathlib import Path

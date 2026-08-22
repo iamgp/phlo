@@ -1,3 +1,5 @@
+"""Public API for discovering and rendering Phlo project templates."""
+
 from phlo.cli.templates.models import ProjectTemplate, TemplateMetadata, TemplateRenderContext
 from phlo.cli.templates.registry import get_template, list_templates
 

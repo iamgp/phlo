@@ -68,6 +68,8 @@ class HasuraPostgresSettings(BaseConfig):
             self.postgres_port,
             port_env_var="POSTGRES_PORT",
         )
+        # object.__setattr__ skips pydantic's validated assignment, which is
+        # fine here: the resolved values keep the declared types.
         object.__setattr__(self, "postgres_host", host)
         object.__setattr__(self, "postgres_port", port)
 

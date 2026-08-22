@@ -45,6 +45,9 @@ def build_run(fn: Callable[..., Any]) -> RunSpec:
     return RunSpec(fn=_run)
 
 
+# Accepted shapes: zero parameters, or exactly one positional context
+# parameter. Keyword-only, *args, and **kwargs parameters are rejected because
+# there is no meaningful value to supply for them at run time.
 def _call_with_optional_context(fn: Callable[..., Any], context: RuntimeContext) -> Any:
     signature = inspect.signature(fn)
     unsupported_parameters = [

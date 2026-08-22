@@ -312,6 +312,8 @@ def validate_service_selection(
             result["ingress_optional"].append(
                 {"service": service, "reason": "Ingress protection required"}
             )
+            # Fail closed: this report cannot verify that ingress enforcement
+            # is configured, so ingress-optional services count as blocked too.
             result["blocked"].append(
                 {"service": service, "reason": "Required ingress enforcement is not configured"}
             )

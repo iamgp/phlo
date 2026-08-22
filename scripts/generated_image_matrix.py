@@ -49,6 +49,7 @@ def publication_matrix(
         if resolved_paths is None:
             raise ValueError(f"built service {service_name!r} escapes publication roots")
         context_root, context_relative, dockerfile_relative = resolved_paths
+        # A digest-pinned reference still publishes under its repository tag.
         tag = image.split("@", 1)[0]
         target = {
             "service": service_name,
@@ -60,6 +61,9 @@ def publication_matrix(
             "build_args": build.get("args") or {},
         }
         existing = published.get(tag)
+        # Several services may publish the same tag only when their build
+        # definitions match exactly; otherwise the matrix would silently pick
+        # whichever service appeared first.
         if existing is None:
             published[tag] = target
             continue

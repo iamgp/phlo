@@ -177,6 +177,11 @@ def metrics_export(export_format: str, output: Path, period: str, output_json: b
 
 
 def _parse_period(period_str: str) -> int:
+    """Parse a period suffix like ``24h``, ``7d``, or ``2w`` into hours.
+
+    Unparsable or unrecognized values fall back to 24 hours instead of
+    failing the command.
+    """
     raw_period = period_str
     period_str = period_str.strip()
     fallback_hours = 24

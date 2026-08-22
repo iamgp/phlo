@@ -138,6 +138,8 @@ def apply_schema_types(
             elif type_hint is bool:
                 df[col_name] = df[col_name].astype("boolean")
             # datetime types are usually handled by Pandera coerce=True
+        # Coercion is best-effort: a failed conversion leaves the column
+        # unchanged instead of failing the load.
         except Exception:
             logger.debug("type_coercion_skipped", column=col_name, target_type=type_hint.__name__)
 

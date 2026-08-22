@@ -152,7 +152,9 @@ def strip_sql_literals_and_comments(query: str) -> str:
     in_line_comment = False
     in_block_comment = False
     length = len(query)
-
+    # Elided characters become spaces rather than being dropped, so code on
+    # either side of a literal or comment can never fuse into a token that
+    # looks like (or hides) a forbidden keyword during the later scan.
     while i < length:
         ch = query[i]
         nxt = query[i + 1] if i + 1 < length else ""

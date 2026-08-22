@@ -1,3 +1,5 @@
+"""Tests for service dependency resolution, focused on circular dependency detection."""
+
 from __future__ import annotations
 
 import pytest
@@ -7,6 +9,8 @@ from tests.helpers import _service
 
 
 def test_resolve_dependencies_reports_cycle_path() -> None:
+    # Bypass __init__: exercise the resolver against an in-memory service
+    # list without letting discovery touch the filesystem.
     discovery = ServiceDiscovery.__new__(ServiceDiscovery)
     discovery.services_dir = None
     discovery._services = {}
@@ -42,6 +46,8 @@ def test_resolve_dependencies_cycle_path_is_closed() -> None:
     message = str(exc_info.value)
     assert "Circular dependency detected:" in message
     assert "→" in message
+    # c depends on the cycle but is not part of it; the reported path must
+    # stay closed and must not sweep in unrelated services.
     assert "a → b → c" not in message
 
 

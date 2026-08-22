@@ -29,7 +29,10 @@ def _merge_correlation(
     base: HookCorrelation | None = None,
     overrides: dict[str, Any] | None = None,
 ) -> HookCorrelation:
-    """Merge bound, explicit, and event-specific correlation fields."""
+    """Merge correlation fields from three sources, lowest precedence first:
+    the bound context, the explicit base, then per-event overrides. A source
+    only replaces a field with a non-None value, so unset fields fall through.
+    """
     correlation = HookCorrelation(**vars(get_bound_correlation_context()))
     if base is not None:
         for key, value in vars(base).items():
@@ -80,6 +83,10 @@ class _ContextEmitterBase:
         """Return an explicit or deterministic identity for retryable events."""
         if explicit:
             return explicit
+        # Derive a stable identity from the run coordinates so retries of the
+        # same work produce the same event_id and downstream consumers can
+        # deduplicate. Tags are excluded from the hash: they annotate events
+        # but are not part of their identity.
         context = asdict(self._context)
         context.pop("tags", None)
         context.pop("correlation", None)
@@ -434,6 +441,10 @@ class LineageEventEmitter(_ContextEmitterBase):
     ) -> None:
         """Emit a lineage edges event."""
         logical_operation_id = operation_id or self._context.operation_id or event_id
+        # Lineage edges carry no run coordinates of their own, so an operation
+        # id is required whenever emission happens inside a tracked run;
+        # without one each retry would mint a distinct event_id for the same
+        # edges.
         if logical_operation_id is None and self._context.correlation.run_id is not None:
             raise ValueError("lineage event requires operation_id or event_id for retry identity")
         logical_operation_id = logical_operation_id or "uncorrelated"

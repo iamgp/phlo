@@ -62,6 +62,9 @@ def sql(
     return _decorator
 
 
+# SQL is captured eagerly at decoration time by calling fn() with no arguments.
+# A function with required parameters cannot be called here, so its SQL is
+# treated as unavailable (None) rather than deferring evaluation to run time.
 def _static_sql_text(fn: Callable[..., str]) -> str | None:
     signature = inspect.signature(fn)
     required_parameters = [

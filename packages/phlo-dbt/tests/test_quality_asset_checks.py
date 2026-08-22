@@ -1,3 +1,10 @@
+"""Integration tests for Pandera contract checks over parquet payloads.
+
+Validates the pass/fail evaluation of DemoSchema against real parquet files
+and how evaluations convert into dbt-style asset check results with failure
+metadata (counts, sample, schema).
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

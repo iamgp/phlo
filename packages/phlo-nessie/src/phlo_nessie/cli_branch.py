@@ -127,7 +127,6 @@ def get_nessie_client():
     try:
         from pynessie import init
 
-        # Initialize Nessie client
         client = init(get_nessie_settings().nessie_uri())
         logger.debug("nessie_branch_client_init_succeeded")
         return client
@@ -180,10 +179,8 @@ def list(all: bool, format: str):
     try:
         client = get_nessie_client()
 
-        # Get all references
         refs = []
 
-        # Get branches
         for branch_ref in _list_references(client):
             ref_hash = _ref_hash(branch_ref)
             refs.append(
@@ -277,7 +274,6 @@ def create(branch_name: str, from_ref: str):
     try:
         client = get_nessie_client()
 
-        # Get reference to branch from
         source_ref = None
         for ref in _list_references(client):
             if ref.name == from_ref:
@@ -297,7 +293,6 @@ def create(branch_name: str, from_ref: str):
             )
         assert source_ref is not None
 
-        # Create branch
         try:
             new_branch = client.create_branch(
                 branch=branch_name,
@@ -387,7 +382,6 @@ def delete(branch_name: str, force: bool):
         force=force,
     )
     try:
-        # Prevent deleting default branch
         if branch_name == get_nessie_settings().nessie_default_ref:
             logger.warning(
                 "nessie_branch_delete_default_forbidden",
@@ -400,7 +394,6 @@ def delete(branch_name: str, force: bool):
 
         client = get_nessie_client()
 
-        # Find branch
         branch_ref = None
         for ref in _list_references(client):
             if ref.name == branch_name:
@@ -419,7 +412,6 @@ def delete(branch_name: str, force: bool):
             )
         assert branch_ref is not None
 
-        # Delete branch
         try:
             branch_hash = _ref_hash(branch_ref)
             if not branch_hash:
@@ -490,6 +482,9 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
         phlo branch merge dev main --no-delete-source
 
     """
+    # Merging deletes the source branch by default, so this also demands the
+    # branch.delete permission unless --no-delete-source was passed. Dry-run
+    # changes nothing and therefore skips authorization entirely.
     if not dry_run:
         enforce_surface_mutation_authorization("branch.merge", get_nessie_cli_adapter)
         if not no_delete_source:
@@ -508,7 +503,6 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
     try:
         client = get_nessie_client()
 
-        # Find branches
         source_ref = None
         target_ref = None
 
@@ -570,7 +564,6 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
             console.print("[yellow]No changes will be made (--dry-run)[/yellow]")
             return
 
-        # Perform merge
         try:
             client.merge(
                 from_ref=source_branch,
@@ -693,7 +686,6 @@ def diff(source_branch: str, target_branch: str, format: str):
     try:
         client = get_nessie_client()
 
-        # Find branches
         source_ref = None
         target_ref = None
 

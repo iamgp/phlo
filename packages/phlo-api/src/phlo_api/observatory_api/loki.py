@@ -679,6 +679,9 @@ async def stream_run_logs(
 
     async def events():  # noqa: ANN202
         deadline = datetime.now() + timedelta(seconds=timeout_seconds)
+        # Polling re-queries Loki from scratch each interval and Loki offers no
+        # cursor, so entries are deduped by content identity (timestamp, level,
+        # message) to emit each record exactly once per stream.
         seen: set[str] = set()
         while datetime.now() < deadline:
             result = await fetch_run_log_entries(run_id=run_id, limit=limit)

@@ -100,6 +100,8 @@ def table_exists(table_name: str, *, table_store: Any = None, runtime: Any = Non
     provider = table_store or resolve_table_store(runtime=runtime)
     if hasattr(provider, "table_exists"):
         return bool(provider.table_exists(table_name=table_name))
+    # Any inspection failure counts as "does not exist" instead of
+    # propagating; absence and uninspectable states are not distinguished.
     try:
         if hasattr(provider, "get_catalog"):
             provider.get_catalog().load_table(table_name)

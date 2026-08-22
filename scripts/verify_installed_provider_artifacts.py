@@ -95,6 +95,8 @@ def executable(environment: Path, name: str) -> Path:
     )
 
 
+# Strip any variable that could let the consumer import repository sources;
+# everything must resolve from installed distributions.
 def external_environment() -> dict[str, str]:
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
@@ -121,6 +123,9 @@ def install_dependencies(
     python = executable(environment, "python")
     if requirements:
         _run(["uv", "pip", "install", "--python", str(python), *requirements], cwd=consumer)
+    # Third-party dependencies first, from the normal index. Workspace packages
+    # then install with --no-index/--no-deps so they can only come from the
+    # built wheels and cannot pull a same-named package from PyPI.
     _run(
         [
             "uv",

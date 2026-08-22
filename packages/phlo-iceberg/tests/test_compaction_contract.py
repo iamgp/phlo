@@ -48,6 +48,9 @@ def test_execute_passes_snapshot_and_operation_identity_to_executor(monkeypatch)
             (42, {"file_count": 1, "snapshot_count": 3, "total_size_mb": 4.0}),
         ],
     )
+    # compact() reads metadata three times: before execution, immediately
+    # before submitting to the executor (the snapshot must still be 41), and
+    # after execution (advanced to 42 by the compaction).
     executor = MagicMock()
     executor.compact_table.return_value = {
         "catalog": "iceberg",

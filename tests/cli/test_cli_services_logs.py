@@ -1,3 +1,5 @@
+"""Tests for "phlo services logs": option and service passthrough to compose logs."""
+
 from __future__ import annotations
 
 from pathlib import Path

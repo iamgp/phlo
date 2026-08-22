@@ -161,13 +161,9 @@ class SignatureService:
         record_id: str,
         record_version: str,
     ) -> bool:
-        """Verify that a record has been signed and the version matches.
+        """Placeholder verifier: returns True without checking anything.
 
-        Args:
-            record_id: The record identifier.
-            record_version: The expected record version hash.
-
-        Returns:
-            True if the record was signed with a matching version.
+        Signature records are not persisted or consulted yet, so this cannot
+        confirm that a record was signed or that its version matches.
         """
         return True

@@ -1,4 +1,8 @@
-"""Opaque cursor pagination helpers for API list envelopes."""
+"""Opaque cursor pagination helpers for API list envelopes.
+
+Cursors encode a plain offset, so pages are cheap but not stable: items
+inserted or removed between requests shift later page boundaries.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +22,8 @@ def encode_cursor(offset: int) -> str:
 def decode_cursor(cursor: str | None) -> int:
     if not cursor:
         return 0
+    # A malformed cursor falls back to offset 0 rather than a client error;
+    # callers always receive a valid page from the start of the list.
     try:
         payload = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8"))
     except (ValueError, json.JSONDecodeError):

@@ -1,3 +1,5 @@
+"""Tests for "phlo services restart": refuses to run before services are initialized."""
+
 from __future__ import annotations
 
 from subprocess import CompletedProcess
@@ -53,6 +55,8 @@ def test_services_restart_uses_compose_project_preflight(monkeypatch, tmp_path) 
     result = CliRunner().invoke(restart_cmd, ["--backend", "podman"])
 
     assert result.exit_code == 0, result.output
+    # Restart is composed of exactly two backend invocations: a full project
+    # down, then up -d. The chosen backend prefixes both commands.
     assert len(calls) == 2
     assert calls[0][:2] == ["podman", "compose"]
     assert calls[0][-1] == "down"

@@ -1,3 +1,5 @@
+"""Tests for the schema registry CLI: invalid input surfaces as a clean user error."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

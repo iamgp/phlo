@@ -40,6 +40,9 @@ class ServiceDefinition:
         if not isinstance(data, dict):
             raise ValueError(f"Service definition must be a mapping: {path}")
 
+        # A declared source_path is relative to the phlo package tree, not to
+        # the YAML file itself; only an undeclared one defaults to sitting
+        # beside the definition.
         if data.get("source_path"):
             phlo_root = Path(__file__).parent.parent.parent.parent
             source_path = phlo_root / data["source_path"]

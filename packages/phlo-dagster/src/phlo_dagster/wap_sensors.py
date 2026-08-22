@@ -623,6 +623,9 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         except ValueError:
             cursor_ts = None
 
+    # Rewind the cursor slightly so runs updated between the query and the
+    # cursor commit are not skipped; a cold start (no cursor) looks back an
+    # hour instead of scanning all history.
     cutoff = (
         (cursor_ts - timedelta(minutes=5)) if cursor_ts else (evaluation_time - timedelta(hours=1))
     )
@@ -657,6 +660,8 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             )
             continue
 
+        # Written only after the full promote-and-cleanup sequence succeeds,
+        # so its presence means later ticks must not reprocess this run.
         if run_tags.get("phlo/wap_promoted"):
             continue
 
@@ -1029,7 +1034,7 @@ def _all_checks_passed(instance: Any, run_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Sensor 3: Branch cleanup
+# Sensor 2: Branch cleanup
 # ---------------------------------------------------------------------------
 
 

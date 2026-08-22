@@ -345,6 +345,10 @@ class CliSurfaceAdapter:
     def check_command_authorization(self, command_path: str) -> EnforcementResult:
         """Check if a command is authorized to run.
 
+        Read commands pass without enforcement and mutation commands go through
+        full enforcement. Commands missing from both tables are denied, so a
+        newly added command cannot skip authorization by not being registered.
+
         Args:
             command_path: Dot-separated command path (e.g., "services.start")
 

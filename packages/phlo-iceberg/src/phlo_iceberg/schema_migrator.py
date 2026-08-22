@@ -305,6 +305,9 @@ class IcebergSchemaMigrator:
         table = catalog.load_table(table_name)
         current_schema = table.schema()
 
+        # Metadata columns (_dlt_*, _phlo_*) are injected by the ingestion
+        # pipeline and never appear in user-supplied schemas, so exclude them
+        # or every diff would report them as dropped.
         current_fields: list[FieldSpec] = []
         for f in current_schema.fields:
             if f.name in _SYSTEM_METADATA_FIELDS:
@@ -429,6 +432,9 @@ class IcebergSchemaMigrator:
                     update.set_column_required(path=change.field_name)
                     applied.append(f"nullability_tightened:{change.field_name}")
                     applied_changes.append(change)
+                # Change types without an Iceberg operation (currently
+                # "reorder") fall through silently rather than failing the
+                # whole plan.
 
         logger.info(
             "iceberg_schema_migration_applied",

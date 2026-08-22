@@ -76,6 +76,7 @@ def require_mutation_authorization(
                 return fn(*args, **kwargs)
 
             if when is not None:
+                # A broken predicate enforces rather than bypasses authorization.
                 try:
                     should_enforce = when(dict(kwargs))
                 except Exception:
@@ -242,7 +243,11 @@ def emit_cli_audit_event(
 
 
 def check_cli_surface_active() -> bool:
-    """Check if the CLI surface is active and regulated mode is enabled."""
+    """Check if the CLI surface is active and regulated mode is enabled.
+
+    Detection failure counts as not regulated, so commands run without
+    enforcement rather than being blocked by an unrelated error.
+    """
     try:
         from phlo.security.mode import is_regulated
 

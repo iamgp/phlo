@@ -292,6 +292,8 @@ def optimize_tables_job():
 
 
 expire_snapshots_job: dg.JobDefinition | None = None
+# expire_snapshots_job lives behind an optional dependency (phlo-iceberg).
+# Import it lazily and degrade to optimize-only maintenance when absent.
 try:
     candidate_job = getattr(
         import_module("phlo_dagster.iceberg_maintenance"), "expire_snapshots_job", None
@@ -361,6 +363,8 @@ def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
                 namespace=policy.namespace,
                 table_count=len(expire_tables),
             )
+            # The cursor timestamp in the run key deduplicates re-evaluations
+            # within one tick while allowing a fresh trigger on the next tick.
             yield dg.RunRequest(
                 run_key=f"expire_{policy.namespace}_{cursor_key}",
                 job_name="expire_snapshots_job",

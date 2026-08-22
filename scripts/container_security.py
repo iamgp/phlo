@@ -190,6 +190,8 @@ def affected_images(changed: Iterable[str], root: Path) -> dict[str, list[dict[s
     paths = set(changed)
     service_files = sorted((root / "packages").glob("*/src/*/service.yaml"))
     targets: list[dict[str, str]] = []
+    # Shared infrastructure files do not map to one package, so any touch
+    # triggers a scan of every built image instead of the per-package filter.
     broad_change = any(path in BROAD_IMAGE_PATHS or path.startswith("security/") for path in paths)
     for service_file in service_files:
         service = yaml.safe_load(service_file.read_text(encoding="utf-8"))
@@ -368,6 +370,8 @@ def upstream_runtime_inventory(root: Path) -> dict[str, Any]:
         images.append(
             {
                 "reference": reference,
+                # Deterministic name derived from the reference keeps inventory,
+                # scan artifacts, and later comparisons linkable without a registry.
                 "report": hashlib.sha256(reference.encode()).hexdigest() + ".json",
                 "sources": sorted(
                     sources,
@@ -753,6 +757,8 @@ def compare_upstream_candidate_reports(
 
 
 def _waived(waivers: list[dict[str, Any]], image: str, vulnerability_id: str) -> bool:
+    # Waivers may name either the full digest-pinned reference, the bare
+    # repository@tag form with the digest stripped, or a tagged variant of it.
     image_name = image.split("@", 1)[0]
     for waiver in waivers:
         if str(waiver.get("vulnerability_id")) != vulnerability_id:
@@ -763,6 +769,9 @@ def _waived(waivers: list[dict[str, Any]], image: str, vulnerability_id: str) ->
     return False
 
 
+# A finding with an available fix always blocks, even under an active waiver:
+# upgrading supersedes waiving. Only unfixed findings consult the waiver
+# register; _waived documents the accepted image-name forms.
 def apply_policy(report: dict[str, Any], image: str, waivers: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     for result in report.get("Results", []) or []:

@@ -1,3 +1,5 @@
+"""Regression smoke tests for the quickstart path using a fake service discovery."""
+
 from __future__ import annotations
 
 import os

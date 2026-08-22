@@ -103,7 +103,8 @@ def restart_cmd(
     else:
         click.echo(f"Restarting {project_name} infrastructure...")
 
-    # Stop services
+    # A full restart uses `down` so containers orphaned by config changes are
+    # removed too; targeting named services only stops those containers.
     cmd = compose_base_cmd(
         phlo_dir=phlo_dir,
         project_name=project_name,

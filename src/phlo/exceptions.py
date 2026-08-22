@@ -57,7 +57,7 @@ class PhloErrorCode(Enum):
     VALIDATION_FAILED = "PHLO-004"
     MISSING_SCHEMA = "PHLO-005"
 
-    # Runtime and Integration Errors (PHLO-100 to PHLO-199)
+    # Runtime and Integration Errors (PHLO-006 to PHLO-008)
     INGESTION_FAILED = "PHLO-006"
     TABLE_NOT_FOUND = "PHLO-007"
     INFRASTRUCTURE_ERROR = "PHLO-008"

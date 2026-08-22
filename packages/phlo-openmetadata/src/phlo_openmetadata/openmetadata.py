@@ -263,6 +263,8 @@ class OpenMetadataClient:
                 params=params,
                 timeout=self.timeout,
             )
+            # A 401 usually means a cached bearer token expired. Drop it, fall
+            # back to basic auth, re-authenticate once, and retry the request.
             if response.status_code == 401:
                 if self._jwt_token:
                     self._jwt_token = None
@@ -330,6 +332,9 @@ class OpenMetadataClient:
         if not self.username or not self.password:
             return False
 
+        # The login API shape varies across OpenMetadata versions: both endpoint
+        # paths are tried with a base64-encoded password, and non-email usernames
+        # are additionally attempted against the default @open-metadata.org domain.
         endpoints = ["/v1/users/login", "/v1/auth/login"]
         encoded_password = base64.b64encode(self.password.encode("utf-8")).decode("ascii")
         payloads = [{"email": self.username, "password": encoded_password}]
@@ -881,6 +886,9 @@ class OpenMetadataClient:
 
         """
         resolved_description = description or f"Phlo test definition: {test_name}"
+        # OpenMetadata renamed the test-definition API across versions. Try the
+        # current schema first, then fall back to the legacy "testType" payload;
+        # a 409 means the definition already exists under either schema.
         sanitized_name = self._sanitize_name(test_name)
         data_new: dict[str, Any] = {
             "name": sanitized_name,
@@ -1050,6 +1058,8 @@ class OpenMetadataClient:
         except requests_exceptions.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
             if status in (400, 404, 409):
+                # Some OpenMetadata versions reject bare definition names; resolve
+                # the server-side FQN and retry once before giving up.
                 test_def = self.get_test_definition(test_definition_name)
                 if isinstance(test_def, dict):
                     test_def_fqn = test_def.get("fullyQualifiedName") or test_def.get("name")
@@ -1086,6 +1096,9 @@ class OpenMetadataClient:
             "timestamp": int(test_execution_date.timestamp() * 1000),
             "result_value": result_value,
         }
+        # Result endpoints moved between OpenMetadata versions. A missing
+        # endpoint (404/405, or a 500 carrying "Not Found") is skipped rather
+        # than failing the whole sync: result publishing is best-effort.
         attempts = [
             ("PUT", f"/v1/dataQuality/testCases/{test_case_fqn}/testCaseResult"),
             ("POST", f"/v1/testCases/{test_case_fqn}/testCaseResult"),

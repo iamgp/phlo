@@ -37,6 +37,8 @@ DOCKER_CLI_CANDIDATES = (
     "/opt/homebrew/bin/docker",
     "/usr/local/bin/docker",
 )
+# When several containers map to one service, the highest-ranked status wins,
+# so a healthy replica outranks a stopped one but never hides an unhealthy one.
 DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "running": 4,
     "unhealthy": 3,
@@ -327,6 +329,9 @@ def health_with_runtime_evidence(
     restart_count = metadata.get("restart_count")
     recent_exits = metadata.get("recent_health_exit_codes")
     exit_code = metadata.get("exit_code")
+    # Exit code 137 means the container was SIGKILLed -- typically OOM-killed
+    # by the kernel or Docker -- even when the container has since restarted
+    # and reports healthy.
     has_recent_137 = exit_code == 137 or (isinstance(recent_exits, list) and 137 in recent_exits)
     has_restarts = isinstance(restart_count, int) and restart_count > 0
     if has_recent_137:
@@ -451,6 +456,9 @@ def docker_cli_path() -> str | None:
 
 def docker_ps_containers(*filters: str) -> list[dict[str, Any]] | None:
     global _DOCKER_CLI_DISABLED
+    # One CLI timeout marks the CLI path dead for the lifetime of the process;
+    # later calls go straight to the Unix-socket fallback instead of paying the
+    # timeout on every request.
     if _DOCKER_CLI_DISABLED:
         return None
     docker_cli = docker_cli_path()
@@ -567,6 +575,8 @@ def current_compose_project(
     hostname = os.environ.get("HOSTNAME", "")
     if not hostname:
         return None
+    # Inside a container, HOSTNAME is that container's id; matching it against
+    # the container list identifies which compose project this process runs in.
 
     for container in containers:
         container_id = coerce_str(container.get("ID") or container.get("Id"), "")
@@ -593,6 +603,8 @@ def compose_service_name(container: Mapping[str, Any]) -> str | None:
     if service_name:
         return service_name
     name = coerce_str(container.get("Names"), "")
+    # Containers without compose labels still follow Docker's default
+    # <project>-<service>-<ordinal> naming; peel off the suffix parts.
     if name.endswith("-1") and "-" in name:
         return name.rsplit("-", 2)[-2]
     return None

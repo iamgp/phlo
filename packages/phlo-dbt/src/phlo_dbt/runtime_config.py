@@ -190,6 +190,10 @@ def resolve_dbt_runtime_config(
     target_name = resolve_dbt_target_name(runtime, target=target)
     catalog = settings.dbt_query_catalog
     ref = resolve_runtime_ref(runtime, support=DBT_QUERY_ENGINE_SUPPORT, default_ref="main")
+    # Non-main refs run against an isolated catalog. Refs owned by a
+    # pipeline run (OWNED_WAP_REF_PREFIX) get their catalog provisioned by
+    # the query engine when it implements RefQueryCatalogManager; any other
+    # ref falls back to the plain "<catalog>_<ref>" name.
     if ref and ref != "main":
         catalog = f"{catalog}_{ref}"
         if ref.startswith(OWNED_WAP_REF_PREFIX):

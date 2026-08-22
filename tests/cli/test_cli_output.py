@@ -1,3 +1,5 @@
+"""Tests for CLI user-error formatting: message ordering and actionable next steps."""
+
 from __future__ import annotations
 
 from phlo.cli.output import missing_compose_file_error, missing_query_error, user_error

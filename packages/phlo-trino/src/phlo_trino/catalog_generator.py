@@ -45,6 +45,7 @@ def _load_entry_points(group: str) -> list[CatalogPlugin]:
     try:
         entry_points = importlib.metadata.entry_points(group=group)
     except TypeError:
+        # Python < 3.10 has no selectable entry_points(group=...) API.
         all_entry_points = importlib.metadata.entry_points()
         entry_points = all_entry_points.get(group, [])
 
@@ -119,6 +120,8 @@ def discover_trino_catalogs() -> list[CatalogPlugin]:
         )
 
     combined = catalogs + legacy_catalogs
+    # First registration of a catalog name wins, so a modern plugin shadows a
+    # legacy entry point with the same name.
     unique: dict[str, CatalogPlugin] = {}
     for catalog in combined:
         if catalog.catalog_name not in unique:

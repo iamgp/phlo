@@ -203,6 +203,9 @@ def _sha256(path: Path) -> str:
         return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
+# Digest the sdist's logical content rather than the archive bytes: gzip
+# timestamps and member ordering differ between rebuilds of an identical
+# source tree, so only this normalized hash is stable across builds.
 def _sdist_content_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with tarfile.open(path, "r:*") as archive:
@@ -276,6 +279,9 @@ def publish_plan(artifacts: list[Artifact]) -> tuple[list[Artifact], list[str]]:
         if published is None:
             upload.append(artifact)
             continue
+        # PyPI refuses any re-upload under an already-used filename, so an
+        # existing file is accepted as published when it is byte-identical
+        # (wheel) or has identical normalized content (sdist).
         actual_hash, yanked, url = published
         if yanked:
             conflicts.append(f"{artifact.project} {artifact.filename} is yanked on PyPI")

@@ -127,7 +127,8 @@ def ensure_table(
 
     Raises:
         ValueError: If table name format is invalid or partition spec is malformed.
-        TableAlreadyExistsError: Re-raises and returns existing table on race condition.
+        TableAlreadyExistsError: Never surfaces to the caller; if another
+            writer creates the table first, that table handle is returned.
 
     Example:
         Create a partitioned table::
@@ -159,6 +160,9 @@ def ensure_table(
 
     create_namespace(namespace, ref=ref)
 
+    # Load first so the common path skips creation. A failed load falls through
+    # to create_table, and a concurrent creator is resolved by catching
+    # TableAlreadyExistsError below and reloading the winner's table.
     try:
         return catalog.load_table(table_name)
     except Exception:
@@ -181,6 +185,8 @@ def ensure_table(
         "year": YearTransform(),
     }
 
+    # Partition field IDs form their own ID space, separate from schema
+    # column IDs; start them high to keep the two visually distinct.
     partition_fields = []
     if partition_spec:
         for field_id, (source_name, transform_name) in enumerate(partition_spec, start=1000):
@@ -452,6 +458,8 @@ def merge_to_table(
             from pyiceberg.expressions import In, Reference
 
             delete_expr = In(term=Reference(unique_key), values=set(batch))
+            # A failed delete batch is ignored so the append still happens;
+            # the affected keys can then appear twice until the next merge.
             try:
                 table.delete(delete_expr)
                 rows_deleted += len(batch)  # Approximation
@@ -897,6 +905,8 @@ def expire_snapshots(
         raise ValueError(f"retain_last must be at least 1, got {retain_last}")
     if "." not in table_name:
         raise ValueError(f"table_name must be namespace.table format, got {table_name}")
+    # Validation above runs before this refusal so callers with bad retention
+    # arguments get a precise error instead of the generic "disabled" one.
     raise ValueError(
         "Direct snapshot expiry is disabled; use IcebergResource.expire_snapshots "
         "for plan-first retention maintenance"
@@ -986,6 +996,8 @@ def remove_orphan_files(
         for file_info in _list_storage_files(io, data_location):
             if _storage_path_key(str(file_info.path)) not in normalized_references:
                 # Check if file is old enough
+                # Files without a readable mtime cannot be age-checked and are
+                # treated as orphans regardless of age.
                 if hasattr(file_info, "mtime") and file_info.mtime:
                     if file_info.mtime < older_than_ts:
                         orphan_files.append(file_info.path)

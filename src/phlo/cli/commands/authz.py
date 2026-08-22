@@ -153,6 +153,8 @@ def plan(path, backend, environment):
     is_flag=True,
     help="Plan changes without applying them.",
 )
+# Dry-run applies nothing, so it is exempt from mutation authorization;
+# only a real sync requires it.
 @require_mutation_authorization("authz.sync", when=lambda params: not params.get("dry_run"))
 def sync(path, backend, environment, dry_run):
     """Synchronize RBAC policies to backend-native enforcement.

@@ -43,6 +43,10 @@ def _is_doctor_invocation(argv: list[str]) -> bool:
     return False
 
 
+# Startup guard computed from argv before any heavy imports. `phlo doctor`,
+# `phlo support`, and `phlo init` must run in minimal installs where the
+# audit/plugin machinery below cannot be imported, so those invocations skip
+# it entirely instead of failing at module import time.
 _DOCTOR_INVOCATION = _is_doctor_invocation(sys.argv)
 _SUPPORT_INVOCATION = len(sys.argv) > 1 and sys.argv[1] == "support"
 _INIT_INVOCATION = is_init_command_invocation(sys.argv)

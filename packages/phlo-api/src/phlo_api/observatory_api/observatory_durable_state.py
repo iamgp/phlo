@@ -57,6 +57,10 @@ def _mutate_collection(
 
     def apply(current: dict[str, Any] | None) -> dict[str, Any]:
         nonlocal result_items
+        # current is None only while the namespace has never been persisted; seed
+        # from the legacy JSON file on that first pass. Once this transaction
+        # commits, every later load finds the durable record and never reads the
+        # legacy file again, making the import exactly-once.
         items = (
             _items_from_state(current, collection)
             if current is not None

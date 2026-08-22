@@ -388,6 +388,9 @@ def execute_observatory_action(
     request: ObservatoryActionRequest, *, registry: Any | None = None
 ) -> ObservatoryActionResult:
     """Execute or decline a guarded Observatory action."""
+    # Never raises: unknown action ids return a failed result, known families
+    # without an executable provider path return skipped, so callers can always
+    # render the outcome from the returned result alone.
     family = _known_family_for_action(request.action_id)
     if family is not None:
         result = _provider_action_result(request, family, registry)

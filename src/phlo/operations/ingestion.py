@@ -1,3 +1,5 @@
+"""Ingestion engine contract implemented by backends and consumed by orchestrators."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any

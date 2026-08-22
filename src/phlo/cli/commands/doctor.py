@@ -1,3 +1,5 @@
+"""Phlo doctor: diagnose the local environment and running services."""
+
 from __future__ import annotations
 
 import json
@@ -644,6 +646,12 @@ def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
 
 @contextmanager
 def _silence_stdout() -> Iterator[None]:
+    """Silence every stdout channel while diagnostics run.
+
+    Probes and plugin imports can emit output through three layers: the fd 1
+    descriptor (subprocesses and C extensions), logging handler streams, and
+    `sys.stdout`. Each is redirected separately and restored on exit.
+    """
     saved_stdout_fd: int | None = None
     saved_handler_streams: list[tuple[Callable[[Any], Any], Any]] = []
     with Path(os.devnull).open("w") as devnull, StringIO() as stdout_buffer:
@@ -688,7 +696,10 @@ def _run_diagnostics_quietly(*, verbose: bool = False) -> list[DiagnosticResult]
 @click.option("--json", "output_json", is_flag=True, help="Output diagnostics as JSON.")
 @click.option("--verbose", is_flag=True, help="Include exception details where available.")
 def doctor_cmd(output_json: bool, verbose: bool) -> None:
-    """Diagnose local Phlo setup and service health."""
+    """Diagnose local Phlo setup and service health.
+
+    Exits with status 1 when any diagnostic reports a failure.
+    """
     results = _run_diagnostics_quietly(verbose=verbose)
     click.echo(render_json(results) if output_json else render_terminal(results))
     if any(result.status == DiagnosticStatus.FAIL for result in results):

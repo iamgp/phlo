@@ -357,6 +357,10 @@ class ClickHouseResource:
         row_count = len(df)
 
         unique_keys = df[unique_key].tolist()
+        # ALTER TABLE ... DELETE is a background mutation and returns before
+        # affected rows are actually removed (mutations_sync is left unset).
+        # The insert below therefore races the delete: readers may transiently
+        # observe both the old and the new version of a key.
         if unique_keys:
             keys_str = ", ".join(f"'{k}'" for k in unique_keys)
             delete_sql = f"ALTER TABLE {database}.{table} DELETE WHERE {key} IN ({keys_str})"

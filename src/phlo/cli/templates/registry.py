@@ -1,3 +1,5 @@
+"""Template registry merging built-in templates with plugin-provided ones."""
+
 from __future__ import annotations
 
 import importlib.util

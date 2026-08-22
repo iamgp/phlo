@@ -209,7 +209,9 @@ class LineageGraph:
 
             visited.add(current)
 
-            # Find all assets that point to current
+            # Edges are stored forward-only, so finding parents requires a full
+            # scan of every edge list. Acceptable because graphs are small;
+            # get_downstream uses the direct adjacency lookup instead.
             for source, targets in self.edges.items():
                 if current in targets:
                     upstream.add(source)

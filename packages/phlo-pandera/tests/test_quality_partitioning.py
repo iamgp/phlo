@@ -1,3 +1,6 @@
+"""Verify apply_partition_scope SQL rewriting: WHERE injection, AND
+composition with existing filters, and rolling-window date bounds."""
+
 from __future__ import annotations
 
 import importlib

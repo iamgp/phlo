@@ -136,5 +136,8 @@ class RBACConfigLoader:
             with policies_path.open() as f:
                 content["policies"] = yaml.safe_load(f) or {}
 
+        # Hashes the raw parsed YAML, not the canonical projection built by
+        # CanonicalRBAC.from_configs: two files yielding the same canonical model
+        # can therefore produce different hashes here.
         json_content = json.dumps(content, sort_keys=True)
         return hashlib.sha256(json_content.encode()).hexdigest()[:16]

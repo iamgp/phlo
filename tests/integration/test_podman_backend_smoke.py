@@ -1,3 +1,5 @@
+"""Opt-in Podman backend smoke test; requires PHLO_PODMAN_SMOKE=1 and a local podman."""
+
 from __future__ import annotations
 
 import os

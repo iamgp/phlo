@@ -1,3 +1,5 @@
+"""Tests for "phlo services status" rendering, including guidance when nothing is running."""
+
 from __future__ import annotations
 
 import json

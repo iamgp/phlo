@@ -807,6 +807,9 @@ def phlo_ingestion(
                 )
 
             except PanderaContractValidationError as exc:
+                # Emit the failed check before aborting: the generator must
+                # surface the check result so the orchestrator records the
+                # validation failure even though the run itself raises.
                 validation_schema = table_config.validation_schema
                 assert validation_schema is not None
                 query_or_sql = ",".join(

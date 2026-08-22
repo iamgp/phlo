@@ -134,6 +134,9 @@ def _type_matches(value: object, expected: str) -> bool:
     }.get(expected, True)
 
 
+# Implements exactly the JSON Schema keywords schema/v1.json uses. Unknown
+# keywords pass through unchecked; extend here before adding them to the
+# schema file.
 def _schema_errors(
     value: Any, schema: dict[str, Any], path: str = "$", root: dict[str, Any] | None = None
 ) -> list[str]:

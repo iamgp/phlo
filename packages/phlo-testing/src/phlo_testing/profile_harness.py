@@ -1320,6 +1320,8 @@ QualityResultEventEmitter(
 )
 """
         self.run_python(code, env_updates=emit_env, timeout=60)
+        # Give OpenMetadata's ingestion pipeline time to index the emitted
+        # events before querying them back.
         time.sleep(2)
 
         lineage = self._utils().openmetadata_get_with_fallback(
@@ -1602,6 +1604,10 @@ QualityResultEventEmitter(
             get_iceberg_settings.cache_clear()
             reset_catalog_cache()
             catalog = get_catalog(ref=ref)
+            # The catalog was built from container-oriented settings, so its
+            # file IO points at service names unreachable from the host. Patch
+            # the private hook to inject host-side S3 properties; restored in
+            # the finally block.
             original_load_file_io = catalog._load_file_io
 
             def load_host_file_io(

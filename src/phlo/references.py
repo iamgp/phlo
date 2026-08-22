@@ -86,6 +86,8 @@ def _resolve_logical_relation(
     registry: CapabilityRegistry | None,
     discover: bool,
 ) -> LogicalRelation:
+    # An asset_key with no registered AssetSpec resolves to an unresolved
+    # LogicalRelation instead of failing; render() then falls back to the bare key.
     capability_registry = registry or get_capability_registry()
     if discover:
         _discover_capabilities()

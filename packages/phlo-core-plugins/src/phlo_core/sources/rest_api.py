@@ -133,6 +133,9 @@ class RestAPIPlugin(SourceConnectorPlugin):
                     Defaults to empty dict.
                 - timeout (int, optional): Request timeout in seconds.
                     Defaults to 30.
+                - verify_tls (bool, optional): Passed to requests as ``verify``;
+                    set to False to skip certificate verification for self-signed
+                    endpoints. Defaults to True.
                 - records_path (str, optional): Dot-separated path to the records
                     within the JSON response. If not provided, assumes the response
                     is either a list of records or a single record object.

@@ -118,6 +118,8 @@ def collect_plan(repo_root: Path) -> dict[Lane, list[DependencyRefreshEntry]]:
     plan: dict[Lane, list[DependencyRefreshEntry]] = {"patch": [], "risk-managed": []}
     for lane, package_names in LANES.items():
         for package_name in package_names:
+            # Packages absent from every pyproject are dropped silently here;
+            # --check only fails when a whole lane comes back empty.
             manifest_files = sorted(manifests.get(package_name, []))
             if not manifest_files:
                 continue

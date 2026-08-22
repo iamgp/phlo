@@ -300,6 +300,9 @@ class NessieResource:
                 branch_name=name,
             )
             return False
+        # Nessie mutations are conditional on the branch hash read moments
+        # ago: if the branch moved in between, Nessie rejects the delete with
+        # a conflict instead of discarding commits we never saw.
         response = self._request(
             "DELETE",
             self._url(f"/api/v1/trees/branch/{name}"),

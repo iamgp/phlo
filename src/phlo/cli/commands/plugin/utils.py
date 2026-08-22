@@ -335,7 +335,11 @@ def version_tuple(version: str) -> tuple[int, object]:
 
 
 def is_version_newer(installed: str, available: str) -> bool:
-    """Check if available version is newer than installed."""
+    """Check if available version is newer than installed.
+
+    When either side is not parseable as a version, any difference counts as
+    an update so the user is still prompted to refresh.
+    """
     try:
         return parse(available) > parse(installed)
     except Exception:

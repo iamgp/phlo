@@ -1,3 +1,5 @@
+"""Tests that the support status JSON payload keeps its stable contract."""
+
 from __future__ import annotations
 
 import json

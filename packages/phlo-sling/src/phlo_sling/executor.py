@@ -145,6 +145,9 @@ class SlingIngester(BaseIngester):
             from sling import Sling
             from phlo_sling.connections import apply_sling_connection_env
 
+            # Connections must be in the environment before Sling resolves
+            # src_conn/tgt_conn names; auto-discovered values never overwrite
+            # variables that are already set.
             apply_sling_connection_env()
             sling_kwargs = self._build_sling_kwargs(partition_key)
             sling_config = Sling(**sling_kwargs)

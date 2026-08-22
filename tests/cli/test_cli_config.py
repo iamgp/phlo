@@ -1,3 +1,5 @@
+"""Tests for the "phlo config" CLI group."""
+
 from __future__ import annotations
 
 import yaml

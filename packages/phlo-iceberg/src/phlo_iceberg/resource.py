@@ -1228,6 +1228,9 @@ class IcebergResource:
                 },
             )
 
+        # Re-read metadata after checking the caller's token: the table may
+        # have advanced between planning and this point, and only a fresh
+        # read closes that window.
         current_snapshot_id, current_stats = self._compaction_metadata(table_name, branch)
         if current_snapshot_id != expected:
             return _blocked_compaction_result(
@@ -1460,6 +1463,9 @@ class IcebergResource:
             )
         refs_available = True
         refs: dict[str, int] = {}
+        # Enumerating refs is best-effort: a catalog that cannot list them
+        # marks the evidence unavailable, which makes execute mode refuse
+        # rather than risk expiring a snapshot a branch still points at.
         try:
             for name, snapshot_ref in table.refs().items():
                 snapshot_id = getattr(snapshot_ref, "snapshot_id", None)
@@ -1509,6 +1515,8 @@ class IcebergResource:
                                 candidate_paths[path] = size
                             else:
                                 retained_paths.add(path)
+                # Data files shared with any retained snapshot stay out of
+                # affected_bytes; deleting them would corrupt surviving snapshots.
                 unreferenced = set(candidate_paths) - retained_paths
                 sizes = [candidate_paths[path] for path in unreferenced]
                 if any(size is None for size in sizes):

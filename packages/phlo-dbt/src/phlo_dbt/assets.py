@@ -274,6 +274,9 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
 
         checks = [check for check in check_specs if check.asset_key == asset_key]
 
+        # Bind the model name and asset key via default arguments: a plain
+        # closure would capture the loop variable by reference and every spec
+        # would end up running whichever node was processed last.
         def _runner(
             runtime: RuntimeContext, model=model_name, key=asset_key
         ) -> list[MaterializeResult | CheckResult]:
