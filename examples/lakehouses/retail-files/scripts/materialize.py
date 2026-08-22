@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import duckdb
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 from workflows.ingestion.retail.files import (
     read_historical_archive,
     read_inventory,
@@ -15,6 +12,8 @@ from workflows.ingestion.retail.files import (
     read_sales,
 )
 from workflows.quality.retail import validate_retail
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def materialize(data: Path, database: Path) -> dict[str, float]:
@@ -27,18 +26,21 @@ def materialize(data: Path, database: Path) -> dict[str, float]:
     validate_retail(sales, products, stores, promotions, inventory)
     con = duckdb.connect(str(database))
     try:
+        con.execute("create schema if not exists raw")
         for name, frame in {
-            "raw_sales": pd_concat(sales, archive),
-            "raw_products": products,
-            "raw_stores": stores,
-            "raw_promotions": promotions,
-            "raw_inventory": inventory,
+            "retail_sales_lines": pd_concat(sales, archive),
+            "retail_products": products,
+            "retail_stores": stores,
+            "retail_promotions": promotions,
+            "retail_inventory": inventory,
         }.items():
             con.register("incoming", frame)
-            con.execute(f"create or replace table {name} as select * from incoming")
+            con.execute(f"create or replace table raw.{name} as select * from incoming")
         return dict(
             con.execute(
-                "select count(*) as row_count, sum(gross_amount) as gross, sum(discount_amount) as discount, sum(tax_amount) as tax, sum(net_amount) as net from raw_sales"
+                "select count(*) as row_count, sum(gross_amount) as gross, "
+                "sum(discount_amount) as discount, sum(tax_amount) as tax, "
+                "sum(net_amount) as net from raw.retail_sales_lines"
             )
             .fetchdf()
             .iloc[0]

@@ -107,7 +107,9 @@ def generate(data: Path, scale: str = "default") -> dict[str, int]:
                 observed_at = f"{partition}T23:00:00Z"
                 inventory_rows.append(
                     {
-                        "inventory_snapshot_id": f"I-{store['store_id']}-{product['product_id']}-{partition}",
+                        "inventory_snapshot_id": (
+                            f"I-{store['store_id']}-{product['product_id']}-{partition}"
+                        ),
                         "store_id": store["store_id"],
                         "product_id": product["product_id"],
                         "observed_at": observed_at,
@@ -154,4 +156,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scale", choices=SCALES, default="default")
     parser.add_argument("--data-dir", type=Path, default=ROOT / "generated-data")
-    print(generate(parser.parse_args().data_dir, parser.parse_args().scale))
+    args = parser.parse_args()
+    print(generate(args.data_dir, args.scale))
