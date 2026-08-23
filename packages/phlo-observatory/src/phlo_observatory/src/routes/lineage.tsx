@@ -893,14 +893,16 @@ function buildAssetNeighborhood(
   }
 
   const neighborhood = assets.filter((asset) => relatedIds.has(asset.id))
-  const nodes = neighborhood.map((asset): ObservatoryFlowNode => ({
-    id: asset.id,
-    label: asset.name,
-    kind: 'asset',
-    lane: assetLane(asset),
-    subtitle: asset.description,
-    metric: `${qualityCounts.get(asset.id) ?? asset.checks.length} checks · ${downstreamCounts.get(asset.id) ?? 0} down`,
-  }))
+  const nodes = neighborhood.map(
+    (asset): ObservatoryFlowNode => ({
+      id: asset.id,
+      label: asset.name,
+      kind: 'asset',
+      lane: assetLane(asset),
+      subtitle: asset.description,
+      metric: `${qualityCounts.get(asset.id) ?? asset.checks.length} checks · ${downstreamCounts.get(asset.id) ?? 0} down`,
+    }),
+  )
   const edges = neighborhood.flatMap((asset) => {
     const assetEdges: Array<ObservatoryFlowEdge> = []
     for (const dependency of asset.dependencies) {

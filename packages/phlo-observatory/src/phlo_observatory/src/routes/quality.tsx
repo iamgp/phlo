@@ -979,32 +979,38 @@ function buildQualityGraph(checks: Array<ObservatoryQualityCheck>): {
 } {
   const assetNodes = Array.from(
     new Set(checks.map((check) => check.asset_id)),
-  ).map((asset): ObservatoryFlowNode => ({
-    id: `asset:${asset}`,
-    label: qualityDatasetLabel(
-      checks.find((check) => check.asset_id === asset) ?? checks[0],
-      null,
-    ),
-    kind: 'asset',
-    lane: 'table',
-    selectId: checks.find((check) => check.asset_id === asset)?.id,
-    subtitle: 'protected dataset',
-  }))
+  ).map(
+    (asset): ObservatoryFlowNode => ({
+      id: `asset:${asset}`,
+      label: qualityDatasetLabel(
+        checks.find((check) => check.asset_id === asset) ?? checks[0],
+        null,
+      ),
+      kind: 'asset',
+      lane: 'table',
+      selectId: checks.find((check) => check.asset_id === asset)?.id,
+      subtitle: 'protected dataset',
+    }),
+  )
 
-  const checkNodes = checks.map((check): ObservatoryFlowNode => ({
-    id: check.id,
-    label: check.name,
-    kind: 'quality',
-    lane: 'quality',
-    subtitle: qualityDatasetLabel(check, null),
-    metric: `${check.severity ?? qualityStatusLabel(check)} · ${check.blocking ? 'blocking' : 'advisory'}`,
-  }))
+  const checkNodes = checks.map(
+    (check): ObservatoryFlowNode => ({
+      id: check.id,
+      label: check.name,
+      kind: 'quality',
+      lane: 'quality',
+      subtitle: qualityDatasetLabel(check, null),
+      metric: `${check.severity ?? qualityStatusLabel(check)} · ${check.blocking ? 'blocking' : 'advisory'}`,
+    }),
+  )
 
-  const edges = checks.map((check): ObservatoryFlowEdge => ({
-    id: `${check.asset_id}->${check.id}`,
-    source: `asset:${check.asset_id}`,
-    target: check.id,
-  }))
+  const edges = checks.map(
+    (check): ObservatoryFlowEdge => ({
+      id: `${check.asset_id}->${check.id}`,
+      source: `asset:${check.asset_id}`,
+      target: check.id,
+    }),
+  )
 
   return { nodes: [...assetNodes, ...checkNodes], edges }
 }

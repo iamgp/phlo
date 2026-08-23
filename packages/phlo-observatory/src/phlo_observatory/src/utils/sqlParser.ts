@@ -631,7 +631,12 @@ export function analyzeSQLTransformation(sql: string): SQLAnalysis {
  * Column priority type for smart matching
  */
 type ColumnPriority =
-  'primary_key' | 'id' | 'timestamp' | 'categorical' | 'numeric' | 'other'
+  | 'primary_key'
+  | 'id'
+  | 'timestamp'
+  | 'categorical'
+  | 'numeric'
+  | 'other'
 
 /**
  * Key column info for smarter row matching

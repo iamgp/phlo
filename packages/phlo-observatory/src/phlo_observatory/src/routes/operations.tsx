@@ -850,13 +850,15 @@ function wapOperationFlow(
     'branch'
   const sourceHash = textMetric(operation.metadata, 'source_hash')
   const targetHash = textMetric(operation.metadata, 'target_hash_after')
-  const tableNodes = tables.slice(0, 6).map((table): ObservatoryFlowNode => ({
-    id: `table:${table.id}`,
-    kind: 'table',
-    label: table.name,
-    lane: 'table',
-    metric: table.records ? `${table.records} rows` : undefined,
-  }))
+  const tableNodes = tables.slice(0, 6).map(
+    (table): ObservatoryFlowNode => ({
+      id: `table:${table.id}`,
+      kind: 'table',
+      label: table.name,
+      lane: 'table',
+      metric: table.records ? `${table.records} rows` : undefined,
+    }),
+  )
   const nodes: Array<ObservatoryFlowNode> = [
     {
       id: 'branch',

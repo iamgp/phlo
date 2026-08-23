@@ -394,7 +394,10 @@ export function getObservatoryRunRecords() {
 }
 
 export type ObservatoryRunReportErrorCode =
-  'access_denied' | 'not_found' | 'request_failed' | 'invalid_request'
+  | 'access_denied'
+  | 'not_found'
+  | 'request_failed'
+  | 'invalid_request'
 
 export type ObservatoryRunReportResult =
   ObservatoryResourceResult<ObservatoryRunReport> & {
