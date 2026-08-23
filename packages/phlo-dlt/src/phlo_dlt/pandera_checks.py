@@ -45,6 +45,34 @@ _PANDERA_INSTALL_HINT = (
 )
 
 
+def _dlt_normalization_hint(failure_cases: pd.DataFrame, schema: Any) -> str | None:
+    """Detect string-typed contract fields defeated by DLT's ISO-8601 staging.
+
+    DLT normalizes ISO-8601 strings to timestamps while staging to parquet, so
+    a contract field typed ``Series[str]`` fails pattern checks against
+    timestamp values. When that signature appears, return an actionable hint.
+    """
+    try:
+        hinted: set[str] = set()
+        for case in failure_cases.to_dict("records"):
+            column = case.get("column")
+            column_config = schema.columns.get(column) if column is not None else None
+            if column_config is None or "str" not in str(column_config.dtype).lower():
+                continue
+            failure_value = str(case.get("failure_case", ""))
+            if "00:00:00" in failure_value:
+                hinted.add(str(column))
+        if hinted:
+            return (
+                "Hint: DLT normalizes ISO-8601 source values to timestamps during "
+                f"staging; type {sorted(hinted)} as Series[datetime] (or coerce the "
+                "source before returning it)."
+            )
+    except Exception:  # noqa: BLE001 - hints are best-effort only
+        return None
+    return None
+
+
 def _pandera_schema_errors() -> type[Exception]:
     """Return Pandera's lazy validation exception class."""
     try:
@@ -280,12 +308,16 @@ def evaluate_pandera_contract(
     except _pandera_schema_errors() as err:
         failure_cases = getattr(err, "failure_cases")
         sample = failure_cases.head(20).to_dict(orient="records")
+        error_text = str(err)
+        hint = _dlt_normalization_hint(failure_cases, schema)
+        if hint:
+            error_text = f"{error_text} {hint}"
         return PanderaContractEvaluation(
             passed=False,
             failed_count=len(failure_cases),
             total_count=len(validated_df),
             sample=sample,
-            error=str(err),
+            error=error_text,
         )
     except Exception as exc:  # noqa: BLE001 - surface validation errors in check metadata
         return PanderaContractEvaluation(
