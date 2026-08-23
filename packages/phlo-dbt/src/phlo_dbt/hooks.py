@@ -14,6 +14,9 @@ Example:
     >>> if exit_code == 0:
     ...     print("Compilation successful")
 
+
+Invoked standalone during dbt service lifecycle operations rather than imported
+by other phlo modules; drives compilation through phlo.cli.infrastructure.
 """
 
 from __future__ import annotations

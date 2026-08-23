@@ -13,6 +13,9 @@ Example:
     >>> print(backends[0].name)
     'hasura'
 
+
+    Hasura resource provider, loaded via the phlo.plugins.resources entry point at startup.
+    Builds on phlo.capabilities and the phlo.plugins resource-provider interfaces.
 """
 
 from __future__ import annotations

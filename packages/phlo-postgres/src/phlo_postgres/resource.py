@@ -19,6 +19,9 @@ Example:
     ...     result = db.query_one("SELECT COUNT(*) FROM users")
     >>> db.close()
 
+
+Re-exported as PostgresResource from the phlo_postgres package root for
+publishing and operational writes across the platform.
 """
 
 from __future__ import annotations

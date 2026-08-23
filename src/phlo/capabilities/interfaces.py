@@ -4,6 +4,8 @@ Declares the Protocol contracts every provider-backed capability must satisfy
 (table stores, versioned catalogs, governance, authn/authz, orchestration,
 query engines, maintenance, lineage sinks) plus the neutral dataclasses
 exchanged across them.
+Imported by phlo-api (observatory lineage), phlo-dagster (framework definitions),
+and phlo-delta; builds its object inventory on phlo.capabilities.inventory.
 """
 
 from __future__ import annotations

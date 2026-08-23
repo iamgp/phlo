@@ -5,6 +5,9 @@ renders it as Prometheus exposition. Defines the shared operation lifecycle
 states, precondition/execution errors with failure-phase classification,
 and SAFE_MIN_RETENTION_HOURS as the floor destructive retention requests
 must respect (providers reject, not clamp).
+
+Imported by phlo.capabilities (re-exported via its __init__) and by observability;
+surfaces maintenance status to the CLI metrics command.
 """
 
 from __future__ import annotations

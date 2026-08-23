@@ -20,6 +20,9 @@ Example:
 Authorization is enforced when an authorization backend is configured.
 In strict mode, these endpoints fail closed if the backend is absent.
 
+
+Serves the Observatory API settings surface: builds on phlo.plugins.observatory_settings
+and the phlo-api authorization layer.
 """
 
 from __future__ import annotations

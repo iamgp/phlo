@@ -8,6 +8,8 @@ Sling-based data ingestion.
 Classes:
     SlingAssetProvider: Provides Sling replication assets to the Phlo runtime.
     SlingIngestionProvider: Provides Sling-based ingestion capabilities.
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Contributes Sling asset and ingestion providers plus wizard workflows via phlo.capabilities.specs.
 """
 
 from __future__ import annotations

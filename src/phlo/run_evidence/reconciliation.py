@@ -5,6 +5,8 @@ records only; a provider outage raises RunEvidenceUnavailable so no run
 state is ever changed on missing evidence. Evidence degradation uses max
 precedence (missing/expired/redacted override complete), and the reconciler
 commits decisions through one transactional store call.
+Imported across the phlo.run_evidence package (store, report) as its reconciliation core.
+Builds on phlo.run_evidence.models and redaction helpers.
 """
 
 from __future__ import annotations

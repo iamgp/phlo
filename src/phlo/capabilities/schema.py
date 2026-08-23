@@ -2,6 +2,7 @@
 
 Provides conservative (lowest-common-denominator) classification rules that
 storage providers can override via ``SchemaMigrator.classify_change``.
+Imported by the phlo CLI schema-registry command and phlo.schema_migration planning.
 """
 
 from __future__ import annotations

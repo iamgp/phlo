@@ -5,6 +5,9 @@ bundled local copy as fallback. A fallback result is cached like a remote
 success, so a transient network failure is not retried until the TTL
 expires. Entries are normalized into RegistryPlugin records for lookup and
 search.
+
+Imported across the system: the phlo API, the observatory package-install flow, and the plugin
+CLI commands (install/search/update) all go through it for remote plugin registry access.
 """
 
 from __future__ import annotations

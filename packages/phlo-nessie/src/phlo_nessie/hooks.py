@@ -14,6 +14,8 @@ Functions:
     init_branches: Ensure Nessie main/dev branches exist and are bootstrapped.
     main: CLI entrypoint for hooks execution.
 
+Invoked as a standalone hooks CLI by the Nessie Docker entrypoint rather than
+imported by other modules; builds on phlo.config.env and phlo.logging.
 """
 
 from __future__ import annotations

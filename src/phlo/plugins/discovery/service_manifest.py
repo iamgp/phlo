@@ -3,6 +3,8 @@
 Resolves a service's primary manifest and picks up sibling *-setup.yaml /
 *-daemon.yaml manifests beside the plugin source, skipping already-registered
 names; dependency resolution layers on top of the resolved manifests.
+Imported by phlo.plugins.discovery.services and the phlo CLI services commands
+(phlo.cli.commands.services.utils) to resolve service manifests.
 """
 
 from __future__ import annotations

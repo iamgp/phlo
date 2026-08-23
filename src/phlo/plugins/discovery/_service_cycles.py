@@ -3,6 +3,8 @@
 Finds closed cycles within a restricted node subset and deduplicates them
 via a canonical rotation/reflection signature, so each cycle is reported
 once regardless of start node or direction.
+Imported by phlo.plugins.discovery._service_dependency_resolution and services
+for cycle detection over resolved service dependency graphs.
 """
 
 from __future__ import annotations

@@ -3,6 +3,9 @@
 CapabilitySupport lets providers advertise optional behaviour without forcing
 every implementation to fake advanced semantics; coerce_capability_support
 normalises raw payloads or returns all-False defaults.
+
+Shared foundation of phlo.capabilities: resolver, specs, runtime, and plugin base all import it.
+Defines the CapabilitySupport contract and imports nothing else from phlo.
 """
 
 from __future__ import annotations

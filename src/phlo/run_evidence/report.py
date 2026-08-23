@@ -4,6 +4,9 @@ build_run_report projects exactly one store-read snapshot into typed report
 rows. Payloads are redacted, error text reduced to fingerprints, resource
 identities taken only from producer data, and terminal outcomes fail closed on
 any ambiguity instead of electing a winner.
+
+Imported by the observatory run-report API and re-exported through phlo.run_evidence; the
+system's canonical run-report builder, layering reconciliation and redaction primitives.
 """
 
 from __future__ import annotations

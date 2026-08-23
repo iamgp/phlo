@@ -18,6 +18,8 @@ Examples:
         ...     minio_root_password="secretpass"
         ... )
 
+
+Package-local settings module built on the shared phlo.config base and caching machinery.
 """
 
 from __future__ import annotations

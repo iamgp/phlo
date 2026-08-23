@@ -18,6 +18,9 @@ Example:
     >>> from phlo.plugins import discover_plugins
     >>> plugins = discover_plugins()
 
+
+    Trino plugin module; its resource and service plugins register via phlo plugin entry points.
+    Builds on phlo.capabilities.specs, the phlo.plugins interfaces, and phlo_trino internals.
 """
 
 from __future__ import annotations

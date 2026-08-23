@@ -11,6 +11,8 @@ Example:
     >>> len(catalogs)
     1
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than
+imported directly; registers its metadata catalog through phlo.capabilities.
 """
 
 from __future__ import annotations

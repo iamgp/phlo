@@ -3,6 +3,8 @@
 RuntimeRouting is the canonical routing record; ref, partition, and capability
 overrides are recovered from orchestrator tags using fixed key precedence so
 every capability resolves identical values from the same tag set.
+Imported by phlo-dagster (adapter), phlo-dlt (decorator/executor), and
+phlo-pandera; resolves routing identity via phlo._attempt and phlo._correlation.
 """
 
 from __future__ import annotations

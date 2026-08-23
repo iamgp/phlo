@@ -13,6 +13,9 @@ Example:
 Classes:
     NessieResourceProvider: Expose Nessie as capability provider.
 
+
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported
+directly; exposes Nessie as a capability resource provider.
 """
 
 from __future__ import annotations

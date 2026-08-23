@@ -11,6 +11,8 @@ Example:
     table = resource.get_table("raw.events")
     resource.append_parquet("raw.events", "/data/events.parquet")
 
+Table-store adapter boundary: implements the TableStoreSupport contract from
+phlo.capabilities.interfaces; no repository module imports it directly.
 """
 
 from __future__ import annotations

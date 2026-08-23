@@ -9,6 +9,7 @@ Example:
     settings = get_settings()
     storage_opts = settings.get_storage_options()
 
+Builds on phlo.config.base, phlo.config.cache, and phlo.config.network URL resolution.
 """
 
 from __future__ import annotations

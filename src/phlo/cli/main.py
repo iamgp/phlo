@@ -2,6 +2,8 @@
 Phlo CLI Main Entry Point
 
 Provides command-line interface for Phlo workflows.
+Entry module for the phlo console script; imported by the phlo-mcp server and
+covered extensively by the CLI and integration test suites.
 """
 
 import importlib.util

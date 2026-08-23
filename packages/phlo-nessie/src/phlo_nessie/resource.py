@@ -19,6 +19,9 @@ Attributes:
     _MAX_RETRIES: Maximum retry attempts for failed requests.
     _BACKOFF_SCHEDULE: Exponential backoff delays between retries.
 
+
+    Dagster resources for Nessie branch management; re-exported through the phlo_nessie package.
+    Builds on phlo.logging and phlo_nessie.settings.
 """
 
 from __future__ import annotations

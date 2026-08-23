@@ -4,6 +4,8 @@ Reads the local operations.jsonl audit log under .phlo/audit, filtered by
 operation and by an ISO-8601 timestamp or relative duration such as 15m or
 7d. Plain mode prints one JSON record per line; --json emits a single
 envelope with all matching records.
+
+Wired into the phlo CLI command tree by src/phlo/cli/main.py.
 """
 
 from __future__ import annotations

@@ -36,6 +36,8 @@ Environment Variables:
 See Also:
     phlo.config.base.BaseConfig for the base configuration class.
 
+
+Package-local settings module built on the shared phlo.config base and caching machinery.
 """
 
 from __future__ import annotations

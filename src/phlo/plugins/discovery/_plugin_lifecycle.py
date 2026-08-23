@@ -3,6 +3,7 @@
 Replacement ordering guarantee: the incoming plugin initializes before the
 existing one is cleaned up, and any failure path re-raises with the registry
 never left holding a half-initialized plugin.
+Imported by phlo.plugins.discovery._plugin_loading to register plugins with lifecycle safety.
 """
 
 from __future__ import annotations

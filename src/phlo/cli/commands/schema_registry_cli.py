@@ -3,6 +3,7 @@
 Implements the ``contracts`` group: snapshot a JSON schema into the
 registry and check a table's schema compatibility against its previous
 snapshot, exiting non-zero when compatibility fails.
+Imported by the phlo CLI main entry point, which mounts the contracts command group.
 """
 
 from __future__ import annotations

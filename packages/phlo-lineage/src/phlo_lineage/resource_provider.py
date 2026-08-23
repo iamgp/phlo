@@ -17,6 +17,9 @@ Example:
     >>> sink = get_lineage_sink("phlo-lineage")
     >>> sink.record_asset_edges([("bronze.orders", "silver.stg_orders")])
 
+
+    Lineage resource provider, loaded via the phlo.plugins.resources entry point at startup.
+    Exposes the phlo_lineage lineage sink to phlo through phlo.capabilities.
 """
 
 from __future__ import annotations

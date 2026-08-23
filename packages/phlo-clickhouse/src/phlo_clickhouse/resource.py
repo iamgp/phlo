@@ -12,6 +12,9 @@ Example:
     >>> resource.execute("SELECT 1")
     [[1]]
 
+
+Re-exported as ClickHouseResource from the phlo_clickhouse package root; builds
+on the capability contracts in phlo.capabilities.
 """
 
 from __future__ import annotations

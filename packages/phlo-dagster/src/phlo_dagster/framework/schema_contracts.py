@@ -29,6 +29,8 @@ Example:
         phlo materialize my_asset
         # Contracts will be refreshed before materialization
 
+Sits at the materialization boundary: refreshes contracts ahead of asset runs,
+building on phlo.cli.commands.schema_migrate, with no other module importing it.
 """
 
 from __future__ import annotations

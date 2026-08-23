@@ -35,6 +35,9 @@ See Also:
     phlo_minio.settings: Configuration management for MinIO connections.
     phlo.plugins: Phlo plugin framework interfaces.
 
+
+    MinIO plugin module; its resource and service plugins register via phlo plugin entry points.
+    Builds on phlo.capabilities, the phlo.plugins interfaces, and phlo_minio.settings.
 """
 
 from __future__ import annotations

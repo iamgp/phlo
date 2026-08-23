@@ -2,6 +2,9 @@
 
 Read-only wrappers around list/get/info/validation; none of these trigger
 discovery, so callers populate the registry first.
+
+Private discovery helper imported by the phlo.plugins.discovery package init; wraps the plugin
+registry with read-only list/get/info/validation queries built on phlo.plugins.base.
 """
 
 from __future__ import annotations

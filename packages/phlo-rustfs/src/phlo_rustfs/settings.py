@@ -9,6 +9,9 @@ Classes:
 
 Functions:
     get_settings: Returns a cached RustfsSettings instance.
+
+    Settings for the RustFS object store, built on the shared phlo.config base/cache/network helpers.
+    Loaded within phlo_rustfs by plugin code through get_settings().
 """
 
 from __future__ import annotations

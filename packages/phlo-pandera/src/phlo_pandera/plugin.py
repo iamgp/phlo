@@ -43,6 +43,9 @@ See Also:
     - ``checks.py``: Core quality check classes
     - ``reconciliation.py``: Cross-table reconciliation checks
 
+
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported
+directly; contributes the Pandera quality and schema-discovery providers.
 """
 
 from __future__ import annotations

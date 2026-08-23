@@ -4,6 +4,9 @@ A single SQL implementation backs both backends; SQLite serves local
 development, PostgreSQL production. Reusing an event identity with different
 content raises IdempotencyConflict. Payloads are redacted and resource
 identity checksummed for tamper evidence; migrations verify their checksums.
+
+Backing store for run evidence: imported by phlo-api observatory endpoints and
+reconciliation callers.
 """
 
 from __future__ import annotations

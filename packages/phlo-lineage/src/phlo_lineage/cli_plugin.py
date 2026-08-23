@@ -2,6 +2,8 @@
 
 LineageCliPlugin is built via cli_command_plugin_class so plugin discovery
 exposes the lineage commands through the phlo CLI.
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Exposes the phlo_lineage.cli_lineage command group through phlo.plugins.base.
 """
 
 from __future__ import annotations

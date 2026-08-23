@@ -17,6 +17,8 @@ Example:
     >>> print(dsn)
     trino://trino:10005/iceberg
 
+Part of the phlo-trino package's configuration layer, built on the shared phlo.config base,
+cache, and network host-resolution helpers.
 """
 
 from __future__ import annotations

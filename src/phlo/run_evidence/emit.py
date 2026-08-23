@@ -3,6 +3,9 @@
 Observation ids hash identity parts so identical observations dedupe downstream
 across retries and processes. Emission sits outside provider control flow: sink
 failures are logged and contained at this boundary, never propagated.
+
+Emission boundary used across the run_evidence package and exercised by the
+observability test suite.
 """
 
 from __future__ import annotations

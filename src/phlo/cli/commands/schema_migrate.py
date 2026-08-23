@@ -2,6 +2,9 @@
 
 Provides commands to diff, plan, apply, and inspect schema migrations
 between quality provider schemas and storage tables.
+
+Imported by phlo.cli.main and by phlo_dagster's schema-contract framework.
+Builds migrations on phlo.schema_migration planning and phlo.capabilities.discovery.
 """
 
 from __future__ import annotations

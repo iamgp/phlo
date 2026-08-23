@@ -3,6 +3,9 @@
 Subcommands validate and run migration specs (with dry-run override and
 recorded execution history), list specs, report status, and run the dated
 codemod that rewrites flow decorators.
+
+Wired into the phlo CLI command tree by src/phlo/cli/main.py; runs migrations
+through phlo.migrations.
 """
 
 from __future__ import annotations

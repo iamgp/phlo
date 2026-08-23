@@ -4,6 +4,8 @@ Plugins are keyed family:name; families must be canonical and names are
 unique within a family (replace=False rejects collisions). clear()
 invokes each plugin's cleanup exactly once. A process-wide singleton is
 exposed via get_global_registry, with reset_global_registry for tests.
+Core of the phlo.plugins.discovery package: imported by its lifecycle, query,
+service-loading, and manifest modules; hosts the global PluginRegistry singleton.
 """
 
 from __future__ import annotations

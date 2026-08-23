@@ -45,6 +45,8 @@ Example:
 
         path = get_workflows_path_from_config()
 
+Sits in the phlo-dagster framework layer, building on phlo.capabilities.discovery and
+phlo.plugins.discovery to turn user workflow modules into Dagster definitions.
 """
 
 from __future__ import annotations

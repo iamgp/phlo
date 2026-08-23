@@ -27,6 +27,9 @@ See Also:
     phlo.plugins.observatory for the extension plugin interface.
     phlo_lineage.graph for graph construction logic.
 
+
+Loaded through the Observatory extension entry points at UI startup rather
+than imported directly by other phlo modules.
 """
 
 from __future__ import annotations

@@ -10,6 +10,8 @@ Example:
     >>> print(settings.nessie_uri())
     'http://nessie:19120/api'
 
+Part of the phlo-nessie package's configuration layer, built on the shared phlo.config base,
+cache, and network host-resolution helpers.
 """
 
 from __future__ import annotations

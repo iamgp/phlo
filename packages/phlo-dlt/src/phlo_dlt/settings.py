@@ -28,6 +28,8 @@ Example:
     print(settings.dlt_default_namespace)  # "raw"
     ```
 
+
+Package-local settings module built on the shared phlo.config base and caching machinery.
 """
 
 from __future__ import annotations

@@ -41,6 +41,8 @@ Example:
         wap_defs = get_wap_definitions()
         defs = dg.Definitions.merge(your_defs, wap_defs)
 
+Builds on the phlo capability resolver, hooks bus, and run-evidence store to drive WAP
+promotion and cleanup sensors against versioned catalogs.
 """
 
 from __future__ import annotations

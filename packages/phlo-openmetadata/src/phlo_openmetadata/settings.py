@@ -9,6 +9,7 @@ Example:
     >>> settings.openmetadata_uri()
     'http://openmetadata-server:8585/api'
 
+Builds on phlo.config.* and resolves query-engine mappings via phlo_openmetadata.capabilities.
 """
 
 from __future__ import annotations

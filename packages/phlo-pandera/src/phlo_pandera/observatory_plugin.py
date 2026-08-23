@@ -21,6 +21,9 @@ See Also:
     - Observatory extension system documentation
     - ``phlo_observatory`` package for the base extension framework
 
+
+    Pandera observatory extension, loaded via the phlo.plugins.observatory entry point at startup.
+    Builds on the phlo.plugins.observatory extension interfaces.
 """
 
 from __future__ import annotations

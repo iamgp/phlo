@@ -5,6 +5,9 @@ when a services_dir is given, extra service.yaml files; results are
 cached per instance until refresh=True. Dependency cycles are rejected
 via shared cycle detection, and manifest errors surface as
 ServiceManifestError.
+
+Imported by phlo.plugins.discovery (its public facade) and by the CLI services
+command utilities.
 """
 
 from pathlib import Path

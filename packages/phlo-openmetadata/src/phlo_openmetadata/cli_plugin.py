@@ -2,6 +2,8 @@
 
 Wraps the openmetadata click group as a discoverable CLI command plugin; this
 file carries registration metadata only.
+
+Loaded through the phlo plugins.cli entry point at startup rather than imported directly.
 """
 
 from __future__ import annotations

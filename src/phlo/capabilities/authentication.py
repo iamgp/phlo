@@ -4,6 +4,8 @@ Provides static, reverse-proxy, service-token, and JWT providers. Each loads
 its configuration from environment variables first, falling back to
 phlo.yaml; register_default_capability_providers activates a provider only
 when it is explicitly enabled in configuration.
+Imported by the phlo capabilities layer (phlo.capabilities.discovery) and phlo.security.
+Registers default providers into the phlo.capabilities registry at activation time.
 """
 
 from __future__ import annotations

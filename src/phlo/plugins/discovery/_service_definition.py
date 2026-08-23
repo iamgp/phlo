@@ -3,6 +3,9 @@
 ServiceDefinition loads from service.yaml files, dictionaries, or inline
 phlo.yaml config. A declared source_path resolves relative to the phlo package
 tree; an undeclared one defaults to the definition's own directory.
+
+Imported by service loading and discovery modules and by the CLI services
+command utilities.
 """
 
 from __future__ import annotations

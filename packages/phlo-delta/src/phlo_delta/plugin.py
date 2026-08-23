@@ -9,6 +9,8 @@ Example:
     provider = DeltaResourceProvider()
     resources = provider.get_resources()
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Registers Delta Lake table-store and schema-migration capabilities through phlo.capabilities.
 """
 
 from __future__ import annotations

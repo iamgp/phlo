@@ -21,6 +21,8 @@ See Also:
     phlo.plugins.observatory: Base classes and interfaces for Observatory extensions.
     phlo_observatory_example.observatory_assets: Bundled static assets.
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Reference implementation built on the phlo.plugins.observatory extension API.
 """
 
 from __future__ import annotations

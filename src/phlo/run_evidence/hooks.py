@@ -5,6 +5,8 @@ in the run-evidence store. Persistence is observational: failures are
 logged, never raised, and events without a complete (project_id,
 run_id) correlation are intentionally skipped rather than persisted
 under partial keys.
+Imported by the phlo hooks bus and the phlo.run_evidence package as the core sink that records
+lifecycle events through phlo.plugins.hooks.
 """
 
 from __future__ import annotations

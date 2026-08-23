@@ -16,6 +16,9 @@ Example:
     >>> transform_provider = DbtTransformationProvider()
     >>> cli_plugin = transform_provider.get_cli_plugin()
 
+
+    dbt plugin module; its asset and transformation providers register via phlo plugin entry points.
+    Builds on phlo.capabilities.specs and the phlo.plugins.base plugin interfaces.
 """
 
 from __future__ import annotations

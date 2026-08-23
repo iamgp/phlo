@@ -2,6 +2,8 @@
 
 Declares the core Nessie catalog service plugin through the shared service
 plugin factory; the module carries metadata only.
+
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
 """
 
 from __future__ import annotations

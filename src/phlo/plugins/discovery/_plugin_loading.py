@@ -4,6 +4,9 @@ Scans entry-point groups by plugin type, applies the configured
 blacklist/whitelist, and validates each loaded object against its
 expected type. In strict mode load failures raise PluginDiscoveryError;
 otherwise they are recorded to the failure sink or logged.
+
+Imported by the phlo.plugins.discovery internals: the package __init__,
+auto-discovery, service loading, and the manifest resolver.
 """
 
 from __future__ import annotations

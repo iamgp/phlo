@@ -31,6 +31,8 @@ Example:
         export PHLO_ICEBERG_S3_ACCESS_KEY=mykey
         export PHLO_ICEBERG_S3_SECRET_KEY=mysecret
 
+Package configuration boundary, building on phlo.config.base, phlo.config.cache,
+and phlo.config.network; consumed through get_settings() rather than imported widely.
 """
 
 from __future__ import annotations

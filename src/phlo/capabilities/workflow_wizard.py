@@ -4,6 +4,8 @@ Dataclasses describing wizard stages, contributions, fields, proposals, and
 apply actions, with to_browser_dict() serializers that strip sensitive keys
 (_SENSITIVE_KEY_PARTS) before anything reaches the browser. Also provides
 proposal request validation and file-conflict detection against disk state.
+Surfaced through the phlo.capabilities package root and exercised by plugin
+contract tests; defines browser-safe wizard contracts with no phlo imports.
 """
 
 from __future__ import annotations

@@ -38,6 +38,9 @@ Example:
         PHLO_DAGSTER_PORT=3000
         PHLO_WORKFLOWS_PATH=./custom_workflows
 
+
+        Settings for the phlo_dagster workflows package, built on the shared phlo.config base/cache helpers.
+        Loaded within phlo_dagster by framework and CLI-log code through get_settings().
 """
 
 from __future__ import annotations

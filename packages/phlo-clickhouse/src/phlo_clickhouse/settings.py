@@ -11,6 +11,9 @@ Example:
     >>> settings.clickhouse_host
     'clickhouse'
 
+
+    Service settings for ClickHouse, built on the shared phlo.config base/cache/network helpers.
+    Loaded within phlo_clickhouse by plugin and resource code through get_settings().
 """
 
 from __future__ import annotations

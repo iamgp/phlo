@@ -11,6 +11,8 @@ Examples:
         >>> plugins = discover_plugins()
         >>> # AlertingResourceProvider is registered automatically
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than
+imported directly; registers its alert sink through phlo.capabilities.
 """
 
 from __future__ import annotations

@@ -2,6 +2,9 @@
 
 This module provides the settings infrastructure for the Observatory UI package,
 including database connection configuration for persistent settings storage.
+
+Settings for the Observatory UI package, built on the shared phlo.config base/cache helpers.
+Loaded within phlo_observatory (settings service and package init) through get_settings().
 """
 
 from __future__ import annotations

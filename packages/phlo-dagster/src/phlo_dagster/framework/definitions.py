@@ -51,6 +51,9 @@ Example:
 
         defs = build_definitions(workflows_path="custom_workflows")
 
+
+Core assembly point of the phlo-dagster framework: combines asset discovery, schema
+contracts, asset diagnostics, and capability resolution.
 """
 
 from __future__ import annotations

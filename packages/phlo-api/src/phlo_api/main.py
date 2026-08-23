@@ -15,6 +15,9 @@ Environment Variables:
     HOST: API server bind address (default: "0.0.0.0").
     PORT: API server port (default: 4000).
     PHLO_PROJECT_PATH: Path to the phlo project directory (default: "/app/project").
+
+    API server entrypoint: launched via uvicorn as phlo_api.main:app rather than imported directly.
+    Wires phlo.capabilities, plugin discovery, registry client, and run evidence into one FastAPI app.
 """
 
 from __future__ import annotations

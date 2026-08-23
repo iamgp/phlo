@@ -15,6 +15,8 @@ Example:
     >>> print(schemas)
     ['public', 'marts', 'staging']
 
+Run as a standalone module (python -m phlo_postgrest.hooks) for schema auto-configuration rather
+than imported directly; builds on phlo.infrastructure.config and phlo.logging.
 """
 
 from __future__ import annotations

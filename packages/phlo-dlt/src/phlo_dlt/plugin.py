@@ -37,6 +37,9 @@ Example:
     assets = phlo.ingestion.get_ingestion_assets()
     ```
 
+
+    dlt plugin module; its asset and ingestion providers register via phlo plugin entry points.
+    Builds on phlo.capabilities.specs and the phlo.plugins.base plugin interfaces.
 """
 
 from __future__ import annotations

@@ -30,6 +30,8 @@ Example:
         [phlo.plugins.observatory]
         dagster = phlo_dagster.observatory_plugin:DagsterObservatoryExtension
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Contributes a lineage UI extension to phlo.plugins.observatory.
 """
 
 from __future__ import annotations

@@ -15,6 +15,8 @@ Example:
     >>> plugin = DbtCliPlugin()
     >>> commands = plugin.get_cli_commands()
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Composes dbt commands from phlo.cli infrastructure/output helpers and phlo.plugins.base.
 """
 
 from __future__ import annotations

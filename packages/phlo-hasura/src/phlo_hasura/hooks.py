@@ -15,6 +15,7 @@ Functions:
     track_tables: Auto-track tables in the specified schema(s).
     _load_env_files: Load environment variables from .phlo/.env files.
 
+Logs through phlo.logging and performs table tracking via phlo_hasura.track.
 """
 
 from __future__ import annotations

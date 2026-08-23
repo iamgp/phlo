@@ -10,6 +10,9 @@ Example:
     >>> print(f"Superset available at port {settings.superset_port}")
     'Superset available at port 10007'
 
+
+    Settings for the Superset BI service, built on the shared phlo.config base/cache helpers.
+    Loaded within phlo_superset (hooks and package init) through get_settings().
 """
 
 from __future__ import annotations

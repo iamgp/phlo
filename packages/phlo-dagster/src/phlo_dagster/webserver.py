@@ -4,6 +4,8 @@ Every inherited Dagster HTTP route must be classified at startup; an
 unclassified route fails startup rather than bypassing auth. GraphQL passes a
 mandatory authorization middleware and graphql-ws connections authenticate at
 connection_init; the secured class is patched into dagster_webserver.app.
+Runnable process entrypoint rather than a library import; discovers capabilities
+through phlo.capabilities.discovery and enforces phlo.rbac.models/phlo.security policy.
 """
 
 from __future__ import annotations

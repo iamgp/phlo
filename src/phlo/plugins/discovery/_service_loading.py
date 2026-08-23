@@ -3,6 +3,8 @@
 Definitions merge into one dict keyed by service name: already-present names
 win over plugin-provided ones, and invalid definitions are logged as warnings
 and skipped instead of aborting discovery.
+Imported by sibling phlo.plugins.discovery modules (services, service_manifest) and the plugin
+check CLI command.
 """
 
 from __future__ import annotations

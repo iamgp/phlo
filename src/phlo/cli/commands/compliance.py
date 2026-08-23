@@ -2,6 +2,8 @@
 
 ``export-evidence`` bundles audit records and signatures into a signed pack;
 ``verify-evidence`` re-checks pack integrity. Both exit nonzero on failure.
+
+Wired into the phlo CLI main as the compliance command group.
 """
 
 from __future__ import annotations

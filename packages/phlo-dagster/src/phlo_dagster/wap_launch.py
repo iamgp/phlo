@@ -3,6 +3,9 @@
 Prepares an isolated WAP branch and tags before Dagster starts work, then keeps
 content-addressed launch manifests and lifecycle reports under .phlo/wap-reports
 so promotion binds to the exact audited launch.
+
+Part of phlo-dagster's WAP tooling alongside wap_sensors: runs on the launch path before
+Dagster work begins.
 """
 
 from __future__ import annotations

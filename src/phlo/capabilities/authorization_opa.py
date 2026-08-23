@@ -8,6 +8,9 @@ Usage:
     1. Start OPA: docker run -p 8181:8181 openpolicyagent/opa run --server
     2. Configure PHLO_OPA_URL=http://localhost:8181 in .phlo/.env
     3. Register this provider via plugin or direct registration
+
+    OPA-backed authorization policy backend built on phlo.capabilities.interfaces and support.
+    Currently imported only by tests/security/test_authorization_opa.py.
 """
 
 from __future__ import annotations

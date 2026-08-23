@@ -3,6 +3,9 @@
 Resolves public URLs for dashboards, logs, metrics, and query endpoints from
 environment overrides with service-discovery fallbacks, and registers these
 default providers when no plugin supplies its own.
+
+Imported by the phlo.capabilities package (init and discovery); part of the core capabilities layer.
+Registers default observability URL providers built on the capabilities registry and specs.
 """
 
 from __future__ import annotations

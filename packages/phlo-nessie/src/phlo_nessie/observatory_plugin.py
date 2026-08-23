@@ -18,6 +18,8 @@ Classes:
 Attributes:
     VERSION: Extension version string.
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Contributes a branches UI extension to phlo.plugins.observatory.
 """
 
 from __future__ import annotations

@@ -10,6 +10,8 @@ Classes:
 
 Functions:
     get_settings: Returns a cached instance of SlingSettings.
+Package configuration boundary, building on phlo.config.base and phlo.config.cache;
+consumed through get_settings() at runtime.
 """
 
 from __future__ import annotations

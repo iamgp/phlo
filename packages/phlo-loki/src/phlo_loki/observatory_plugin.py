@@ -13,6 +13,8 @@ Example:
 Attributes:
     LokiObservatoryExtension: Observatory extension class for log visualization.
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly;
+the Observatory auto-discovers this extension via phlo.plugins.
 """
 
 from __future__ import annotations

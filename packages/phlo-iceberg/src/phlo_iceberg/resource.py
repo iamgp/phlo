@@ -44,6 +44,8 @@ Example:
             }
         )
 
+Builds on phlo.capabilities interfaces and the phlo_iceberg catalog/tables modules to expose
+Iceberg table operations as a Dagster-ready resource.
 """
 
 from collections.abc import Sequence

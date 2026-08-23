@@ -13,6 +13,9 @@ Classes:
 
 Functions:
     _load_service_definition: Loads YAML service definitions from package resources.
+
+Loaded through the phlo plugin entry-point mechanism at startup rather than
+imported directly; exposes S3 object-store capabilities via phlo.capabilities.
 """
 
 from __future__ import annotations

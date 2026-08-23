@@ -20,6 +20,8 @@ Example:
     >>> results = trino.execute("SELECT * FROM iceberg.my_schema.my_table")
     >>> trino.wait_ready(timeout=30.0)
 
+
+Implements the Trino capability resource; nothing outside this package imports it.
 """
 
 from __future__ import annotations

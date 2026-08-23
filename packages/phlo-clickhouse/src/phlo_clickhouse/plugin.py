@@ -11,6 +11,8 @@ Example:
     >>> plugin.metadata.name
     'clickhouse'
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Publishes ClickHouse capability specs through phlo.capabilities and phlo.plugins.
 """
 
 from __future__ import annotations

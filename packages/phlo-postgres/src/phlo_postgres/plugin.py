@@ -12,6 +12,8 @@ Example:
     postgres
     >>> definition = plugin.service_definition
 
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported directly.
+Publishes PostgreSQL resource and publish-target specs through phlo.capabilities.
 """
 
 from __future__ import annotations

@@ -2,6 +2,8 @@
 
 Shields callers from entry_points() signature drift across supported Python
 versions by normalizing group filtering behind one function.
+
+Shared entry-point scanning helper used across plugin discovery and the CLI.
 """
 
 from __future__ import annotations

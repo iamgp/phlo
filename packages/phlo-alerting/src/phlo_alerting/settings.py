@@ -29,6 +29,7 @@ Environment Variables:
     PHLO_ALERT_EMAIL_SMTP_PASSWORD: SMTP password.
     PHLO_ALERT_EMAIL_RECIPIENTS: Comma-separated list of email recipients.
 
+Builds on phlo.config.base and phlo.config.cache for project-root-cached settings access.
 """
 
 from __future__ import annotations

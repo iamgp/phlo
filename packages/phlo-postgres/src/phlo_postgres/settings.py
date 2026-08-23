@@ -11,6 +11,9 @@ Example:
     >>> print(conn_str)
     postgresql://phlo:phlo@postgres:5432/phlo
 
+
+    Settings for the PostgreSQL service, built on the shared phlo.config base/cache/network helpers.
+    Loaded lazily via get_settings(); phlo_sling pulls its Postgres connection settings at runtime.
 """
 
 from __future__ import annotations

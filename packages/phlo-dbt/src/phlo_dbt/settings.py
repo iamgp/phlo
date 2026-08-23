@@ -13,6 +13,8 @@ Example:
     >>> # Create custom settings
     >>> custom = DbtSettings(dbt_query_catalog="analytics", dbt_query_threads=8)
 
+
+Package-local settings module built on the shared phlo.config base and caching machinery.
 """
 
 from __future__ import annotations

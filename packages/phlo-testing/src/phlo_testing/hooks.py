@@ -11,6 +11,9 @@ Example:
     >>> bus.emit(sample_ingestion_event())
     >>> assert len(captured.events) == 1
 
+
+Contributes hook handlers through the phlo.plugins.hooks extension surface rather than
+direct import.
 """
 
 from __future__ import annotations

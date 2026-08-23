@@ -2,6 +2,8 @@
 
 ClickStackResourceProvider registers under the "clickstack" name and reports
 ClickStack as an observability backend; it declares no standalone resources.
+Loaded through the phlo plugin entry-point mechanism at startup rather than
+imported directly; declares ClickStack as an observability backend via phlo.plugins.
 """
 
 from __future__ import annotations

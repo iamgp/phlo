@@ -16,6 +16,9 @@ Example:
     >>> print(ext.manifest.name)
     trino
 
+
+Loaded through the Observatory extension entry points at UI startup rather
+than imported directly by other phlo modules.
 """
 
 from __future__ import annotations

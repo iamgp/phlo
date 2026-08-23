@@ -4,6 +4,8 @@ Versioned dataclasses for runs, events, stages, resources, lineage edges,
 quality results, catalog changes, and artifacts. Every record carries
 project/run/attempt identity plus a validated resource_ref, and __post_init__
 rejects non-positive attempt numbers.
+Data-model core of phlo.run_evidence, imported by its hooks, reconciliation, and
+store modules; derives ResourceRef from phlo.capabilities.interfaces.
 """
 
 from __future__ import annotations

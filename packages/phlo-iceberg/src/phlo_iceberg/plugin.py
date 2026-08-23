@@ -32,6 +32,9 @@ Example:
         migrator = get_resource("schema_migrator", name="iceberg")
         plan = migrator.diff_schema(table_name="raw.users", desired=schema)
 
+
+Loaded through the phlo plugin entry-point mechanism at startup rather than imported
+directly; registers IcebergResourceProvider through phlo.capabilities and phlo.plugins.
 """
 
 from phlo.capabilities import CapabilitySupport, ResourceSpec, SchemaMigrationSpec, TableStoreSpec

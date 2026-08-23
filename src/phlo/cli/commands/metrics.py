@@ -5,6 +5,8 @@ metrics collector, plus export to JSON, CSV, or Prometheus text.
 Every command accepts --json for stable machine-readable output;
 period strings (24h/7d/2w) are parsed to hours with a documented
 fallback for unknown suffixes.
+Imported by the phlo CLI main (src/phlo/cli/main.py) to expose metric commands.
+Surfaces phlo.metrics collector data and phlo.capabilities.maintenance rendering.
 """
 
 from __future__ import annotations

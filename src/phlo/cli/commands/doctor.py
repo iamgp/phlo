@@ -5,6 +5,7 @@ discovery, ports, live services) that each yield a DiagnosticResult with
 ok/warn/fail/skip status and an optional fix hint; individual probe
 failures are captured, never fatal. Output renders as a table or JSON,
 and diagnostics run with stdout silenced to keep CLI output clean.
+Imported by the phlo CLI main entry point and exposed to phlo-api's authoring endpoints.
 """
 
 from __future__ import annotations
