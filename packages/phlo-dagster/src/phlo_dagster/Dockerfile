@@ -23,11 +23,11 @@ ARG PHLO_WHEELHOUSE=""
 # wheels on glibc, so source builds are not expected in this image.
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
-        bash \
-        ca-certificates \
-        curl \
-        git \
-        gosu \
+        bash=5.2.37-2+b9 \
+        ca-certificates=20250419 \
+        curl=8.14.1-2+deb13u4 \
+        git=1:2.47.3-0+deb13u1 \
+        gosu=1.17-3+b4 \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir "uv==0.12.5"
 

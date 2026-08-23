@@ -27,8 +27,9 @@ def test_dagster_runtime_image_installs_prerelease_phlo_with_postgres_driver() -
         '"$PHLO_DAGSTER_REQUIREMENT" "PyJWT[crypto]>=2.13.0" "cryptography>=48.0.1"' in dockerfile
     )
     assert 'pip install --no-cache-dir "uv==0.12.5"' in dockerfile
-    assert "apt-get install --yes --no-install-recommends" in dockerfile
-    assert "gosu" in dockerfile
+    assert ("apt-get install --yes --no-install-recommends \\\n") in dockerfile
+    assert "gosu=1.17-3+b4" in dockerfile
+    assert "bash=5.2.37-2+b9" in dockerfile
 
 
 def test_dagster_runtime_image_is_glibc_based_for_external_binaries() -> None:
