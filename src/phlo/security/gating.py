@@ -206,7 +206,7 @@ def is_write_restricted(service_name: str, regulated: bool | None = None) -> boo
 
     Write-restricted services (hasura, postgrest) must operate in read-only
     mode unless the operator explicitly opts in via phlo.yaml
-    surfaces.<service>.allow_writes. Defaults to is_regulated() when
+    ``surfaces.<service>.allow_writes``. Defaults to is_regulated() when
     regulated is not supplied.
     """
     if regulated is None:

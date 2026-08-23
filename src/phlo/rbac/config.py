@@ -1,8 +1,8 @@
 """Configuration loader for canonical RBAC files.
 
 RBACConfigLoader reads roles.yaml and policies.yaml from
-<base>/authorization/ (default .phlo in the cwd), validates them through the
-CanonicalRBAC model, and exposes compute_version_hash() for sync drift
+``<base>/authorization/`` (default .phlo in the cwd), validates them through
+the CanonicalRBAC model, and exposes compute_version_hash() for sync drift
 detection. The hash covers raw parsed YAML, so two files projecting to the
 same canonical model can still hash differently.
 """
@@ -25,7 +25,7 @@ class RBACConfigLoader:
     def __init__(self, base_path: Path | None = None):
         """Initialize the loader rooted at base_path (default .phlo in the cwd).
 
-        Config files live under <base>/authorization/.
+        Config files live under ``<base>/authorization/``.
         """
         self._base_path = base_path or Path.cwd() / ".phlo"
 

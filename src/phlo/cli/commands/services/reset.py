@@ -1,4 +1,4 @@
-"""`phlo services reset` command.
+"""Reset data volumes via the `phlo services reset` command.
 
 Stops compose services and deletes their data volumes after confirmation.
 Selective resets resolve and validate each service volume path against the

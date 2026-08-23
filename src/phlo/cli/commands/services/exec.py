@@ -1,4 +1,4 @@
-"""``phlo services exec`` command.
+"""Run the ``phlo services exec`` command.
 
 Runs an arbitrary command inside a running service container via the compose
 backend. Treated as a mutation: the command passes through mutation
