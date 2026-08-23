@@ -28,4 +28,5 @@ TrinoCliSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_trino_cli_adapter() -> CliSurfaceAdapter:
+    """Return the shared Trino CLI surface adapter instance."""
     return TrinoCliSurfaceAdapter.get_instance()

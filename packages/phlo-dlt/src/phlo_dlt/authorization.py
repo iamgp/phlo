@@ -29,4 +29,5 @@ DltSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_dlt_adapter() -> CliSurfaceAdapter:
+    """Return the shared phlo-dlt CLI authorization adapter instance."""
     return DltSurfaceAdapter.get_instance()

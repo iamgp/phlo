@@ -20,6 +20,8 @@ BackendName = Literal["docker", "podman", "auto"]
 
 @dataclass(frozen=True)
 class ContainerInfo:
+    """Describe one container in a compose project."""
+
     service: str
     name: str
     state: str
@@ -28,6 +30,8 @@ class ContainerInfo:
 
 
 class ContainerBackend(Protocol):
+    """Contract shared by the Docker and Podman backends."""
+
     name: str
 
     def compose_base_cmd(
@@ -132,6 +136,8 @@ def _podman_service_label(labels: dict[str, str]) -> str:
 
 
 class DockerBackend:
+    """Manage containers through the docker CLI and Docker Compose."""
+
     name = "docker"
 
     @staticmethod
@@ -165,6 +171,7 @@ class DockerBackend:
         project_name: str,
         profiles: tuple[str, ...] = (),
     ) -> list[str]:
+        """Return base compose tokens using the best available docker compose entrypoint."""
         binary = self._compose_binary() or self.name
         return _compose_base_cmd(
             binary=binary,
@@ -174,6 +181,7 @@ class DockerBackend:
         )
 
     def check_available(self) -> tuple[bool, str | None]:
+        """Report whether docker and a working compose binary are both installed."""
         if shutil.which("docker") is None:
             return False, "Install Docker Desktop or ensure docker is on PATH."
         if self._compose_binary() is None:
@@ -181,6 +189,7 @@ class DockerBackend:
         return True, None
 
     def list_project_containers(self, project_name: str) -> list[ContainerInfo]:
+        """List project containers by filtering docker ps on the compose project label."""
         result = subprocess.run(
             [
                 "docker",
@@ -224,6 +233,7 @@ class DockerBackend:
         workdir: str | None = None,
         user: str | None = None,
     ) -> list[str]:
+        """Build docker exec argv, optionally setting user, environment, and workdir."""
         cmd = ["docker", "exec"]
         if user:
             cmd.extend(["--user", user])
@@ -237,6 +247,8 @@ class DockerBackend:
 
 
 class PodmanBackend:
+    """Manage containers through the podman CLI and its compose provider."""
+
     name = "podman"
 
     def compose_base_cmd(
@@ -246,6 +258,7 @@ class PodmanBackend:
         project_name: str,
         profiles: tuple[str, ...] = (),
     ) -> list[str]:
+        """Return base podman compose command tokens."""
         return _compose_base_cmd(
             binary=self.name,
             phlo_dir=phlo_dir,
@@ -254,6 +267,7 @@ class PodmanBackend:
         )
 
     def check_available(self) -> tuple[bool, str | None]:
+        """Check that podman is installed, its machine runs, and compose works."""
         if shutil.which("podman") is None:
             return False, "Install Podman Desktop or ensure podman is on PATH."
         info = subprocess.run(
@@ -277,6 +291,7 @@ class PodmanBackend:
         return True, None
 
     def list_project_containers(self, project_name: str) -> list[ContainerInfo]:
+        """List project containers under either compose label scheme, deduplicating by name."""
         # Containers may carry either docker-compose or podman-compose project
         # labels, so both filters run and deduplicate by container name.
         containers_by_name: dict[str, ContainerInfo] = {}
@@ -335,6 +350,7 @@ class PodmanBackend:
         workdir: str | None = None,
         user: str | None = None,
     ) -> list[str]:
+        """Build podman exec argv, optionally setting user, environment, and workdir."""
         cmd = ["podman", "exec"]
         if user:
             cmd.extend(["--user", user])
@@ -352,6 +368,10 @@ def select_container_backend(
     cli_backend: str | None,
     config_backend: str | None,
 ) -> ContainerBackend:
+    """Resolve the backend from CLI flag, PHLO_CONTAINER_BACKEND, config, or auto-detection.
+
+    Raises ValueError when the resolved backend is unsupported.
+    """
     selected = (
         cli_backend or os.environ.get("PHLO_CONTAINER_BACKEND") or config_backend or "docker"
     ).strip()

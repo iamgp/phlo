@@ -297,6 +297,7 @@ class _SqlRunEvidenceStore:
         """Release store-owned resources."""
 
     def append_pipeline_run(self, run: PipelineRun) -> None:
+        """Upsert a pipeline run, keyed by project and run id."""
         with self._transaction() as (_, cursor):
             self._upsert_run(cursor, run)
 
@@ -393,6 +394,7 @@ class _SqlRunEvidenceStore:
             object_id: str | None = None,
             attempt: int | None = None,
         ) -> None:
+            """Reject objects that cross project, run, or attempt boundaries."""
             if value is None:
                 return
             if value.project_id != event.project_id or value.run_id != event.run_id:
@@ -483,31 +485,37 @@ class _SqlRunEvidenceStore:
         )
 
     def append_stage(self, stage: RunStage) -> None:
+        """Insert a stage record under the run's write lock."""
         with self._transaction() as (_, cursor):
             self._lock_run(cursor, stage.project_id, stage.run_id)
             self._insert_stage(cursor, stage)
 
     def append_resource(self, resource: RunResource) -> None:
+        """Insert a resource record under the run's write lock."""
         with self._transaction() as (_, cursor):
             self._lock_run(cursor, resource.project_id, resource.run_id)
             self._insert_resource(cursor, resource)
 
     def append_lineage_edge(self, edge: RunLineageEdge) -> None:
+        """Insert a lineage edge under the run's write lock."""
         with self._transaction() as (_, cursor):
             self._lock_run(cursor, edge.project_id, edge.run_id)
             self._insert_lineage(cursor, edge)
 
     def append_quality_result(self, result: RunQualityResult) -> None:
+        """Insert a quality result under the run's write lock."""
         with self._transaction() as (_, cursor):
             self._lock_run(cursor, result.project_id, result.run_id)
             self._insert_quality(cursor, result)
 
     def append_catalog_change(self, change: RunCatalogChange) -> None:
+        """Insert a catalog change under the run's write lock."""
         with self._transaction() as (_, cursor):
             self._lock_run(cursor, change.project_id, change.run_id)
             self._insert_catalog_change(cursor, change)
 
     def append_artifact(self, artifact: RunArtifact) -> None:
+        """Insert an artifact record under the run's write lock."""
         with self._transaction() as (_, cursor):
             self._lock_run(cursor, artifact.project_id, artifact.run_id)
             self._insert_artifact(cursor, artifact)
@@ -862,6 +870,9 @@ class _SqlRunEvidenceStore:
     def get_run(
         self, project_id: str, run_id: str, *, attempt: int | None = None
     ) -> dict[str, Any] | None:
+        """Return the pipeline run row for a project/run, optionally scoped to
+        one attempt, or None when absent.
+        """
         with self._transaction() as (_, cursor):
             where = f"project_id = {self.placeholder} AND run_id = {self.placeholder}"
             params: tuple[Any, ...] = (project_id, run_id)
@@ -881,6 +892,9 @@ class _SqlRunEvidenceStore:
     def list_events(
         self, project_id: str, run_id: str, *, attempt: int | None = None
     ) -> list[dict[str, Any]]:
+        """Return the run's events in deterministic report order, optionally
+        scoped to one attempt.
+        """
         with self._transaction() as (_, cursor):
             where = f"project_id = {self.placeholder} AND run_id = {self.placeholder}"
             params: tuple[Any, ...] = (project_id, run_id)
@@ -903,6 +917,7 @@ class _SqlRunEvidenceStore:
         return self._list_attempt_records("run_stage", project_id, run_id, attempt=attempt)
 
     def count_events(self, project_id: str, run_id: str) -> int:
+        """Count the events recorded for a run."""
         with self._transaction() as (_, cursor):
             cursor.execute(
                 f"SELECT COUNT(*) FROM {self._table('run_event')} "
@@ -914,26 +929,37 @@ class _SqlRunEvidenceStore:
     def list_resources(
         self, project_id: str, run_id: str, *, attempt: int | None = None
     ) -> list[dict[str, Any]]:
+        """Return the run's resources in deterministic order for one attempt."""
         return self._list_attempt_records("run_resource", project_id, run_id, attempt=attempt)
 
     def list_catalog_changes(
         self, project_id: str, run_id: str, *, attempt: int | None = None
     ) -> list[dict[str, Any]]:
+        """Return the run's catalog changes in deterministic order for one
+        attempt.
+        """
         return self._list_attempt_records("run_catalog_change", project_id, run_id, attempt=attempt)
 
     def list_quality_results(
         self, project_id: str, run_id: str, *, attempt: int | None = None
     ) -> list[dict[str, Any]]:
+        """Return the run's quality results in deterministic order for one
+        attempt.
+        """
         return self._list_attempt_records("run_quality_result", project_id, run_id, attempt=attempt)
 
     def list_artifacts(
         self, project_id: str, run_id: str, *, attempt: int | None = None
     ) -> list[dict[str, Any]]:
+        """Return the run's artifacts in deterministic order for one attempt."""
         return self._list_attempt_records("run_artifact", project_id, run_id, attempt=attempt)
 
     def list_lineage_edges(
         self, project_id: str, run_id: str, *, attempt: int | None = None
     ) -> list[dict[str, Any]]:
+        """Return the run's lineage edges in deterministic order for one
+        attempt.
+        """
         return self._list_attempt_records("run_lineage_edge", project_id, run_id, attempt=attempt)
 
     def _list_attempt_records(
@@ -1721,6 +1747,7 @@ class SQLiteRunEvidenceStore(_SqlRunEvidenceStore):
         del connection
 
     def close(self) -> None:
+        """Close the underlying SQLite connection."""
         self._connection.close()
 
     def _initialize_schema(self) -> None:
@@ -1830,6 +1857,7 @@ class PostgresRunEvidenceStore(_SqlRunEvidenceStore):
             connection.close()
 
     def close(self) -> None:
+        """Close every pooled PostgreSQL connection."""
         if self._pool is not None:
             self._pool.closeall()
             self._pool = None

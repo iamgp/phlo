@@ -125,14 +125,8 @@ class RolesConfig:
     def expand_role_hierarchy(self, role_name: str) -> tuple[str, ...]:
         """Expand a role to include all inherited roles.
 
-        Args:
-            role_name: Name of the role to expand.
-
-        Returns:
-            Tuple of role names including the role and all inherited roles.
-
-        Raises:
-            ValueError: If the role does not exist or there's a cycle.
+        Returns the role name plus every ancestor. Raise ValueError when the role
+        does not exist or the hierarchy contains a cycle.
         """
         if role_name not in self.roles:
             raise ValueError(f"Unknown role: {role_name}")
@@ -167,14 +161,7 @@ class RolesConfig:
         return tuple(_expand(role_name))
 
     def get_effective_roles(self, role_name: str) -> frozenset[str]:
-        """Get all effective roles including inherited ones.
-
-        Args:
-            role_name: Name of the role.
-
-        Returns:
-            Frozenset of all role names in the hierarchy.
-        """
+        """Collect all effective roles for a role, including inherited ones."""
         return frozenset(self.expand_role_hierarchy(role_name))
 
 
@@ -284,8 +271,7 @@ class CanonicalRBAC:
     def validate(self) -> list[str]:
         """Validate the canonical RBAC model.
 
-        Returns:
-            List of validation errors (empty if valid).
+        Returns a list of validation errors, empty when the model is valid.
         """
         errors: list[str] = []
 

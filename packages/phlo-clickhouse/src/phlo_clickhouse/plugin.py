@@ -67,12 +67,7 @@ class ClickHouseResourceProvider(ResourceProviderPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for resource provider registration.
-
-        Returns:
-            PluginMetadata for the ClickHouse resource provider.
-
-        """
+        """Return plugin metadata for resource provider registration."""
         return PluginMetadata(
             name="clickhouse",
             version="0.1.0",
@@ -81,22 +76,11 @@ class ClickHouseResourceProvider(ResourceProviderPlugin):
         )
 
     def get_resources(self) -> list[ResourceSpec]:
-        """Return list of ClickHouse resource specifications.
-
-        Returns:
-            List containing a ResourceSpec for the ClickHouse resource.
-
-        """
+        """Return list of ClickHouse resource specifications."""
         return [ResourceSpec(name="clickhouse", resource=ClickHouseResource())]
 
     def get_table_stores(self) -> list[TableStoreSpec]:
-        """Return list of ClickHouse table store specifications.
-
-        Returns:
-            List containing a TableStoreSpec for ClickHouse with
-            capability flags for schema evolution support.
-
-        """
+        """Return list of ClickHouse table store specifications."""
         return [
             TableStoreSpec(
                 name="clickhouse",
@@ -113,11 +97,6 @@ class ClickHouseResourceProvider(ResourceProviderPlugin):
 
         Reads current settings to populate connection metadata including
         host, port, and database information.
-
-        Returns:
-            List containing a QueryEngineSpec for ClickHouse with
-            full connection metadata and capability support flags.
-
         """
         settings = get_clickhouse_settings()
         return [
@@ -136,13 +115,7 @@ class ClickHouseResourceProvider(ResourceProviderPlugin):
         ]
 
     def get_publish_targets(self) -> list[PublishTargetSpec]:
-        """Return list of ClickHouse publish target specifications.
-
-        Returns:
-            List containing a PublishTargetSpec for the ClickHouse
-            data mart publishing target.
-
-        """
+        """Return list of ClickHouse publish target specifications."""
         return [
             PublishTargetSpec(
                 name="clickhouse",

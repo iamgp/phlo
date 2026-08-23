@@ -45,9 +45,11 @@ class CsvSourceAdapter:
 
     @property
     def source_type(self) -> str:
+        """Return this adapter's source type identifier."""
         return "csv"
 
     def validate_config(self, source: MigrationSource) -> list[str]:
+        """Return configuration errors for a CSV migration source."""
         errors: list[str] = []
         if not source.path:
             errors.append("source.path is required for csv source")
@@ -67,6 +69,7 @@ class CsvSourceAdapter:
         *,
         chunk_size: int = 50_000,
     ) -> Iterator[list[dict[str, Any]]]:
+        """Yield CSV rows in chunks of at most chunk_size records."""
         if not source.path:
             raise ValueError("source.path is required for csv source")
 

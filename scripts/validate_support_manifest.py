@@ -895,6 +895,7 @@ def _service_inventory_at(repo_root: Path) -> dict[str, Path]:
 
 
 def main() -> int:
+    """Validate the support manifest and exit nonzero on failure."""
     try:
         manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
         errors = validate_manifest(manifest)

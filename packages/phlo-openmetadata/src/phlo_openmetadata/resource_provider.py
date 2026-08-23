@@ -30,9 +30,6 @@ class OpenMetadataResourceProvider(ResourceProviderPlugin):
     capability system, allowing other components to publish metadata
     to OpenMetadata without direct coupling.
 
-    Attributes:
-        metadata: PluginMetadata containing plugin identification information.
-
     Example:
         >>> provider = OpenMetadataResourceProvider()
         >>> provider.metadata.name
@@ -42,12 +39,7 @@ class OpenMetadataResourceProvider(ResourceProviderPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for resource discovery.
-
-        Returns:
-            PluginMetadata: Metadata with name, version, description, and tags.
-
-        """
+        """Return plugin metadata for resource discovery."""
         return PluginMetadata(
             name="openmetadata",
             version="0.1.0",
@@ -56,22 +48,11 @@ class OpenMetadataResourceProvider(ResourceProviderPlugin):
         )
 
     def get_resources(self) -> list:
-        """OpenMetadata does not expose raw resources in this slice.
-
-        Returns:
-            list: Empty list as OpenMetadata is a catalog capability only.
-
-        """
+        """OpenMetadata does not expose raw resources in this slice."""
         return []
 
     def get_metadata_catalogs(self) -> list[MetadataCatalogSpec]:
-        """Expose OpenMetadata as a metadata catalog capability.
-
-        Returns:
-            list[MetadataCatalogSpec]: List containing MetadataCatalogSpec
-                wrapping OpenMetadataCatalogProvider.
-
-        """
+        """Expose OpenMetadata as a metadata catalog capability."""
         return [
             MetadataCatalogSpec(
                 name="openmetadata",

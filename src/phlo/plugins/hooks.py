@@ -65,11 +65,7 @@ class HookProvider(Protocol):
     """Protocol for plugins that expose hook registrations."""
 
     def get_hooks(self) -> Iterable[HookRegistration]:
-        """Return hook registrations exposed by the implementing plugin.
-
-        Returns:
-            Iterable of hook registration definitions.
-        """
+        """Return hook registrations exposed by the implementing plugin."""
 
         ...
 
@@ -79,11 +75,7 @@ class HookHandler(Protocol):
     """Protocol for handler objects implementing hook dispatch."""
 
     def handle_event(self, event: HookEvent) -> None:
-        """Handle a hook event emitted by the hook bus.
-
-        Args:
-            event: Hook event payload to process.
-        """
+        """Handle a hook event emitted by the hook bus."""
 
         ...
 
@@ -93,11 +85,7 @@ class AsyncHookHandler(Protocol):
     """Protocol for async handler objects implementing hook dispatch."""
 
     async def handle_event_async(self, event: HookEvent) -> None:
-        """Handle a hook event emitted by the async hook bus.
-
-        Args:
-            event: Hook event payload to process.
-        """
+        """Handle a hook event emitted by the async hook bus."""
 
         ...
 

@@ -48,4 +48,5 @@ NessieCliSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_nessie_cli_adapter() -> CliSurfaceAdapter:
+    """Return the process-wide Nessie CLI authorization adapter instance."""
     return NessieCliSurfaceAdapter.get_instance()

@@ -37,4 +37,5 @@ MinioCliSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_minio_cli_adapter() -> CliSurfaceAdapter:
+    """Return the shared MinIO CLI surface adapter instance."""
     return MinioCliSurfaceAdapter.get_instance()

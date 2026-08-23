@@ -116,36 +116,16 @@ def _is_compatible(plugin: Any, observatory_version: str | None) -> bool:
 
 @router.get("/extensions")
 def list_extensions() -> dict[str, list[dict[str, Any]]]:
-    """List all installed Observatory extensions.
-
-    Returns manifest and asset paths for each discovered extension.
-
-    Args:
-        None: No arguments required.
-
-    Returns:
-        Dictionary with "extensions" key containing list of extension payloads.
-
-    Raises:
-        None: No exceptions raised directly.
-
-    """
+    """List all installed Observatory extensions with manifests and asset paths."""
     extensions = _load_extensions()
     return {"extensions": [_extension_payload(plugin) for plugin in extensions]}
 
 
 @router.get("/extensions/{name}")
 def get_extension(name: str) -> dict[str, Any]:
-    """Get a single Observatory extension manifest.
+    """Get a single extension payload with its manifest and assets_base_path.
 
-    Args:
-        name: Extension name to retrieve.
-
-    Returns:
-        Extension payload dictionary with manifest and assets_base_path.
-
-    Raises:
-        HTTPException: If extension not found (404).
+    Raises HTTPException when the extension is not found (404).
 
     """
     extensions = _load_extensions()
@@ -162,19 +142,10 @@ def _cleanup_temp_dir(dir_path: Path) -> None:
 
 @router.get("/extensions/{name}/assets/{asset_path:path}")
 def get_extension_asset(name: str, asset_path: str, background_tasks: BackgroundTasks):
-    """Serve extension asset files.
+    """Serve an extension asset file, scheduling temp-dir cleanup after the response.
 
-    Args:
-        name: Extension name.
-        asset_path: Relative path to the asset file.
-        background_tasks: FastAPI background tasks for cleanup.
-
-    Returns:
-        FileResponse with the asset content.
-
-    Raises:
-        HTTPException: If extension not found (404), asset path invalid (400),
-            or asset not found (404).
+    Raises HTTPException when the extension is not found (404), the asset
+    path is invalid (400), or the asset is missing (404).
 
     """
     extensions = _load_extensions()

@@ -29,4 +29,5 @@ ClickHouseSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_adapter() -> CliSurfaceAdapter:
+    """Return the shared phlo-clickhouse CLI authorization adapter instance."""
     return ClickHouseSurfaceAdapter.get_instance()

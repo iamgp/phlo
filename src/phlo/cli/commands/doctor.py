@@ -44,6 +44,8 @@ def _get_service_discovery_class() -> Any:
 
 
 class DiagnosticStatus(StrEnum):
+    """Severity level of a diagnostic outcome."""
+
     OK = "ok"
     WARN = "warn"
     FAIL = "fail"
@@ -52,6 +54,8 @@ class DiagnosticStatus(StrEnum):
 
 @dataclass(frozen=True)
 class DiagnosticResult:
+    """A single diagnostic outcome, optionally with a fix hint and detail payload."""
+
     id: str
     group: str
     status: DiagnosticStatus
@@ -60,6 +64,7 @@ class DiagnosticResult:
     details: dict[str, Any] = field(default_factory=dict)
 
     def to_payload(self) -> dict[str, Any]:
+        """Return a JSON-serializable dict describing this result."""
         payload: dict[str, Any] = {
             "id": self.id,
             "group": self.group,
@@ -74,6 +79,7 @@ class DiagnosticResult:
 
 
 def summarize(results: list[DiagnosticResult]) -> dict[str, int]:
+    """Count diagnostic results per status."""
     return {
         status.value: sum(1 for result in results if result.status == status)
         for status in DiagnosticStatus
@@ -81,6 +87,7 @@ def summarize(results: list[DiagnosticResult]) -> dict[str, int]:
 
 
 def render_json(results: list[DiagnosticResult]) -> str:
+    """Render diagnostics as an indented JSON document with a summary."""
     return json.dumps(
         {
             "summary": summarize(results),
@@ -92,6 +99,7 @@ def render_json(results: list[DiagnosticResult]) -> str:
 
 
 def render_terminal(results: list[DiagnosticResult]) -> str:
+    """Render diagnostics as human-readable terminal text."""
     lines = ["Phlo Doctor", ""]
     groups = list(dict.fromkeys(result.group for result in results))
     for group in groups:
@@ -290,6 +298,7 @@ def _check_podman_backend(*, verbose: bool) -> list[DiagnosticResult]:
 
 
 def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
+    """Check the Python version and container backend availability."""
     results: list[DiagnosticResult] = [
         DiagnosticResult(
             "doctor.bootstrap", "Environment", DiagnosticStatus.OK, "Doctor command loaded"
@@ -372,6 +381,7 @@ def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
 
 
 def check_project(*, verbose: bool = False) -> list[DiagnosticResult]:
+    """Check project configuration, compose file, and env files."""
     results: list[DiagnosticResult] = []
     project_file = Path.cwd() / "phlo.yaml"
     if not project_file.exists():
@@ -479,6 +489,7 @@ def _collect_service_plugin_failures() -> list[dict[str, str]]:
 
 
 def check_discovery(*, verbose: bool = False) -> list[DiagnosticResult]:
+    """Check plugin entry-point loading and service discovery."""
     results: list[DiagnosticResult] = []
     try:
         failures = _collect_service_plugin_failures()
@@ -580,6 +591,7 @@ def _collect_port_mappings() -> list[PortMapping]:
 
 
 def check_ports(*, verbose: bool = False) -> list[DiagnosticResult]:
+    """Check configured service ports for running-service conflicts."""
     try:
         mappings = _collect_port_mappings()
     except Exception as exc:
@@ -621,6 +633,7 @@ def check_ports(*, verbose: bool = False) -> list[DiagnosticResult]:
 
 
 def check_live_services(*, verbose: bool = False) -> list[DiagnosticResult]:
+    """Check that the generated compose file for live services exists."""
     compose_file = Path.cwd() / ".phlo" / "docker-compose.yml"
     if not compose_file.exists():
         return [
@@ -643,6 +656,7 @@ def check_live_services(*, verbose: bool = False) -> list[DiagnosticResult]:
 
 
 def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
+    """Run every diagnostic check and return the combined results."""
     return [
         *check_environment(verbose=verbose),
         *check_project(verbose=verbose),

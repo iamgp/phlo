@@ -93,6 +93,7 @@ def publication_matrix(
 
 
 def main() -> int:
+    """Parse CLI arguments, print the GitHub Actions matrix JSON, and exit 0."""
     parser = argparse.ArgumentParser()
     parser.add_argument("compose_json", type=Path)
     parser.add_argument("project_root", type=Path)

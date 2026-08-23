@@ -78,11 +78,7 @@ class GovernanceCompiler(ABC):
     """
 
     def __init__(self, backend: GovernanceBackend | None = None):
-        """Initialize the compiler.
-
-        Args:
-            backend: Optional governance backend instance for apply/verify operations.
-        """
+        """Initialize the compiler with an optional backend for apply and verify."""
         self._backend = backend
 
     @property
@@ -92,14 +88,7 @@ class GovernanceCompiler(ABC):
 
     @abstractmethod
     def supports_action(self, action: str) -> bool:
-        """Check if this compiler supports the given canonical action.
-
-        Args:
-            action: Canonical action name (e.g., "dataset.read").
-
-        Returns:
-            True if the compiler can handle this action.
-        """
+        """Return True when this compiler handles the canonical action (e.g. "dataset.read")."""
 
     def policy_applicability(self, action: str, resource_type: str) -> str:
         """Return whether this backend can compile a policy pair."""
@@ -111,15 +100,7 @@ class GovernanceCompiler(ABC):
         rbac: CanonicalRBAC,
         context: CompilerContext,
     ) -> list[BackendArtifact]:
-        """Compile canonical RBAC into backend artifacts.
-
-        Args:
-            rbac: The canonical RBAC model.
-            context: Compilation context.
-
-        Returns:
-            List of compiled artifacts representing desired backend state.
-        """
+        """Compile the canonical RBAC model into artifacts describing desired backend state."""
 
     def plan(
         self,
@@ -217,14 +198,7 @@ class GovernanceCompiler(ABC):
         self,
         context: CompilerContext,
     ) -> list[BackendArtifact]:
-        """Read the current managed state from the backend.
-
-        Args:
-            context: Context for reading state.
-
-        Returns:
-            List of currently managed artifacts.
-        """
+        """Read the artifacts currently managed on the backend."""
 
     def _generate_revert_id(self) -> str:
         """Generate a unique revert ID."""
@@ -335,9 +309,11 @@ class TrinoCompiler(GovernanceCompiler):
 
     @property
     def backend_name(self) -> str:
+        """Return the Trino backend identifier."""
         return "trino"
 
     def supports_action(self, action: str) -> bool:
+        """Return True when the action has a Trino grant mapping."""
         return action in self.ACTION_MAPPING
 
     def policy_applicability(self, action: str, resource_type: str) -> str:
@@ -656,15 +632,7 @@ def get_compiler(
     backend_name: str,
     backend: GovernanceBackend | None = None,
 ) -> GovernanceCompiler | None:
-    """Get a compiler instance for the specified backend.
-
-    Args:
-        backend_name: Name of the backend.
-        backend: Optional governance backend instance.
-
-    Returns:
-        Compiler instance or None if not found.
-    """
+    """Return a compiler instance for backend_name, or None when unregistered."""
     compiler_class = COMPILER_REGISTRY.get(backend_name)
     if compiler_class is None:
         return None

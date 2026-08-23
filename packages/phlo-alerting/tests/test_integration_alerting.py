@@ -49,15 +49,7 @@ def test_alert_destination_registration():
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
-            """Store an alert and report success.
-
-            Args:
-                alert: Alert payload to capture.
-
-            Returns:
-                Always ``True``.
-
-            """
+            """Store an alert and report success. Returns ``True``."""
             self.alerts.append(alert)
             return True
 
@@ -81,15 +73,7 @@ def test_alert_sending_to_destination():
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
-            """Store an alert and report success.
-
-            Args:
-                alert: Alert payload to capture.
-
-            Returns:
-                Always ``True``.
-
-            """
+            """Store an alert and report success. Returns ``True``."""
             self.alerts.append(alert)
             return True
 
@@ -123,15 +107,7 @@ def test_alert_deduplication():
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
-            """Store an alert and report success.
-
-            Args:
-                alert: Alert payload to capture.
-
-            Returns:
-                Always ``True``.
-
-            """
+            """Store an alert and report success. Returns ``True``."""
             self.alerts.append(alert)
             return True
 
@@ -166,25 +142,12 @@ def test_alert_to_specific_destination():
         """Mock destination keyed by name for routing tests."""
 
         def __init__(self, name):
-            """Initialize destination.
-
-            Args:
-                name: Destination identifier.
-
-            """
+            """Initialize the destination with the given identifier."""
             self.name = name
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
-            """Store an alert and report success.
-
-            Args:
-                alert: Alert payload to capture.
-
-            Returns:
-                Always ``True``.
-
-            """
+            """Store an alert and report success. Returns ``True``."""
             self.alerts.append(alert)
             return True
 

@@ -88,14 +88,7 @@ class RuntimeContext(Protocol):
         ...
 
     def get_resource(self, name: str) -> Any:
-        """Return a runtime resource by name.
-
-        Args:
-            name: Resource identifier.
-
-        Returns:
-            Any: Resource object for the provided name.
-        """
+        """Return the runtime resource registered under the given name."""
         ...
 
 
@@ -153,13 +146,9 @@ def resolve_runtime_ref(
 ) -> str | None:
     """Resolve the effective ref for a capability from runtime routing and support metadata.
 
-    Args:
-        context: Runtime context or ``None`` when no orchestrator context exists.
-        support: Capability support metadata. When refs are unsupported, routing refs are ignored.
-        default_ref: Fallback ref used when the capability supports refs but the runtime omitted one.
-
-    Returns:
-        Effective ref name for the capability, or ``None`` when refs are unsupported.
+    Returns None when support marks refs unsupported; otherwise prefers the
+    routing ref from context, falling back to default_ref when refs are
+    supported but the runtime omitted one.
     """
     if support is not None and not support.supports_refs:
         return None

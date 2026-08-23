@@ -38,15 +38,7 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
     # 1. Define the asset
     # 1. Define the source (Just a plain python function now!)
     def my_source(partition_date: str):
-        """Yield fixture rows for a partition.
-
-        Args:
-            partition_date: Partition date for the ingestion run.
-
-        Yields:
-            dict[str, object]: Source row payloads.
-
-        """
+        """Yield fixture rows for the given partition date."""
 
         yield {"id": 1, "name": "foo"}
         yield {"id": 2, "name": "bar"}

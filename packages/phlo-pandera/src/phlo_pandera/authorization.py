@@ -40,4 +40,5 @@ PanderaSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_pandera_adapter() -> CliSurfaceAdapter:
+    """Return the shared read-only authorization adapter for the phlo-pandera surface."""
     return PanderaSurfaceAdapter.get_instance()

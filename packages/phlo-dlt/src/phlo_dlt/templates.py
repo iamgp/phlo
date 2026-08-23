@@ -29,6 +29,7 @@ class CsvBatchTemplate:
     )
 
     def render(self, context: TemplateRenderContext) -> None:
+        """Render the CSV batch ingestion template into the project directory."""
         MinimalTemplate().render(context)
         _write_project_readme(
             context.project_dir,
@@ -96,6 +97,7 @@ class ApiIngestionTemplate:
     )
 
     def render(self, context: TemplateRenderContext) -> None:
+        """Render the REST API ingestion template into the project directory."""
         MinimalTemplate().render(context)
         _write_project_readme(
             context.project_dir,
@@ -157,6 +159,7 @@ class ObservabilityDemoTemplate:
     )
 
     def render(self, context: TemplateRenderContext) -> None:
+        """Render the observability demo template into the project directory."""
         CsvBatchTemplate().render(context)
         _write_pyproject_toml(
             context.project_dir, context.project_name, self.metadata.required_packages
@@ -194,4 +197,5 @@ def observability_events(partition_date: str) -> object:
 
 
 def templates() -> tuple[ProjectTemplate, ...]:
+    """Return every built-in project template in canonical order."""
     return (CsvBatchTemplate(), ApiIngestionTemplate(), ObservabilityDemoTemplate())

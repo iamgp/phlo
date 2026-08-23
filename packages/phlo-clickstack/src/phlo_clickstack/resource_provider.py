@@ -18,6 +18,7 @@ class ClickStackResourceProvider(ResourceProviderPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return the ClickStack provider metadata."""
         return PluginMetadata(
             name="clickstack",
             version="0.1.0",
@@ -26,7 +27,9 @@ class ClickStackResourceProvider(ResourceProviderPlugin):
         )
 
     def get_resources(self) -> list:
+        """Report no standalone resources."""
         return []
 
     def get_observability_backends(self):
+        """Return the ClickStack observability backend spec."""
         return [build_clickstack_observability_spec()]

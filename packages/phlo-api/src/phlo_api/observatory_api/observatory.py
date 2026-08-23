@@ -188,6 +188,8 @@ def _jsonable_result(result: Any) -> dict[str, Any]:
 
 
 class ObservatoryMaterializeAssetRequest(BaseModel):
+    """Request payload for materializing an asset."""
+
     model_config = {"populate_by_name": True}
 
     dry_run: bool = True
@@ -203,6 +205,8 @@ class ObservatoryMaterializeAssetRequest(BaseModel):
 
 
 class ObservatoryRetryRunRequest(BaseModel):
+    """Request payload for retrying a failed run."""
+
     dry_run: bool = True
     strategy: str = "FROM_FAILURE"
     idempotency_key: str | None = None
@@ -210,11 +214,15 @@ class ObservatoryRetryRunRequest(BaseModel):
 
 
 class ObservatoryCancelRunRequest(BaseModel):
+    """Request payload for cancelling a run."""
+
     reason: str | None = None
     idempotency_key: str | None = None
 
 
 class ObservatoryBackfillAssetRequest(BaseModel):
+    """Request payload for backfilling an asset partition."""
+
     dry_run: bool = True
     partitions: list[str] = Field(default_factory=list)
     partition_range: dict[str, str] | None = None
@@ -226,11 +234,15 @@ class ObservatoryBackfillAssetRequest(BaseModel):
 
 
 class ObservatoryDatasetWorkflowConfig(BaseModel):
+    """Configurable defaults for the Dataset workflow."""
+
     default_owner: str
     approval_states: list[str] = Field(default_factory=list)
 
 
 class ObservatorySchemaDiffRequest(BaseModel):
+    """Request payload for diffing an asset schema between two runs."""
+
     asset_key: str
     from_run: str | None = None
     to_run: str | None = None
@@ -788,6 +800,7 @@ def _overview_attention_rows(
         )
 
     def quality_score(check: ObservatoryQualityCheck) -> tuple[int, int, str]:
+        """Order failing checks by state, then severity, then id."""
         state_score = {"failing": 0, "warning": 1, "unknown": 2}.get(check.status, 3)
         severity_score = {
             "critical": 0,
@@ -4311,6 +4324,7 @@ async def post_observatory_run_retry(
     provider = resolve_orchestrator_operations()
 
     async def execute() -> dict[str, Any]:
+        """Run the guarded retry call and render its result as JSON-safe output."""
         result = await provider.retry_run(run_id, request.model_dump())
         return _jsonable_result(result)
 
@@ -4341,6 +4355,7 @@ async def post_observatory_run_cancel(
     provider = resolve_orchestrator_operations()
 
     async def execute() -> dict[str, Any]:
+        """Run the guarded cancel call and render its result as JSON-safe output."""
         result = await provider.cancel_run(run_id, request.model_dump())
         return _jsonable_result(result)
 
@@ -4549,6 +4564,7 @@ async def post_observatory_asset_materialize(
     provider = resolve_orchestrator_operations()
 
     async def execute() -> dict[str, Any]:
+        """Run the guarded materialization call and render its result as JSON-safe output."""
         result = await provider.materialize_asset(asset_id, request.model_dump())
         return _jsonable_result(result)
 
@@ -4579,6 +4595,7 @@ async def post_observatory_asset_backfill(
     provider = resolve_orchestrator_operations()
 
     async def execute() -> dict[str, Any]:
+        """Run the guarded backfill call and render its result as JSON-safe output."""
         result = await provider.backfill_asset(asset_id, request.model_dump())
         return _jsonable_result(result)
 

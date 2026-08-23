@@ -15,11 +15,13 @@ T = TypeVar("T")
 
 
 def encode_cursor(offset: int) -> str:
+    """Encode a page offset as an opaque, URL-safe cursor string."""
     payload = json.dumps({"offset": max(0, offset)}, separators=(",", ":")).encode("utf-8")
     return base64.urlsafe_b64encode(payload).decode("ascii")
 
 
 def decode_cursor(cursor: str | None) -> int:
+    """Decode a cursor to its page offset; missing or malformed cursors resolve to 0."""
     if not cursor:
         return 0
     # A malformed cursor falls back to offset 0 rather than a client error;
@@ -35,6 +37,7 @@ def decode_cursor(cursor: str | None) -> int:
 def paginate_items(
     items: Sequence[T], *, limit: int, cursor: str | None = None
 ) -> tuple[list[T], str | None]:
+    """Slice one page of items and return it with the next cursor, or None when done."""
     safe_limit = max(1, min(limit, 500))
     offset = decode_cursor(cursor)
     page = list(items[offset : offset + safe_limit])

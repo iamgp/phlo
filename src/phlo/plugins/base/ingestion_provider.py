@@ -57,9 +57,6 @@ class IngestionProviderPlugin(Plugin, ABC):
     def get_decorator(self) -> Callable:
         """Return the ingestion decorator function.
 
-        Returns:
-            The @phlo_ingestion decorator or equivalent.
-
         Example:
             ```python
             def get_decorator(self) -> Callable:
@@ -72,9 +69,6 @@ class IngestionProviderPlugin(Plugin, ABC):
     @abstractmethod
     def get_asset_retriever(self) -> Callable[[], list[Any]]:
         """Return a function to retrieve registered ingestion assets.
-
-        Returns:
-            Function that returns a list of registered ingestion assets.
 
         Example:
             ```python

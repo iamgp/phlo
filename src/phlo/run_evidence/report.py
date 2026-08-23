@@ -39,7 +39,9 @@ _SAFE_CATALOG_METADATA = frozenset(
 class RunReportStore(Protocol):
     """Read capability required to project one consistent attempt snapshot."""
 
-    def read_run_attempt(self, project_id: str, run_id: str, attempt: int) -> dict[str, Any]: ...
+    def read_run_attempt(self, project_id: str, run_id: str, attempt: int) -> dict[str, Any]:
+        """Return the durable evidence payload for exactly one project/run/attempt."""
+        ...
 
 
 class RunReportNotFound(LookupError):

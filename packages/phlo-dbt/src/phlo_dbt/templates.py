@@ -27,6 +27,7 @@ class BasicTemplate:
     )
 
     def render(self, context: TemplateRenderContext) -> None:
+        """Scaffold a dbt-ready project on top of the minimal template."""
         MinimalTemplate().render(context)
         _write_pyproject_toml(
             context.project_dir, context.project_name, self.metadata.required_packages
@@ -46,6 +47,7 @@ class DbtMedallionTemplate:
     )
 
     def render(self, context: TemplateRenderContext) -> None:
+        """Scaffold a basic project plus bronze/silver/gold sample models."""
         BasicTemplate().render(context)
         base = context.project_dir / "workflows" / "transforms" / "dbt" / "models"
         _write_text(base / "bronze" / "source_events.sql", "select 1 as id, 'sample' as name\n")

@@ -69,6 +69,7 @@ class IdempotencyConflict(HTTPException):
 
 
 def project_root() -> Path:
+    """Resolve the Phlo project root from PHLO_PROJECT_PATH, defaulting to the cwd."""
     return Path(os.environ.get("PHLO_PROJECT_PATH", ".")).resolve()
 
 

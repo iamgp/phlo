@@ -552,6 +552,7 @@ def validate_graphql_resource_bindings(schema: Any) -> None:
             visited: set[int] = set()
 
             def visit(graphql_type: Any) -> None:
+                """Collect field names reachable from a GraphQL type."""
                 while hasattr(graphql_type, "of_type"):
                     graphql_type = graphql_type.of_type
                 fields = getattr(graphql_type, "fields", None)

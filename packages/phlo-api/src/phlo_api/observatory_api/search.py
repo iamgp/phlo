@@ -41,15 +41,7 @@ router = APIRouter(tags=["search"])
 
 
 class SearchableAsset(BaseModel):
-    """Represent a searchable Dagster asset.
-
-    Attributes:
-        id: Stable asset identifier.
-        key_path: Asset key path.
-        group_name: Optional Dagster group name.
-        compute_kind: Optional compute engine label.
-
-    """
+    """Represent a searchable Dagster asset."""
 
     id: str
     key_path: str
@@ -58,16 +50,7 @@ class SearchableAsset(BaseModel):
 
 
 class SearchableTable(BaseModel):
-    """Represent a searchable table in the catalog.
-
-    Attributes:
-        catalog: Catalog name.
-        schema_name: Schema name.
-        name: Table name.
-        full_name: Fully qualified table name.
-        layer: Medallion/data layer classification.
-
-    """
+    """Represent a searchable table in the catalog."""
 
     catalog: str
     schema_name: str
@@ -77,15 +60,7 @@ class SearchableTable(BaseModel):
 
 
 class SearchableColumn(BaseModel):
-    """Represent a searchable table column.
-
-    Attributes:
-        table_name: Parent table name.
-        table_schema: Parent schema name.
-        name: Column name.
-        type: Column data type.
-
-    """
+    """Represent a searchable table column."""
 
     table_name: str
     table_schema: str
@@ -94,15 +69,7 @@ class SearchableColumn(BaseModel):
 
 
 class SearchIndex(BaseModel):
-    """Represent the aggregated observability search index.
-
-    Attributes:
-        assets: Searchable assets.
-        tables: Searchable tables.
-        columns: Searchable columns.
-        last_updated: ISO timestamp when the index was built.
-
-    """
+    """Represent the aggregated observability search index."""
 
     assets: list[SearchableAsset]
     tables: list[SearchableTable]
@@ -123,21 +90,10 @@ async def get_search_index(
 ) -> SearchIndex | dict[str, str]:
     """Build the observability search index.
 
-    Aggregates searchable entities from Dagster (assets) and Trino (tables, columns).
-
-    Args:
-        dagster_url: Optional Dagster GraphQL URL override.
-        trino_url: Optional Trino URL override.
-        catalog: Trino catalog name (default from resolve_default_catalog).
-        branch: Trino schema/branch context.
-        include_columns: Whether to include column metadata in results (default: True).
-
-    Returns:
-        SearchIndex with assets, tables, and columns, or error dictionary.
-
-    Raises:
-        None: Exceptions are caught and returned in the response.
-
+    Aggregates searchable entities from Dagster (assets) and Trino (tables,
+    columns); column metadata is included unless ``include_columns`` is False.
+    URL and catalog arguments override settings-derived defaults. Exceptions are
+    caught and returned in the response rather than raised.
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()

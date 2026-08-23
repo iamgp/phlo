@@ -68,6 +68,7 @@ class CoreRunEvidenceHookProvider:
         self._store = store
 
     def get_hooks(self) -> list[HookRegistration]:
+        """Register the lifecycle-event hook that persists run evidence with log-only failures."""
         return [
             HookRegistration(
                 hook_name="core_run_evidence",

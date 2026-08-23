@@ -40,14 +40,6 @@ def find_dbt_projects(
     Searches for dbt_project.yml files in specified paths relative to the root
     directory. Returns paths to directories containing valid dbt projects.
 
-    Args:
-        root_dir: Root directory to search from. Defaults to current working directory.
-        search_paths: List of relative paths to search. Defaults to DEFAULT_SEARCH_PATHS.
-
-    Returns:
-        List of paths to discovered dbt project directories (parent directories
-        of dbt_project.yml files).
-
     Example:
         >>> # Find projects in default locations
         >>> projects = find_dbt_projects()
@@ -97,10 +89,6 @@ def get_dbt_project_dir() -> Path:
     1. DBT_PROJECT_DIR environment variable
     2. Auto-discovered project in workspace
     3. Default: workflows/transforms/dbt
-
-    Returns:
-        Path to dbt project directory. May not exist if falling back to default
-        and project hasn't been scaffolded yet.
 
     Example:
         >>> # With environment variable set

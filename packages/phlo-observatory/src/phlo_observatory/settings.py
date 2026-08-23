@@ -20,10 +20,6 @@ from phlo.config.cache import project_root_cached
 class ObservatorySettings(BaseConfig):
     """Configuration settings for the Observatory UI.
 
-    Attributes:
-        observatory_settings_db_url: PostgreSQL connection string for persisting
-            Observatory settings. If not provided, settings are stored in-memory.
-
     Example:
         >>> settings = get_settings()
         >>> print(settings.observatory_settings_db_url)
@@ -45,11 +41,7 @@ def get_settings(project_root: Path) -> ObservatorySettings:
     Settings are parsed from environment variables using PHLO_OBSERVATORY_*
     prefixes and cached per resolved project root, with up to 16 entries.
 
-    Args:
-        project_root: Resolved project root used for cache selection.
-
-    Returns:
-        ObservatorySettings: Parsed and validated Observatory settings.
+    Settings are parsed from ``PHLO_OBSERVATORY_*`` environment variables.
 
     Example:
         >>> settings = get_settings()

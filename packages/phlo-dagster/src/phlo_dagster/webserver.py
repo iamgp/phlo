@@ -355,12 +355,14 @@ class GraphQLWebSocketAuthenticationASGI:
         replay = iter((connect, init))
 
         async def receive_with_replay():  # noqa: ANN202
+            """Replay captured connect and init messages before live receives."""
             try:
                 return next(replay)
             except StopIteration:
                 return await receive()
 
         async def send_without_duplicate_accept(message):  # noqa: ANN001, ANN202
+            """Forward sends while suppressing the upstream websocket accept."""
             if message.get("type") == "websocket.accept":
                 return
             await send(message)
@@ -408,6 +410,11 @@ class PhloDagsterWebserver(DagsterWebserver):
     """Dagster webserver with Phlo's mandatory GraphQL boundary installed."""
 
     def build_graphql_middleware(self) -> list:
+        """Build the mandatory GraphQL authorization middleware stack.
+
+        Return an empty list when GraphQL schema regulation is disabled. Raise
+        RuntimeError when OIDC identity is required but the validator is not ready.
+        """
         validate_graphql_schema(self._graphene_schema.graphql_schema)
         if not is_regulated():
             return []
@@ -423,6 +430,7 @@ class PhloDagsterWebserver(DagsterWebserver):
         return os.environ.get(OIDC_REQUIRED_ENV, "").strip().lower() == "true"
 
     async def webserver_info_endpoint(self, _request):  # noqa: ANN001, ANN201
+        """Report webserver health, including OIDC validator readiness."""
         middleware = self._get_graphql_authorization_middleware()
         if self._oidc_required() and not middleware._oidc_validator.readiness():
             return JSONResponse(
@@ -432,6 +440,7 @@ class PhloDagsterWebserver(DagsterWebserver):
         return JSONResponse({"status": "healthy"})
 
     def create_asgi_app(self, **kwargs: Any):  # noqa: ANN202
+        """Wrap the Dagster ASGI app with Phlo HTTP and WebSocket auth boundaries."""
         app = super().create_asgi_app(**kwargs)
         middleware = self._get_graphql_authorization_middleware()
         graphql_app = GraphQLWebSocketAuthenticationASGI(

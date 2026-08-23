@@ -198,6 +198,7 @@ class RunEvidenceSource(Protocol):
 
 
 def normalize_status(status: str | None) -> str | None:
+    """Normalize a provider status alias to the canonical status vocabulary."""
     if status is None:
         return None
     value = status.strip().lower()
@@ -705,6 +706,9 @@ class RunReconciler:
         *,
         now: datetime | None = None,
     ) -> ReconciliationDecision:
+        """Observe the provider run and reconcile it through the transactional store.
+
+        Raises: RunEvidenceUnavailable when the provider cannot be queried."""
         observation = self.source.observe_run(project_id, run_id)
         if observation is None:
             raise RunEvidenceUnavailable(

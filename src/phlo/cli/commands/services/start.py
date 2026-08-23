@@ -647,11 +647,7 @@ def start_cmd(
                     click.echo("No native services to start.")
 
                 async def start_native_services():
-                    """Start selected native services and collect runtime state.
-
-                    Returns:
-                        Mapping of started service names to persisted process metadata.
-                    """
+                    """Start selected native services, returning name -> process metadata."""
                     started: dict[str, dict] = {}
                     env_overrides = {
                         **_load_native_env_overrides(project_root),

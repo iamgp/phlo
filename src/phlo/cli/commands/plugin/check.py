@@ -724,6 +724,7 @@ def check_generated_containers(
         builder_cache_owner: tuple[str, str] | None = None
 
         def prune_builder_cache() -> None:
+            """Prune the buildx cache and record any cleanup failure for this service."""
             nonlocal builder_cache_owner
             if builder_cache_owner is None:
                 return

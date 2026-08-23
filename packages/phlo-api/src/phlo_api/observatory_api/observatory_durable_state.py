@@ -62,6 +62,9 @@ def _mutate_collection(
     result_items: list[dict[str, Any]] = []
 
     def apply(current: dict[str, Any] | None) -> dict[str, Any]:
+        """Seed items from the legacy JSON on the first transaction pass, apply the
+        mutation, and return the wrapped durable payload.
+        """
         nonlocal result_items
         # current is None only while the namespace has never been persisted; seed
         # from the legacy JSON file on that first pass. Once this transaction

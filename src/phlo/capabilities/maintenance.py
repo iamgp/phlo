@@ -104,6 +104,8 @@ class MaintenanceOperationResult:
 
 @dataclass(frozen=True)
 class MaintenanceOperationStatus:
+    """Latest outcome of one maintenance operation."""
+
     operation: str
     namespace: str
     ref: str
@@ -123,6 +125,8 @@ class MaintenanceOperationStatus:
 
 @dataclass(frozen=True)
 class MaintenanceStatusSnapshot:
+    """Point-in-time view of the latest maintenance operations."""
+
     last_updated: datetime
     operations: list[MaintenanceOperationStatus]
 
@@ -191,9 +195,11 @@ class DefaultMaintenanceReadModel:
     """Default maintenance read model backed by telemetry events."""
 
     def load_maintenance_status(self):
+        """Load the latest maintenance status snapshot."""
         return load_maintenance_status()
 
     def render_maintenance_prometheus(self) -> str:
+        """Render maintenance status in Prometheus exposition format."""
         return render_maintenance_prometheus()
 
 

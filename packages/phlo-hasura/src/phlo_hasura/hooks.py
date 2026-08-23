@@ -39,10 +39,7 @@ def _load_env_files() -> None:
         1. .phlo/.env
         2. .phlo/.env.local (overrides .env)
 
-    Environment variables set in .env.local take precedence over .env.
-
-    Raises:
-        No exceptions are raised; failures are silently ignored.
+    Failures are silently ignored; .env.local values override .env values.
 
     Example:
         >>> _load_env_files()
@@ -81,12 +78,8 @@ def track_tables(schemas: str = "api") -> None:
     Automatically discovers and tracks all tables in the specified schemas.
     Can track multiple schemas at once or auto-discover all user schemas.
 
-    Args:
-        schemas: Comma-separated list of schemas to track (e.g., "marts,api"),
-                 or "auto" to discover all user schemas automatically.
-
-    Raises:
-        Exception: If auto-tracking fails (propagated from underlying operations).
+    ``schemas`` is a comma-separated list (e.g. "marts,api") or "auto" to
+    discover all user schemas; failures during auto-tracking are propagated.
 
     Example:
         >>> track_tables("api")  # Track single schema

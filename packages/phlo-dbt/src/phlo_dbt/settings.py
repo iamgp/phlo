@@ -59,20 +59,6 @@ class DbtSettings(BaseConfig):
     including query engine connection parameters, project paths, and artifact
     locations. Uses environment variables and .env files for configuration.
 
-    Attributes:
-        dbt_query_engine_type: Query engine adapter type (default: "trino").
-        dbt_query_host: Query engine hostname (default: "trino").
-        dbt_query_port: Query engine port (default: 8080).
-        dbt_query_catalog: Base catalog name (default: "iceberg").
-        dbt_query_schema: Default schema (default: "raw").
-        dbt_query_user: Database user (default: "dagster").
-        dbt_query_http_scheme: HTTP scheme (default: "http").
-        dbt_query_auth_method: Auth method (default: "none").
-        dbt_query_threads: Parallel threads (default: 2).
-        dbt_project_dir: Path to dbt project directory (default: "workflows/transforms/dbt").
-        dbt_manifest_path: Path to manifest.json (auto-derived if empty).
-        dbt_catalog_path: Path to catalog.json (auto-derived if empty).
-
     Example:
         >>> settings = DbtSettings(
         ...     dbt_query_catalog="analytics",
@@ -137,12 +123,7 @@ class DbtSettings(BaseConfig):
     )
 
     def model_post_init(self, __context: object) -> None:
-        """Populate derived dbt artifact paths after model initialization.
-
-        Args:
-            __context: Pydantic post-init context.
-
-        """
+        """Populate derived dbt artifact paths after model initialization."""
         host, port = resolve_host(
             self.dbt_query_host, self.dbt_query_port, port_env_var="TRINO_PORT"
         )
@@ -160,12 +141,7 @@ class DbtSettings(BaseConfig):
     @computed_field
     @property
     def dbt_profiles_dir(self) -> str:
-        """Return the dbt profiles directory path string.
-
-        Returns:
-            Profiles directory under the dbt project directory.
-
-        """
+        """Return the dbt profiles directory path string."""
         return f"{self.dbt_project_dir}/profiles"
 
     @property
@@ -176,10 +152,6 @@ class DbtSettings(BaseConfig):
         and does not exist on disk: the shallowest dbt project under
         workflows/ wins, while an explicitly configured custom path is
         returned as-is even if missing.
-
-        Returns:
-            Filesystem path to the dbt project root.
-
         """
         configured_path = _resolve_project_path(self.dbt_project_dir)
         if self.dbt_project_dir != "workflows/transforms/dbt" or configured_path.exists():
@@ -193,10 +165,6 @@ class DbtSettings(BaseConfig):
         Profiles follow project auto-discovery: when the discovered project
         differs from the configured default directory, its own profiles/
         subdirectory is used instead of the default location.
-
-        Returns:
-            Filesystem path to the dbt profiles directory.
-
         """
         if self.dbt_project_dir == "workflows/transforms/dbt":
             discovered_project = self.dbt_project_path

@@ -76,18 +76,7 @@ class DagsterSettings(BaseConfig):
 
     @model_validator(mode="after")
     def validate_executor_flags(self) -> "DagsterSettings":
-        """Validate mutually exclusive executor override flags.
-
-        Args:
-            None (operates on self).
-
-        Returns:
-            Validated settings instance.
-
-        Raises:
-            ValueError: If both force flags are set simultaneously.
-
-        """
+        """Reject settings where both executor force flags are set."""
         if self.phlo_force_in_process_executor and self.phlo_force_multiprocess_executor:
             raise ValueError(
                 "phlo_force_in_process_executor and phlo_force_multiprocess_executor "

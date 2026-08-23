@@ -21,6 +21,7 @@ class CoreTelemetryHookProvider:
         self._recorder = TelemetryRecorder()
 
     def get_hooks(self) -> list[HookRegistration]:
+        """Register the core telemetry hook for log and metric events."""
         return [
             HookRegistration(
                 hook_name="core_telemetry",

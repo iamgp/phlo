@@ -32,4 +32,5 @@ DbtSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_dbt_adapter() -> CliSurfaceAdapter:
+    """Return the shared DbtSurfaceAdapter instance for this surface."""
     return DbtSurfaceAdapter.get_instance()

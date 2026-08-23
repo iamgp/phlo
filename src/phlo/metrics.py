@@ -115,6 +115,7 @@ class MetricsBackendSettings(BaseConfig):
     )
 
     def model_post_init(self, __context: Any) -> None:
+        """Resolve Postgres and Nessie hosts/ports after validation, in place."""
         host, port = resolve_host(
             self.postgres_host, self.postgres_port, port_env_var="POSTGRES_PORT"
         )

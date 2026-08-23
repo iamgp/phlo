@@ -409,14 +409,7 @@ def init(
 
 
 def _create_project_structure(project_dir: Path, project_name: str, template: str):
-    """
-    Create project directory structure and files.
-
-    Args:
-        project_dir: Path to project directory
-        project_name: Name of the project
-        template: Project template name.
-    """
+    """Resolve the named project template and validate its required packages."""
     try:
         selected_template = get_template(template)
     except KeyError as exc:

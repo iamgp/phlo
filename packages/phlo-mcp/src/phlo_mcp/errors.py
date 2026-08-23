@@ -14,6 +14,8 @@ import httpx
 
 @dataclass(frozen=True)
 class PhloMcpError(Exception):
+    """Structured MCP error with machine-readable code and optional guidance."""
+
     code: str
     message: str
     hint: str | None = None
@@ -21,6 +23,7 @@ class PhloMcpError(Exception):
     retryable: bool = False
 
     def to_payload(self) -> dict[str, Any]:
+        """Return a JSON-serializable payload for API responses."""
         return {
             "code": self.code,
             "message": self.message,

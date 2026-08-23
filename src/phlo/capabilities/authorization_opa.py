@@ -228,14 +228,10 @@ def create_opa_provider(
     opa_url: str | None = None,
     opa_policy_package: str = "phlo.authz",
 ) -> tuple[OPAAuthorizationPolicyBackend, CapabilitySupport]:
-    """Factory function to create an OPA provider with support metadata.
+    """Create an OPA provider with support metadata.
 
-    Args:
-        opa_url: URL of the OPA server. Defaults to http://localhost:8181
-        opa_policy_package: OPA policy package path. Defaults to phlo.authz
-
-    Returns:
-        Tuple of (provider, support_metadata)
+    ``opa_url`` defaults to http://localhost:8181 and ``opa_policy_package`` to
+    phlo.authz. Returns a ``(provider, support_metadata)`` tuple.
     """
     provider = OPAAuthorizationPolicyBackend(
         opa_url=opa_url,

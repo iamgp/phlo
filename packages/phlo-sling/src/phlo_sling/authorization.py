@@ -29,4 +29,5 @@ SlingSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_adapter() -> CliSurfaceAdapter:
+    """Return the shared SlingSurfaceAdapter instance for this surface."""
     return SlingSurfaceAdapter.get_instance()

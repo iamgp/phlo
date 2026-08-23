@@ -23,6 +23,8 @@ from phlo.flow import (
 
 @dataclass(frozen=True, slots=True)
 class GovernanceWarning:
+    """Validation warning raised while deriving the governance surface."""
+
     table: str
     code: str
     message: str
@@ -39,14 +41,18 @@ class GovernanceWarning:
 
 @dataclass(frozen=True, slots=True)
 class AccessPolicyReadModel:
+    """Serialized access policy attached to a governed table."""
+
     key: str
     roles: tuple[str, ...]
+
     pii_columns: tuple[str, ...]
     policy: str
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_spec(cls, spec: AccessPolicySpec) -> AccessPolicyReadModel:
+        """Build a read model from an access policy specification."""
         return cls(
             key=spec.key,
             roles=tuple(spec.roles),
@@ -67,6 +73,8 @@ class AccessPolicyReadModel:
 
 @dataclass(frozen=True, slots=True)
 class GovernanceObservability:
+    """Observability signals collected for a governed table."""
+
     freshness_hours: int | None = None
     row_count_change: dict[str, float] = field(default_factory=dict)
     checks: tuple[str, ...] = ()
@@ -81,6 +89,8 @@ class GovernanceObservability:
 
 @dataclass(frozen=True, slots=True)
 class GovernedTable:
+    """Governance metadata for a single table."""
+
     table: str
     owner: str | None = None
     lifecycle: str | None = None
@@ -111,6 +121,8 @@ class GovernedTable:
 
 @dataclass(frozen=True, slots=True)
 class GovernanceSurface:
+    """Aggregated governance view over all registered table declarations."""
+
     tables: dict[str, GovernedTable]
     warnings: tuple[GovernanceWarning, ...] = ()
 
@@ -119,6 +131,7 @@ class GovernanceSurface:
         return len(self.warnings)
 
     def table(self, table_name: str) -> GovernedTable:
+        """Return the governed table registered under ``table_name``."""
         return self.tables[table_name]
 
     def to_read_model(self) -> dict[str, Any]:
@@ -129,6 +142,7 @@ class GovernanceSurface:
         }
 
     def to_check_result(self) -> dict[str, Any]:
+        """Return a pass/fail summary suitable for governance checks."""
         return {
             "ok": self.warning_count == 0,
             "warning_count": self.warning_count,

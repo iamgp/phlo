@@ -21,15 +21,7 @@ class MockDestination(AlertDestination):
         self.alerts: list[Alert] = []
 
     def send(self, alert: Alert) -> bool:
-        """Record an alert and report successful delivery.
-
-        Args:
-            alert: Alert payload to send.
-
-        Returns:
-            Always returns ``True`` for successful test delivery.
-
-        """
+        """Record an alert and report successful delivery."""
         self.alerts.append(alert)
         return True
 

@@ -12,7 +12,21 @@ from typing import Any
 
 
 def normalize_attempt(value: Any) -> int:
-    """Return a positive integer attempt or reject malformed retry metadata."""
+    """Return a positive integer attempt or reject malformed retry metadata.
+
+    >>> normalize_attempt("3")
+    3
+    >>> normalize_attempt(2)
+    2
+    >>> normalize_attempt(True)
+    Traceback (most recent call last):
+        ...
+    ValueError: attempt must be a positive integer
+    >>> normalize_attempt(0)
+    Traceback (most recent call last):
+        ...
+    ValueError: attempt must be a positive integer
+    """
     # bool is an int subclass, so an unguarded isinstance check would accept
     # True as attempt 1. Reject it before the int branch.
     if isinstance(value, bool):
@@ -37,6 +51,13 @@ def attempt_from_tags(tags: Mapping[str, str]) -> tuple[int | None, str | None]:
     A missing tag means first attempt. A malformed tag yields ``(None,
     "invalid_attempt")`` rather than silently retrying as attempt 1, so callers
     can surface the bad retry metadata.
+
+    >>> attempt_from_tags({})
+    (1, None)
+    >>> attempt_from_tags({"phlo/attempt": "4"})
+    (4, None)
+    >>> attempt_from_tags({"phlo/attempt": "not-a-number"})
+    (None, 'invalid_attempt')
     """
     raw_attempt = tags.get("phlo/attempt")
     if raw_attempt is None:

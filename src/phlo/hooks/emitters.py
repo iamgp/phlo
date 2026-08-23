@@ -173,15 +173,7 @@ class IngestionEventEmitter(_ContextEmitterBase):
         error: str | None,
         event_id: str | None,
     ) -> None:
-        """Emit an ingestion event.
-
-        Args:
-            event_type: Event type identifier.
-            status: Lifecycle status value.
-            metrics: Optional metric payload.
-            error: Optional error message.
-
-        """
+        """Emit an ingestion event."""
         self._emit_event(
             IngestionEvent(
                 event_type=event_type,
@@ -259,15 +251,7 @@ class TransformEventEmitter(_ContextEmitterBase):
         error: str | None,
         event_id: str | None,
     ) -> None:
-        """Emit a transform event.
-
-        Args:
-            event_type: Event type identifier.
-            status: Lifecycle status value.
-            metrics: Optional metric payload.
-            error: Optional error message.
-
-        """
+        """Emit a transform event."""
         self._emit_event(
             TransformEvent(
                 event_type=event_type,
@@ -339,15 +323,7 @@ class PublishEventEmitter(_ContextEmitterBase):
         error: str | None,
         event_id: str | None,
     ) -> None:
-        """Emit a publish event.
-
-        Args:
-            event_type: Event type identifier.
-            status: Lifecycle status value.
-            metrics: Optional metric payload.
-            error: Optional error message.
-
-        """
+        """Emit a publish event."""
         self._emit_event(
             PublishEvent(
                 event_type=event_type,
@@ -529,17 +505,7 @@ class TelemetryEventEmitter(_ContextEmitterBase):
         unit: str | None,
         payload: dict[str, Any] | None,
     ) -> None:
-        """Emit a telemetry event.
-
-        Args:
-            event_type: Event type identifier.
-            name: Metric or log name.
-            value: Optional metric or log value.
-            level: Optional log level for log events.
-            unit: Optional unit for the value.
-            payload: Optional event payload.
-
-        """
+        """Emit a telemetry event."""
         self._emit_event(
             TelemetryEvent(
                 event_type=event_type,
@@ -616,11 +582,8 @@ class SchemaMigrationEventEmitter(_ContextEmitterBase):
     ) -> None:
         """Emit a schema migration event.
 
-        Args:
-            status: Lifecycle status (planned, approved, applied, rejected).
-            classification: Worst classification across changes.
-            change_count: Number of schema changes in the plan.
-            changes: Optional list of change detail dicts.
+        ``status`` is one of planned, approved, applied, or rejected and
+        ``classification`` carries the worst classification across changes.
 
         """
         self._emit_event(

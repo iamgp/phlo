@@ -28,4 +28,5 @@ ClickStackSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_adapter() -> CliSurfaceAdapter:
+    """Return the shared ClickStackSurfaceAdapter instance for this surface."""
     return ClickStackSurfaceAdapter.get_instance()

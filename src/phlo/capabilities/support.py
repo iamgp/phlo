@@ -44,14 +44,7 @@ class CapabilitySupport:
 def coerce_capability_support(
     value: CapabilitySupport | Mapping[str, Any] | None,
 ) -> CapabilitySupport:
-    """Normalize raw support metadata into ``CapabilitySupport``.
-
-    Args:
-        value: Existing support object, mapping payload, or ``None``.
-
-    Returns:
-        Normalized ``CapabilitySupport`` instance.
-    """
+    """Normalize raw support metadata into ``CapabilitySupport``."""
     if isinstance(value, CapabilitySupport):
         return value
     if value is None:

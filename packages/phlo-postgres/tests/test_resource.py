@@ -11,12 +11,7 @@ from phlo_postgres.resource import PostgresResource
 
 
 def _resource() -> PostgresResource:
-    """Build a Postgres resource configured for local unit tests.
-
-    Returns:
-        Configured `PostgresResource` instance.
-
-    """
+    """Build a Postgres resource configured for local unit tests."""
     return PostgresResource(
         host="localhost",
         port=5432,

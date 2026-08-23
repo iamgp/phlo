@@ -93,22 +93,11 @@ def run_command(
     capture_output: bool = True,
     check: bool = True,
 ) -> CompletedProcess[str]:
-    """Run a subprocess command with optional timeout and environment overrides.
+    """Run a subprocess command with optional timeout, working directory, and
+    environment overrides, returning the CompletedProcess.
 
-    Args:
-        cmd: Command and arguments to execute.
-        timeout_seconds: Optional timeout in seconds.
-        cwd: Optional working directory.
-        env: Optional environment overrides.
-        capture_output: Whether to capture stdout/stderr.
-        check: Whether to raise on non-zero exit codes.
-
-    Returns:
-        CompletedProcess containing stdout, stderr, returncode, and args.
-
-    Raises:
-        CommandError: When check is True and the command exits non-zero.
-        subprocess.TimeoutExpired: When the command exceeds timeout_seconds.
+    Raises CommandError when check is True and the command exits non-zero, and
+    subprocess.TimeoutExpired when it exceeds timeout_seconds.
     """
     command_name = cmd[0] if cmd else "<empty>"
     logger.debug(

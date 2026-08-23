@@ -28,21 +28,9 @@ from phlo.config.cache import project_root_cached
 class SupersetSettings(BaseConfig):
     """Configuration settings for Apache Superset integration.
 
-    This class defines all configurable parameters for the Superset service
-    including network ports, authentication credentials, and administrative
-    settings. Values can be overridden via environment variables.
-
-    Attributes:
-        superset_port: Port number for the Superset web UI (default: 10007).
-        superset_admin_user: Username for the default admin account.
-        superset_admin_password: Password for the default admin account.
-        superset_admin_email: Email address for the default admin account.
-
-    Environment Variables:
-        SUPERSET_PORT: Overrides superset_port.
-        SUPERSET_ADMIN_USER: Overrides superset_admin_user.
-        SUPERSET_ADMIN_PASSWORD: Overrides superset_admin_password.
-        SUPERSET_ADMIN_EMAIL: Overrides superset_admin_email.
+    Defines all configurable parameters for the Superset service including
+    network ports, authentication credentials, and administrative settings;
+    values can be overridden via SUPERSET_* environment variables.
 
     Example:
         >>> settings = SupersetSettings(superset_port=8088)

@@ -10,15 +10,7 @@ from collections.abc import Iterable
 
 
 def iter_exception_chain(exc: BaseException) -> Iterable[BaseException]:
-    """Yield an exception and its chained causes/contexts.
-
-    Args:
-        exc: Starting exception.
-
-    Yields:
-        Exception objects from the chain, root first.
-
-    """
+    """Yield an exception and its chained causes/contexts."""
     current: BaseException | None = exc
     while current is not None:
         yield current

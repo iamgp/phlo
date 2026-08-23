@@ -58,41 +58,22 @@ class TransformationProviderPlugin(Plugin, ABC):
     def get_asset_retriever(self) -> Callable[[], list[Any]]:
         """Return a function to retrieve transformation asset specs.
 
-        Returns:
-            Function that returns a list of asset specifications.
-
         Example:
             ```python
             def get_asset_retriever(self) -> Callable[[], list[Any]]:
                 from phlo_dbt.assets import build_dbt_asset_specs
                 return build_dbt_asset_specs
             ```
-
         """
 
     def get_cli_plugin(self) -> Any | None:
-        """Return a CLI plugin class for transformation commands.
-
-        Returns:
-            CLI plugin class, or None if not available.
-
-        """
+        """Return a CLI plugin class for transformation commands, or None if not available."""
         return None
 
     def get_compiler(self) -> Any | None:
-        """Return a compiler function for the transformation.
-
-        Returns:
-            Compiler function, or None if not available.
-
-        """
+        """Return a compiler function for the transformation, or None if not available."""
         return None
 
     def get_manifest_loader(self) -> Any | None:
-        """Return a manifest loader function.
-
-        Returns:
-            Manifest loader function, or None if not available.
-
-        """
+        """Return a manifest loader function, or None if not available."""
         return None

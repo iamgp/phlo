@@ -165,15 +165,7 @@ class TestInjectRowIdsForDbtRun:
         }
 
         def side_effect(**kwargs):
-            """Raise for one table to verify per-table error capture.
-
-            Args:
-                **kwargs: Inject helper keyword arguments.
-
-            Returns:
-                Mapping with updated row count for successful tables.
-
-            """
+            """Raise for one table to verify per-table error capture."""
             if kwargs["table"] == "stg_bad":
                 raise Exception("Connection failed")
             return {"rows_updated": 10}

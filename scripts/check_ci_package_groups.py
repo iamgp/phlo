@@ -19,6 +19,7 @@ PACKAGES_DIR = REPO_ROOT / "packages"
 
 
 def main() -> int:
+    """Validate ci.yml package groups against packages/; return non-zero on any mismatch."""
     workflow_text = CI_WORKFLOW.read_text(encoding="utf-8")
     # Parse only the `group:`/`packages:` pair shape used by ci.yml; any other
     # formatting change in the workflow silently yields no groups and is caught

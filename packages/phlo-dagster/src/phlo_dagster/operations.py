@@ -112,6 +112,7 @@ class DagsterOperationResult:
     details: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the result as a plain JSON-serializable dict."""
         return {
             "operation": self.operation,
             "dry_run": self.dry_run,
@@ -138,6 +139,12 @@ async def launch_materialize(
     tags: dict[str, str] | None = None,
     access_token: str | None = None,
 ) -> DagsterOperationResult:
+    """Launch a Dagster materialization run for one asset, reusing a prior run
+    tagged with the same idempotency key so client retries never double-materialize.
+
+    Raises RuntimeError when Dagster rejects the launch or returns a malformed
+    existing-run payload.
+    """
     execution_tags = {"phlo/operation": "materialize_asset", "phlo/asset_key": asset_key_path}
     if idempotency_key:
         execution_tags["phlo/idempotency_key"] = idempotency_key
@@ -222,6 +229,7 @@ async def launch_retry(
     idempotency_key: str | None = None,
     tags: dict[str, str] | None = None,
 ) -> DagsterOperationResult:
+    """Launch a Dagster re-execution of a failed run using the given retry strategy."""
     execution_tags = {"phlo/operation": "retry_failed_run", "phlo/parent_run_id": run_id}
     if idempotency_key:
         execution_tags["phlo/idempotency_key"] = idempotency_key
@@ -268,6 +276,8 @@ async def terminate(
     reason: str | None = None,
     idempotency_key: str | None = None,
 ) -> DagsterOperationResult:
+    """Terminate a Dagster run, reporting acceptance or the failure reason in
+    the returned result rather than raising."""
     result = await _graphql(dagster_url, TERMINATE_RUN_MUTATION, {"runId": run_id})
     payload = result.get("data", {}).get("terminateRun", {})
     typename = str(payload.get("__typename") or "TerminateRunResult")
@@ -304,6 +314,7 @@ async def launch_backfill(
     idempotency_key: str | None = None,
     tags: dict[str, str] | None = None,
 ) -> DagsterOperationResult:
+    """Launch a partition backfill for an asset across the given partition keys."""
     execution_tags = {"phlo/operation": "backfill_asset", "phlo/asset_key": asset_key_path}
     if idempotency_key:
         execution_tags["phlo/idempotency_key"] = idempotency_key
@@ -342,6 +353,10 @@ async def launch_backfill(
 
 
 async def list_partitions(*, dagster_url: str, asset_key_path: str) -> list[dict[str, str]]:
+    """List partition keys for an asset; every key is reported with status UNKNOWN.
+
+    Raises RuntimeError when Dagster reports an error for the asset lookup.
+    """
     result = await _graphql(
         dagster_url,
         PARTITION_KEYS_QUERY,

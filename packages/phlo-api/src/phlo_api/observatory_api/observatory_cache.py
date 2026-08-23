@@ -35,6 +35,8 @@ class ReadModelCache:
     _generation: int = 0
 
     def cached(self, name: str, ttl_seconds: float, loader: Callable[[], Any]) -> Any:
+        """Return the cached value for ``name`` when within ``ttl_seconds``,
+        otherwise run ``loader`` single-flight and repopulate the entry."""
         project = self.project_key()
         key = (project, name)
         epoch_now = time.time()
@@ -84,6 +86,8 @@ class ReadModelCache:
                 in_flight.set()
 
     def clear(self) -> None:
+        """Drop in-memory entries, bump the generation counter, and clear
+        any SQLite persistence so stale values cannot resurface."""
         with self._lock:
             self._generation += 1
             self._values.clear()

@@ -33,9 +33,14 @@ class ClickStackObservabilityBackend(DefaultObservabilityBackend):
     """Observability backend with OTEL span queries backed by ClickStack."""
 
     def run_trace_spans(self, run_id: str, limit: int = 500) -> list[TraceSpan]:
+        """Return trace spans for a single run id, bounded by limit."""
         return self.trace_spans(TraceSpanFilter(run_id=run_id, limit=limit))
 
     def trace_spans(self, filters: TraceSpanFilter) -> list[TraceSpan]:
+        """Post the span query to ClickStack and decode newline-delimited JSON into TraceSpans.
+
+        Raises requests.HTTPError when the query request fails.
+        """
         query_url = self._resolve_clickstack_query_url()
         query = _build_trace_spans_query(filters)
         response = requests.post(

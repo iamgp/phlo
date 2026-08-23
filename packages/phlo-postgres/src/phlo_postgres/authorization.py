@@ -42,4 +42,5 @@ PostgresCliSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_postgres_cli_adapter() -> CliSurfaceAdapter:
+    """Return the shared Postgres CLI surface adapter instance."""
     return PostgresCliSurfaceAdapter.get_instance()

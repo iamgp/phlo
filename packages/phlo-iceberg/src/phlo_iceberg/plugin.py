@@ -96,13 +96,6 @@ class IcebergResourceProvider(ResourceProviderPlugin):
     def metadata(self) -> PluginMetadata:
         """Get plugin metadata.
 
-        Returns:
-            PluginMetadata: Plugin information including:
-                - name: "iceberg"
-                - version: "0.1.0"
-                - description: "Iceberg/Nessie catalog resource for Phlo"
-                - support: Full capability support flags
-
         Example:
             Check plugin capabilities::
 
@@ -131,10 +124,6 @@ class IcebergResourceProvider(ResourceProviderPlugin):
 
         Returns the primary Iceberg resource for table operations.
 
-        Returns:
-            list[ResourceSpec]: Resource specifications containing
-                ``IcebergResource`` instances.
-
         Example:
             Get resources::
 
@@ -150,10 +139,6 @@ class IcebergResourceProvider(ResourceProviderPlugin):
 
     def get_table_stores(self) -> list[TableStoreSpec]:
         """Get table-store capability specs exposed by this plugin.
-
-        Returns:
-            list[TableStoreSpec]: Table store specifications with
-                full Iceberg capability support.
 
         Example:
             Get table store capabilities::
@@ -183,10 +168,6 @@ class IcebergResourceProvider(ResourceProviderPlugin):
 
     def get_schema_migrators(self) -> list[SchemaMigrationSpec]:
         """Get schema-migrator capability specs exposed by this plugin.
-
-        Returns:
-            list[SchemaMigrationSpec]: Schema migration specifications
-                using ``IcebergSchemaMigrator``.
 
         Example:
             Get schema migrator::

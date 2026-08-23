@@ -65,6 +65,7 @@ def _project(path: Path, root: Path) -> Project:
 
 
 def source_projects(root: Path) -> list[Project]:
+    """Collect every source project under the root and reject duplicate names."""
     projects = [_project(root / "pyproject.toml", root)]
     projects.extend(_project(path, root) for path in sorted(root.glob("packages/*/pyproject.toml")))
     names = [project.name for project in projects]
@@ -74,6 +75,7 @@ def source_projects(root: Path) -> list[Project]:
 
 
 def validate_source(root: Path, tag: str) -> dict[str, object]:
+    """Check the tag and support manifest against source project versions."""
     projects = source_projects(root)
     root_project = next(project for project in projects if project.source == "pyproject.toml")
     if tag != f"v{root_project.version}":
@@ -161,6 +163,7 @@ def _validate_packaged_support(path: Path, kind: str, expected: bytes) -> None:
 
 
 def artifacts_for(root: Path, artifact_paths: list[Path]) -> list[Artifact]:
+    """Match built wheels and sdists against source projects and return validated artifacts."""
     expected = {project.name: project for project in source_projects(root)}
     support = (root / "registry/support/v1.json").read_bytes()
     artifacts: list[Artifact] = []
@@ -272,6 +275,7 @@ def _remote_sdist_content_sha256(url: str, expected_hash: str) -> str:
 
 
 def publish_plan(artifacts: list[Artifact]) -> tuple[list[Artifact], list[str]]:
+    """Split artifacts into uploads and PyPI conflicts."""
     remote: dict[tuple[str, str], dict[str, tuple[str, bool, str]]] = {}
     upload: list[Artifact] = []
     conflicts: list[str] = []
@@ -317,6 +321,7 @@ def _write_json(path: Path | None, value: object) -> None:
 
 
 def main() -> None:
+    """Run the release identity CLI subcommand."""
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
     source = subparsers.add_parser("source")

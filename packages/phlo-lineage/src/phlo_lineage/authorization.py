@@ -39,4 +39,5 @@ LineageSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_lineage_adapter() -> CliSurfaceAdapter:
+    """Return the process-wide CLI authorization adapter for the phlo-lineage surface."""
     return LineageSurfaceAdapter.get_instance()

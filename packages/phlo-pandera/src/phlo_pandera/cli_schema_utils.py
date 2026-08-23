@@ -19,13 +19,7 @@ logger = get_logger(__name__)
 
 
 def _default_schema_search_paths() -> list[str]:
-    """Return default schema search paths rooted at the project when available.
-
-    Returns:
-        List of search path strings. Uses PHLO_SCHEMA_SEARCH_PATHS env var
-        if set, otherwise defaults to examples/ and workflows/ directories.
-
-    """
+    """Search paths from PHLO_SCHEMA_SEARCH_PATHS, else project or local examples/workflows."""
     env_paths = os.getenv("PHLO_SCHEMA_SEARCH_PATHS")
     if env_paths:
         return [path.strip() for path in env_paths.split(",") if path.strip()]
@@ -41,17 +35,7 @@ def _default_schema_search_paths() -> list[str]:
 
 
 def format_table(title: str, columns: list[str], rows: list[tuple]) -> Table:
-    """Create a Rich Table with given data.
-
-    Args:
-        title: Table title.
-        columns: List of column headers.
-        rows: List of tuples (one per row).
-
-    Returns:
-        Rich Table instance with data populated.
-
-    """
+    """Build a Rich Table with the given title, column headers, and rows."""
     table = Table(title=title)
     for col in columns:
         table.add_column(col)
@@ -87,19 +71,7 @@ def validate_schema_file(schema_path: Path) -> None:
 def discover_pandera_schemas(
     search_paths: Optional[list[str]] = None,
 ) -> dict[str, type]:
-    """
-    Discover all Pandera DataFrameModel subclasses.
-
-    Scans specified directories for schema definitions and loads them.
-
-    Args:
-        search_paths: List of paths to search (default: examples/ and workflows/)
-            or comma-separated PHLO_SCHEMA_SEARCH_PATHS environment variable.
-
-    Returns:
-        Dictionary mapping schema name to schema class
-
-    """
+    """Discover DataFrameModel subclasses under the search paths, mapping name to class."""
     import inspect
 
     from pandera.pandas import DataFrameModel
@@ -185,17 +157,7 @@ def discover_pandera_schemas(
 
 
 def classify_schema_change(old_schema: dict, new_schema: dict) -> tuple[str, list[str]]:
-    """
-    Classify schema changes as SAFE, WARNING, or BREAKING.
-
-    Args:
-        old_schema: Original schema (dict of column_name -> type)
-        new_schema: New schema (dict of column_name -> type)
-
-    Returns:
-        Tuple of (classification, details_list)
-
-    """
+    """Compare column sets and types; returns (SAFE|WARNING|BREAKING, detail messages)."""
     old_cols = set(old_schema.keys())
     new_cols = set(new_schema.keys())
 

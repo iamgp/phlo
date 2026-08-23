@@ -30,4 +30,5 @@ AlertingSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_alerting_adapter() -> CliSurfaceAdapter:
+    """Return the shared AlertingSurfaceAdapter instance for this surface."""
     return AlertingSurfaceAdapter.get_instance()

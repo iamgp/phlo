@@ -74,6 +74,7 @@ def _date(value: Any, field: str) -> dt.date:
 
 
 def load_waivers(path: Path) -> list[dict[str, Any]]:
+    """Load the waiver register from YAML, raising ValueError on any structural violation."""
     try:
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
@@ -89,6 +90,7 @@ def load_waivers(path: Path) -> list[dict[str, Any]]:
 
 
 def validate_waivers(waivers: list[dict[str, Any]], today: dt.date | None = None) -> list[str]:
+    """Check each waiver against schema and policy rules; return a list of error messages."""
     today = today or dt.datetime.now(dt.UTC).date()
     errors: list[str] = []
     active_findings: set[tuple[str, str]] = set()
@@ -127,6 +129,7 @@ def validate_waivers(waivers: list[dict[str, Any]], today: dt.date | None = None
 
 
 def render_waivers(waivers: list[dict[str, Any]], today: dt.date | None = None) -> str:
+    """Render waivers grouped as active, expiring within 7 days, and expired."""
     today = today or dt.datetime.now(dt.UTC).date()
     groups: dict[str, list[dict[str, Any]]] = {"active": [], "expiring": [], "expired": []}
     for waiver in waivers:
@@ -192,6 +195,7 @@ def _image_default(value: str) -> str:
 
 
 def affected_images(changed: Iterable[str], root: Path) -> dict[str, list[dict[str, str]]]:
+    """Map changed paths to the generated service images CI must scan as GitHub matrix output."""
     paths = set(changed)
     service_files = sorted((root / "packages").glob("*/src/*/service.yaml"))
     targets: list[dict[str, str]] = []
@@ -778,6 +782,7 @@ def _waived(waivers: list[dict[str, Any]], image: str, vulnerability_id: str) ->
 # upgrading supersedes waiving. Only unfixed findings consult the waiver
 # register; _waived documents the accepted image-name forms.
 def apply_policy(report: dict[str, Any], image: str, waivers: list[dict[str, Any]]) -> list[str]:
+    """Apply blocking-severity policy to one Trivy report, returning unwaived blocking findings."""
     errors: list[str] = []
     for result in report.get("Results", []) or []:
         for finding in result.get("Vulnerabilities", []) or []:
@@ -800,6 +805,7 @@ def apply_policy(report: dict[str, Any], image: str, waivers: list[dict[str, Any
 
 
 def main() -> int:
+    """Dispatch the container-security subcommands; return the process exit code."""
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
     validate = sub.add_parser("validate-waivers")

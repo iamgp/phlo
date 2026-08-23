@@ -37,6 +37,7 @@ class AssetOrigin:
     object_name: str | None = None
 
     def describe(self) -> str:
+        """Render populated origin fields as a comma-separated key=value string."""
         parts: list[str] = []
         if self.provider:
             parts.append(f"provider={self.provider}")

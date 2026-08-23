@@ -91,6 +91,7 @@ class OIDCIdentityValidator:
 
     @property
     def configured(self) -> bool:
+        """Return whether issuer, audience, and JWKS URL settings are present and valid."""
         if not (self.issuer and self.audience and self.jwks_url):
             return False
         issuer = urlparse(self.issuer)

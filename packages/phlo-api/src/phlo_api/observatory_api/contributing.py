@@ -465,20 +465,10 @@ async def resolve_iceberg_table(
 async def get_contributing_rows_query(
     request: ContributingRowsQueryRequest,
 ) -> ContributingRowsQueryResponse | dict[str, str]:
-    """Generate the contributing rows query for a row journey selection.
+    """Generate the SQL query finding upstream rows that contributed to a downstream row.
 
-    Builds a SQL query to find upstream rows that contributed to a downstream row.
-
-    Args:
-        request: ContributingRowsQueryRequest with downstream/upstream asset keys
-            and row data for predicate construction.
-
-    Returns:
-        ContributingRowsQueryResponse with generated query and upstream reference,
-        or error dictionary.
-
-    Raises:
-        None: Exceptions are caught and returned in the response.
+    Returns the query and upstream reference, or an error dictionary;
+    exceptions are caught and reported in the response rather than raised.
 
     """
     try:
@@ -525,19 +515,11 @@ async def get_contributing_rows_query(
 async def get_contributing_rows_page(
     request: ContributingRowsPageRequest,
 ) -> ContributingRowsPageResponse | dict[str, str]:
-    """Return paginated contributing rows for the selected upstream/downstream pair.
+    """Return paginated contributing rows with a has_more flag for the selected pair.
 
-    Executes the generated query and returns paginated results with has_more flag.
-
-    Args:
-        request: ContributingRowsPageRequest with asset keys, row data, and pagination.
-
-    Returns:
-        ContributingRowsPageResponse with mode, rows, columns, and pagination info,
-        or error dictionary.
-
-    Raises:
-        None: Exceptions are caught and returned in the response.
+    Executes the generated query and returns mode, rows, columns, and
+    pagination info, or an error dictionary; exceptions are caught and
+    reported in the response rather than raised.
 
     """
     try:

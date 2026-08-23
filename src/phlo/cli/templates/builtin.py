@@ -238,6 +238,8 @@ Use `lakehouse:read` for inspection, `lakehouse:operate` for materialize/retry/c
 
 
 class MinimalTemplate:
+    """Project template generating the smallest runnable Phlo project skeleton."""
+
     metadata = TemplateMetadata(
         name="minimal",
         description="Empty Phlo project",
@@ -255,6 +257,7 @@ class MinimalTemplate:
     )
 
     def render(self, context: TemplateRenderContext) -> None:
+        """Write the workflow/test package skeletons and common project files."""
         context.project_dir.mkdir(parents=True, exist_ok=True)
         workflows_dir = context.project_dir / "workflows"
         _write_text(workflows_dir / "__init__.py", '"""User workflows."""\n')

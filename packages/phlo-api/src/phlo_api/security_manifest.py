@@ -802,6 +802,7 @@ async def _specialize_operation(request: Request, spec: OperationSpec) -> Operat
         return spec
 
     def bind_identity(key: str, value: str) -> None:
+        """Bind an identity value into the request body, rejecting conflicts."""
         existing = body.get(key)
         if existing is not None and str(existing) != value:
             raise HTTPException(status_code=400, detail={"error": "ambiguous_resource"})

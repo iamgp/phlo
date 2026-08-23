@@ -61,12 +61,14 @@ def _decorators_202605_transformer(cst: Any) -> Any:
             self.quality_names: set[str] = {"phlo_quality"}
 
         def visit_Import(self, node: Any) -> bool:
+            """Record an existing ``import phlo`` binding."""
             for alias in node.names:
                 if _local_name(alias) == "phlo":
                     self.has_import_phlo = True
             return True
 
         def visit_ImportFrom(self, node: Any) -> bool:
+            """Record import bindings for phlo, phlo_ingestion, and phlo_quality."""
             module_name = _module_name(node.module)
             if module_name == "phlo":
                 for alias in _aliases(node.names):
@@ -88,6 +90,7 @@ def _decorators_202605_transformer(cst: Any) -> Any:
             return True
 
         def leave_ImportFrom(self, original_node: Any, updated_node: Any) -> Any:
+            """Strip migrated ingestion and quality names from their original imports."""
             module_name = _module_name(original_node.module)
             names = updated_node.names
             if not isinstance(names, tuple):
@@ -104,11 +107,13 @@ def _decorators_202605_transformer(cst: Any) -> Any:
             return updated_node
 
         def leave_Decorator(self, original_node: Any, updated_node: Any) -> Any:
+            """Rewrite decorator expressions that target migrated entry points."""
             return updated_node.with_changes(
                 decorator=self._migrate_decorator_expression(updated_node.decorator)
             )
 
         def leave_Module(self, original_node: Any, updated_node: Any) -> Any:
+            """Insert ``import phlo`` when the walk rewrote a decorator and no binding exists."""
             # Runs after the whole module is walked, so needs_import_phlo
             # already covers every rewritten decorator and has_import_phlo is
             # final. A visit-time check could not know either yet.

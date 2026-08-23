@@ -43,6 +43,8 @@ REQUIREMENT_NAME = re.compile(r"^\s*([A-Za-z0-9_.-]+)")
 
 @dataclass(frozen=True)
 class DependencyRefreshEntry:
+    """One lane entry: a package, its locked version, and the manifests declaring it."""
+
     name: str
     lane: Lane
     locked_version: str | None
@@ -119,6 +121,7 @@ def _locked_versions(repo_root: Path) -> dict[str, str]:
 
 
 def collect_plan(repo_root: Path) -> dict[Lane, list[DependencyRefreshEntry]]:
+    """Build per-lane refresh entries from manifests and uv.lock; skip undiscovered packages."""
     repo_root = repo_root.resolve()
     manifests = _discover_manifests(repo_root)
     locked_versions = _locked_versions(repo_root)
@@ -142,6 +145,7 @@ def collect_plan(repo_root: Path) -> dict[Lane, list[DependencyRefreshEntry]]:
 
 
 def validate_plan(plan: dict[Lane, list[DependencyRefreshEntry]]) -> list[str]:
+    """Return human-readable errors for empty lanes or entries missing a locked version."""
     errors: list[str] = []
     if not plan["patch"]:
         errors.append("Patch lane has no discovered dependencies.")
@@ -193,6 +197,7 @@ def _print_markdown(plan: dict[Lane, list[DependencyRefreshEntry]]) -> None:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
+    """Parse CLI arguments selecting lanes and the output format."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--repo-root",
@@ -221,6 +226,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Print the refresh plan, exiting non-zero under --check when validation fails."""
     args = parse_args(sys.argv[1:] if argv is None else argv)
     full_plan = collect_plan(args.repo_root)
     plan = _select_lanes(full_plan, args.lane)

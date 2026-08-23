@@ -41,16 +41,7 @@ def test_schema_check_plugin():
         __name__ = "DummySchema"
 
         def validate(self, df, lazy=True):
-            """Return input dataframe unchanged.
-
-            Args:
-                df: Input dataframe-like object.
-                lazy: Validation mode flag.
-
-            Returns:
-                The unmodified input dataframe.
-
-            """
+            """Return input dataframe unchanged."""
             return df
 
     check = plugin.create_check(schema=DummySchema)

@@ -29,4 +29,5 @@ OpenMetadataSurfaceAdapter = cli_surface_adapter_class(
 
 
 def get_openmetadata_adapter() -> CliSurfaceAdapter:
+    """Return the process-wide OpenMetadata CLI surface adapter singleton."""
     return OpenMetadataSurfaceAdapter.get_instance()

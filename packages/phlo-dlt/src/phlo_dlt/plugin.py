@@ -149,14 +149,6 @@ class DltAssetProvider(AssetProviderPlugin):
     via the ``@phlo_ingestion`` decorator. Discovered by Phlo's plugin
     system and used during asset loading.
 
-    Attributes:
-        metadata: Static plugin metadata for discovery.
-
-    Methods:
-        get_assets: Return all registered DLT ingestion assets.
-        get_checks: Return asset check specs (currently empty).
-        clear_registries: Clear internal asset registry.
-
     Example:
         This class is auto-discovered by Phlo. Users don't instantiate it:
         ```python
@@ -170,12 +162,7 @@ class DltAssetProvider(AssetProviderPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for discovery and registration.
-
-        Returns:
-            PluginMetadata: Static metadata for the DLT asset provider plugin.
-
-        """
+        """Return static plugin metadata for discovery and registration."""
         return PluginMetadata(
             name="dlt",
             version="0.1.0",
@@ -183,22 +170,11 @@ class DltAssetProvider(AssetProviderPlugin):
         )
 
     def get_assets(self) -> Iterable[AssetSpec]:
-        """Return registered DLT ingestion assets.
-
-        Returns:
-            Iterable[AssetSpec]: Asset specifications discovered from DLT decorators.
-
-        """
+        """Return all assets registered through the ``@phlo_ingestion`` decorator."""
         return get_ingestion_assets()
 
     def get_checks(self) -> Iterable[AssetCheckSpec]:
-        """Return asset checks exposed by this provider.
-
-        Returns:
-            Iterable[AssetCheckSpec]: Empty iterable because DLT provider has no checks.
-            Checks are attached to individual assets, not the provider.
-
-        """
+        """Return no checks; asset checks attach to individual assets, not providers."""
         return []
 
     def clear_registries(self) -> None:
@@ -217,13 +193,6 @@ class DLTIngestionProvider(IngestionProviderPlugin):
     Ingestion provider plugin that exposes DLT-based ingestion
     capabilities through the standardized ingestion provider interface.
 
-    Attributes:
-        metadata: Static plugin metadata for discovery.
-
-    Methods:
-        get_decorator: Return the @phlo_ingestion decorator.
-        get_asset_retriever: Return function to get registered assets.
-
     Example:
         This class is auto-discovered by Phlo:
         ```python
@@ -236,12 +205,7 @@ class DLTIngestionProvider(IngestionProviderPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Static metadata for the DLT ingestion provider.
-
-        """
+        """Return static plugin metadata for the DLT ingestion provider."""
         return PluginMetadata(
             name="dlt",
             version="0.1.0",
@@ -249,23 +213,13 @@ class DLTIngestionProvider(IngestionProviderPlugin):
         )
 
     def get_decorator(self) -> Callable:
-        """Return the @phlo_ingestion decorator.
-
-        Returns:
-            Callable: The phlo_ingestion decorator function.
-
-        """
+        """Return the ``@phlo_ingestion`` decorator."""
         from phlo_dlt import phlo_ingestion
 
         return phlo_ingestion
 
     def get_asset_retriever(self) -> Callable[[], list[Any]]:
-        """Return function to get registered ingestion assets.
-
-        Returns:
-            Callable[[], list[Any]]: Function that returns list of AssetSpec objects.
-
-        """
+        """Return the callable that lists registered ingestion assets."""
         return get_ingestion_assets
 
     def get_workflow_wizard_contributions(self) -> list[WorkflowWizardContribution]:
@@ -291,6 +245,7 @@ class DltWorkflowAuthoringProvider:
     """Create DLT-backed ingestion workflow files."""
 
     def create_workflow(self, *, project_root: Path, request: dict[str, Any]) -> dict[str, Any]:
+        """Create a DLT ingestion workflow from an authoring request and return its files."""
         from phlo_dlt.scaffold import create_ingestion_workflow
 
         values = dict(request.get("values") or {})
@@ -343,6 +298,7 @@ class DltNamespaceResolver:
     """Resolve DLT table names against its configured default namespace."""
 
     def resolve_namespace(self, table_name: str) -> str:
+        """Prefix the table name with DLT's configured default namespace."""
         from phlo_dlt.settings import get_settings
 
         return f"{get_settings().dlt_default_namespace}.{table_name}"

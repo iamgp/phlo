@@ -45,14 +45,17 @@ class _ActionRuntimeContext:
 
     @property
     def logger(self) -> Any:
+        """Return the module logger for action handling."""
         return logging.getLogger("phlo.observatory.observatory.actions")
 
     @property
     def resources(self) -> dict[str, Any]:
+        """Return the registered resources by name."""
         return self._resources
 
     @property
     def routing(self) -> RuntimeRouting:
+        """Build runtime routing from the recorded run, partition, and resources."""
         return RuntimeRouting(
             partition_key=self.partition_key,
             run_id=self.run_id,
@@ -60,6 +63,7 @@ class _ActionRuntimeContext:
         )
 
     def get_resource(self, name: str) -> Any:
+        """Return a named resource."""
         return self._resources[name]
 
 

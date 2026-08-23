@@ -11,12 +11,7 @@ class DummyResponse:
     """Simple response test double for requests.get."""
 
     def __init__(self, payload):
-        """Initialize the response with a JSON payload.
-
-        Args:
-            payload: JSON-serializable data returned by ``json()``.
-
-        """
+        """Store the JSON-serializable payload returned by ``json()``."""
         self._payload = payload
 
     def raise_for_status(self):

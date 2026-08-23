@@ -231,6 +231,7 @@ class DagsterRunEvidenceSource:
             ) from exc
 
     def observe_run(self, project_id: str, run_id: str) -> RunObservation:
+        """Observe one Dagster run; unknown projects raise, absent runs report MISSING evidence."""
         if project_id != self.project_id:
             raise ValueError("Dagster event source is configured for another project")
         try:
