@@ -71,7 +71,7 @@ def _align_arrow_table_to_target_schema(arrow_table, target_schema, *, table_nam
     for field in target_schema:
         if field.name in arrow_column_names:
             continue
-        if not field.nullable:
+        if not field.nullable and not field.name.startswith(("_dlt_", "_phlo_")):
             raise ValueError(
                 f"Required target column '{field.name}' is missing from source data for {table_name}"
             )
