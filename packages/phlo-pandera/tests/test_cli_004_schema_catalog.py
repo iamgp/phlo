@@ -83,20 +83,47 @@ class TestSchemaCommands:
         assert result.exit_code == 0
         assert "Iceberg Schema" in result.output
 
-    def test_schema_diff(self):
-        """Test phlo schema diff command."""
+    @staticmethod
+    def _write_old_schema(tmp_path: Path) -> Path:
+        """Write a previous-generation glucose fixture for diff comparisons."""
+        current = (FIXTURES_DIR / "schemas" / "glucose.py").read_text()
+        old = current.replace("    date: int = Field(ge=0)\n", "")
+        old_path = tmp_path / "glucose_previous.py"
+        old_path.write_text(old)
+        return old_path
+
+    def test_schema_diff(self, tmp_path: Path):
+        """Test phlo schema diff command against an explicit old schema file."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "diff", "RawGlucoseEntries"], env=SCHEMA_ENV)
+        result = runner.invoke(
+            cli,
+            [
+                "schema",
+                "diff",
+                "RawGlucoseEntries",
+                "--old",
+                str(self._write_old_schema(tmp_path)),
+            ],
+            env=SCHEMA_ENV,
+        )
 
         assert result.exit_code == 0
         assert "Diff" in result.output
 
-    def test_schema_diff_json(self):
+    def test_schema_diff_json(self, tmp_path: Path):
         """Test phlo schema diff with JSON output."""
         runner = CliRunner()
         result = runner.invoke(
             cli,
-            ["schema", "diff", "RawGlucoseEntries", "--format", "json"],
+            [
+                "schema",
+                "diff",
+                "RawGlucoseEntries",
+                "--old",
+                str(self._write_old_schema(tmp_path)),
+                "--format",
+                "json",
+            ],
             env=SCHEMA_ENV,
         )
 

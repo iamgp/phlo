@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
-import yaml
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
@@ -852,6 +852,7 @@ def _dockerfile_lines(path: Path) -> list[str]:
 
 
 def test_dagster_build_receives_a_local_wheelhouse_arg() -> None:
+    yaml = pytest.importorskip("yaml", reason="service definitions are YAML")
     dagster_pkg = REPO_ROOT / "packages/phlo-dagster/src/phlo_dagster"
     service = yaml.safe_load((dagster_pkg / "service.yaml").read_text(encoding="utf-8"))
     daemon = yaml.safe_load((dagster_pkg / "dagster-daemon.yaml").read_text(encoding="utf-8"))
