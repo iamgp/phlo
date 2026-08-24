@@ -16,9 +16,8 @@ from click.testing import CliRunner
 from phlo.cli.main import cli
 from phlo_pandera.cli_schema_utils import classify_schema_change, discover_pandera_schemas
 
-SCHEMA_ENV = {
-    "PHLO_SCHEMA_SEARCH_PATHS": "packages/phlo-pandera/tests/fixtures",
-}
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+SCHEMA_ENV = {"PHLO_SCHEMA_SEARCH_PATHS": str(FIXTURES_DIR)}
 
 
 class TestSchemaCommands:
@@ -192,7 +191,7 @@ class RawObservations(PhloSchema):
         runner = CliRunner()
 
         # Use actual schema file that exists
-        schema_file = "packages/phlo-pandera/tests/fixtures/schemas/glucose.py"
+        schema_file = str(FIXTURES_DIR / "schemas" / "glucose.py")
         result = runner.invoke(cli, ["schema", "validate", schema_file], env=SCHEMA_ENV)
 
         assert result.exit_code == 0
@@ -298,60 +297,3 @@ class TestClassifySchemaChange:
 
         assert classification == "SAFE"
         assert "No changes" in " ".join(details)
-
-
-class TestCatalogCommands:
-    """Test phlo catalog commands (integration tests with mocked catalog)."""
-
-    @pytest.mark.skip(reason="Requires running Iceberg catalog")
-    def test_catalog_list_tables(self):
-        """Test phlo catalog tables command."""
-        runner = CliRunner()
-        result = runner.invoke(cli, ["catalog", "tables"])
-
-        # Would need running Iceberg catalog for this to work
-        assert result.exit_code in [0, 1]  # Might fail if catalog not available
-
-    @pytest.mark.skip(reason="Requires running Iceberg catalog")
-    def test_catalog_describe(self):
-        """Test phlo catalog describe command."""
-        runner = CliRunner()
-        result = runner.invoke(cli, ["catalog", "describe", "raw.glucose_entries"])
-
-        # Would need running Iceberg catalog
-        assert result.exit_code in [0, 1]
-
-    @pytest.mark.skip(reason="Requires running Iceberg catalog")
-    def test_catalog_history(self):
-        """Test phlo catalog history command."""
-        runner = CliRunner()
-        result = runner.invoke(cli, ["catalog", "history", "raw.glucose_entries", "--limit", "5"])
-
-        # Would need running Iceberg catalog
-        assert result.exit_code in [0, 1]
-
-
-class TestBranchCommands:
-    """Test phlo branch (Nessie) commands."""
-
-    @pytest.mark.skip(reason="Requires running Nessie server")
-    def test_branch_list(self):
-        """Test phlo branch list command."""
-        runner = CliRunner()
-        result = runner.invoke(cli, ["branch", "list"])
-
-        # Would need running Nessie server
-        assert result.exit_code in [0, 1]
-
-    @pytest.mark.skip(reason="Requires running Nessie server")
-    def test_branch_create(self):
-        """Test phlo branch create command."""
-        runner = CliRunner()
-        result = runner.invoke(cli, ["branch", "create", "test-branch"])
-
-        # Would need running Nessie server
-        assert result.exit_code in [0, 1]
-
-
-# Integration test marker for catalog/branch tests
-pytestmark = pytest.mark.integration
