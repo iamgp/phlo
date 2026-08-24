@@ -1,0 +1,17 @@
+delta_portability:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      method: none
+      user: dagster
+      host: trino
+      port: 8080
+      # The default dev-stack Trino image ships only an iceberg catalog; a
+      # delta catalog must be added before these models can run. See the
+      # README "Provider reality" section for the exact catalog properties
+      # phlo-delta's integration stack mounts.
+      catalog: delta
+      schema: raw
+      http_scheme: http
+      threads: 2
