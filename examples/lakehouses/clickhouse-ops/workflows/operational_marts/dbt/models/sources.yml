@@ -1,0 +1,17 @@
+version: 2
+sources:
+  - name: ch_raw
+    schema: raw
+    tables:
+      - name: raw_platform_events
+        identifier: platform_events
+        meta:
+          phlo_asset_key: dlt_platform_events
+      - name: raw_access_logs
+        identifier: access_logs
+        meta:
+          phlo_asset_key: dlt_access_logs
+      - name: raw_chmeta_tenants
+        identifier: chmeta_tenants
+        meta:
+          phlo_asset_key: sling_chmeta_tenants

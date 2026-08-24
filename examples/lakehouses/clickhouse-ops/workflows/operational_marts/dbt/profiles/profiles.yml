@@ -1,0 +1,11 @@
+clickhouse_ops:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      host: clickhouse
+      port: 8123
+      user: default
+      password: ""
+      schema: marts
+      threads: 2
