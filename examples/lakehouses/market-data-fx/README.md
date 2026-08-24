@@ -56,9 +56,9 @@ uv run phlo services init --force --no-dev
 uv run phlo services start --build
 uv run phlo doctor
 
-uv run phlo materialize dlt_security_master --partition 2026-08-10
-uv run phlo materialize dlt_trading_calendar --partition 2026-08-10
-uv run phlo materialize dlt_portfolio_holdings --partition 2026-08-10
+uv run phlo materialize dlt_security_master
+uv run phlo materialize dlt_trading_calendar
+uv run phlo materialize dlt_portfolio_holdings
 
 uv run phlo backfill dlt_equities_bars \
   --partitions 2026-08-10,2026-08-11,2026-08-12,2026-08-13,2026-08-14,2026-08-17,2026-08-18,2026-08-19,2026-08-20,2026-08-21 \
@@ -99,7 +99,9 @@ UK on 08-14.
   US1's final annualized vol is `0.054493`.
 - Drawdown covers all 38 sessions: declining DE1 bottoms at `-0.037042`
   while monotonically rising US1 never dips below `0.0`.
-- All ten EURGBP observations reconcile within tolerance (`deviation_pct` 0).
+- All ten EURGBP observations reconcile within tolerance (`deviation_pct` 0);
+  the cross-rate rule also rides as a blocking `quality_checks` entry on the
+  FX ingestion asset, so a breaching batch fails closed.
 - Exposure weights sum to exactly `1.000000` for the core portfolio.
 
 ## Expected failures

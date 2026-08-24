@@ -55,8 +55,8 @@ uv run phlo services init --force --no-dev
 uv run phlo services start --build
 uv run phlo doctor
 
-uv run phlo materialize dlt_providers --partition 2026-08-17
-uv run phlo materialize dlt_eligibility_periods --partition 2026-08-17
+uv run phlo materialize dlt_providers
+uv run phlo materialize dlt_eligibility_periods
 uv run phlo backfill dlt_claims \
   --partitions 2026-08-17,2026-08-18,2026-08-19,2026-08-20,2026-08-21 \
   --parallel 5
@@ -99,7 +99,8 @@ proven by `tests/test_healthcare_claims.py`:
   fails closed. Verified live: the WAP report reaches terminal `failed` and
   the published catalog keeps its prior 40 distinct claims.
 - `claims_duplicate_version.csv`: the same claim version twice fails the
-  version check.
+  version check, which also gates claims ingestion as a blocking
+  `quality_checks` entry - a duplicated version can never promote.
 - `claims_outside_eligibility.csv`: a 2024 service date fails temporal
   validity, with the member identifier masked to `mbr...` in the diagnostic.
 - `eligibility_overlap.csv`: overlapping coverage periods fail the

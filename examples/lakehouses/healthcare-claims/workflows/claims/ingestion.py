@@ -9,6 +9,7 @@ import dlt
 import phlo
 from phlo.contracts import SLA, Consumer
 
+from workflows.claims.quality import assert_versions_unique_and_advancing
 from workflows.shared.contracts.schemas import ClaimSchema
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -29,6 +30,7 @@ def read_arrival(arrival_date: str, inbound_dir: Path = INBOUND_DIR) -> list[dic
     unique_key="claim_version_key",
     validation_schema=ClaimSchema,
     group="claims",
+    quality_checks=[assert_versions_unique_and_advancing],
     freshness_hours=(26, 30),
     merge_strategy="append",
     strict_validation=True,

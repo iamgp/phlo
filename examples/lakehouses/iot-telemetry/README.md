@@ -68,8 +68,8 @@ Materialize every asset in dependency order, waiting for each WAP report in
 `.phlo/wap-reports/` to reach `promoted` before launching dependents:
 
 ```bash
-uv run phlo materialize dlt_device_registry --partition 2026-08-20
-uv run phlo materialize dlt_site_directory --partition 2026-08-20
+uv run phlo materialize dlt_device_registry
+uv run phlo materialize dlt_site_directory
 uv run phlo materialize dlt_telemetry_readings --partition 2026-08-20
 uv run phlo materialize dlt_telemetry_corrections --partition 2026-08-20
 uv run phlo materialize stg_devices --partition 2026-08-20

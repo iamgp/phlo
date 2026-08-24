@@ -2622,7 +2622,7 @@ wheels = [
 [[package]]
 name = "phlo-dagster"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=2beae89f69462ca0bb788137cd9d47a98f65e5b7#2beae89f69462ca0bb788137cd9d47a98f65e5b7" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
 dependencies = [
     { name = "cryptography" },
     { name = "dagster" },
@@ -2649,7 +2649,7 @@ dependencies = [
 [[package]]
 name = "phlo-dlt"
 version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
 dependencies = [
     { name = "dlt" },
     { name = "pandas" },
@@ -2657,10 +2657,6 @@ dependencies = [
     { name = "pyarrow" },
     { name = "pyiceberg" },
     { name = "python-ulid" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/0d/37bbd8f92b7b9840312ac69aa23a452eb4cb6f39cd16ddb66aafbf701d2f/phlo_dlt-0.14.0.tar.gz", hash = "sha256:1100f572ca762b092666f164a470100465e301c17f812d3aa579b886961593fc", size = 59582, upload-time = "2026-08-21T21:40:13.802Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/46/388f3226750a2b9765f5f167f1d40f99a5bbabaef1a4561802cf49c2c7e9/phlo_dlt-0.14.0-py3-none-any.whl", hash = "sha256:0f08d3decea53e24ff734a0412e4504bad0cc2d94906dd9d8d00cf78e82a0976", size = 51254, upload-time = "2026-08-21T21:39:44.698Z" },
 ]
 
 [[package]]
@@ -2688,6 +2684,7 @@ dependencies = [
     { name = "phlo", extra = ["defaults"] },
     { name = "phlo-dagster" },
     { name = "phlo-dbt" },
+    { name = "phlo-dlt" },
     { name = "pyarrow" },
 ]
 
@@ -2705,8 +2702,9 @@ requires-dist = [
     { name = "dlt", extras = ["filesystem"], specifier = ">=1.20,<2" },
     { name = "pandas", specifier = ">=2.3,<3.1" },
     { name = "phlo", extras = ["defaults"], specifier = "==0.14.0" },
-    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=2beae89f69462ca0bb788137cd9d47a98f65e5b7" },
+    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede" },
     { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main" },
+    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede" },
     { name = "pyarrow", specifier = ">=21,<26" },
 ]
 

@@ -26,6 +26,7 @@ def read_eligibility(eligibility_file: Path = ELIGIBILITY_FILE) -> list[dict[str
     unique_key="eligibility_key",
     validation_schema=EligibilityPeriodSchema,
     group="eligibility",
+    partitioned=False,
     freshness_hours=(50, 54),
     merge_strategy="merge",
     strict_validation=True,

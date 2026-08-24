@@ -24,6 +24,7 @@ def read_providers(providers_file: Path = PROVIDERS_FILE) -> list[dict[str, str]
     unique_key="provider_id",
     validation_schema=ProviderSchema,
     group="providers",
+    partitioned=False,
     freshness_hours=(168, 192),
     merge_strategy="merge",
     strict_validation=True,

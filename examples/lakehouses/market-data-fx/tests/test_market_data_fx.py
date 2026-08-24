@@ -206,8 +206,9 @@ def test_dbt_models_carry_expected_evidence() -> None:
     assert "cal.is_trading_day" in returns
 
     volatility = (root / "prices/rolling_volatility.sql").read_text(encoding="utf-8")
-    assert "stddev_samp(daily_return)" in volatility and "sqrt(252)" in volatility
-    assert "where window_count >= 5" in volatility
+    assert "stddev_samp(b.daily_return) * sqrt(252)" in volatility
+    assert "b.rn between a.rn - 4 and a.rn" in volatility
+    assert "where a.rn >= 5" in volatility
 
     drawdown = (root / "prices/drawdown.sql").read_text(encoding="utf-8")
     assert "max(close_usd) over (partition by symbol order by trade_date)" in drawdown

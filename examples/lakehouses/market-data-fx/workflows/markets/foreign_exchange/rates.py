@@ -11,6 +11,7 @@ import dlt
 import phlo
 from phlo.contracts import SLA, Consumer
 
+from workflows.markets.foreign_exchange.quality import assert_fx_cross_tolerance
 from workflows.schemas.market_data import FxRateSchema
 
 API_URL = os.environ.get("MARKETS_API_URL", "http://127.0.0.1:8092/v1")
@@ -29,6 +30,7 @@ def fetch_rates(rate_date: str, url: str = API_URL) -> list[dict[str, object]]:
     unique_key="rate_id",
     validation_schema=FxRateSchema,
     group="foreign_exchange",
+    quality_checks=[assert_fx_cross_tolerance],
     freshness_hours=(26, 30),
     merge_strategy="merge",
     strict_validation=True,
