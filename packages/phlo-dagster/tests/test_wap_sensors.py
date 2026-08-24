@@ -1337,3 +1337,45 @@ def test_quality_evidence_uses_decision_correct_aggregate(
     assert result["check_id"] == "wap.aggregate"
     assert result["passed"] == expected_passed
     assert metadata["quality_evidence"]["failed_check_ids"] == expected_failed
+
+
+def test_persist_aggregate_quality_decision_allows_empty_checks() -> None:
+    """Check-free runs (Sling replications) must still yield durable evidence.
+
+    The promotion sensor treats zero executed checks as vacuously passed; the
+    aggregate writer must agree, otherwise check-free assets can never satisfy
+    promotion evidence.
+    """
+    from phlo_dagster.wap_sensors import _persist_aggregate_quality_decision
+
+    assert (
+        _persist_aggregate_quality_decision(
+            project_id="p",
+            run_id="r-empty",
+            attempt=1,
+            checks=[],
+        )
+        is not None
+    )
+    assert (
+        _persist_aggregate_quality_decision(
+            project_id="p",
+            run_id="r-missing-id",
+            attempt=1,
+            checks=[{"passed": True}],
+        )
+        is None
+    )
+
+
+def test_persist_aggregate_quality_decision_reflects_failures() -> None:
+    from phlo_dagster.wap_sensors import _persist_aggregate_quality_decision
+
+    event_id = "dagster-quality:42"
+    decision_id = _persist_aggregate_quality_decision(
+        project_id="p",
+        run_id="r-failed",
+        attempt=1,
+        checks=[{"event_id": event_id, "passed": False}],
+    )
+    assert decision_id is not None
