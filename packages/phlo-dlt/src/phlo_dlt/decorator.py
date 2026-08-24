@@ -641,21 +641,20 @@ def phlo_ingestion(
                     )
                     return
                 dropped_source_columns: list[str] = []
-                query_or_sql = ""
+                parquet_paths_raw = result.metadata.get("parquet_paths")
+                if isinstance(parquet_paths_raw, list):
+                    parquet_paths = [Path(str(path)) for path in parquet_paths_raw]
+                else:
+                    parquet_path = result.metadata.get("parquet_path")
+                    parquet_paths = [Path(str(parquet_path))] if parquet_path else []
+                primary_parquet_path = parquet_paths[0] if parquet_paths else None
+                query_or_sql = (
+                    ",".join(f"parquet://{parquet_path}" for parquet_path in parquet_paths)
+                    if parquet_paths
+                    else "parquet://<missing>"
+                )
                 if validate and table_config.validation_schema is not None:
                     validation_schema = table_config.validation_schema
-                    parquet_paths_raw = result.metadata.get("parquet_paths")
-                    if isinstance(parquet_paths_raw, list):
-                        parquet_paths = [Path(str(path)) for path in parquet_paths_raw]
-                    else:
-                        parquet_path = result.metadata.get("parquet_path")
-                        parquet_paths = [Path(str(parquet_path))] if parquet_path else []
-                    primary_parquet_path = parquet_paths[0] if parquet_paths else None
-                    query_or_sql = (
-                        ",".join(f"parquet://{parquet_path}" for parquet_path in parquet_paths)
-                        if parquet_paths
-                        else "parquet://<missing>"
-                    )
                     try:
                         dropped_source_columns = detect_dropped_source_columns(
                             parquet_paths,
@@ -767,40 +766,43 @@ def phlo_ingestion(
                     if strict_validation and not evaluation.passed:
                         raise RuntimeError("Pandera contract validation failed")
 
-                    for index, quality_check in enumerate(quality_checks or ()):
-                        check_name = getattr(quality_check, "__name__", None) or f"quality_{index}"
-                        violation: str | None = None
+                for index, quality_check in enumerate(quality_checks or ()):
+                    check_name = getattr(quality_check, "__name__", None) or f"quality_{index}"
+                    violation: str | None = None
+                    if not parquet_paths:
+                        violation = "no staged parquet available for domain checks"
+                    else:
                         try:
-                            staged_frame = pd.read_parquet(primary_parquet_path)
+                            staged_frame = pd.read_parquet(parquet_paths[0])
                             violation = quality_check(staged_frame)
                         except Exception as exc:  # noqa: BLE001 - violations must surface as checks
                             violation = f"quality check raised: {exc}"
-                        passed = not violation
-                        yield CheckResult(
-                            passed=passed,
-                            check_name=f"quality_{check_name}",
-                            metadata={
-                                "source": "domain",
-                                "partition_key": partition_date,
-                                "violation": violation,
-                                "query_or_sql": query_or_sql,
-                            },
-                            severity=None if passed else "error",
-                            asset_key=f"dlt_{table_config.table_name}",
+                    passed = not violation
+                    yield CheckResult(
+                        passed=passed,
+                        check_name=f"quality_{check_name}",
+                        metadata={
+                            "source": "domain",
+                            "partition_key": partition_date,
+                            "violation": violation,
+                            "staged_parquet": query_or_sql,
+                        },
+                        severity=None if passed else "error",
+                        asset_key=f"dlt_{table_config.table_name}",
+                    )
+                    if not passed:
+                        log_event(
+                            logger,
+                            "warning",
+                            "domain_quality_check_failed",
+                            table_name=table_config.full_table_name,
+                            check=check_name,
+                            violation=violation,
                         )
-                        if not passed:
-                            log_event(
-                                logger,
-                                "warning",
-                                "domain_quality_check_failed",
-                                table_name=table_config.full_table_name,
-                                check=check_name,
-                                violation=violation,
+                        if strict_validation:
+                            raise RuntimeError(
+                                f"Domain quality check failed: {check_name}: {violation}"
                             )
-                            if strict_validation:
-                                raise RuntimeError(
-                                    f"Domain quality check failed: {check_name}: {violation}"
-                                )
 
                 yield MaterializeResult(
                     metadata={

@@ -30,6 +30,7 @@ See Also:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,7 @@ import pandas as pd
 from phlo.capabilities.specs import CheckResult
 
 PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
+_ISO_TIMESTAMP_LIKE = re.compile(r"\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2})?")
 _PANDERA_INSTALL_HINT = (
     "pandera is required for validation; install the quality provider "
     "(for example, pip install phlo-pandera or pip install pandera)"
@@ -60,7 +62,7 @@ def _dlt_normalization_hint(failure_cases: pd.DataFrame, schema: Any) -> str | N
             if column_config is None or "str" not in str(column_config.dtype).lower():
                 continue
             failure_value = str(case.get("failure_case", ""))
-            if "00:00:00" in failure_value:
+            if _ISO_TIMESTAMP_LIKE.search(failure_value):
                 hinted.add(str(column))
         if hinted:
             return (
