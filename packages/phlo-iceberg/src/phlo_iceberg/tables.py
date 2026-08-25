@@ -311,9 +311,11 @@ def merge_to_table(
 ) -> dict[str, int]:
     """Merge (upsert) Parquet data into an Iceberg table with deduplication.
 
-    Deletes existing rows matching ``unique_key`` before inserting new data;
-    duplicate keys within the source are logged as warnings. Raises ValueError
-    when the unique-key column is absent from the source data.
+    Uses pyiceberg's atomic ``Table.upsert``: matched keys update in place
+    and new keys insert within a single snapshot, so repeated merges of
+    identical payloads can never duplicate data across Nessie branch merges.
+    Duplicate keys within the source are logged as warnings. Raises
+    ValueError when the unique-key column is absent from the source data.
 
     Example:
         Upsert user data by ID::
@@ -326,11 +328,10 @@ def merge_to_table(
             print(f"Deleted ~{result['rows_deleted']} existing rows")
             print(f"Inserted {result['rows_inserted']} new rows")
 
-    Warning:
-        The ``rows_deleted`` count is an approximation because Iceberg's
-        delete operation doesn't return the actual number of rows deleted.
-        It represents the number of unique keys processed, not necessarily
-        the count of existing rows removed.
+    Note:
+        ``rows_deleted`` is always 0 under the atomic upsert; matched rows
+        are updated rather than deleted. ``rows_inserted`` reports the
+        number of staged rows submitted to the upsert.
     """
     source_path = str(data_path)
     source_row_count = 0
@@ -377,22 +378,6 @@ def merge_to_table(
                 table_name=table_name,
             )
 
-        batch_size = 1000
-        unique_values_list = list(unique_values_set)
-
-        for i in range(0, len(unique_values_list), batch_size):
-            batch = unique_values_list[i : i + batch_size]
-            from pyiceberg.expressions import In, Reference
-
-            delete_expr = In(term=Reference(unique_key), values=set(batch))
-            # A failed delete batch is ignored so the append still happens;
-            # the affected keys can then appear twice until the next merge.
-            try:
-                table.delete(delete_expr)
-                rows_deleted += len(batch)  # Approximation
-            except Exception:
-                pass
-
         iceberg_column_names = {field.name for field in table.schema().fields}
         arrow_column_names = set(arrow_table.schema.names)
         new_columns = arrow_column_names - iceberg_column_names
@@ -423,7 +408,10 @@ def merge_to_table(
                 "arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e)
             )
 
-        table.append(arrow_table)
+        # Atomic upsert replaces the previous delete-then-append sequence
+        # whose non-atomic snapshots could duplicate rows across Nessie
+        # branch merges when a delete failed silently (#777).
+        table.upsert(arrow_table, join_cols=[unique_key], branch=ref or "main")
         rows_inserted = len(arrow_table)
 
     except Exception as exc:
