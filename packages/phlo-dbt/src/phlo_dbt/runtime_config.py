@@ -111,7 +111,7 @@ class DbtRuntimeConfig:
     def _clickhouse_output(self) -> dict[str, Any]:
         """ClickHouse connection block (dbt-clickhouse credentials shape)."""
         return {
-            "type": "clickhouse",
+            "type": self.engine_type,
             "user": self.user,
             "password": self.password,
             "host": self.host,
