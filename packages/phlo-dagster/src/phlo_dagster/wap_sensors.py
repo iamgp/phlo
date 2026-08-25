@@ -1049,7 +1049,8 @@ def _all_checks_passed(instance: Any, run_id: str) -> bool:
             continue
         if check_eval.passed:
             continue
-        severity = str(getattr(check_eval, "severity", "") or "error").lower()
+        severity_raw = getattr(check_eval, "severity", None)
+        severity = str(getattr(severity_raw, "value", severity_raw) or "error").lower()
         if severity == "warn":
             warning_failures += 1
             continue
