@@ -193,6 +193,7 @@ def resolve_dbt_runtime_config(
         profile_name=resolve_dbt_profile_name(settings.dbt_project_path),
         target_name=target_name,
         engine_type=settings.dbt_query_engine_type,
+        password=settings.dbt_query_password,
         user=settings.dbt_query_user,
         host=settings.dbt_query_host,
         port=settings.dbt_query_port,
@@ -273,8 +274,6 @@ def write_dbt_profile(
 
     if not force and profile_path.exists():
         try:
-            import yaml
-
             existing = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
             engines: set[str] = set()
             if isinstance(existing, dict):
