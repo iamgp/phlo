@@ -71,6 +71,7 @@ def _observation_frame(rows: list[dict[str, object]]) -> pd.DataFrame:
     frame = pd.DataFrame(rows)
     frame["observed_at"] = pd.to_datetime(frame["observed_at"])
     frame["observation_key"] = frame["station_id"] + "|" + frame["observed_at"].astype(str)
+    frame["obs_month"] = frame["observed_at"].dt.to_period("M").dt.start_time
     return frame
 
 
@@ -205,6 +206,7 @@ def test_orphan_station_fixture_breaks_only_the_coverage_invariant(data_dir: Pat
     orphans = pd.read_csv(data_dir / "failures" / "observations_orphan_station.csv")
     orphans["observed_at"] = pd.to_datetime(orphans["observed_at"])
     orphans["observation_key"] = orphans["station_id"] + "|" + orphans["observed_at"].astype(str)
+    orphans["obs_month"] = pd.to_datetime(orphans["observed_at"]).dt.to_period("M").dt.start_time
     # The contract itself accepts the rows; only coverage rejects them.
     ObservationSchema.validate(orphans)
     violation = assert_known_stations(orphans)

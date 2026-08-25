@@ -112,7 +112,13 @@ def order_current_state(context) -> None:
 
     from phlo_iceberg import ensure_table, merge_to_table, pandera_to_iceberg
 
-    ensure_table(TARGET_TABLE, pandera_to_iceberg(OrderCurrentStateSchema))
+    ensure_table(
+        TARGET_TABLE,
+        pandera_to_iceberg(
+            add_dlt_metadata=False, add_phlo_metadata=False, pandera_schema=OrderCurrentStateSchema
+        ),
+    )
+
     with tempfile.TemporaryDirectory() as scratch:
         data_path = Path(scratch) / "order_current_state.parquet"
         current.to_parquet(data_path, index=False)

@@ -77,5 +77,5 @@ def _request_with_retry(request_url: str, max_attempts: int) -> dict[str, object
 def places_registry(partition_date: str) -> object:
     """Merge one day's registry pages; upstream revisions update in place."""
     frame = pd.DataFrame(fetch_places(registry_date=partition_date))
-    frame["registry_date"] = partition_date
+    frame["registry_date"] = f"{partition_date}T00:00:00Z"
     return dlt.resource(frame.to_dict("records"), name="places_registry")

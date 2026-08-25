@@ -117,7 +117,11 @@ def _read_staged(table: str) -> pd.DataFrame:
 def _write_table(frame: pd.DataFrame, model, table_name: str, unique_key: str) -> dict[str, int]:
     from phlo_iceberg import ensure_table, merge_to_table, pandera_to_iceberg
 
-    ensure_table(table_name, pandera_to_iceberg(model))
+    ensure_table(
+        table_name,
+        pandera_to_iceberg(add_dlt_metadata=False, add_phlo_metadata=False, pandera_schema=model),
+    )
+
     with tempfile.TemporaryDirectory() as scratch:
         data_path = Path(scratch) / f"{table_name.replace('.', '_')}.parquet"
         frame.to_parquet(data_path, index=False)

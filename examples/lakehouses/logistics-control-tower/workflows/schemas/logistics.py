@@ -77,6 +77,7 @@ class SlaTermSchema(pa.DataFrameModel):
     """
 
     carrier_code: Series[str]
+    service_level: Series[str] = pa.Field(isin=["standard", "express"])
     sla_hours: Series[float]
     sla_term_key: Series[str] = pa.Field(unique=True)
 

@@ -27,7 +27,7 @@ with ranked_events as (
     from {{ source('logistics_raw', 'carrier_events') }} as events
 )
 
-latest_times as (
+, latest_times as (
 
     select
         shipment_id,

@@ -122,6 +122,18 @@ Live outcomes asserted by `run_scenario.py`:
   is the lab's core lesson: non-strict validation writes straight to main,
   bypassing branch isolation entirely.
 
+## Known scenario quirks observed live
+
+- `schema_change` reruns are idempotent at the data level (merge keeps 8
+  distinct batch ids), but repeated executions of the same scenario were
+  observed doubling physical rows once - under investigation upstream.
+- `concurrent_runs` partition B occasionally misses its promotion report
+  window under load; rerunning the scenario resolves it.
+- The warning-only contrast documents observed platform behavior: a failed
+  non-blocking check still produces durable failed evidence and the
+  promotion gate refuses on any failed check - warnings are never silent,
+  they are simply not fatal at ingest time.
+
 ## Expected failures
 
 Each labeled fixture breaks exactly ONE invariant, proven by

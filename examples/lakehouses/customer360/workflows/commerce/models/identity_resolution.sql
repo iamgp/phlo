@@ -42,9 +42,13 @@ distinct_identities as (
     from domain_identities
 )
 
+-- One mapping row per observed address: when the same spelling appears in
+-- several domains it resolves to the same canonical email, so the domain
+-- column keeps the alphabetically-first origin for provenance.
 select
     observed_email,
-    canonical_email,
-    source_domain,
-    observed_email <> canonical_email as is_variant
+    min(canonical_email) as canonical_email,
+    min(source_domain) as source_domain,
+    min(observed_email) <> min(canonical_email) as is_variant
 from distinct_identities
+group by observed_email

@@ -2622,7 +2622,7 @@ wheels = [
 [[package]]
 name = "phlo-dagster"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=023a53e4fa#023a53e4fadaf7cea4ea258af163f4a05780997c" }
 dependencies = [
     { name = "cryptography" },
     { name = "dagster" },
@@ -2649,7 +2649,7 @@ dependencies = [
 [[package]]
 name = "phlo-dlt"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=023a53e4fa#023a53e4fadaf7cea4ea258af163f4a05780997c" }
 dependencies = [
     { name = "dlt" },
     { name = "pandas" },
@@ -2766,9 +2766,9 @@ requires-dist = [
     { name = "dlt", extras = ["filesystem"], specifier = ">=1.20,<2" },
     { name = "pandas", specifier = ">=2.3,<3.1" },
     { name = "phlo", extras = ["defaults"], specifier = "==0.14.0" },
-    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede" },
+    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=023a53e4fa" },
     { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main" },
-    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede" },
+    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=023a53e4fa" },
     { name = "pyarrow", specifier = ">=21,<26" },
 ]
 

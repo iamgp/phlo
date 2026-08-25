@@ -299,7 +299,7 @@ def test_dbt_models_implement_identity_dimension_consent_and_engagement() -> Non
     assert "ref('stg_support_tickets')" in resolution
     assert "ref('stg_marketing_contacts')" in resolution
     assert resolution.count("union all") == 3
-    assert "observed_email <> canonical_email as is_variant" in resolution
+    assert "min(observed_email) <> min(canonical_email) as is_variant" in resolution
 
     dimension = (root / "commerce/models/customer_dimension.sql").read_text(encoding="utf-8")
     assert "lead(valid_from) over (" in dimension

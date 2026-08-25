@@ -63,6 +63,7 @@ class ObservationSchema(pa.DataFrameModel):
     observation_key: Series[str] = pa.Field(unique=True)
 
     station_id: Series[str]
+    obs_month: Series[datetime]
     observed_at: Series[datetime]
     temp_c: Series[float] = pa.Field(ge=TEMP_MIN_C, le=TEMP_MAX_C)
     precip_mm: Series[float] = pa.Field(ge=0.0)

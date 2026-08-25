@@ -118,9 +118,15 @@ def control_tower_shipment_grid(context) -> None:
 
     from phlo_iceberg import ensure_table, merge_to_table, pandera_to_iceberg
 
-    ensure_table(GRID_TABLE, pandera_to_iceberg(ShipmentGridSchema))
+    ensure_table(
+        GRID_TABLE,
+        pandera_to_iceberg(
+            add_dlt_metadata=False, add_phlo_metadata=False, pandera_schema=ShipmentGridSchema
+        ),
+    )
+
     with tempfile.TemporaryDirectory() as scratch:
         data_path = Path(scratch) / "shipment_grid.parquet"
         grid.to_parquet(data_path, index=False)
         result = merge_to_table(GRID_TABLE, data_path, unique_key="shipment_id")
-    context.log.info(f"control_tower_shipment_grid merged {result['rows_inserted']} rows")
+        context.log.info(f"control_tower_shipment_grid merged {result['rows_inserted']} rows")
