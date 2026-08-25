@@ -311,11 +311,12 @@ def merge_to_table(
 ) -> dict[str, int]:
     """Merge (upsert) Parquet data into an Iceberg table with deduplication.
 
-    Uses pyiceberg's atomic ``Table.upsert``: matched keys update in place
-    and new keys insert within a single snapshot, so repeated merges of
-    identical payloads can never duplicate data across Nessie branch merges.
-    Duplicate keys within the source are logged as warnings. Raises
+    Deletes existing rows matching ``unique_key`` before inserting new data;
+    duplicate keys within the source are logged as warnings. Raises
     ValueError when the unique-key column is absent from the source data.
+
+    Delete failures propagate (they no longer pass silently), preventing
+    the duplicate-row divergence reported in #777.
 
     Example:
         Upsert user data by ID::
@@ -329,9 +330,9 @@ def merge_to_table(
             print(f"Inserted {result['rows_inserted']} new rows")
 
     Note:
-        ``rows_deleted`` is always 0 under the atomic upsert; matched rows
-        are updated rather than deleted. ``rows_inserted`` reports the
-        number of staged rows submitted to the upsert.
+        ``rows_deleted`` is an approximation: Iceberg's delete does not
+        return the actual number of rows removed, only the number of unique
+        keys processed.
     """
     source_path = str(data_path)
     source_row_count = 0
@@ -408,10 +409,23 @@ def merge_to_table(
                 "arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e)
             )
 
-        # Atomic upsert replaces the previous delete-then-append sequence
-        # whose non-atomic snapshots could duplicate rows across Nessie
-        # branch merges when a delete failed silently (#777).
-        table.upsert(arrow_table, join_cols=[unique_key], branch=ref or "main")
+        # Delete matching keys before appending. Unlike earlier revisions,
+        # a failed delete now raises so the run fails closed rather than
+        # silently duplicating rows when the append lands (#777).
+        from pyiceberg.expressions import In, Reference
+
+        unique_values = arrow_table.column(unique_key).to_pylist()
+        unique_values_set = set(unique_values)
+        batch_size = 1000
+        unique_values_list = list(unique_values_set)
+
+        for i in range(0, len(unique_values_list), batch_size):
+            batch = unique_values_list[i : i + batch_size]
+            delete_expr = In(term=Reference(unique_key), values=set(batch))
+            table.delete(delete_expr)
+            rows_deleted += len(batch)  # Approximation
+
+        table.append(arrow_table)
         rows_inserted = len(arrow_table)
 
     except Exception as exc:
