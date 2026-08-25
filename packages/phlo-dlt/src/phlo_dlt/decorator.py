@@ -789,7 +789,7 @@ def phlo_ingestion(
                             "violation": violation,
                             "staged_parquet": query_or_sql,
                         },
-                        severity=None if passed else ("warn" if strict_validation else "error"),
+                        severity=None if passed else ("error" if strict_validation else "warn"),
                         asset_key=f"dlt_{table_config.table_name}",
                     )
                     if not passed:

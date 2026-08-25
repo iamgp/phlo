@@ -983,7 +983,12 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
 
 
 def _all_checks_passed(instance: Any, run_id: str) -> bool:
-    """Return True if every asset check in the run passed (or none were executed)."""
+    """Return True when no ERROR-severity asset check failed in the run.
+
+    Failed WARN-severity checks are non-blocking: recorded as durable
+    warning evidence but never gating promotion (zero executed checks also
+    counts as passed)."""
+
     try:
         check_records = instance.get_records_for_run(
             run_id,
