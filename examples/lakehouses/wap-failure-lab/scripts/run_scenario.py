@@ -175,8 +175,15 @@ def trino_fetchall(query: str) -> list[tuple]:
 
 
 def table_count(table: str, where: str = "1=1") -> int:
-    """Count published rows in one raw table."""
-    rows = trino_fetchall(f"SELECT count(*) FROM iceberg.raw.{table} WHERE {where}")
+    """Count published rows in one raw table; a missing object counts as zero."""
+    import trino  # noqa: PLC0415 - container-dependent import kept lazy
+
+    try:
+        rows = trino_fetchall(f"SELECT count(*) FROM iceberg.raw.{table} WHERE {where}")
+    except trino.exceptions.TrinoUserError as exc:
+        if "does not exist" not in str(exc):
+            raise
+        return 0
     return int(rows[0][0])
 
 
@@ -428,6 +435,7 @@ def run_concurrent_runs(ctx: LabContext) -> dict:
 
     baseline_ids |= {run_a}
     stage_inbound("concurrent_runs")
+    materialize(STRICT_ASSET, "2026-08-21")
     class_b, run_b, payload_b = wait_for_terminal_report(
         baseline_ids, ctx.reports_dir, ctx.promote_timeout
     )
