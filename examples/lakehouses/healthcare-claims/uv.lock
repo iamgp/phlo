@@ -2622,7 +2622,7 @@ wheels = [
 [[package]]
 name = "phlo-dagster"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=023a53e4fa#023a53e4fadaf7cea4ea258af163f4a05780997c" }
 dependencies = [
     { name = "cryptography" },
     { name = "dagster" },
@@ -2649,7 +2649,7 @@ dependencies = [
 [[package]]
 name = "phlo-dlt"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=023a53e4fa#023a53e4fadaf7cea4ea258af163f4a05780997c" }
 dependencies = [
     { name = "dlt" },
     { name = "pandas" },
@@ -2670,6 +2670,8 @@ dependencies = [
     { name = "phlo-dagster" },
     { name = "phlo-dbt" },
     { name = "phlo-dlt" },
+    { name = "phlo-iceberg" },
+    { name = "phlo-trino" },
     { name = "pyarrow" },
 ]
 
@@ -2687,9 +2689,11 @@ requires-dist = [
     { name = "dlt", extras = ["filesystem"], specifier = ">=1.20,<2" },
     { name = "pandas", specifier = ">=2.3,<3.1" },
     { name = "phlo", extras = ["defaults"], specifier = "==0.14.0" },
-    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede" },
+    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=023a53e4fa" },
     { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main" },
-    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede" },
+    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=023a53e4fa" },
+    { name = "phlo-iceberg", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-iceberg&rev=023a53e4fa" },
+    { name = "phlo-trino", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-trino&rev=023a53e4fa" },
     { name = "pyarrow", specifier = ">=21,<26" },
 ]
 
@@ -2705,16 +2709,12 @@ dev = [
 [[package]]
 name = "phlo-iceberg"
 version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-iceberg&rev=023a53e4fa#023a53e4fadaf7cea4ea258af163f4a05780997c" }
 dependencies = [
     { name = "pandera", extra = ["pandas"] },
     { name = "phlo", extra = ["defaults"] },
     { name = "pyarrow" },
     { name = "pyiceberg", extra = ["s3fs"] },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/48/ecf340f16f46f7de9943511912cf41814dd679e49d0d09ea66b434d4832d/phlo_iceberg-0.14.0.tar.gz", hash = "sha256:2e4e31e4f15bd61c75dfc816014e2a8929eaba6e02574e4640587232c7b13194", size = 65543, upload-time = "2026-08-21T21:40:15.855Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/de/c5aab99801fc93efde35a92237fc6cb696b0b9ea40d6883b11cb6e6fed09/phlo_iceberg-0.14.0-py3-none-any.whl", hash = "sha256:b9248a5e8c63822282df1f95e08241ab80b9882e1997ae1039e339b231411778", size = 46677, upload-time = "2026-08-21T21:39:47.267Z" },
 ]
 
 [[package]]
@@ -2784,16 +2784,12 @@ wheels = [
 [[package]]
 name = "phlo-trino"
 version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-trino&rev=023a53e4fa#023a53e4fadaf7cea4ea258af163f4a05780997c" }
 dependencies = [
     { name = "pandas" },
     { name = "phlo", extra = ["defaults"] },
     { name = "psycopg2-binary" },
     { name = "trino" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ce/a4/6da96bc7e030e171a3b1fea557d66bac3e6032ddc515ac386524be0b9ec6/phlo_trino-0.14.0.tar.gz", hash = "sha256:0b996c3fbf782307292ce9568806d8e3e797a1be317190e78cadaf2346733670", size = 41746, upload-time = "2026-08-21T21:40:28.995Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/22/b20a012a4f459321f13f5cf0661acb7e3585a23a8829798e52f5d0099d3a/phlo_trino-0.14.0-py3-none-any.whl", hash = "sha256:fc3b4bd72f064652d1683b6b2a2105ef6c60afc6041168d2a685de6f3873e09b", size = 31815, upload-time = "2026-08-21T21:40:05.703Z" },
 ]
 
 [[package]]
