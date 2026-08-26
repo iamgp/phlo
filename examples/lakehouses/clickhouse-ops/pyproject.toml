@@ -13,6 +13,7 @@ dependencies = [
     "phlo-dbt @ git+https://github.com/phlohouse/phlo.git@main#subdirectory=packages/phlo-dbt",
     "phlo-sling @ git+https://github.com/phlohouse/phlo.git@main#subdirectory=packages/phlo-sling",
     "phlo-clickhouse @ git+https://github.com/phlohouse/phlo.git@main#subdirectory=packages/phlo-clickhouse",
+    "dbt-clickhouse>=1.10,<1.11",
     "dlt[filesystem]>=1.20,<2",
     "pandas>=2.3,<3.1",
     "pyarrow>=21,<26",
@@ -21,7 +22,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "dbt-clickhouse>=1.10,<1.11",
     "duckdb>=1.4,<1.6",
     "phlo-pandera @ git+https://github.com/phlohouse/phlo.git@main#subdirectory=packages/phlo-pandera",
     "pytest",

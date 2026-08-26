@@ -11,7 +11,7 @@ with versions as (
             partition by l.request_id
             order by l.occurred_at desc, l._phlo_ingested_at desc
         ) as version_rank
-    from {{ source('ch_raw', 'raw_access_logs') }} as l
+    from {{ source('ch_raw', 'access_logs') }} as l
 )
 select
     request_id,

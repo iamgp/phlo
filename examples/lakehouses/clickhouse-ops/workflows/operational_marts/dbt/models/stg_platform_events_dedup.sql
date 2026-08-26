@@ -12,7 +12,7 @@ with versions as (
             partition by e.event_id
             order by e.occurred_at desc, e._phlo_ingested_at desc
         ) as version_rank
-    from {{ source('ch_raw', 'raw_platform_events') }} as e
+    from {{ source('ch_raw', 'platform_events') }} as e
 )
 select
     event_id,

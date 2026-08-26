@@ -3,9 +3,9 @@ clickhouse_ops:
   outputs:
     dev:
       type: clickhouse
+      user: default
+      password: phlo_oxAe3UfHXuA5jg_1uelYiFoIuJPPuOYEle8Nneno__A
       host: clickhouse
       port: 8123
-      user: default
-      password: ""
       schema: marts
       threads: 2

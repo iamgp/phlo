@@ -2832,6 +2832,7 @@ name = "phlo-clickhouse-ops-example"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "dbt-clickhouse" },
     { name = "dlt", extra = ["filesystem"] },
     { name = "pandas" },
     { name = "phlo", extra = ["defaults"] },
@@ -2846,7 +2847,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "dbt-clickhouse" },
     { name = "duckdb" },
     { name = "phlo-pandera" },
     { name = "pytest" },
@@ -2855,6 +2855,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dbt-clickhouse", specifier = ">=1.10,<1.11" },
     { name = "dlt", extras = ["filesystem"], specifier = ">=1.20,<2" },
     { name = "pandas", specifier = ">=2.3,<3.1" },
     { name = "phlo", extras = ["defaults"], specifier = "==0.14.0" },
@@ -2869,7 +2870,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "dbt-clickhouse", specifier = ">=1.10,<1.11" },
     { name = "duckdb", specifier = ">=1.4,<1.6" },
     { name = "phlo-pandera", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-pandera&rev=main" },
     { name = "pytest" },

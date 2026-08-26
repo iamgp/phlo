@@ -40,7 +40,9 @@ def seed_base(url: str, data_dir: Path = DATA_DIR) -> int:
     with _connect(url) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                f"CREATE TABLE IF NOT EXISTS public.tenants ({', '.join(COLUMNS)} TEXT PRIMARY KEY)"
+                f"CREATE TABLE IF NOT EXISTS public.tenants ("
+                f"{', '.join(f'{col} TEXT' for col in COLUMNS)}, "
+                f"PRIMARY KEY ({PRIMARY_KEY}))"
             )
             for row in rows:
                 placeholders = ", ".join(["%s"] * len(COLUMNS))
