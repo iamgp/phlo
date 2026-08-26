@@ -88,8 +88,6 @@ def deduplicate_arrow_by_unique_key(
             or absent from the data where required.
 
     """
-    import pyarrow.compute as pc
-
     if method not in SUPPORTED_DEDUPLICATION_METHODS:
         raise ValueError(
             f"Unsupported deduplication_method '{method}'. "
@@ -102,9 +100,8 @@ def deduplicate_arrow_by_unique_key(
         )
 
     key_values = arrow_table.column(unique_key).to_pylist()
-    winners: dict[object, int] = {}
-    ordered_indices = list(range(len(key_values)))
     has_duplicates = len(set(key_values)) < len(key_values)
+    ordered_indices = list(range(len(key_values)))
     if method == "last" and has_duplicates:
         if order_by is None:
             raise ValueError(
@@ -112,9 +109,12 @@ def deduplicate_arrow_by_unique_key(
                 "(deduplication_order_by) because duplicate unique-key values were "
                 "found; Parquet row order is not a valid tiebreaker"
             )
-        sort_keys = [(order_by, "ascending")]
-        ordered_indices = pc.sort_indices(arrow_table, sort_keys=sort_keys).to_pylist()
+        # Stable Python sort keeps Parquet row order as a deterministic
+        # tiebreaker between rows equal on the ordering column.
+        order_values = arrow_table.column(order_by).to_pylist()
+        ordered_indices = sorted(range(len(key_values)), key=lambda i: order_values[i])
 
+    winners: dict[object, int] = {}
     for index in ordered_indices:
         key = key_values[index]
         if method == "last":
