@@ -141,7 +141,7 @@ uv run phlo materialize dlt_telemetry_corrections --partition 2026-08-20
 uv run phlo materialize stg_devices --partition 2026-08-20
 uv run phlo materialize stg_sites --partition 2026-08-20
 uv run phlo materialize stg_regions --partition 2026-08-20
-uv run materialize telemetry_dedup --partition 2026-08-20
+uv run phlo materialize telemetry_dedup --partition 2026-08-20
 uv run phlo materialize device_health_hourly --partition 2026-08-20
 uv run phlo materialize fleet_daily_summary --partition 2026-08-20
 uv run phlo materialize device_health_current --partition 2026-08-20

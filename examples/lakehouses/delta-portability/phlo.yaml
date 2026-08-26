@@ -9,6 +9,10 @@ env:
   # REST replay endpoint serving the additive schema-evolution batch
   # (firmware v2 telemetry). scripts/replay_server.py serves it on the host.
   TELEMATICS_API_URL: http://host.docker.internal:8093/v1
+  # dbt runs on Trino against the dev-stack Delta catalog, which shares the
+  # S3 warehouse root (s3://lake/warehouse/delta) with phlo-delta's table
+  # store, so models see exactly the tables ingestion writes.
+  DBT_QUERY_CATALOG: delta
 
 services:
   dagster:

@@ -17,9 +17,8 @@ from phlo.contracts import SLA, Consumer
 from workflows.schemas.telemetry import RegionDirectorySchema
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SNAPSHOT_PATH = PROJECT_ROOT / "generated-data" / "regions" / "regions_snapshot.parquet"
-REPLAY_PATH = PROJECT_ROOT / "generated-data" / "regions" / "regions.csv"
 DELTA_ROUTING = {"table_store": "delta"}
+SNAPSHOT_PATH = PROJECT_ROOT / "generated-data" / "regions" / "regions_snapshot.parquet"
 
 
 def read_region_snapshot(snapshot_path: Path = SNAPSHOT_PATH) -> pd.DataFrame:

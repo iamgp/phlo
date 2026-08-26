@@ -7,7 +7,7 @@ delta_portability:
       user: dagster
       host: trino
       port: 8080
-      catalog: iceberg
+      catalog: delta
       schema: raw
       http_scheme: http
       threads: 2
