@@ -1,7 +1,7 @@
 select
     email as observed_email,
     concat(
-        split_part(lower(email), '+', 1),
+        split_part(split_part(lower(email), '@', 1), '+', 1),
         '@',
         split_part(lower(email), '@', 2)
     ) as canonical_email,
