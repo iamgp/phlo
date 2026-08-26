@@ -2622,7 +2622,7 @@ wheels = [
 [[package]]
 name = "phlo-dagster"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=580495f59f#580495f59fc3520c823139dfe11480d18a7dd893" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=da66e6d424#da66e6d424cc98d7e7fbad441d3938ab16ce0d16" }
 dependencies = [
     { name = "cryptography" },
     { name = "dagster" },
@@ -2649,7 +2649,7 @@ dependencies = [
 [[package]]
 name = "phlo-dlt"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=580495f59f#580495f59fc3520c823139dfe11480d18a7dd893" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=da66e6d424#da66e6d424cc98d7e7fbad441d3938ab16ce0d16" }
 dependencies = [
     { name = "dlt" },
     { name = "pandas" },
@@ -2662,7 +2662,7 @@ dependencies = [
 [[package]]
 name = "phlo-iceberg"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-iceberg&rev=580495f59f#580495f59fc3520c823139dfe11480d18a7dd893" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-iceberg&rev=da66e6d424#da66e6d424cc98d7e7fbad441d3938ab16ce0d16" }
 dependencies = [
     { name = "pandera", extra = ["pandas"] },
     { name = "phlo", extra = ["defaults"] },
@@ -2737,7 +2737,7 @@ wheels = [
 [[package]]
 name = "phlo-trino"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-trino&rev=580495f59f#580495f59fc3520c823139dfe11480d18a7dd893" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-trino&rev=da66e6d424#da66e6d424cc98d7e7fbad441d3938ab16ce0d16" }
 dependencies = [
     { name = "pandas" },
     { name = "phlo", extra = ["defaults"] },
@@ -2775,11 +2775,11 @@ requires-dist = [
     { name = "dlt", extras = ["filesystem"], specifier = ">=1.20,<2" },
     { name = "pandas", specifier = ">=2.3,<3.1" },
     { name = "phlo", extras = ["defaults"], specifier = "==0.14.0" },
-    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=580495f59f" },
+    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=da66e6d424" },
     { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main" },
-    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=580495f59f" },
-    { name = "phlo-iceberg", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-iceberg&rev=580495f59f" },
-    { name = "phlo-trino", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-trino&rev=580495f59f" },
+    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=da66e6d424" },
+    { name = "phlo-iceberg", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-iceberg&rev=da66e6d424" },
+    { name = "phlo-trino", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-trino&rev=da66e6d424" },
     { name = "pyarrow", specifier = ">=21,<26" },
 ]
 

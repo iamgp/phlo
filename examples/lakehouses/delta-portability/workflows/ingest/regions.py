@@ -8,6 +8,7 @@ idempotent: the merge upserts every row and never grows the table.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import dlt
 import pandas as pd
@@ -18,19 +19,57 @@ from workflows.schemas.telemetry import RegionDirectorySchema
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DELTA_ROUTING = {"table_store": "delta"}
-SNAPSHOT_PATH = PROJECT_ROOT / "generated-data" / "regions" / "regions_snapshot.parquet"
 
 
-def read_region_snapshot(snapshot_path: Path = SNAPSHOT_PATH) -> pd.DataFrame:
+def _snapshot_uri_and_fs() -> tuple[str, Any | None] | tuple[None, None]:
+    """Return the Sling hand-off snapshot as ``(uri, filesystem)``.
+
+    The replication targets ``PHLO_DELTA``, so live snapshots land in the
+    Delta warehouse on S3. Offline (no phlo-delta settings resolvable to a
+    live stack) returns ``(None, None)`` and the caller falls back to the
+    deterministic CSV replay fixture.
+    """
+    try:
+        from phlo_delta.settings import get_settings
+
+        settings = get_settings()
+    except Exception:  # pragma: no cover - offline fallback for tests
+        return None, None
+
+    root = str(settings.delta_warehouse_path).rstrip("/")
+    if not root.startswith("s3://"):
+        return f"file://{root}/snapshots/regions_snapshot.parquet", None
+
+    bucket, _, key = root[len("s3://") :].partition("/")
+    import pyarrow as pa
+
+    filesystem = pa.fs.S3FileSystem(
+        access_key=settings.delta_s3_access_key,
+        secret_key=settings.delta_s3_secret_key,
+        endpoint_override=settings.delta_s3_endpoint,
+        region=settings.delta_s3_region,
+        allow_bucket_creation=False,
+        allow_bucket_deletion=False,
+    )
+    return f"{bucket}/{key}/snapshots/regions_snapshot.parquet", filesystem
+
+
+def read_region_snapshot() -> pd.DataFrame:
     """Read the replicated snapshot, falling back to the CSV replay fixture.
 
     The Parquet snapshot only exists after a live Sling run against the
     compose PostgreSQL source; without it, the deterministic ``regions.csv``
     fixture replays the same rows offline.
     """
-    if snapshot_path.exists():
-        return pd.read_parquet(snapshot_path)
-    fallback = snapshot_path.with_name("regions.csv")
+    import pyarrow.parquet as pq
+
+    uri, filesystem = _snapshot_uri_and_fs()
+    if uri is not None and filesystem is not None:
+        try:
+            return pq.read_table(uri, filesystem=filesystem).to_pandas()
+        except Exception:  # noqa: BLE001 - any read failure falls back to replay
+            pass
+    fallback = PROJECT_ROOT / "generated-data" / "regions" / "regions.csv"
     frame = pd.read_csv(fallback)
     frame["updated_at"] = pd.to_datetime(frame["updated_at"])
     return frame

@@ -5,26 +5,24 @@ The compose file in this directory runs PostgreSQL on host port 10732
 ``public.regions`` lookup.
 
 The replication full-refreshes into a Parquet hand-off snapshot under
-``generated-data/regions/`` that the ``delta_regions`` ingestion asset merges
+``<warehouse>/snapshots/`` that the ``delta_regions`` ingestion asset merges
 into the Delta table through the provider-neutral table-store interface.
 Re-running is idempotent: full-refresh rewrites the snapshot in place.
 
-The target is an explicit Sling ``file://`` connection rooted at the project:
-the ``PHLO_DELTA`` auto-connection shipped in phlo-sling uses the type label
-``filesystem``, which Sling 1.5 does not register, so named resolution fails.
+The snapshot targets the ``PHLO_DELTA`` auto-connection (an S3 connection
+rooted at the Delta warehouse, carrying endpoint and credentials from the
+Delta settings), so the hand-off lands inside the warehouse next to the
+Delta tables it feeds.
 """
 
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import phlo
 from phlo.contracts import SLA, Consumer
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SOURCE_URL = "postgresql://delta:delta@localhost:10732/delta?sslmode=disable"
-SNAPSHOT_OBJECT = "generated-data/regions/regions_snapshot.parquet"
 
 
 def source_url() -> str:
@@ -47,7 +45,15 @@ def source_url() -> str:
     consumers=[Consumer(name="fleet-reporting", usage="site region enrichment")],
     sla=SLA(freshness_hours=192, quality_threshold=1.0),
 )
-def replicate_delta_regions_snapshot(context) -> dict[str, object]:
+def replicate_delta_regions_snapshot(context) -> dict[str, str]:
     """Full-refresh the regions lookup into a Parquet hand-off snapshot."""
     del context
-    return {"tgt_conn": f"file://{PROJECT_ROOT}", "tgt_object": SNAPSHOT_OBJECT}
+    # Sling resolves relative objects against the process working directory,
+    # so the warehouse-qualified path is passed explicitly.
+    from phlo_delta.settings import get_settings
+
+    warehouse = get_settings().delta_warehouse_path.rstrip("/")
+    return {
+        "tgt_conn": "PHLO_DELTA",
+        "tgt_object": f"{warehouse}/snapshots/regions_snapshot.parquet",
+    }
