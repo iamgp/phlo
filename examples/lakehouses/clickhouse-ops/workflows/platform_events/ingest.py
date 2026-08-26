@@ -18,7 +18,6 @@ import phlo
 from phlo.contracts import SLA, Consumer
 
 from workflows.quality.validators import check_event_types_known
-from workflows.schemas.chschema import PLATFORM_EVENTS as PlatformEventChSchema
 from workflows.schemas.contracts import PlatformEventSchema
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -70,9 +69,6 @@ def with_occurred_hour(frame: pd.DataFrame) -> pd.DataFrame:
     table_name="platform_events",
     unique_key="event_id",
     validation_schema=PlatformEventSchema,
-    # ClickHouse table store cannot derive a schema from a pandera model and
-    # needs both DDL and pyarrow views; see workflows/schemas/chschema.py.
-    table_schema=PlatformEventChSchema,
     group="platform_events",
     freshness_hours=(1, 2),
     merge_strategy="append",

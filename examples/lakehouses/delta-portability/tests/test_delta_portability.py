@@ -301,9 +301,9 @@ def test_dbt_models_implement_dedup_repair_region_enrichment() -> None:
     assert "phlo_asset_key: dlt_telemetry_readings" in sources
     assert "phlo_asset_key: dlt_delta_regions" in sources
     profiles = (root / "transforms/dbt/profiles/profiles.yml").read_text(encoding="utf-8")
-    # Dev-stack Trino has no delta catalog (#774); profile uses iceberg
-    # and models compile against an operator-provisioned catalog.
-    assert "catalog: iceberg" in profiles
+    # #783 shipped an optional Delta catalog in the dev-stack Trino; the
+    # profile points at it so models read exactly what ingestion writes.
+    assert "catalog: delta" in profiles
 
 
 # ---------------------------------------------------------------------------

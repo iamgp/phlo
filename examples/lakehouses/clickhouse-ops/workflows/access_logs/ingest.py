@@ -17,7 +17,6 @@ import phlo
 from phlo.contracts import SLA, Consumer
 
 from workflows.quality.validators import check_paths_under_api
-from workflows.schemas.chschema import ACCESS_LOGS as AccessLogChSchema
 from workflows.schemas.contracts import AccessLogSchema
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -57,9 +56,6 @@ def read_access_logs(logs_dir: Path = LOGS_DIR, partition_date: str = "") -> pd.
     table_name="access_logs",
     unique_key="request_id",
     validation_schema=AccessLogSchema,
-    # ClickHouse table store cannot derive a schema from a pandera model and
-    # needs both DDL and pyarrow views; see workflows/schemas/chschema.py.
-    table_schema=AccessLogChSchema,
     group="access_logs",
     freshness_hours=(2, 3),
     merge_strategy="append",

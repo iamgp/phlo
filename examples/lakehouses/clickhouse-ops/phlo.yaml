@@ -12,13 +12,11 @@ env:
   DBT_QUERY_USER: default
   DBT_QUERY_SCHEMA: marts
   DBT_PROJECT_DIR: workflows/operational_marts/dbt
-  # phlo-sling auto-discovers PHLO_POSTGRES/PHLO_ICEBERG/PHLO_S3 but has no
-  # ClickHouse auto-connection yet; the accounts stream targets this explicit
-  # Sling connection instead (documented platform gap). The value must stay on
+  # phlo-sling has no ClickHouse auto-connection yet; the accounts stream
+  # targets this explicit Sling connection instead (documented platform gap).
+  # The value must stay on one line: the services generator writes it
+  # verbatim into .phlo/.env.
   PHLO_CLICKHOUSE_CONN: '{"type": "clickhouse", "host": "clickhouse", "port": 8123, "user": "default", "password": "", "database": "raw"}'
-  # ClickHouse keeps one flat namespace per database; the DLT default "raw"
-  # prefix would otherwise bake a dotted name into the table identifier.
-  DLT_DEFAULT_NAMESPACE: default
 
 services:
   # ClickHouse is not a default dev-stack service; enable it for this project.

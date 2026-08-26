@@ -103,7 +103,7 @@ tenants (two tier-1: `t-northwind`, `t-acme`; one tier-2: `t-globex`):
   ceil(0.95*21)=20 coincides with the interpolated position 0.95*20=19:
   **5530, 5710, 5585, 5460 ms** for T00-T03.
 - `tenant_usage_daily` holds one replacing row per tenant:
-  `t-northwind` 16/28/3, `t-acme` 16/28/4, `t-globex` 16/28/2
+  `t-northwind` 16/28/3, `t-acme` 16/28/4, `t-globex` 16/28/3
   (events/requests/errors). Hourly sums equal these totals exactly.
 
 Replay proves the headline property. Re-materializing the same day doubles

@@ -1,25 +1,15 @@
 version: 2
 sources:
-  # The pinned phlo-clickhouse table store always qualifies the DLT table with
-  # its namespace, so ingestion lands tables named `default.platform_events`
-  # inside the `default` database. The dotted identifiers below match that.
   - name: ch_raw
-    database: default
-    schema: default
-    tables:
-      - name: platform_events
-        identifier: 'default.platform_events'
-        meta:
-          phlo_asset_key: dlt_platform_events
-      - name: access_logs
-        identifier: 'default.access_logs'
-        meta:
-          phlo_asset_key: dlt_access_logs
-  # The Sling tenant replication targets the `raw` database directly.
-  - name: ch_meta
     database: raw
     schema: raw
     tables:
+      - name: platform_events
+        meta:
+          phlo_asset_key: dlt_platform_events
+      - name: access_logs
+        meta:
+          phlo_asset_key: dlt_access_logs
       - name: chmeta_tenants
         meta:
           phlo_asset_key: sling_chmeta_tenants

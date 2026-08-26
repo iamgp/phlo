@@ -8,9 +8,9 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "phlo[defaults]==0.14.0",
-    "phlo-dagster @ git+https://github.com/phlohouse/phlo.git@0bcb8b8ede#subdirectory=packages/phlo-dagster",
-    "phlo-dlt @ git+https://github.com/phlohouse/phlo.git@0bcb8b8ede#subdirectory=packages/phlo-dlt",
-    "phlo-dbt @ git+https://github.com/phlohouse/phlo.git@main#subdirectory=packages/phlo-dbt",
+    "phlo-dagster @ git+https://github.com/phlohouse/phlo.git@211c57b6c2#subdirectory=packages/phlo-dagster",
+    "phlo-dlt @ git+https://github.com/phlohouse/phlo.git@211c57b6c2#subdirectory=packages/phlo-dlt",
+    "phlo-dbt @ git+https://github.com/phlohouse/phlo.git@5b9453a299#subdirectory=packages/phlo-dbt",
     "phlo-sling @ git+https://github.com/phlohouse/phlo.git@main#subdirectory=packages/phlo-sling",
     "phlo-clickhouse @ git+https://github.com/phlohouse/phlo.git@main#subdirectory=packages/phlo-clickhouse",
     "dbt-clickhouse>=1.10,<1.11",

@@ -2860,9 +2860,9 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.3,<3.1" },
     { name = "phlo", extras = ["defaults"], specifier = "==0.14.0" },
     { name = "phlo-clickhouse", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-clickhouse&rev=main" },
-    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede" },
-    { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main" },
-    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede" },
+    { name = "phlo-dagster", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=211c57b6c2" },
+    { name = "phlo-dbt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=5b9453a299" },
+    { name = "phlo-dlt", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=211c57b6c2" },
     { name = "phlo-sling", git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-sling&rev=main" },
     { name = "psycopg2-binary", specifier = ">=2.9,<3.1" },
     { name = "pyarrow", specifier = ">=21,<26" },
@@ -2892,7 +2892,7 @@ wheels = [
 [[package]]
 name = "phlo-dagster"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dagster&rev=211c57b6c2#211c57b6c2c4eb8471ead09642b7910105f84591" }
 dependencies = [
     { name = "cryptography" },
     { name = "dagster" },
@@ -2908,7 +2908,7 @@ dependencies = [
 [[package]]
 name = "phlo-dbt"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=main#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dbt&rev=5b9453a299#5b9453a299b2a886e63a27253b365b99d567d9bb" }
 dependencies = [
     { name = "dbt-core" },
     { name = "dbt-postgres" },
@@ -2919,7 +2919,7 @@ dependencies = [
 [[package]]
 name = "phlo-dlt"
 version = "0.14.0"
-source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=0bcb8b8ede#0bcb8b8edef1188e33b9e1fab87dc670c95b8a29" }
+source = { git = "https://github.com/phlohouse/phlo.git?subdirectory=packages%2Fphlo-dlt&rev=211c57b6c2#211c57b6c2c4eb8471ead09642b7910105f84591" }
 dependencies = [
     { name = "dlt" },
     { name = "pandas" },
