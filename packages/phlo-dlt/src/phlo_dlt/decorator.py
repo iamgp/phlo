@@ -828,7 +828,10 @@ def phlo_ingestion(
                         violation = "no staged parquet available for domain checks"
                     else:
                         try:
-                            staged_frame = pd.read_parquet(parquet_paths[0])
+                            staged_frame = pd.concat(
+                                [pd.read_parquet(parquet_path) for parquet_path in parquet_paths],
+                                ignore_index=True,
+                            )
                             violation = quality_check(staged_frame)
                         except Exception as exc:  # noqa: BLE001 - violations must surface as checks
                             violation = f"quality check raised: {exc}"

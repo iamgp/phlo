@@ -158,10 +158,26 @@ def test_strict_domain_quality_failure_preserves_main_through_wap_and_evidence(
     assert store.rows("main") == main_before
     assert store.catalog_hash("main") == main_hash_before
     assert store.rows("wap-domain-quality-failure") == []
-    assert evidence_store.get_run("project-domain-quality", "run-domain-quality-failure")
+    run = evidence_store.get_run("project-domain-quality", "run-domain-quality-failure")
+    assert run is not None
+    assert run["status"] == "failed"
+    assert str(run["failure_summary"]).startswith("DomainQualityValidationError:fingerprint:")
+    durable_events = evidence_store.list_events(
+        "project-domain-quality", "run-domain-quality-failure"
+    )
+    assert any(
+        event["event_type"] == "run_evidence.observation"
+        and event["payload"]["status"] == "failed"
+        and str(event["payload"]["error"]).startswith("DomainQualityValidationError:fingerprint:")
+        for event in durable_events
+    )
     assert evidence_store.count_events("project-domain-quality", "run-domain-quality-failure") > 0
-    assert evidence_store.list_resources(
+    resources = evidence_store.list_resources(
         "project-domain-quality", "run-domain-quality-failure", attempt=1
+    )
+    assert any(
+        resource["resource_kind"] == "quality_check" and resource["metadata"]["status"] == "failed"
+        for resource in resources
     )
 
 

@@ -141,7 +141,11 @@ def _evaluate_domain_quality_checks(
             violation = "no staged parquet available for domain checks"
         else:
             try:
-                violation = quality_check(pd.read_parquet(parquet_paths[0]))
+                staged_frame = pd.concat(
+                    [pd.read_parquet(parquet_path) for parquet_path in parquet_paths],
+                    ignore_index=True,
+                )
+                violation = quality_check(staged_frame)
             except Exception as exc:  # noqa: BLE001 - a check error rejects strict publication
                 violation = f"quality check raised: {exc}"
         evaluations.append(DomainQualityEvaluation(check_name=check_name, violation=violation))
@@ -644,6 +648,29 @@ class DltIngester(BaseIngester):
         except Exception as exc:
             total_elapsed = time.time() - start_time
             safe_error = safe_error_summary(exc)
+            if isinstance(exc, DomainQualityValidationError):
+                for evaluation in exc.evaluations:
+                    if evaluation.passed:
+                        continue
+                    evidence_resources.append(
+                        {
+                            "resource_kind": "quality_check",
+                            "role": "validation",
+                            "resource_identity": _resource_identity(
+                                project_id=project_id,
+                                resource_type="quality_check",
+                                resource_id=(
+                                    f"{self.table_config.full_table_name}:{evaluation.check_name}"
+                                ),
+                                attributes={"check_name": evaluation.check_name},
+                            ),
+                            "ref_name": branch_name,
+                            "metadata": {
+                                "status": "failed",
+                                "error": safe_error,
+                            },
+                        }
+                    )
             if attempt is not None:
                 emit_lifecycle_safely(
                     emitter,
