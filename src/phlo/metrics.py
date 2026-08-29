@@ -383,7 +383,14 @@ class MetricsCollector:
             )
         finally:
             if conn is not None:
-                conn.close()
+                try:
+                    conn.close()
+                except Exception:
+                    logger.debug(
+                        "postgres_metrics_connection_close_failed",
+                        period_hours=period_hours,
+                        exc_info=True,
+                    )
         return metrics
 
     def _collect_from_iceberg(self) -> dict[str, Any]:
