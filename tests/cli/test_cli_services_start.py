@@ -87,7 +87,7 @@ def test_services_start_waits_for_declared_healthcheck(
 
     sleeps: list[float] = []
     monkeypatch.setattr(start_module.time, "sleep", sleeps.append)
-    moments = iter([0.0, 0.1])
+    moments = iter([0.0, 0.1, 0.2])
     monkeypatch.setattr(start_module.time, "monotonic", lambda: next(moments))
     result = _invoke_services_start_with_statuses(
         monkeypatch,
@@ -162,6 +162,85 @@ def test_services_start_readiness_timeout_reports_each_service_state(
         f"{expected_health})." in result.output
     )
     assert "Containers were left running for inspection" in result.output
+
+
+def test_services_start_timeout_preserves_last_observed_unhealthy_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """An expired next poll must not replace the last state with ``not created``."""
+    from phlo.cli.commands.services import start as start_module
+
+    class DeadlineBackend:
+        def __init__(self) -> None:
+            self.inspections = 0
+
+        def list_project_containers(self, _project_name: str) -> list[ContainerInfo]:
+            return []
+
+        def project_service_statuses(
+            self, _project_name: str, *, deadline: float
+        ) -> list[ServiceStatus]:
+            del deadline
+            self.inspections += 1
+            return [ServiceStatus(service="database", state="running", health="unhealthy")]
+
+    backend = DeadlineBackend()
+    moments = iter([0.0, 59.9, 60.0])
+    monkeypatch.setattr(start_module.time, "monotonic", lambda: next(moments))
+    monkeypatch.setattr(start_module.time, "sleep", lambda _seconds: None)
+    result = _invoke_services_start_with_statuses(
+        monkeypatch,
+        tmp_path,
+        compose="services:\n  database:\n    healthcheck:\n      test: ['CMD', 'true']\n",
+        snapshots=[],
+        backend=backend,
+    )
+
+    assert result.exit_code == 1
+    assert backend.inspections == 1
+    assert result.output == (
+        "Starting demo infrastructure...\n"
+        "Error: services did not become ready within 60s: "
+        "database (state=running, health=unhealthy). Containers were left running for "
+        "inspection. Run `phlo services list` and `phlo services logs <service>` for details.\n"
+    )
+
+
+def test_services_start_timeout_does_not_reinspect_empty_observation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """An empty observation is still final once the next poll reaches the deadline."""
+    from phlo.cli.commands.services import start as start_module
+
+    class EmptyDeadlineBackend:
+        def __init__(self) -> None:
+            self.inspections = 0
+
+        def list_project_containers(self, _project_name: str) -> list[ContainerInfo]:
+            return []
+
+        def project_service_statuses(
+            self, _project_name: str, *, deadline: float
+        ) -> list[ServiceStatus]:
+            del deadline
+            self.inspections += 1
+            return []
+
+    backend = EmptyDeadlineBackend()
+    moments = iter([0.0, 59.9, 60.0])
+    monkeypatch.setattr(start_module.time, "monotonic", lambda: next(moments))
+    monkeypatch.setattr(start_module.time, "sleep", lambda _seconds: None)
+    result = _invoke_services_start_with_statuses(
+        monkeypatch,
+        tmp_path,
+        compose="services:\n  database: {}\n",
+        snapshots=[],
+        backend=backend,
+    )
+
+    assert result.exit_code == 1
+    assert backend.inspections == 1
+    assert "database (not created)" in result.output
 
 
 def test_services_start_times_out_when_backend_status_call_hangs(

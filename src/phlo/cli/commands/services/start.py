@@ -182,8 +182,25 @@ def _wait_for_services_ready(
         return sorted(service_names)
     deadline = time.monotonic() + timeout_seconds
     latest: list[ServiceStatus] = []
+    has_observation = False
     while True:
+        # Do not replace the last observed state with a no-budget inspection
+        # after polling has already reached the readiness deadline.
+        if has_observation and time.monotonic() >= deadline:
+            rendered = _format_service_statuses(service_names, latest)
+            logger.error(
+                "services_start_readiness_timeout",
+                project_name=project_name,
+                timeout_seconds=timeout_seconds,
+                services=rendered,
+            )
+            raise click.ClickException(
+                f"services did not become ready within {timeout_seconds:g}s: {rendered}. "
+                "Containers were left running for inspection. Run `phlo services list` and "
+                "`phlo services logs <service>` for details."
+            )
         latest = _project_service_statuses(backend, project_name, deadline=deadline)
+        has_observation = True
         by_service: dict[str, list[ServiceStatus]] = {}
         for status in latest:
             by_service.setdefault(status.service, []).append(status)
