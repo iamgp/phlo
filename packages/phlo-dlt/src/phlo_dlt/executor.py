@@ -57,7 +57,11 @@ Example:
 from __future__ import annotations
 
 import time
-from typing import Any, Callable, Dict
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable, Dict, Sequence
+
+import pandas as pd
 
 from phlo.logging import log_event
 from phlo.operations.ingestion import BaseIngester, IngestionResult
@@ -93,6 +97,55 @@ from phlo_dlt.pandera_checks import (
     serialize_pandera_contract_evaluation,
 )
 from phlo_dlt.registry import TableConfig
+
+
+@dataclass(frozen=True, slots=True)
+class DomainQualityEvaluation:
+    """Record one staged domain-quality check result before publication."""
+
+    check_name: str
+    violation: str | None
+
+    @property
+    def passed(self) -> bool:
+        """Return whether the domain check accepted the staged rows."""
+        return self.violation is None
+
+
+class DomainQualityValidationError(RuntimeError):
+    """Carry failed staged domain checks that prevented an irreversible write."""
+
+    def __init__(
+        self,
+        *,
+        evaluations: tuple[DomainQualityEvaluation, ...],
+        parquet_paths: tuple[Path, ...],
+    ) -> None:
+        """Store failed check evidence for the decorator's check-result surface."""
+        self.evaluations = evaluations
+        self.parquet_paths = parquet_paths
+        failed = next(evaluation for evaluation in evaluations if not evaluation.passed)
+        super().__init__(f"Domain quality check failed: {failed.check_name}: {failed.violation}")
+
+
+def _evaluate_domain_quality_checks(
+    *,
+    parquet_paths: Sequence[Path],
+    quality_checks: Sequence[Callable[[pd.DataFrame], str | None]],
+) -> tuple[DomainQualityEvaluation, ...]:
+    """Evaluate domain checks against staged rows before the table-store write."""
+    evaluations: list[DomainQualityEvaluation] = []
+    for index, quality_check in enumerate(quality_checks):
+        check_name = getattr(quality_check, "__name__", None) or f"quality_{index}"
+        if not parquet_paths:
+            violation = "no staged parquet available for domain checks"
+        else:
+            try:
+                violation = quality_check(pd.read_parquet(parquet_paths[0]))
+            except Exception as exc:  # noqa: BLE001 - a check error rejects strict publication
+                violation = f"quality check raised: {exc}"
+        evaluations.append(DomainQualityEvaluation(check_name=check_name, violation=violation))
+    return tuple(evaluations)
 
 
 def _resource_identity(
@@ -158,6 +211,7 @@ class DltIngester(BaseIngester):
         add_metadata_columns: bool = True,
         merge_strategy: str = "merge",
         merge_config: Dict[str, Any] | None = None,
+        quality_checks: Sequence[Callable[[pd.DataFrame], str | None]] | None = None,
     ):
         """Store the ingester's collaborators and validation/merge options."""
         super().__init__(context, logger)
@@ -170,6 +224,7 @@ class DltIngester(BaseIngester):
         self.add_metadata_columns = add_metadata_columns
         self.merge_strategy = merge_strategy
         self.merge_config = merge_config or {}
+        self.quality_checks = tuple(quality_checks or ())
 
     def run_ingestion(
         self,
@@ -450,6 +505,18 @@ class DltIngester(BaseIngester):
                         parquet_paths=tuple(parquet_paths),
                     )
 
+            domain_quality_evaluations = _evaluate_domain_quality_checks(
+                parquet_paths=parquet_paths,
+                quality_checks=self.quality_checks,
+            )
+            if self.strict_validation and any(
+                not evaluation.passed for evaluation in domain_quality_evaluations
+            ):
+                raise DomainQualityValidationError(
+                    evaluations=domain_quality_evaluations,
+                    parquet_paths=tuple(parquet_paths),
+                )
+
             output_resource: dict[str, Any] = {
                 "resource_kind": "iceberg_table",
                 "role": "output",
@@ -560,6 +627,13 @@ class DltIngester(BaseIngester):
                     "parquet_path": str(parquet_paths[0]),
                     "parquet_paths": [str(parquet_path) for parquet_path in parquet_paths],
                     "pandera_evaluation": evaluation_metadata,
+                    "domain_quality_evaluations": [
+                        {
+                            "check_name": evaluation.check_name,
+                            "violation": evaluation.violation,
+                        }
+                        for evaluation in domain_quality_evaluations
+                    ],
                     "total_elapsed_seconds": total_elapsed,
                     "target_branch_name": target_branch_name,
                     "evidence_execution_id": execution_identity,
