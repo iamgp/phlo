@@ -8,6 +8,7 @@ persistence behavior including treating "already exists" as initialized.
 from __future__ import annotations
 
 import json
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,6 +27,82 @@ def _schema(*fields: tuple[str, str, bool]) -> NormalizedSchema:
     return NormalizedSchema(
         fields=[FieldSpec(name=n, dtype=d, nullable=nl) for n, d, nl in fields],
     )
+
+
+class _RegistryDatabase:
+    """Record public registry setup and snapshot statements at a DB-API boundary."""
+
+    def __init__(self, *, fail_setup_times: int = 0, setup_started: threading.Event | None = None):
+        self.fail_setup_times = fail_setup_times
+        self.setup_started = setup_started
+        self.setup_calls: list[str] = []
+        self.snapshot_calls: list[str] = []
+        self._lock = threading.Lock()
+
+    def connect(self, connection_string: str):
+        """Return a connection that records statements for one public registry call."""
+        return _RegistryConnection(self, connection_string)
+
+
+class _RegistryConnection:
+    """Provide the DB-API context-manager shape used by SchemaRegistry."""
+
+    def __init__(self, database: _RegistryDatabase, connection_string: str):
+        self.database = database
+        self.connection_string = connection_string
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def cursor(self):
+        return _RegistryCursor(self.database, self.connection_string)
+
+    def commit(self) -> None:
+        return None
+
+
+class _RegistryCursor:
+    """Record setup and snapshot statements while returning deterministic snapshot IDs."""
+
+    def __init__(self, database: _RegistryDatabase, connection_string: str):
+        self.database = database
+        self.connection_string = connection_string
+        self.snapshot_id: str | None = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def execute(self, statement: str, _params: object = None) -> None:
+        if "INSERT INTO phlo.schema_snapshots" in statement:
+            with self.database._lock:
+                self.database.snapshot_calls.append(self.connection_string)
+                self.snapshot_id = f"snapshot-{len(self.database.snapshot_calls)}"
+            return
+        with self.database._lock:
+            self.database.setup_calls.append(self.connection_string)
+            should_fail = self.database.fail_setup_times > 0
+            if should_fail:
+                self.database.fail_setup_times -= 1
+        if self.database.setup_started is not None:
+            self.database.setup_started.set()
+        if should_fail:
+            raise RuntimeError("setup unavailable")
+
+    def fetchone(self) -> tuple[str] | None:
+        return (self.snapshot_id,) if self.snapshot_id is not None else None
+
+
+@pytest.fixture
+def _isolated_schema_registry_state(monkeypatch: pytest.MonkeyPatch):
+    """Reset process-global schema setup state for each public-path regression."""
+    monkeypatch.setattr(SchemaRegistry, "_initialized_connections", set())
+    monkeypatch.setattr(SchemaRegistry, "_initialization_lock", threading.Lock())
 
 
 class TestCanonicalSchemaJson:
@@ -81,6 +158,100 @@ class TestDeserializeSchema:
 
 
 class TestSchemaRegistryPersistence:
+    def test_snapshot_schema_initializes_equivalent_urls_once_under_concurrency(
+        self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
+    ) -> None:
+        """Concurrent public snapshots share setup for equivalent database identities."""
+        setup_started = threading.Event()
+        release_setup = threading.Event()
+        both_invoked = threading.Event()
+        start = threading.Barrier(3)
+        database = _RegistryDatabase(setup_started=setup_started)
+        original_execute = _RegistryCursor.execute
+
+        def blocking_execute(self, statement: str, params: object = None) -> None:
+            original_execute(self, statement, params)
+            if "INSERT INTO phlo.schema_snapshots" not in statement:
+                assert setup_started.wait(timeout=1)
+                assert release_setup.wait(timeout=1)
+
+        monkeypatch.setattr(_RegistryCursor, "execute", blocking_execute)
+        monkeypatch.setattr("phlo.schema_registry.psycopg2.connect", database.connect)
+        registries = [
+            SchemaRegistry("postgresql://alice:secret@EXAMPLE.test/db?sslmode=require"),
+            SchemaRegistry("postgres://bob:other@example.test:5432/db"),
+        ]
+        snapshot_ids: list[str] = []
+        failures: list[BaseException] = []
+        invoked = 0
+        invoked_lock = threading.Lock()
+
+        def snapshot(registry: SchemaRegistry) -> None:
+            nonlocal invoked
+            start.wait()
+            with invoked_lock:
+                invoked += 1
+                if invoked == len(registries):
+                    both_invoked.set()
+            try:
+                snapshot_ids.append(
+                    registry.snapshot_schema("raw.events", _schema(("id", "int", False)))
+                )
+            except BaseException as exc:  # pragma: no cover - asserted by the caller
+                failures.append(exc)
+
+        workers = [threading.Thread(target=snapshot, args=(registry,)) for registry in registries]
+        for worker in workers:
+            worker.start()
+        start.wait()
+        assert setup_started.wait(timeout=1)
+        assert both_invoked.wait(timeout=1)
+        release_setup.set()
+        for worker in workers:
+            worker.join(timeout=1)
+
+        assert failures == []
+        assert sorted(snapshot_ids) == ["snapshot-1", "snapshot-2"]
+        assert len(database.setup_calls) == 1
+        assert len(database.snapshot_calls) == 2
+
+    def test_snapshot_schema_initializes_distinct_databases_and_skips_repeats(
+        self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
+    ) -> None:
+        """Public snapshots initialize each database once and reuse that setup."""
+        database = _RegistryDatabase()
+        monkeypatch.setattr("phlo.schema_registry.psycopg2.connect", database.connect)
+        first = SchemaRegistry("postgresql://user:secret@example.test/db-a")
+        first_alias = SchemaRegistry("postgres://other:credential@EXAMPLE.test:5432/db-a?x=1")
+        second = SchemaRegistry("postgresql://user:secret@example.test/db-b")
+
+        assert first.snapshot_schema("raw.a", _schema(("id", "int", False))) == "snapshot-1"
+        assert first_alias.snapshot_schema("raw.a", _schema(("id", "int", False))) == "snapshot-2"
+        assert second.snapshot_schema("raw.b", _schema(("id", "int", False))) == "snapshot-3"
+
+        assert database.setup_calls == [
+            "postgresql://user:secret@example.test/db-a",
+            "postgresql://user:secret@example.test/db-b",
+        ]
+        assert len(database.snapshot_calls) == 3
+
+    def test_snapshot_schema_retries_setup_after_a_failed_public_call(
+        self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
+    ) -> None:
+        """A failed setup is retried before the next public snapshot statement."""
+        database = _RegistryDatabase(fail_setup_times=1)
+        monkeypatch.setattr("phlo.schema_registry.psycopg2.connect", database.connect)
+        registry = SchemaRegistry("postgresql://user:secret@example.test/retry")
+
+        assert registry.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-1"
+        assert registry.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-2"
+
+        assert database.setup_calls == [
+            "postgresql://user:secret@example.test/retry",
+            "postgresql://user:secret@example.test/retry",
+        ]
+        assert len(database.snapshot_calls) == 2
+
     def test_ensure_schema_treats_already_exists_as_initialized(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
