@@ -13,6 +13,7 @@ import re
 import signal
 import subprocess
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from re import Match
@@ -181,6 +182,7 @@ class NativeProcessManager:
             command=" ".join(command),
         )
         log_file: TextIO | None = None
+        previous_signal_mask: set[signal.Signals] | None = None
         try:
             stdout = None
             if self.log_dir is not None:
@@ -188,6 +190,17 @@ class NativeProcessManager:
                 log_path = self.log_dir / f"{service.name}.log"
                 log_file = log_path.open("a", encoding="utf-8")  # noqa: SIM115
                 stdout = log_file
+            popen_kwargs: dict[str, object] = {}
+            if hasattr(signal, "pthread_sigmask"):
+                previous_signal_mask = signal.pthread_sigmask(
+                    signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM}
+                )
+
+                def _restore_child_signal_mask() -> None:
+                    """Restore the invoking process signal mask before native exec."""
+                    signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
+
+                popen_kwargs["preexec_fn"] = _restore_child_signal_mask
             process = subprocess.Popen(
                 command,
                 cwd=cwd,
@@ -196,9 +209,12 @@ class NativeProcessManager:
                 stderr=subprocess.STDOUT,
                 text=True,
                 start_new_session=True,
+                **popen_kwargs,
             )
         except Exception:
             logger.exception("service_start_failed", service_name=service.name)
+            if previous_signal_mask is not None:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
             if log_file is not None:
                 try:
                     log_file.close()
@@ -206,16 +222,23 @@ class NativeProcessManager:
                     logger.exception("Failed to close log file after start failure")
             return None
 
-        health_check_url = dev_config.get("health_check")
-        if isinstance(health_check_url, str):
-            health_check_url = self._expand_env_vars(health_check_url, env)
-        native_process = NativeProcess(
-            name=service.name,
-            process=process,
-            health_check_url=health_check_url,
-            log_file=log_file,
-        )
-        self._processes[service.name] = native_process
+        try:
+            health_check_url = dev_config.get("health_check")
+            if isinstance(health_check_url, str):
+                health_check_url = self._expand_env_vars(health_check_url, env)
+            native_process = NativeProcess(
+                name=service.name,
+                process=process,
+                health_check_url=health_check_url,
+                log_file=log_file,
+            )
+            self._processes[service.name] = native_process
+        except BaseException:
+            self._stop_untracked_process(process, log_file)
+            raise
+        finally:
+            if previous_signal_mask is not None:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
 
         if not native_process.is_running:
             logger.warning("service_exited_during_start", service_name=service.name)
@@ -316,16 +339,41 @@ class NativeProcessManager:
         except (AttributeError, OSError):
             process.send_signal(sig)
 
+    def _stop_untracked_process(
+        self, process: subprocess.Popen[str], log_file: TextIO | None
+    ) -> None:
+        """Terminate and reap a process that failed before manager registration."""
+        try:
+            self._signal_process_group(process, signal.SIGTERM)
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                self._signal_process_group(process, signal.SIGKILL)
+                process.wait(timeout=5)
+            except Exception:
+                logger.exception("service_untracked_cleanup_failed", pid=process.pid)
+        except Exception:
+            logger.exception("service_untracked_cleanup_failed", pid=process.pid)
+        finally:
+            if log_file is not None:
+                try:
+                    log_file.close()
+                except Exception:
+                    logger.exception("service_untracked_log_close_failed", pid=process.pid)
+
     async def _wait_for_process_group_exit(
         self, process: subprocess.Popen[str], deadline: float
     ) -> bool:
         """Wait until a native process group is gone before ``deadline``."""
-        while self._process_group_exists(process):
+        while True:
+            with suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=0)
+            if not self._process_group_exists(process):
+                return True
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return False
             await asyncio.sleep(min(remaining, 0.1))
-        return True
 
     def _process_group_exists(self, process: subprocess.Popen[str]) -> bool:
         """Return whether a native process group still has a member."""

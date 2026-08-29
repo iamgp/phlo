@@ -9,7 +9,11 @@ matching, native interpreter selection, and polished errors without tracebacks.
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
+import sys
+import time
 from contextlib import suppress
 from subprocess import CompletedProcess
 from types import SimpleNamespace
@@ -1020,6 +1024,8 @@ def test_native_start_interrupt_persists_and_cleans_started_services(
     phlo_dir.mkdir()
     (phlo_dir / ".env").write_text("")
     (phlo_dir / "docker-compose.yml").write_text("services: {}\n")
+    prior_entry = {"pid": 909, "started_at": 1.0, "log": "prior.log"}
+    (phlo_dir / "native-processes.json").write_text(json.dumps({"prior": prior_entry}))
     first = ServiceDefinition(
         name="first",
         description="first native service",
@@ -1037,8 +1043,8 @@ def test_native_start_interrupt_persists_and_cleans_started_services(
         def discover(self) -> dict[str, ServiceDefinition]:
             return {first.name: first, second.name: second}
 
-    stopped: list[str] = []
-    signal_handlers: dict[object, object] = {}
+    previous_sigterm_handler = object()
+    signal_handlers: dict[object, object] = {start_module.signal.SIGTERM: previous_sigterm_handler}
 
     def record_signal(signum, handler):
         """Record the startup SIGTERM handler without changing this test process."""
@@ -1048,20 +1054,24 @@ def test_native_start_interrupt_persists_and_cleans_started_services(
 
     class InterruptingNativeManager:
         def __init__(self, *_args, **_kwargs) -> None:
-            self.started: list[str] = []
+            self.processes: dict[str, object] = {}
 
         def can_run_dev(self, service: ServiceDefinition) -> bool:
             return bool(service.dev and service.dev.get("command"))
 
         async def start_service(self, service: ServiceDefinition, **_kwargs):
+            process = SimpleNamespace(pid=101 if service.name == "first" else 102, is_running=True)
+            self.processes[service.name] = process
             if service.name == "second":
                 handler = signal_handlers[start_module.signal.SIGTERM]
                 handler(start_module.signal.SIGTERM, None)
-            self.started.append(service.name)
-            return SimpleNamespace(pid=101, is_running=True)
+            return process
 
         async def stop_all(self) -> None:
-            stopped.extend(self.started)
+            raise RuntimeError("simulated manager cleanup failure")
+
+        def get_process(self, name: str):
+            return self.processes.get(name)
 
     state_cleanup_calls: list[list[str] | None] = []
     monkeypatch.chdir(tmp_path)
@@ -1086,8 +1096,107 @@ def test_native_start_interrupt_persists_and_cleans_started_services(
         ["--native", "--service", "first", "--service", "second"],
     )
 
-    assert result.exit_code != 0
-    assert stopped == ["first"]
-    assert state_cleanup_calls[-1] == ["first"]
+    assert result.exit_code == 1
+    assert (
+        "Error: Native startup interrupted; current invocation services were stopped."
+        in result.output
+    )
+    assert state_cleanup_calls[-1] == ["first", "second"]
+    assert signal_handlers[start_module.signal.SIGTERM] is previous_sigterm_handler
     state = json.loads((phlo_dir / "native-processes.json").read_text())
+    assert state["prior"] == prior_entry
     assert state["first"]["pid"] == 101
+    assert state["second"]["pid"] == 102
+
+
+def test_native_start_sigterm_reaps_only_current_processes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """SIGTERM preserves unrelated native state while reaping this start's children."""
+    from phlo.cli.commands.services import start as start_module
+    from phlo.plugins.compose.native import NativeProcessManager
+    from phlo.plugins.discovery import ServiceDefinition
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("")
+    (phlo_dir / "docker-compose.yml").write_text("services: {}\n")
+    prior = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        start_new_session=True,
+    )
+    prior_entry = {"pid": prior.pid, "started_at": 1.0, "log": "prior.log"}
+    (phlo_dir / "native-processes.json").write_text(json.dumps({"prior": prior_entry}))
+    first = ServiceDefinition(
+        name="first",
+        description="first native service",
+        category="core",
+        dev={"command": [sys.executable, "-c", "import time; time.sleep(60)"]},
+    )
+    second = ServiceDefinition(
+        name="second",
+        description="second native service",
+        category="core",
+        dev={"command": [sys.executable, "-c", "import time; time.sleep(60)"]},
+    )
+
+    class NativeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {first.name: first, second.name: second}
+
+    launched_pids: list[int] = []
+    original_start_service = NativeProcessManager.start_service
+
+    async def interrupt_after_second(self, service: ServiceDefinition, **kwargs):
+        """Interrupt after registration but before the CLI can persist the second process."""
+        native_process = await original_start_service(self, service, **kwargs)
+        if native_process is not None:
+            launched_pids.append(native_process.pid)
+        if service.name == "second":
+            os.kill(os.getpid(), signal.SIGTERM)
+        return native_process
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "ServiceDiscovery", NativeDiscovery)
+    monkeypatch.setattr(NativeProcessManager, "start_service", interrupt_after_second)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *_args, **_kwargs: None
+    )
+
+    try:
+        result = CliRunner().invoke(
+            start_module.start_cmd,
+            ["--native", "--service", "first", "--service", "second"],
+        )
+
+        assert result.exit_code == 1
+        assert (
+            "Error: Native startup interrupted; current invocation services were stopped."
+            in result.output
+        )
+        state = json.loads((phlo_dir / "native-processes.json").read_text())
+        assert state == {"prior": prior_entry}
+        assert _wait_for_process_exit(launched_pids) is True
+        os.kill(prior.pid, 0)
+    finally:
+        with suppress(ProcessLookupError):
+            os.killpg(prior.pid, signal.SIGKILL)
+
+
+def _wait_for_process_exit(pids: list[int]) -> bool:
+    """Return whether every PID is absent before the bounded deadline."""
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        remaining: list[int] = []
+        for pid in pids:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                continue
+            remaining.append(pid)
+        if not remaining:
+            return True
+        time.sleep(0.05)
+    return False
