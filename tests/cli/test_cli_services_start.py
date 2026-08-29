@@ -8,6 +8,7 @@ matching, native interpreter selection, and polished errors without tracebacks.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from contextlib import suppress
 from subprocess import CompletedProcess
@@ -1006,3 +1007,87 @@ def test_native_start_reports_failures_without_losing_successful_services(
     assert saved_state["healthy"]["pid"] == 101
     assert saved_state["healthy"]["started_at"] > 0
     assert saved_state["healthy"]["log"] == str(tmp_path / ".phlo" / "native-logs" / "healthy.log")
+
+
+def test_native_start_interrupt_persists_and_cleans_started_services(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """Interrupting a multi-service native start leaves the first service recoverable."""
+    from phlo.cli.commands.services import start as start_module
+    from phlo.plugins.discovery import ServiceDefinition
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("")
+    (phlo_dir / "docker-compose.yml").write_text("services: {}\n")
+    first = ServiceDefinition(
+        name="first",
+        description="first native service",
+        category="core",
+        dev={"command": ["first"]},
+    )
+    second = ServiceDefinition(
+        name="second",
+        description="second native service",
+        category="core",
+        dev={"command": ["second"]},
+    )
+
+    class NativeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {first.name: first, second.name: second}
+
+    stopped: list[str] = []
+    signal_handlers: dict[object, object] = {}
+
+    def record_signal(signum, handler):
+        """Record the startup SIGTERM handler without changing this test process."""
+        previous = signal_handlers.get(signum)
+        signal_handlers[signum] = handler
+        return previous
+
+    class InterruptingNativeManager:
+        def __init__(self, *_args, **_kwargs) -> None:
+            self.started: list[str] = []
+
+        def can_run_dev(self, service: ServiceDefinition) -> bool:
+            return bool(service.dev and service.dev.get("command"))
+
+        async def start_service(self, service: ServiceDefinition, **_kwargs):
+            if service.name == "second":
+                handler = signal_handlers[start_module.signal.SIGTERM]
+                handler(start_module.signal.SIGTERM, None)
+            self.started.append(service.name)
+            return SimpleNamespace(pid=101, is_running=True)
+
+        async def stop_all(self) -> None:
+            stopped.extend(self.started)
+
+    state_cleanup_calls: list[list[str] | None] = []
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "ServiceDiscovery", NativeDiscovery)
+    monkeypatch.setattr(
+        "phlo.plugins.compose.native.NativeProcessManager", InterruptingNativeManager
+    )
+    monkeypatch.setattr(start_module.signal, "signal", record_signal)
+    monkeypatch.setattr(
+        start_module,
+        "_stop_native_processes",
+        lambda _root, names=None: state_cleanup_calls.append(names),
+    )
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *_args, **_kwargs: None
+    )
+
+    result = CliRunner().invoke(
+        start_module.start_cmd,
+        ["--native", "--service", "first", "--service", "second"],
+    )
+
+    assert result.exit_code != 0
+    assert stopped == ["first"]
+    assert state_cleanup_calls[-1] == ["first"]
+    state = json.loads((phlo_dir / "native-processes.json").read_text())
+    assert state["first"]["pid"] == 101
