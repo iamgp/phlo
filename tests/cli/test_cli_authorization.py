@@ -436,7 +436,7 @@ policies:
 
         assert handler(dry_run=True) == "read-only"
 
-    def test_require_mutation_authorization_denies_when_adapter_denies(self, monkeypatch):
+    def test_require_mutation_authorization_denies_when_adapter_denies(self, monkeypatch, capsys):
         """Authorization denial stops the command before mutation logic runs."""
         from phlo.cli import authorization as authorization_module
         from phlo.cli import authorization_wrappers
@@ -457,3 +457,5 @@ policies:
 
         with pytest.raises(SystemExit):
             handler()
+
+        assert "Authorization denied for 'services.start': not allowed" in capsys.readouterr().err
