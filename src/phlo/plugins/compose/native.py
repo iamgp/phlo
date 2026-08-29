@@ -257,16 +257,20 @@ class NativeProcessManager:
             del self._processes[name]
             return True
 
-        # Try graceful shutdown first
+        # Each subprocess starts a session, so target its whole process group.
+        # A service command can delegate to children which would otherwise keep
+        # its port bound after the leader exits.
         logger.info("service_stopping", service_name=name, pid=process.pid)
         try:
-            process.send_signal(signal.SIGTERM)
+            self._signal_process_group(process, signal.SIGTERM)
             try:
                 process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
                 logger.warning("service_force_kill", service_name=name)
-                process.kill()
+                self._signal_process_group(process, signal.SIGKILL)
                 process.wait(timeout=5)
+        except ProcessLookupError:
+            pass
         except Exception:
             logger.exception("service_stop_failed", service_name=name)
             return False
@@ -287,6 +291,13 @@ class NativeProcessManager:
     def get_process(self, name: str) -> NativeProcess | None:
         """Get a native process by name."""
         return self._processes.get(name)
+
+    def _signal_process_group(self, process: subprocess.Popen[str], sig: signal.Signals) -> None:
+        """Signal a native process group, falling back to its leader."""
+        try:
+            os.killpg(process.pid, sig)
+        except (AttributeError, OSError):
+            process.send_signal(sig)
 
     def _resolve_path(self, template: str, service: ServiceDefinition) -> Path:
         """Resolve path template."""

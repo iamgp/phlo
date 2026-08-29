@@ -9,6 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import signal
+import sys
+import time
+from contextlib import suppress
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -230,3 +234,57 @@ def test_start_service_discards_process_when_declared_health_check_fails(
 
     assert result is None
     assert mgr.get_process("api") is None
+
+
+@pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups require POSIX")
+def test_failed_health_cleanup_terminates_native_process_group(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Failed health cleanup reaps the native leader and its child process."""
+    pid_file = tmp_path / "child.pid"
+    wrapper = (
+        "import pathlib, subprocess, sys, time; "
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+        "pathlib.Path(sys.argv[1]).write_text(str(child.pid)); "
+        "time.sleep(60)"
+    )
+    service = _svc(
+        "api",
+        dev={
+            "command": [sys.executable, "-c", wrapper, str(pid_file)],
+            "health_check": "http://unhealthy",
+        },
+    )
+    manager = NativeProcessManager(tmp_path)
+
+    async def fail_after_child_starts(_self, _url: str, timeout: int = 30) -> bool:
+        """Wait until the wrapper has published its child before failing health."""
+        deadline = time.monotonic() + timeout
+        while not pid_file.exists() and time.monotonic() < deadline:
+            await asyncio.sleep(0.01)
+        assert pid_file.exists()
+        return False
+
+    monkeypatch.setattr(NativeProcessManager, "_wait_for_health", fail_after_child_starts)
+
+    try:
+        result = asyncio.run(manager.start_service(service))
+
+        assert result is None
+        assert manager.get_process("api") is None
+        assert pid_file.exists()
+        child_pid = int(pid_file.read_text())
+
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            pytest.fail("failed health cleanup left the native child process running")
+    finally:
+        if pid_file.exists():
+            with suppress(ProcessLookupError):
+                os.kill(int(pid_file.read_text()), signal.SIGKILL)
