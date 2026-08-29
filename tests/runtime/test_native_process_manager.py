@@ -195,3 +195,38 @@ class TestNativeEnvSetup:
 
         assert captured_env["PATH"].split(os.pathsep)[0] == str(venv_bin)
         assert captured_env["VIRTUAL_ENV"] == str(tmp_path / ".venv")
+
+
+def test_start_service_discards_process_when_declared_health_check_fails(
+    monkeypatch, tmp_path
+) -> None:
+    """A failed declared health check is a failed native start."""
+    mgr = NativeProcessManager(tmp_path)
+    service = _svc(
+        "api",
+        dev={"command": ["python", "-m", "http.server"], "health_check": "http://bad"},
+    )
+
+    class _Proc:
+        pid = 123
+
+        def poll(self):
+            return None
+
+        def send_signal(self, _signal):
+            pass
+
+        def wait(self, timeout):
+            del timeout
+
+    monkeypatch.setattr(compose_native.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(
+        NativeProcessManager,
+        "_wait_for_health",
+        lambda self, url, timeout=30: asyncio.sleep(0, result=False),
+    )
+
+    result = asyncio.run(mgr.start_service(service))
+
+    assert result is None
+    assert mgr.get_process("api") is None

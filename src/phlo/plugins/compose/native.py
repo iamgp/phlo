@@ -217,6 +217,12 @@ class NativeProcessManager:
         )
         self._processes[service.name] = native_process
 
+        if not native_process.is_running:
+            logger.warning("service_exited_during_start", service_name=service.name)
+            native_process.close_log_file()
+            del self._processes[service.name]
+            return None
+
         # Wait for health check if configured
         if health_check_url:
             healthy = await self._wait_for_health(health_check_url, timeout=30)
@@ -225,6 +231,14 @@ class NativeProcessManager:
                     "service_health_check_failed_after_start",
                     service_name=service.name,
                 )
+                await self.stop_service(service.name)
+                return None
+
+        if not native_process.is_running:
+            logger.warning("service_exited_during_start", service_name=service.name)
+            native_process.close_log_file()
+            del self._processes[service.name]
+            return None
 
         return native_process
 
