@@ -34,6 +34,23 @@ def _svc(name: str, dev: dict | None = None, **kwargs) -> ServiceDefinition:
     )
 
 
+def _process_is_live(pid: int) -> bool:
+    """Return false for exited processes, including Linux zombies."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+
+    stat_path = Path(f"/proc/{pid}/stat")
+    if not stat_path.exists():
+        return True
+    try:
+        state = stat_path.read_text().rsplit(") ", 1)[1].split(maxsplit=1)[0]
+    except FileNotFoundError:
+        return False
+    return state != "Z"
+
+
 class TestCanRunDev:
     """Tests for `NativeProcessManager.can_run_dev`."""
 
@@ -277,9 +294,7 @@ def test_failed_health_cleanup_terminates_native_process_group(
 
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
-            try:
-                os.kill(child_pid, 0)
-            except ProcessLookupError:
+            if not _process_is_live(child_pid):
                 break
             time.sleep(0.05)
         else:
@@ -325,9 +340,7 @@ def test_stop_service_escalates_after_leader_exits_but_child_ignores_sigterm(
         assert native_process.log_file is None
 
         while time.monotonic() < deadline:
-            try:
-                os.kill(child_pid, 0)
-            except ProcessLookupError:
+            if not _process_is_live(child_pid):
                 break
             time.sleep(0.05)
         else:

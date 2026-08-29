@@ -242,7 +242,7 @@ class NativeProcessManager:
 
         return native_process
 
-    async def stop_service(self, name: str, timeout: int = 10) -> bool:
+    async def stop_service(self, name: str, timeout: float = 10) -> bool:
         """Stop a native service, waiting up to ``timeout`` seconds for shutdown.
 
         Return True when stopped; False when not found or shutdown failed.
@@ -279,9 +279,9 @@ class NativeProcessManager:
             except Exception:
                 logger.exception("service_force_kill_failed", service_name=name)
                 return False
-            if not await self._wait_for_process_group_exit(process, time.monotonic() + 5):
-                logger.error("service_process_group_survived_kill", service_name=name)
-                return False
+            # A successful group SIGKILL terminates every live member. Do not
+            # wait for killpg(..., 0) to fail: Linux still reports zombies as
+            # process-group members until their eventual parent reaps them.
 
         try:
             process.wait(timeout=5)
