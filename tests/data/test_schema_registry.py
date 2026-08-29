@@ -235,6 +235,78 @@ class TestSchemaRegistryPersistence:
         ]
         assert len(database.snapshot_calls) == 3
 
+    def test_snapshot_schema_keeps_username_default_databases_distinct(
+        self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
+    ) -> None:
+        """URL users select distinct default databases when no path or dbname exists."""
+        database = _RegistryDatabase()
+        monkeypatch.setattr("phlo.schema_registry.psycopg2.connect", database.connect)
+
+        assert (
+            SchemaRegistry("postgresql://alice:secret@example.test").snapshot_schema(
+                "raw.events", _schema(("id", "int", False))
+            )
+            == "snapshot-1"
+        )
+        assert (
+            SchemaRegistry("postgresql://bob:secret@example.test").snapshot_schema(
+                "raw.events", _schema(("id", "int", False))
+            )
+            == "snapshot-2"
+        )
+
+        assert len(database.setup_calls) == 2
+
+    def test_snapshot_schema_ignores_credentials_and_non_identity_options(
+        self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
+    ) -> None:
+        """Equivalent default-database URLs share setup without retaining credentials."""
+        database = _RegistryDatabase()
+        monkeypatch.setattr("phlo.schema_registry.psycopg2.connect", database.connect)
+        first = SchemaRegistry(
+            "postgresql://alice:first-secret@EXAMPLE.test?sslmode=require&application_name=one"
+        )
+        equivalent = SchemaRegistry(
+            "postgres://alice:second-secret@example.test:5432?options=-c%20work_mem%3D1"
+        )
+
+        assert first.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-1"
+        assert (
+            equivalent.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-2"
+        )
+
+        assert len(database.setup_calls) == 1
+
+    def test_snapshot_schema_uses_query_dbname_and_host_port_overrides(
+        self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
+    ) -> None:
+        """libpq query target selectors split databases but ignore option ordering."""
+        database = _RegistryDatabase()
+        monkeypatch.setattr("phlo.schema_registry.psycopg2.connect", database.connect)
+        analytics = SchemaRegistry(
+            "postgresql://user:secret@ignored.test/path?dbname=analytics&host=db.test&port=5544"
+        )
+        analytics_equivalent = SchemaRegistry(
+            "postgres://other:credential@ignored.test/other?sslmode=require&port=5544"
+            "&host=DB.test&dbname=analytics"
+        )
+        warehouse = SchemaRegistry(
+            "postgresql://user:secret@ignored.test/path?host=db.test&port=5544&dbname=warehouse"
+        )
+
+        assert (
+            analytics.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-1"
+        )
+        assert (
+            analytics_equivalent.snapshot_schema("raw.events", _schema(("id", "int", False)))
+            == "snapshot-2"
+        )
+        assert (
+            warehouse.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-3"
+        )
+
+        assert len(database.setup_calls) == 2
+
     def test_snapshot_schema_retries_setup_after_a_failed_public_call(
         self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
     ) -> None:
@@ -265,7 +337,7 @@ class TestSchemaRegistryPersistence:
 
         registry._ensure_schema()
 
-        assert SchemaRegistry._initialized_connections == {"postgresql://example:5432/"}
+        assert len(SchemaRegistry._initialized_connections) == 1
 
     def test_ensure_schema_leaves_cache_unset_after_other_failures(
         self, monkeypatch: pytest.MonkeyPatch

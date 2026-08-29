@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from phlo.capabilities.specs import FieldSpec, NormalizedSchema
 from phlo.logging import get_logger
@@ -79,12 +79,19 @@ def _schema_hash(canonical_json: str) -> str:
 
 
 def _normalized_connection_key(connection_string: str) -> str:
-    """Normalize non-secret URL spelling for process-local initialization state."""
+    """Hash the effective non-secret PostgreSQL target for initialization state."""
     parsed = urlsplit(connection_string.strip())
     if parsed.scheme in {"postgres", "postgresql"} and parsed.hostname:
-        port = parsed.port or 5432
-        database = parsed.path.strip("/")
-        return f"postgresql://{parsed.hostname.lower()}:{port}/{database}"
+        parameters = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        host = parameters.get("host") or parsed.hostname
+        port = parameters.get("port") or parsed.port or 5432
+        database = (
+            parameters.get("dbname")
+            or unquote(parsed.path.strip("/"))
+            or unquote(parsed.username or "")
+        )
+        canonical = f"postgresql://{host.lower()}:{port}/{database}"
+        return hashlib.sha256(canonical.encode()).hexdigest()
     return hashlib.sha256(connection_string.strip().encode()).hexdigest()
 
 
