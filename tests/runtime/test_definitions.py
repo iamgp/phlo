@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import dagster as dg
 import pytest
 
-from phlo.exceptions import PhloCapabilitySetupError
+from phlo.exceptions import PhloCapabilitySetupError, PhloDiscoveryError
 
 pytestmark = pytest.mark.integration
 
@@ -99,6 +99,22 @@ def test_build_definitions_raises_required_capability_setup_error() -> None:
         from phlo_dagster.framework.definitions import build_definitions
 
         with pytest.raises(PhloCapabilitySetupError, match="manifest_unavailable"):
+            build_definitions(workflows_path="workflows")
+
+
+def test_build_definitions_surfaces_workflow_discovery_errors() -> None:
+    with (
+        patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()),
+        patch(
+            "phlo_dagster.framework.definitions.discover_user_workflows",
+            side_effect=PhloDiscoveryError(
+                "broken module=workflows.broken path=workflows/broken.py"
+            ),
+        ),
+    ):
+        from phlo_dagster.framework.definitions import build_definitions
+
+        with pytest.raises(PhloDiscoveryError, match="workflows.broken"):
             build_definitions(workflows_path="workflows")
 
 
