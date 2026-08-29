@@ -29,6 +29,20 @@ class ContainerInfo:
     ports: str
 
 
+@dataclass(frozen=True)
+class ServiceStatus:
+    """Runtime state used to decide whether a compose service is ready.
+
+    ``health`` is populated only when the backend reports a container health
+    check.  Callers must therefore use ``running`` as the readiness condition
+    for services without a declared healthcheck.
+    """
+
+    service: str
+    state: str
+    health: str | None
+
+
 class ContainerBackend(Protocol):
     """Contract shared by the Docker and Podman backends."""
 
@@ -48,6 +62,9 @@ class ContainerBackend(Protocol):
 
     def list_project_containers(self, project_name: str) -> list[ContainerInfo]:
         """Return containers for a compose project."""
+
+    def project_service_statuses(self, project_name: str) -> list[ServiceStatus]:
+        """Return running and stopped compose service states for readiness checks."""
 
     def container_exec_cmd(
         self,
@@ -133,6 +150,39 @@ def _format_podman_ports(value: object) -> str:
 
 def _podman_service_label(labels: dict[str, str]) -> str:
     return labels.get("com.docker.compose.service") or labels.get("io.podman.compose.service") or ""
+
+
+def _inspect_container_state(binary: str, name: str) -> tuple[str, str | None]:
+    """Return normalized state and optional health from a container inspection.
+
+    Both Docker and Podman expose a compatible ``State`` object in their
+    inspection JSON.  A failed inspection deliberately leaves health unknown:
+    the caller will keep polling or report the observable state rather than
+    treating the service as ready.
+    """
+    if not name:
+        return "", None
+    try:
+        result = subprocess.run(
+            [binary, "inspect", "--format", "{{json .State}}", name],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "", None
+    if result.returncode != 0 or not result.stdout.strip():
+        return "", None
+    try:
+        state = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return "", None
+    if not isinstance(state, dict):
+        return "", None
+    health_data = state.get("Health")
+    health = health_data.get("Status") if isinstance(health_data, dict) else None
+    return str(state.get("Status") or ""), str(health) if health else None
 
 
 class DockerBackend:
@@ -223,6 +273,38 @@ class DockerBackend:
                 )
             )
         return containers
+
+    def project_service_statuses(self, project_name: str) -> list[ServiceStatus]:
+        """Inspect every Docker Compose container, including stopped ones."""
+        result = subprocess.run(
+            [
+                "docker",
+                "ps",
+                "--all",
+                "--filter",
+                f"label=com.docker.compose.project={project_name}",
+                "--format",
+                "{{json .}}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return []
+
+        statuses: list[ServiceStatus] = []
+        for line in result.stdout.strip().splitlines():
+            info = json.loads(line)
+            labels = _parse_docker_labels(info.get("Labels", ""))
+            service = labels.get("com.docker.compose.service", "")
+            if not service:
+                continue
+            state, health = _inspect_container_state("docker", info.get("Names", ""))
+            statuses.append(
+                ServiceStatus(service=service, state=state or info.get("State", ""), health=health)
+            )
+        return statuses
 
     def container_exec_cmd(
         self,
@@ -326,6 +408,46 @@ class PodmanBackend:
                     continue
                 containers_by_name[container.name] = container
         return list(containers_by_name.values())
+
+    def project_service_statuses(self, project_name: str) -> list[ServiceStatus]:
+        """Inspect every Podman Compose container, including stopped ones."""
+        statuses_by_name: dict[str, ServiceStatus] = {}
+        for label in ("com.docker.compose.project", "io.podman.compose.project"):
+            result = subprocess.run(
+                [
+                    "podman",
+                    "ps",
+                    "--all",
+                    "--filter",
+                    f"label={label}={project_name}",
+                    "--format",
+                    "json",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                continue
+            try:
+                payload = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                continue
+            for info in payload:
+                labels = {
+                    str(key): str(value) for key, value in (info.get("Labels", {}) or {}).items()
+                }
+                service = _podman_service_label(labels)
+                name = _coerce_podman_name(info.get("Names"))
+                if not service or not name:
+                    continue
+                state, health = _inspect_container_state("podman", name)
+                statuses_by_name[name] = ServiceStatus(
+                    service=service,
+                    state=state or str(info.get("State", "")),
+                    health=health,
+                )
+        return list(statuses_by_name.values())
 
     def _container_info_from_ps(self, info: dict) -> ContainerInfo | None:
         raw_labels = info.get("Labels", {}) or {}

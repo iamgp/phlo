@@ -12,6 +12,7 @@ from phlo.cli.commands.services.utils import require_container_backend
 from phlo.cli.infrastructure.container_backend import (
     DockerBackend,
     PodmanBackend,
+    ServiceStatus,
     select_container_backend,
     select_project_container_backend,
 )
@@ -99,6 +100,39 @@ def test_docker_backend_container_exec_cmd_builds_docker_exec() -> None:
         "dagster",
         "asset",
         "materialize",
+    ]
+
+
+def test_docker_backend_reports_stopped_and_healthy_service_statuses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _run(cmd: list[str], **_kwargs) -> CompletedProcess:
+        assert cmd[:3] == ["docker", "ps", "--all"]
+        return CompletedProcess(
+            cmd,
+            0,
+            stdout=(
+                '{"Names":"demo_database_1","State":"running",'
+                '"Labels":"com.docker.compose.service=database"}\n'
+                '{"Names":"demo_worker_1","State":"exited",'
+                '"Labels":"com.docker.compose.service=worker"}\n'
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr("phlo.cli.infrastructure.container_backend.subprocess.run", _run)
+    monkeypatch.setattr(
+        "phlo.cli.infrastructure.container_backend._inspect_container_state",
+        lambda _binary, name: (
+            ("running", "healthy") if name == "demo_database_1" else ("exited", None)
+        ),
+    )
+
+    statuses = DockerBackend().project_service_statuses("demo")
+
+    assert statuses == [
+        ServiceStatus(service="database", state="running", health="healthy"),
+        ServiceStatus(service="worker", state="exited", health=None),
     ]
 
 

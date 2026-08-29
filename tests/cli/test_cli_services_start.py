@@ -8,6 +8,7 @@ matching, native interpreter selection, and polished errors without tracebacks.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from subprocess import CompletedProcess
 
 import pytest
@@ -15,9 +16,112 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.services.planner import StartPreflightPlan
 from phlo.cli.commands.services.utils import get_profile_service_names
-from phlo.cli.infrastructure.container_backend import ContainerInfo
+from phlo.cli.infrastructure.container_backend import ContainerInfo, ServiceStatus
 from phlo.plugins.discovery import ServiceDefinition
 from tests.helpers import FakeDiscovery, _service
+
+
+class _ReadinessBackend:
+    """Deterministic backend fixture for service-start readiness tests."""
+
+    def __init__(self, snapshots: list[list[ServiceStatus]]) -> None:
+        self._snapshots = iter(snapshots)
+        self._latest: list[ServiceStatus] = []
+
+    def project_service_statuses(self, _project_name: str) -> list[ServiceStatus]:
+        with suppress(StopIteration):
+            self._latest = next(self._snapshots)
+        return self._latest
+
+
+def _immediately_ready(*, service_names: list[str], **_kwargs) -> list[str]:
+    """Keep unrelated command-shape tests independent of backend polling."""
+    return sorted(service_names)
+
+
+def test_services_start_waits_for_declared_healthcheck(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    compose_file = tmp_path / "docker-compose.yml"
+    compose_file.write_text(
+        "services:\n  database:\n    healthcheck:\n      test: ['CMD', 'true']\n"
+    )
+    backend = _ReadinessBackend(
+        [
+            [ServiceStatus(service="database", state="running", health="starting")],
+            [ServiceStatus(service="database", state="running", health="healthy")],
+        ]
+    )
+    sleeps: list[float] = []
+    monkeypatch.setattr(start_module.time, "sleep", sleeps.append)
+
+    ready = start_module._wait_for_services_ready(
+        backend=backend,
+        project_name="demo",
+        compose_file=compose_file,
+        service_names=["database"],
+        timeout_seconds=1,
+        poll_seconds=0.01,
+    )
+
+    assert ready == ["database"]
+    assert sleeps == [0.01]
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        ServiceStatus(service="database", state="running", health="unhealthy"),
+        ServiceStatus(service="database", state="exited", health=None),
+        ServiceStatus(service="database", state="restarting", health=None),
+    ],
+)
+def test_services_start_readiness_timeout_reports_each_service_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    status: ServiceStatus,
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    compose_file = tmp_path / "docker-compose.yml"
+    compose_file.write_text(
+        "services:\n  database:\n    healthcheck:\n      test: ['CMD', 'true']\n"
+    )
+    backend = _ReadinessBackend([[status]])
+    moments = iter([0.0, 1.0])
+    monkeypatch.setattr(start_module.time, "monotonic", lambda: next(moments))
+
+    with pytest.raises(Exception) as exc_info:
+        start_module._wait_for_services_ready(
+            backend=backend,
+            project_name="demo",
+            compose_file=compose_file,
+            service_names=["database"],
+            timeout_seconds=1,
+        )
+
+    message = str(exc_info.value)
+    assert "database (state=" in message
+    assert "Containers were left running for inspection" in message
+
+
+def test_services_start_allows_running_service_without_declared_healthcheck(tmp_path) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    compose_file = tmp_path / "docker-compose.yml"
+    compose_file.write_text("services:\n  web: {}\n")
+
+    ready = start_module._wait_for_services_ready(
+        backend=_ReadinessBackend([[ServiceStatus(service="web", state="running", health=None)]]),
+        project_name="demo",
+        compose_file=compose_file,
+        service_names=["web"],
+        timeout_seconds=0,
+    )
+
+    assert ready == ["web"]
 
 
 def test_get_profile_service_names_returns_profile_services(
@@ -213,6 +317,7 @@ def test_services_start_uses_podman_backend(monkeypatch: pytest.MonkeyPatch, tmp
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
     monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+    monkeypatch.setattr(start_module, "_wait_for_services_ready", _immediately_ready)
 
     result = CliRunner().invoke(start_module.start_cmd, ["--backend", "podman"])
 
@@ -266,6 +371,7 @@ def test_services_start_uses_profile_targets_without_default_fallback(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
     monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+    monkeypatch.setattr(start_module, "_wait_for_services_ready", _immediately_ready)
 
     result = CliRunner().invoke(start_module.start_cmd, ["--profile", "observability"])
 
@@ -449,6 +555,7 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
     monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+    monkeypatch.setattr(start_module, "_wait_for_services_ready", _immediately_ready)
 
     result = CliRunner().invoke(start_module.start_cmd, ["--service", "rustfs"])
 
@@ -500,6 +607,7 @@ def test_services_start_builds_preflight_plan_for_selected_services(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
     monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+    monkeypatch.setattr(start_module, "_wait_for_services_ready", _immediately_ready)
 
     result = CliRunner().invoke(start_module.start_cmd, ["--service", "postgres"])
 
@@ -642,6 +750,7 @@ def test_services_start_requires_full_dependency_match_for_setup_companions(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
     monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+    monkeypatch.setattr(start_module, "_wait_for_services_ready", _immediately_ready)
 
     # Dependency edges resolve downwards only: starting a dependency must not
     # pull in services that depend on it, so openmetadata-setup stays stopped.
