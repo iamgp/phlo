@@ -138,6 +138,29 @@ def test_docker_backend_reports_stopped_and_healthy_service_statuses(
     ]
 
 
+def test_batched_inspection_uses_captured_remaining_deadline_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phlo.cli.infrastructure import container_backend
+
+    time_values = iter([10.0, 11.0])
+    observed_timeouts: list[float | None] = []
+
+    def _run(_cmd: list[str], **kwargs) -> CompletedProcess:
+        observed_timeouts.append(kwargs["timeout"])
+        return CompletedProcess(_cmd, 0, stdout='{"Status":"running"}\n', stderr="")
+
+    monkeypatch.setattr(container_backend.time, "monotonic", lambda: next(time_values))
+    monkeypatch.setattr(container_backend.subprocess, "run", _run)
+
+    statuses = container_backend._inspect_container_states(
+        "docker", ["demo-service-1"], deadline=10.5
+    )
+
+    assert statuses == {"demo-service-1": ("running", None)}
+    assert observed_timeouts == [0.5]
+
+
 def test_podman_backend_compose_base_cmd_uses_podman(tmp_path: Path) -> None:
     phlo_dir = tmp_path / ".phlo"
     phlo_dir.mkdir()

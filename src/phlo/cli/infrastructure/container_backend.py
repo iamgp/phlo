@@ -171,7 +171,8 @@ def _inspect_container_states(
     the caller will keep polling or report the observable state rather than
     treating the service as ready.
     """
-    if not names or _remaining_timeout(deadline) is None:
+    timeout = _remaining_timeout(deadline)
+    if not names or timeout is None:
         return {}
     try:
         result = subprocess.run(
@@ -179,7 +180,7 @@ def _inspect_container_states(
             capture_output=True,
             text=True,
             check=False,
-            timeout=_remaining_timeout(deadline),
+            timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError):
         return {}
