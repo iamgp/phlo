@@ -13,6 +13,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from phlo.capabilities.specs import FieldSpec, NormalizedSchema
 from phlo.logging import get_logger
@@ -76,6 +77,19 @@ def _schema_hash(canonical_json: str) -> str:
     return hashlib.sha256(canonical_json.encode()).hexdigest()[:16]
 
 
+def _normalized_connection_key(connection_string: str) -> str:
+    """Normalize non-secret URL spelling for process-local initialization state."""
+    parsed = urlsplit(connection_string.strip())
+    if not parsed.scheme or not parsed.netloc:
+        return connection_string.strip()
+    userinfo, separator, host = parsed.netloc.rpartition("@")
+    normalized_netloc = f"{userinfo}{separator}" if separator else ""
+    normalized_netloc += host.lower()
+    return urlunsplit(
+        (parsed.scheme.lower(), normalized_netloc, parsed.path.rstrip("/"), parsed.query, "")
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SchemaSnapshot:
     """Immutable record of a schema snapshot stored in the registry."""
@@ -92,7 +106,7 @@ class SchemaSnapshot:
 class SchemaRegistry:
     """PostgreSQL-backed schema snapshot registry."""
 
-    _schema_initialized: bool = False
+    _initialized_connections: set[str] = set()
 
     def __init__(self, connection_string: str):
         self.connection_string = connection_string
@@ -103,14 +117,15 @@ class SchemaRegistry:
         # A concurrent-creator "already exists" error counts as initialized;
         # any other failure is only warned about, leaving the flag unset so
         # the next call retries setup before its first statement.
-        if SchemaRegistry._schema_initialized:
+        connection_key = _normalized_connection_key(self.connection_string)
+        if connection_key in SchemaRegistry._initialized_connections:
             return
         try:
             self._setup_schema()
-            SchemaRegistry._schema_initialized = True
+            SchemaRegistry._initialized_connections.add(connection_key)
         except Exception as e:
             if "already exists" in str(e).lower():
-                SchemaRegistry._schema_initialized = True
+                SchemaRegistry._initialized_connections.add(connection_key)
             else:
                 logger.warning("schema_registry_init_failed", error=str(e))
 

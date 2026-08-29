@@ -85,7 +85,7 @@ class TestSchemaRegistryPersistence:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         registry = SchemaRegistry("postgresql://example")
-        monkeypatch.setattr(SchemaRegistry, "_schema_initialized", False)
+        monkeypatch.setattr(SchemaRegistry, "_initialized_connections", set())
 
         def _raise_already_exists() -> None:
             raise RuntimeError("schema already exists")
@@ -94,13 +94,13 @@ class TestSchemaRegistryPersistence:
 
         registry._ensure_schema()
 
-        assert SchemaRegistry._schema_initialized is True
+        assert SchemaRegistry._initialized_connections == {"postgresql://example"}
 
     def test_ensure_schema_leaves_cache_unset_after_other_failures(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         registry = SchemaRegistry("postgresql://example")
-        monkeypatch.setattr(SchemaRegistry, "_schema_initialized", False)
+        monkeypatch.setattr(SchemaRegistry, "_initialized_connections", set())
 
         def _raise_permission_denied() -> None:
             raise RuntimeError("permission denied")
@@ -109,7 +109,25 @@ class TestSchemaRegistryPersistence:
 
         registry._ensure_schema()
 
-        assert SchemaRegistry._schema_initialized is False
+        assert SchemaRegistry._initialized_connections == set()
+
+    def test_ensure_schema_initializes_each_database_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(SchemaRegistry, "_initialized_connections", set())
+        first = SchemaRegistry("postgresql://USER:secret@Example/db/")
+        same_database = SchemaRegistry("postgresql://USER:secret@example/db")
+        second = SchemaRegistry("postgresql://USER:secret@example/other")
+        initialized: list[str] = []
+        monkeypatch.setattr(first, "_setup_schema", lambda: initialized.append("first"))
+        monkeypatch.setattr(same_database, "_setup_schema", lambda: initialized.append("same"))
+        monkeypatch.setattr(second, "_setup_schema", lambda: initialized.append("second"))
+
+        first._ensure_schema()
+        same_database._ensure_schema()
+        second._ensure_schema()
+
+        assert initialized == ["first", "second"]
 
     def test_snapshot_schema_uses_conflict_update(self) -> None:
         registry = SchemaRegistry("postgresql://example")
