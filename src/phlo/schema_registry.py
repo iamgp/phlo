@@ -85,11 +85,9 @@ def _normalized_connection_key(connection_string: str) -> str:
         parameters = dict(parse_qsl(parsed.query, keep_blank_values=True))
         host = parameters.get("host") or parsed.hostname
         port = parameters.get("port") or parsed.port or 5432
-        database = (
-            parameters.get("dbname")
-            or unquote(parsed.path.strip("/"))
-            or unquote(parsed.username or "")
-        )
+        query_user = parameters.get("user")
+        effective_user = query_user if query_user is not None else unquote(parsed.username or "")
+        database = parameters.get("dbname") or unquote(parsed.path.strip("/")) or effective_user
         canonical = f"postgresql://{host.lower()}:{port}/{database}"
         return hashlib.sha256(canonical.encode()).hexdigest()
     return hashlib.sha256(connection_string.strip().encode()).hexdigest()

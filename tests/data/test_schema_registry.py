@@ -257,6 +257,49 @@ class TestSchemaRegistryPersistence:
 
         assert len(database.setup_calls) == 2
 
+    def test_snapshot_schema_uses_query_user_for_default_database_identity(
+        self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
+    ) -> None:
+        """libpq's query user selects the default database without a dbname."""
+        database = _RegistryDatabase()
+        monkeypatch.setattr("phlo.schema_registry.psycopg2.connect", database.connect)
+
+        query_alice = SchemaRegistry("postgresql://example.test?user=alice")
+        query_bob = SchemaRegistry("postgres://EXAMPLE.test:5432?user=bob")
+        explicit_database = SchemaRegistry("postgresql://example.test?user=carol&dbname=shared")
+        same_explicit_database = SchemaRegistry(
+            "postgres://example.test:5432?user=dave&dbname=shared&sslmode=require"
+        )
+        path_database = SchemaRegistry("postgresql://example.test/path-shared?user=erin")
+        same_path_database = SchemaRegistry(
+            "postgres://example.test:5432/path-shared?user=frank&sslmode=require"
+        )
+
+        assert (
+            query_alice.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-1"
+        )
+        assert (
+            query_bob.snapshot_schema("raw.events", _schema(("id", "int", False))) == "snapshot-2"
+        )
+        assert (
+            explicit_database.snapshot_schema("raw.events", _schema(("id", "int", False)))
+            == "snapshot-3"
+        )
+        assert (
+            same_explicit_database.snapshot_schema("raw.events", _schema(("id", "int", False)))
+            == "snapshot-4"
+        )
+        assert (
+            path_database.snapshot_schema("raw.events", _schema(("id", "int", False)))
+            == "snapshot-5"
+        )
+        assert (
+            same_path_database.snapshot_schema("raw.events", _schema(("id", "int", False)))
+            == "snapshot-6"
+        )
+
+        assert len(database.setup_calls) == 4
+
     def test_snapshot_schema_ignores_credentials_and_non_identity_options(
         self, monkeypatch: pytest.MonkeyPatch, _isolated_schema_registry_state
     ) -> None:
