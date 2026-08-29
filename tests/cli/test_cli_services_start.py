@@ -8,6 +8,7 @@ matching, native interpreter selection, and polished errors without tracebacks.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import signal
@@ -1179,6 +1180,95 @@ def test_native_start_sigterm_reaps_only_current_processes(
         state = json.loads((phlo_dir / "native-processes.json").read_text())
         assert state == {"prior": prior_entry}
         assert _wait_for_process_exit(launched_pids) is True
+        os.kill(prior.pid, 0)
+    finally:
+        with suppress(ProcessLookupError):
+            os.killpg(prior.pid, signal.SIGKILL)
+
+
+def test_native_start_sigterm_fallback_kills_stubborn_current_descendant(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """Fallback group cleanup kills a current child that ignores SIGTERM."""
+    from phlo.cli.commands.services import start as start_module
+    from phlo.plugins.compose.native import NativeProcessManager
+    from phlo.plugins.discovery import ServiceDefinition
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("")
+    (phlo_dir / "docker-compose.yml").write_text("services: {}\n")
+    prior = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        start_new_session=True,
+    )
+    prior_entry = {"pid": prior.pid, "started_at": 1.0, "log": "prior.log"}
+    (phlo_dir / "native-processes.json").write_text(json.dumps({"prior": prior_entry}))
+    child_pid_file = tmp_path / "stubborn-child.pid"
+    wrapper = (
+        "import subprocess, sys, time; "
+        "subprocess.Popen([sys.executable, '-c', "
+        "'import os, pathlib, signal, sys, time; signal.signal(signal.SIGTERM, "
+        "signal.SIG_IGN); pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(60)', "
+        "sys.argv[1]]); time.sleep(60)"
+    )
+    first = ServiceDefinition(
+        name="first",
+        description="first native service",
+        category="core",
+        dev={"command": [sys.executable, "-c", wrapper, str(child_pid_file)]},
+    )
+    second = ServiceDefinition(
+        name="second",
+        description="second native service",
+        category="core",
+        dev={"command": [sys.executable, "-c", "import time; time.sleep(60)"]},
+    )
+
+    class NativeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {first.name: first, second.name: second}
+
+    original_start_service = NativeProcessManager.start_service
+
+    async def interrupt_before_second(self, service: ServiceDefinition, **kwargs):
+        """Wait for the stubborn child, then interrupt before the next spawn."""
+        if service.name == "second":
+            deadline = time.monotonic() + 5
+            while not child_pid_file.exists() and time.monotonic() < deadline:
+                await asyncio.sleep(0.01)
+            assert child_pid_file.exists()
+            os.kill(os.getpid(), signal.SIGTERM)
+        return await original_start_service(self, service, **kwargs)
+
+    async def failed_stop_all(self) -> None:
+        """Force the CLI onto persisted-state fallback cleanup."""
+        raise RuntimeError("simulated stop_all failure")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "ServiceDiscovery", NativeDiscovery)
+    monkeypatch.setattr(NativeProcessManager, "start_service", interrupt_before_second)
+    monkeypatch.setattr(NativeProcessManager, "stop_all", failed_stop_all)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *_args, **_kwargs: None
+    )
+
+    try:
+        result = CliRunner().invoke(
+            start_module.start_cmd,
+            ["--native", "--service", "first", "--service", "second"],
+        )
+
+        assert result.exit_code == 1
+        assert (
+            "Error: Native startup interrupted; current invocation services were stopped."
+            in result.output
+        )
+        state = json.loads((phlo_dir / "native-processes.json").read_text())
+        assert state == {"prior": prior_entry}
+        assert _wait_for_process_exit([int(child_pid_file.read_text())]) is True
         os.kill(prior.pid, 0)
     finally:
         with suppress(ProcessLookupError):

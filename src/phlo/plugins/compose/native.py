@@ -13,6 +13,7 @@ import re
 import signal
 import subprocess
 import time
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -182,7 +183,7 @@ class NativeProcessManager:
             command=" ".join(command),
         )
         log_file: TextIO | None = None
-        previous_signal_mask: set[signal.Signals] | None = None
+        previous_signal_mask: set[int] | None = None
         try:
             stdout = None
             if self.log_dir is not None:
@@ -190,17 +191,18 @@ class NativeProcessManager:
                 log_path = self.log_dir / f"{service.name}.log"
                 log_file = log_path.open("a", encoding="utf-8")  # noqa: SIM115
                 stdout = log_file
-            popen_kwargs: dict[str, object] = {}
+            restore_child_signal_mask: Callable[[], object] | None = None
             if hasattr(signal, "pthread_sigmask"):
-                previous_signal_mask = signal.pthread_sigmask(
+                signal_mask = signal.pthread_sigmask(
                     signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM}
                 )
+                previous_signal_mask = signal_mask
 
                 def _restore_child_signal_mask() -> None:
                     """Restore the invoking process signal mask before native exec."""
-                    signal.pthread_sigmask(signal.SIG_SETMASK, previous_signal_mask)
+                    signal.pthread_sigmask(signal.SIG_SETMASK, signal_mask)
 
-                popen_kwargs["preexec_fn"] = _restore_child_signal_mask
+                restore_child_signal_mask = _restore_child_signal_mask
             process = subprocess.Popen(
                 command,
                 cwd=cwd,
@@ -209,7 +211,7 @@ class NativeProcessManager:
                 stderr=subprocess.STDOUT,
                 text=True,
                 start_new_session=True,
-                **popen_kwargs,
+                preexec_fn=restore_child_signal_mask,
             )
         except Exception:
             logger.exception("service_start_failed", service_name=service.name)
