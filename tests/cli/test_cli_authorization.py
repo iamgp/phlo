@@ -458,4 +458,28 @@ policies:
         with pytest.raises(SystemExit):
             handler()
 
-        assert "Authorization denied for 'services.start': not allowed" in capsys.readouterr().err
+        assert (
+            "Error: Authorization denied for 'services.start': not allowed"
+            in capsys.readouterr().err
+        )
+
+    def test_surface_mutation_denial_prints_documented_error_prefix(self, monkeypatch, capsys):
+        """Direct package-surface enforcement exposes the documented CLI error."""
+        from phlo.cli import authorization_wrappers
+        from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
+
+        adapter = MagicMock()
+        adapter.enforce_mutation.return_value = MagicMock(
+            allowed=False,
+            reason_code="forbidden",
+            explanation="not allowed",
+        )
+        monkeypatch.setattr(authorization_wrappers, "check_cli_surface_active", lambda: True)
+
+        with pytest.raises(SystemExit):
+            enforce_surface_mutation_authorization("contracts.snapshot", lambda: adapter)
+
+        assert (
+            "Error: Authorization denied for 'contracts.snapshot': not allowed"
+            in capsys.readouterr().err
+        )

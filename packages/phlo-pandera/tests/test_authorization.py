@@ -1,9 +1,8 @@
 """Tests for the Pandera authorization surface adapter.
 
-Pandera is a passive CLI surface: it declares no operations, is always active,
-and every pandera command is classified as read-only, so READ_COMMANDS must
-cover all commands and mutations stay empty. Shared surface-adapter contract
-checks come from ``phlo_testing.authorization_surface``.
+Pandera declares ``schema generate`` as its sole durable mutation and treats
+its other schema and workflow-validation commands as reads. Shared
+surface-adapter contract checks come from ``phlo_testing.authorization_surface``.
 """
 
 from __future__ import annotations
