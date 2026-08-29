@@ -114,18 +114,23 @@ def test_plugin_search_uses_canonical_bundled_registry_offline(monkeypatch) -> N
         plugin_registry_cache_ttl_seconds = 3600
         plugin_registry_timeout_seconds = 1
 
-    registry_client.clear_registry_cache()
+    previous_cache = registry_client._REGISTRY_CACHE.copy()
     monkeypatch.setattr(registry_client, "get_settings", lambda: OfflineSettings())
     monkeypatch.setattr(
         "phlo.cli.commands.plugin.search.collect_installed_plugins", lambda _plugin_type: []
     )
 
-    result = CliRunner().invoke(plugin_group, ["search", "--json"])
+    try:
+        registry_client.clear_registry_cache()
+        result = CliRunner().invoke(plugin_group, ["search", "--json"])
 
-    assert result.exit_code == 0, result.output
-    names = {plugin["name"] for plugin in json.loads(result.output)}
-    assert {"rustfs", "delta", "clickhouse", "sling"} <= names
-    assert "example_cache" not in names
+        assert result.exit_code == 0, result.output
+        names = {plugin["name"] for plugin in json.loads(result.output)}
+        assert {"rustfs", "delta", "clickhouse", "sling"} <= names
+        assert "example_cache" not in names
+    finally:
+        registry_client._REGISTRY_CACHE.clear()
+        registry_client._REGISTRY_CACHE.update(previous_cache)
 
 
 def install_fake_run(respond=None, *, record_kwargs=False):
