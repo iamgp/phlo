@@ -9,11 +9,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from phlo.capabilities.specs import FieldSpec, NormalizedSchema
 from phlo.logging import get_logger
@@ -80,14 +81,11 @@ def _schema_hash(canonical_json: str) -> str:
 def _normalized_connection_key(connection_string: str) -> str:
     """Normalize non-secret URL spelling for process-local initialization state."""
     parsed = urlsplit(connection_string.strip())
-    if not parsed.scheme or not parsed.netloc:
-        return connection_string.strip()
-    userinfo, separator, host = parsed.netloc.rpartition("@")
-    normalized_netloc = f"{userinfo}{separator}" if separator else ""
-    normalized_netloc += host.lower()
-    return urlunsplit(
-        (parsed.scheme.lower(), normalized_netloc, parsed.path.rstrip("/"), parsed.query, "")
-    )
+    if parsed.scheme in {"postgres", "postgresql"} and parsed.hostname:
+        port = parsed.port or 5432
+        database = parsed.path.strip("/")
+        return f"postgresql://{parsed.hostname.lower()}:{port}/{database}"
+    return hashlib.sha256(connection_string.strip().encode()).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +105,7 @@ class SchemaRegistry:
     """PostgreSQL-backed schema snapshot registry."""
 
     _initialized_connections: set[str] = set()
+    _initialization_lock = threading.Lock()
 
     def __init__(self, connection_string: str):
         self.connection_string = connection_string
@@ -118,16 +117,17 @@ class SchemaRegistry:
         # any other failure is only warned about, leaving the flag unset so
         # the next call retries setup before its first statement.
         connection_key = _normalized_connection_key(self.connection_string)
-        if connection_key in SchemaRegistry._initialized_connections:
-            return
-        try:
-            self._setup_schema()
-            SchemaRegistry._initialized_connections.add(connection_key)
-        except Exception as e:
-            if "already exists" in str(e).lower():
+        with SchemaRegistry._initialization_lock:
+            if connection_key in SchemaRegistry._initialized_connections:
+                return
+            try:
+                self._setup_schema()
                 SchemaRegistry._initialized_connections.add(connection_key)
-            else:
-                logger.warning("schema_registry_init_failed", error=str(e))
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    SchemaRegistry._initialized_connections.add(connection_key)
+                else:
+                    logger.warning("schema_registry_init_failed", error=str(e))
 
     def _setup_schema(self) -> None:
         sql_path = Path(__file__).parent / "sql" / "001_create_schema_registry.sql"

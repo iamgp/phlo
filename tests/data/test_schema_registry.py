@@ -94,7 +94,7 @@ class TestSchemaRegistryPersistence:
 
         registry._ensure_schema()
 
-        assert SchemaRegistry._initialized_connections == {"postgresql://example"}
+        assert SchemaRegistry._initialized_connections == {"postgresql://example:5432/"}
 
     def test_ensure_schema_leaves_cache_unset_after_other_failures(
         self, monkeypatch: pytest.MonkeyPatch
