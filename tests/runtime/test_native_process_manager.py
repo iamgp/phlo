@@ -288,3 +288,50 @@ def test_failed_health_cleanup_terminates_native_process_group(
         if pid_file.exists():
             with suppress(ProcessLookupError):
                 os.kill(int(pid_file.read_text()), signal.SIGKILL)
+
+
+@pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups require POSIX")
+def test_stop_service_escalates_after_leader_exits_but_child_ignores_sigterm(
+    tmp_path: Path,
+) -> None:
+    """Shutdown escalates when a native descendant outlives its leader."""
+    pid_file = tmp_path / "ignoring-child.pid"
+    wrapper = (
+        "import subprocess, sys, time; "
+        "child = subprocess.Popen([sys.executable, '-c', "
+        "'import os, pathlib, signal, sys, time; "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        "pathlib.Path(sys.argv[1]).write_text(str(os.getpid())); time.sleep(60)', sys.argv[1]]); "
+        "time.sleep(60)"
+    )
+    service = _svc(
+        "api",
+        dev={"command": [sys.executable, "-c", wrapper, str(pid_file)]},
+    )
+    manager = NativeProcessManager(tmp_path, log_dir=tmp_path / "logs")
+    native_process = asyncio.run(manager.start_service(service))
+    assert native_process is not None
+    leader_pid = native_process.pid
+
+    try:
+        deadline = time.monotonic() + 5
+        while not pid_file.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert pid_file.exists()
+        child_pid = int(pid_file.read_text())
+
+        assert asyncio.run(manager.stop_service("api", timeout=0.1)) is True
+        assert manager.get_process("api") is None
+        assert native_process.log_file is None
+
+        while time.monotonic() < deadline:
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            pytest.fail("native child ignoring SIGTERM survived group cleanup")
+    finally:
+        with suppress(ProcessLookupError):
+            os.killpg(leader_pid, signal.SIGKILL)

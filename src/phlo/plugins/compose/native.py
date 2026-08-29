@@ -263,16 +263,33 @@ class NativeProcessManager:
         logger.info("service_stopping", service_name=name, pid=process.pid)
         try:
             self._signal_process_group(process, signal.SIGTERM)
-            try:
-                process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                logger.warning("service_force_kill", service_name=name)
-                self._signal_process_group(process, signal.SIGKILL)
-                process.wait(timeout=5)
         except ProcessLookupError:
             pass
         except Exception:
             logger.exception("service_stop_failed", service_name=name)
+            return False
+
+        deadline = time.monotonic() + timeout
+        if not await self._wait_for_process_group_exit(process, deadline):
+            logger.warning("service_force_kill", service_name=name)
+            try:
+                self._signal_process_group(process, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except Exception:
+                logger.exception("service_force_kill_failed", service_name=name)
+                return False
+            if not await self._wait_for_process_group_exit(process, time.monotonic() + 5):
+                logger.error("service_process_group_survived_kill", service_name=name)
+                return False
+
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            logger.error("service_leader_survived_shutdown", service_name=name)
+            return False
+        except Exception:
+            logger.exception("service_reap_failed", service_name=name)
             return False
 
         native_process.close_log_file()
@@ -298,6 +315,27 @@ class NativeProcessManager:
             os.killpg(process.pid, sig)
         except (AttributeError, OSError):
             process.send_signal(sig)
+
+    async def _wait_for_process_group_exit(
+        self, process: subprocess.Popen[str], deadline: float
+    ) -> bool:
+        """Wait until a native process group is gone before ``deadline``."""
+        while self._process_group_exists(process):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            await asyncio.sleep(min(remaining, 0.1))
+        return True
+
+    def _process_group_exists(self, process: subprocess.Popen[str]) -> bool:
+        """Return whether a native process group still has a member."""
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return False
+        except (AttributeError, OSError):
+            return process.poll() is None
+        return True
 
     def _resolve_path(self, template: str, service: ServiceDefinition) -> Path:
         """Resolve path template."""
