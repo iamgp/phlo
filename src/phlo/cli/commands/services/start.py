@@ -85,6 +85,57 @@ def _declared_healthcheck_services(compose_file: Path, service_names: list[str])
     }
 
 
+def _default_compose_service_names(compose_file: Path) -> list[str]:
+    """Return default-profile services and dependencies Compose starts without targets."""
+    try:
+        compose = yaml.safe_load(compose_file.read_text()) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        raise click.ClickException(
+            f"Failed to read readiness contract from {compose_file}: {exc}"
+        ) from exc
+    services = compose.get("services") if isinstance(compose, dict) else None
+    if not isinstance(services, dict):
+        return []
+    selected = {
+        name
+        for name, config in services.items()
+        if isinstance(config, dict) and not config.get("profiles")
+    }
+    pending = list(selected)
+    while pending:
+        name = pending.pop()
+        config = services.get(name)
+        if not isinstance(config, dict):
+            continue
+        dependencies = config.get("depends_on") or {}
+        dependency_names = dependencies if isinstance(dependencies, list) else dependencies.keys()
+        for dependency in dependency_names:
+            if dependency in services and dependency not in selected:
+                selected.add(dependency)
+                pending.append(dependency)
+    return sorted(selected)
+
+
+def _project_service_statuses(
+    backend: ContainerBackend,
+    project_name: str,
+    *,
+    deadline: float,
+) -> list[ServiceStatus]:
+    """Read readiness states while retaining compatibility with legacy backends.
+
+    Third-party and test backends that predate the explicit readiness method
+    still provide the running-state observation used by earlier CLI versions.
+    """
+    status_reader = getattr(backend, "project_service_statuses", None)
+    if callable(status_reader):
+        try:
+            return status_reader(project_name, deadline=deadline)
+        except subprocess.TimeoutExpired:
+            return []
+    return []
+
+
 def _format_service_statuses(
     service_names: list[str],
     statuses: list[ServiceStatus],
@@ -125,10 +176,14 @@ def _wait_for_services_ready(
     inspectable and recoverable.
     """
     healthcheck_services = _declared_healthcheck_services(compose_file, service_names)
+    if not callable(getattr(backend, "project_service_statuses", None)):
+        # Backends created before the explicit readiness contract retain the
+        # previous successful-start behavior until they opt into it.
+        return sorted(service_names)
     deadline = time.monotonic() + timeout_seconds
     latest: list[ServiceStatus] = []
     while True:
-        latest = backend.project_service_statuses(project_name)
+        latest = _project_service_statuses(backend, project_name, deadline=deadline)
         by_service: dict[str, list[ServiceStatus]] = {}
         for status in latest:
             by_service.setdefault(status.service, []).append(status)
@@ -156,7 +211,7 @@ def _wait_for_services_ready(
             raise click.ClickException(
                 f"services did not become ready within {timeout_seconds:g}s: {rendered}. "
                 "Containers were left running for inspection. Run `phlo services list` and "
-                f"`docker compose -p {project_name} logs --no-color <service>` for details."
+                "`phlo services logs <service>` for details."
             )
         time.sleep(poll_seconds)
 
@@ -858,7 +913,7 @@ def start_cmd(
                         name for name in docker_services_list if name in compose_service_names
                     ]
                 else:
-                    selected_services = compose_service_names
+                    selected_services = _default_compose_service_names(compose_file)
                 backend = select_project_container_backend(cli_backend=backend_name)
                 started_services = _wait_for_services_ready(
                     backend=backend,

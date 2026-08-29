@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, cast
@@ -63,7 +64,9 @@ class ContainerBackend(Protocol):
     def list_project_containers(self, project_name: str) -> list[ContainerInfo]:
         """Return containers for a compose project."""
 
-    def project_service_statuses(self, project_name: str) -> list[ServiceStatus]:
+    def project_service_statuses(
+        self, project_name: str, *, deadline: float
+    ) -> list[ServiceStatus]:
         """Return running and stopped compose service states for readiness checks."""
 
     def container_exec_cmd(
@@ -152,7 +155,15 @@ def _podman_service_label(labels: dict[str, str]) -> str:
     return labels.get("com.docker.compose.service") or labels.get("io.podman.compose.service") or ""
 
 
-def _inspect_container_state(binary: str, name: str) -> tuple[str, str | None]:
+def _remaining_timeout(deadline: float) -> float | None:
+    """Return a subprocess timeout that cannot outlive the readiness deadline."""
+    remaining = deadline - time.monotonic()
+    return remaining if remaining > 0 else None
+
+
+def _inspect_container_states(
+    binary: str, names: list[str], *, deadline: float
+) -> dict[str, tuple[str, str | None]]:
     """Return normalized state and optional health from a container inspection.
 
     Both Docker and Podman expose a compatible ``State`` object in their
@@ -160,29 +171,32 @@ def _inspect_container_state(binary: str, name: str) -> tuple[str, str | None]:
     the caller will keep polling or report the observable state rather than
     treating the service as ready.
     """
-    if not name:
-        return "", None
+    if not names or _remaining_timeout(deadline) is None:
+        return {}
     try:
         result = subprocess.run(
-            [binary, "inspect", "--format", "{{json .State}}", name],
+            [binary, "inspect", "--format", "{{json .State}}", *names],
             capture_output=True,
             text=True,
             check=False,
-            timeout=10,
+            timeout=_remaining_timeout(deadline),
         )
     except (OSError, subprocess.SubprocessError):
-        return "", None
+        return {}
     if result.returncode != 0 or not result.stdout.strip():
-        return "", None
-    try:
-        state = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return "", None
-    if not isinstance(state, dict):
-        return "", None
-    health_data = state.get("Health")
-    health = health_data.get("Status") if isinstance(health_data, dict) else None
-    return str(state.get("Status") or ""), str(health) if health else None
+        return {}
+    states: dict[str, tuple[str, str | None]] = {}
+    for name, line in zip(names, result.stdout.splitlines(), strict=False):
+        try:
+            state = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(state, dict):
+            continue
+        health_data = state.get("Health") or state.get("Healthcheck")
+        health = health_data.get("Status") if isinstance(health_data, dict) else None
+        states[name] = (str(state.get("Status") or ""), str(health) if health else None)
+    return states
 
 
 class DockerBackend:
@@ -274,8 +288,13 @@ class DockerBackend:
             )
         return containers
 
-    def project_service_statuses(self, project_name: str) -> list[ServiceStatus]:
+    def project_service_statuses(
+        self, project_name: str, *, deadline: float
+    ) -> list[ServiceStatus]:
         """Inspect every Docker Compose container, including stopped ones."""
+        timeout = _remaining_timeout(deadline)
+        if timeout is None:
+            return []
         result = subprocess.run(
             [
                 "docker",
@@ -289,20 +308,29 @@ class DockerBackend:
             capture_output=True,
             text=True,
             check=False,
+            timeout=timeout,
         )
         if result.returncode != 0 or not result.stdout.strip():
             return []
 
-        statuses: list[ServiceStatus] = []
+        records: list[tuple[str, str, str]] = []
         for line in result.stdout.strip().splitlines():
             info = json.loads(line)
             labels = _parse_docker_labels(info.get("Labels", ""))
             service = labels.get("com.docker.compose.service", "")
             if not service:
                 continue
-            state, health = _inspect_container_state("docker", info.get("Names", ""))
+            name = info.get("Names", "")
+            if name:
+                records.append((service, name, info.get("State", "")))
+        inspected = _inspect_container_states(
+            "docker", [record[1] for record in records], deadline=deadline
+        )
+        statuses: list[ServiceStatus] = []
+        for service, name, listed_state in records:
+            state, health = inspected.get(name, (listed_state, None))
             statuses.append(
-                ServiceStatus(service=service, state=state or info.get("State", ""), health=health)
+                ServiceStatus(service=service, state=state or listed_state, health=health)
             )
         return statuses
 
@@ -409,10 +437,15 @@ class PodmanBackend:
                 containers_by_name[container.name] = container
         return list(containers_by_name.values())
 
-    def project_service_statuses(self, project_name: str) -> list[ServiceStatus]:
+    def project_service_statuses(
+        self, project_name: str, *, deadline: float
+    ) -> list[ServiceStatus]:
         """Inspect every Podman Compose container, including stopped ones."""
         statuses_by_name: dict[str, ServiceStatus] = {}
         for label in ("com.docker.compose.project", "io.podman.compose.project"):
+            timeout = _remaining_timeout(deadline)
+            if timeout is None:
+                return list(statuses_by_name.values())
             result = subprocess.run(
                 [
                     "podman",
@@ -426,6 +459,7 @@ class PodmanBackend:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=timeout,
             )
             if result.returncode != 0 or not result.stdout.strip():
                 continue
@@ -433,6 +467,7 @@ class PodmanBackend:
                 payload = json.loads(result.stdout)
             except json.JSONDecodeError:
                 continue
+            records: list[tuple[str, str, str]] = []
             for info in payload:
                 labels = {
                     str(key): str(value) for key, value in (info.get("Labels", {}) or {}).items()
@@ -441,10 +476,15 @@ class PodmanBackend:
                 name = _coerce_podman_name(info.get("Names"))
                 if not service or not name:
                     continue
-                state, health = _inspect_container_state("podman", name)
+                records.append((service, name, str(info.get("State", ""))))
+            inspected = _inspect_container_states(
+                "podman", [record[1] for record in records], deadline=deadline
+            )
+            for service, name, listed_state in records:
+                state, health = inspected.get(name, (listed_state, None))
                 statuses_by_name[name] = ServiceStatus(
                     service=service,
-                    state=state or str(info.get("State", "")),
+                    state=state or listed_state,
                     health=health,
                 )
         return list(statuses_by_name.values())
