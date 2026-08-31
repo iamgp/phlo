@@ -2,7 +2,7 @@
 
 Use this checklist before treating a Phlo stack as production-capable. The
 `phlo services preflight` command makes the locally inspectable part of this
-contract executable and machine-readable (ADR 0047, Plan 002).
+contract executable and machine-readable (ADR 0047).
 
 ## The preflight command
 
@@ -60,14 +60,14 @@ never optimistically passed.
 | --- | --- | --- |
 | `env.production` | Effective environment is production | core (config) |
 | `compose.non_dev` | Generated compose is not in dev mode | core (compose header) |
-| `http.authorization_required` | No development auth bypass in production; enforcement posture | core (Plan 003) |
+| `http.authorization_required` | No development auth bypass in production; enforcement posture | core (enforcement) |
 | `authn.provider` | A verified JWT provider is fully configured | core (config) |
 | `authz.backend` | An authorization backend is configured and registered | core (config) |
 | `tls.external_endpoint` | TLS termination is represented in the generated stack | core (compose) |
 | `oidc.issuer_audience_jwks` | Issuer, audience, and verification material are configured | core (config) |
 | `identity.workload.*` | Distinct per-workload identities (API, orchestration, query, catalog, maintenance) | Plans 004–005 |
 | `audit.key_backend` | Audit and signature HMAC keys are configured | core (config) |
-| `policy.compiled_verification` | Compiled RBAC policy loads; backend drift verification | core local + Plan 005 |
+| `policy.compiled_verification` | Compiled RBAC policy loads; backend drift verification | core local + provider adapters |
 | `secrets.no_bundled_shared` | No default, empty, or shared production credentials | core (config) |
 | `secrets.env_local_0600` | `.phlo/.env.local` owner and mode are `0600` | core (filesystem) |
 | `network.protected_ports` | Protected backends expose no host ports | core (compose) |

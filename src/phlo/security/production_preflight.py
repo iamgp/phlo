@@ -1,7 +1,7 @@
 """Production readiness preflight.
 
 Evaluates whether a selected service set satisfies the v1 production trust and
-readiness contract (ADR 0047, Plan 001). The report is read-only, stable,
+readiness contract (ADR 0047). The report is read-only, stable,
 JSON-serializable, deterministic, and secret-free.
 
 State vocabulary (ADR 0047, decision 4):
@@ -334,8 +334,8 @@ def _check_http_authorization_required(context: _CheckContext) -> ProductionRead
     return ProductionReadinessCheck(
         id=ProductionReadinessCheckId.HTTP_AUTHORIZATION_REQUIRED,
         state=ProductionReadinessState.UNAVAILABLE,
-        message="HTTP authorization enforcement posture cannot be fully verified until Plan 003",
-        remediation="Plan 003 enforces authentication and authorization on every non-public production route.",
+        message="HTTP authorization enforcement posture cannot be fully verified from local configuration",
+        remediation="Enforce authentication and authorization on every non-public production route.",
         source=source,
     )
 
@@ -399,7 +399,7 @@ def _check_authz_backend(context: _CheckContext) -> ProductionReadinessCheck:
             id=ProductionReadinessCheckId.AUTHZ_BACKEND,
             state=ProductionReadinessState.UNAVAILABLE,
             message=f"authorization backend resolution is unavailable: {exc}",
-            remediation="Plan 005 registers backend authorization readiness through provider-owned adapters.",
+            remediation="Register backend authorization readiness through provider-owned adapters.",
             source=source,
         )
     try:
@@ -533,7 +533,7 @@ def _deferred_workload_check(
         state=ProductionReadinessState.UNAVAILABLE,
         message=f"distinct {workload} identity and credential delivery are not yet verified",
         remediation="Plans 004-005 add scoped workload identities and provider-owned credential references.",
-        source="Plan 004-005 contributor",
+        source="deferred workload-identity contributor",
     )
 
 
@@ -571,7 +571,7 @@ def _check_policy_compiled_verification(context: _CheckContext) -> ProductionRea
     """Verify compiled RBAC policy is loadable and consistent, read-only.
 
     Backend drift verification requires provider-owned read-only adapters and
-    is delivered by Plan 005; this check never contacts a backend or network.
+    is delivered by provider-owned read-only adapters; this check never contacts a backend or network.
     """
     source = "local RBAC policy"
     try:
@@ -581,7 +581,7 @@ def _check_policy_compiled_verification(context: _CheckContext) -> ProductionRea
             id=ProductionReadinessCheckId.POLICY_COMPILED_VERIFICATION,
             state=ProductionReadinessState.UNAVAILABLE,
             message=f"policy verification is unavailable: {exc}",
-            remediation="Plan 005 adds backend drift verification through provider-owned read-only adapters.",
+            remediation="Add backend drift verification through provider-owned read-only adapters.",
             source=source,
         )
     try:
@@ -605,7 +605,7 @@ def _check_policy_compiled_verification(context: _CheckContext) -> ProductionRea
     return ProductionReadinessCheck(
         id=ProductionReadinessCheckId.POLICY_COMPILED_VERIFICATION,
         state=ProductionReadinessState.PASSED,
-        message="compiled RBAC policy loads; backend drift verification pending Plan 005",
+        message="compiled RBAC policy loads; backend drift verification pending provider adapters",
         remediation="",
         source=source,
     )
