@@ -38,8 +38,8 @@ def isolated_config(monkeypatch: pytest.MonkeyPatch):
     )
 
     class _FakeRbacLoader:
-        def load(self) -> object:
-            return object()
+        def load(self) -> dict:
+            return {"policies": []}
 
     monkeypatch.setattr(
         "phlo.security.validation._project_rbac_loader",
@@ -86,6 +86,9 @@ def test_preflight_json_is_deterministic(
         raw = result.output.split("Error:", 1)[0].strip()
         payload = json.loads(raw)
         payload.pop("generated_at")
+        payload.pop("report_id")
+        for check in payload["checks"]:
+            check.pop("observation_time")
         return payload
 
     first = _run()

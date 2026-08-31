@@ -22,15 +22,17 @@ container backend or a network service.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import yaml
 
@@ -68,6 +70,32 @@ class ProductionReadinessCheckId(StrEnum):
     SECRETS_NO_BUNDLED_SHARED = "secrets.no_bundled_shared"
     SECRETS_ENV_LOCAL_0600 = "secrets.env_local_0600"
     NETWORK_PROTECTED_PORTS = "network.protected_ports"
+
+
+class ProductionReadinessReasonCode(StrEnum):
+    """Closed set of reasons a readiness check did not pass (ADR 0047 §7.3)."""
+
+    OK = "ok"
+    NOT_APPLICABLE = "not_applicable"
+    EVIDENCE_UNAVAILABLE = "evidence_unavailable"
+    NOT_PRODUCTION = "not_production"
+    DEV_COMPOSE = "dev_compose"
+    AUTH_BYPASS_IN_PRODUCTION = "auth_bypass_in_production"
+    AUTHN_MISSING = "authn_missing"
+    AUTHN_PARTIAL = "authn_partial"
+    AUTHN_DEV_ONLY = "authn_dev_only"
+    AUTHZ_MISSING = "authz_missing"
+    AUTHZ_NOT_REGISTERED = "authz_not_registered"
+    TLS_NOT_REPRESENTED = "tls_not_represented"
+    OIDC_MISSING = "oidc_missing"
+    OIDC_NO_VERIFICATION_MATERIAL = "oidc_no_verification_material"
+    AUDIT_KEY_MISSING = "audit_key_missing"
+    POLICY_UNLOADABLE = "policy_unloadable"
+    POLICY_MISSING = "policy_missing"
+    CREDENTIALS_BUNDLED_OR_SHARED = "credentials_bundled_or_shared"
+    SECRET_MODE_PERMISSIVE = "secret_mode_permissive"
+    SECRET_MISSING = "secret_missing"
+    PROTECTED_PORTS_EXPOSED = "protected_ports_exposed"
 
 
 # Backends the production profile removes from public host interfaces.
@@ -126,6 +154,8 @@ class ProductionReadinessCheck:
     message: str
     remediation: str
     source: str
+    reason_code: str = ""
+    observation_time: str = ""
     details: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -135,28 +165,36 @@ class ProductionReadinessCheck:
             "message": self.message,
             "remediation": self.remediation,
             "source": self.source,
+            "reason_code": self.reason_code,
+            "observation_time": self.observation_time,
             "details": dict(self.details),
         }
 
 
 @dataclass(frozen=True, slots=True)
 class ProductionReadinessReport:
-    """Stable, deterministic production readiness report."""
+    """Stable, deterministic production readiness report (ADR 0047 §7.3)."""
 
     schema_version: str = "1"
+    stage: str = "static_preflight"
+    report_id: str = ""
     environment: str = "dev"
     generated_at: str = ""
     passed: bool = False
     services: tuple[str, ...] = ()
+    digests: Mapping[str, str] = field(default_factory=dict)
     checks: tuple[ProductionReadinessCheck, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
+            "stage": self.stage,
+            "report_id": self.report_id,
             "environment": self.environment,
             "generated_at": self.generated_at,
             "passed": self.passed,
             "services": list(self.services),
+            "digests": dict(self.digests),
             "checks": [check.to_dict() for check in self.checks],
         }
 
@@ -785,6 +823,88 @@ _ALL_CHECK_IDS = frozenset(check_id for check_id, _ in _CHECK_BUILDERS) | frozen
 assert len(_ALL_CHECK_IDS) == len(ProductionReadinessCheckId), "check vocabulary is not total"
 
 
+def _derive_reason_code(check: ProductionReadinessCheck) -> str:
+    """Map a check's state/id to the closed reason-code vocabulary (§7.3)."""
+    if check.state is ProductionReadinessState.PASSED:
+        return ProductionReadinessReasonCode.OK.value
+    if check.state is ProductionReadinessState.NOT_APPLICABLE:
+        return ProductionReadinessReasonCode.NOT_APPLICABLE.value
+    if check.state is ProductionReadinessState.UNAVAILABLE:
+        return ProductionReadinessReasonCode.EVIDENCE_UNAVAILABLE.value
+
+    failed_by_id: dict[ProductionReadinessCheckId, ProductionReadinessReasonCode] = {
+        ProductionReadinessCheckId.ENV_PRODUCTION: ProductionReadinessReasonCode.NOT_PRODUCTION,
+        ProductionReadinessCheckId.COMPOSE_NON_DEV: ProductionReadinessReasonCode.DEV_COMPOSE,
+        ProductionReadinessCheckId.HTTP_AUTHORIZATION_REQUIRED: (
+            ProductionReadinessReasonCode.AUTH_BYPASS_IN_PRODUCTION
+        ),
+        ProductionReadinessCheckId.AUTHN_PROVIDER: ProductionReadinessReasonCode.AUTHN_MISSING,
+        ProductionReadinessCheckId.AUTHZ_BACKEND: ProductionReadinessReasonCode.AUTHZ_MISSING,
+        ProductionReadinessCheckId.TLS_EXTERNAL_ENDPOINT: (
+            ProductionReadinessReasonCode.TLS_NOT_REPRESENTED
+        ),
+        ProductionReadinessCheckId.OIDC_ISSUER_AUDIENCE_JWKS: (
+            ProductionReadinessReasonCode.OIDC_MISSING
+        ),
+        ProductionReadinessCheckId.AUDIT_KEY_BACKEND: ProductionReadinessReasonCode.AUDIT_KEY_MISSING,
+        ProductionReadinessCheckId.POLICY_COMPILED_VERIFICATION: (
+            ProductionReadinessReasonCode.POLICY_UNLOADABLE
+        ),
+        ProductionReadinessCheckId.SECRETS_NO_BUNDLED_SHARED: (
+            ProductionReadinessReasonCode.CREDENTIALS_BUNDLED_OR_SHARED
+        ),
+        ProductionReadinessCheckId.SECRETS_ENV_LOCAL_0600: (
+            ProductionReadinessReasonCode.SECRET_MODE_PERMISSIVE
+        ),
+        ProductionReadinessCheckId.NETWORK_PROTECTED_PORTS: (
+            ProductionReadinessReasonCode.PROTECTED_PORTS_EXPOSED
+        ),
+    }
+    return failed_by_id.get(check.id, ProductionReadinessReasonCode.EVIDENCE_UNAVAILABLE).value
+
+
+def _sha256_hex(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def _compute_digests(
+    project_root: Path,
+    phlo_dir: Path,
+    service_names: tuple[str, ...],
+) -> dict[str, str]:
+    """Hash the exact inputs this report actually inspected (§7.3 digests)."""
+    import importlib.metadata as metadata
+
+    try:
+        release = metadata.version("phlo")
+    except metadata.PackageNotFoundError:
+        release = "unknown"
+
+    config_file = project_root / "phlo.yaml"
+    config_bytes = config_file.read_bytes() if config_file.exists() else b""
+
+    compose_file = phlo_dir / "docker-compose.yml"
+    compose_bytes = compose_file.read_bytes() if compose_file.exists() else b""
+
+    policy_bytes = b""
+    try:
+        from phlo.security.validation import _project_rbac_loader
+
+        rbac = _project_rbac_loader().load()
+        if rbac:
+            policy_bytes = json.dumps(rbac, sort_keys=True, default=str).encode("utf-8")
+    except Exception:
+        policy_bytes = b""
+
+    return {
+        "release": release,
+        "config": _sha256_hex(config_bytes),
+        "compose": _sha256_hex(compose_bytes),
+        "policy": _sha256_hex(policy_bytes),
+        "services": _sha256_hex("\n".join(service_names).encode("utf-8")),
+    }
+
+
 def run_production_readiness(
     plan: Any,
     project_root: Path | str,
@@ -815,12 +935,25 @@ def run_production_readiness(
     for check_id, workload in _DEFERRED_WORKLOAD_CHECKS:
         checks.append(_deferred_workload_check(check_id, workload))
 
+    generated_at = datetime.now(UTC).isoformat()
+    checks = [
+        replace(
+            check,
+            observation_time=generated_at,
+            reason_code=check.reason_code or _derive_reason_code(check),
+        )
+        for check in checks
+    ]
+
     passed = all(check.state in _PASSING_STATES for check in checks)
     return ProductionReadinessReport(
         schema_version="1",
+        stage="static_preflight",
+        report_id=uuid4().hex,
         environment=environment,
-        generated_at=datetime.now(UTC).isoformat(),
+        generated_at=generated_at,
         passed=passed,
         services=service_names,
+        digests=_compute_digests(project_root, phlo_dir, service_names),
         checks=tuple(checks),
     )

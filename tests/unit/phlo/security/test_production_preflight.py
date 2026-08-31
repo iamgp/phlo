@@ -14,6 +14,7 @@ import pytest
 
 from phlo.security.production_preflight import (
     ProductionReadinessCheckId,
+    ProductionReadinessReasonCode,
     ProductionReadinessState,
     load_effective_environment,
     run_production_readiness,
@@ -93,8 +94,8 @@ def isolated_preflight(monkeypatch: pytest.MonkeyPatch, project: Path):
     )
 
     class _FakeRbacLoader:
-        def load(self) -> object:
-            return object()
+        def load(self) -> dict:
+            return {"policies": []}
 
     monkeypatch.setattr(
         "phlo.security.validation._project_rbac_loader",
@@ -127,13 +128,45 @@ def test_report_serializes_stably(isolated_preflight: Path) -> None:
     report = _run(isolated_preflight)
     payload = json.loads(report.to_json())
     assert payload["schema_version"] == "1"
+    assert payload["stage"] == "static_preflight"
+    assert isinstance(payload["report_id"], str) and payload["report_id"]
     assert payload["environment"] == "production"
     assert isinstance(payload["generated_at"], str)
     assert isinstance(payload["passed"], bool)
     assert payload["services"] == ["postgres"]
+    assert set(payload["digests"]) == {"release", "config", "compose", "policy", "services"}
     assert len(payload["checks"]) == len(ProductionReadinessCheckId)
     for check in payload["checks"]:
-        assert set(check) == {"id", "state", "message", "remediation", "source", "details"}
+        assert set(check) == {
+            "id",
+            "state",
+            "message",
+            "remediation",
+            "source",
+            "reason_code",
+            "observation_time",
+            "details",
+        }
+        assert check["reason_code"] in {code.value for code in ProductionReadinessReasonCode}
+        assert check["observation_time"]
+
+
+def test_failed_check_reason_codes_are_from_the_closed_set(isolated_preflight: Path) -> None:
+    report = _run(isolated_preflight)
+    for check in report.checks:
+        assert check.reason_code in {code.value for code in ProductionReadinessReasonCode}
+    env_failed = next(c for c in report.checks if c.id is ProductionReadinessCheckId.ENV_PRODUCTION)
+    # A deliberately non-production run yields the not_production reason code.
+    non_prod = run_production_readiness(
+        plan=_plan(isolated_preflight, service_names=["postgres"]),
+        project_root=isolated_preflight,
+        environment="dev",
+    )
+    non_prod_env = next(
+        c for c in non_prod.checks if c.id is ProductionReadinessCheckId.ENV_PRODUCTION
+    )
+    assert non_prod_env.reason_code == ProductionReadinessReasonCode.NOT_PRODUCTION.value
+    assert env_failed.reason_code == ProductionReadinessReasonCode.OK.value
 
 
 def test_report_never_contains_secret_values(isolated_preflight: Path) -> None:
