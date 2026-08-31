@@ -20,7 +20,7 @@ jobs:
     # The nightly suite requires service credentials, so only trusted in-repository
     # dependency remediation PRs receive this extra validation.
     if: github.event.pull_request.head.repo.full_name == github.repository
-    uses: ./.github/workflows/nightly.yml
+    uses: $/.github/workflows/nightly.yml
     secrets:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
