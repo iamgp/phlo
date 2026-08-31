@@ -24,7 +24,7 @@ def test_release_golden_path_is_required_candidate_evidence() -> None:
     assert "release-golden-path" not in ci["jobs"]
     assert candidate["jobs"]["nightly"] == {
         "name": "release candidate / release evidence",
-        "uses": "$/.github/workflows/nightly.yml",
+        "uses": "./.github/workflows/nightly.yml",
         "secrets": {
             "POSTGRES_PASSWORD": "${{ secrets.POSTGRES_PASSWORD }}",
             "MINIO_ROOT_PASSWORD": "${{ secrets.MINIO_ROOT_PASSWORD }}",
