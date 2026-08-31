@@ -546,6 +546,47 @@ def test_compose_generator_sets_host_user_for_project_writing_services(
     assert data["services"]["trino"]["user"] == "root"
 
 
+@pytest.mark.parametrize(
+    ("host_platform", "expected_user"),
+    [
+        ("Linux", "1234:2345"),
+        ("Darwin", None),
+        ("Windows", None),
+    ],
+)
+def test_compose_generator_runs_phlo_api_as_host_user_on_linux(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    host_platform: str,
+    expected_user: str | None,
+) -> None:
+    monkeypatch.setattr(generator_module.platform, "system", lambda: host_platform)
+    monkeypatch.setattr(generator_module.os, "getuid", lambda: 1234, raising=False)
+    monkeypatch.setattr(generator_module.os, "getgid", lambda: 2345, raising=False)
+
+    service = ServiceDefinition(
+        name="phlo-api",
+        description="phlo-api",
+        category="api",
+        default=False,
+        phlo_dev=True,
+        image="ghcr.io/phlohouse/phlo-api:0.14.0",
+        compose={},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    data = yaml.safe_load(
+        generator.generate_compose(
+            services=[service],
+            output_dir=tmp_path,
+        )
+    )
+
+    # The API reads host-owned mode-0600 secrets (.phlo/.env, .phlo/.env.local)
+    # from the read-only project mount, so on Linux it runs as the host user.
+    assert data["services"]["phlo-api"].get("user") == expected_user
+
+
 def test_compose_generator_adds_home_to_list_environment_on_linux(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
