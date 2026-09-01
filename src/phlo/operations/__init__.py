@@ -1,27 +1,29 @@
-"""Ingestion and transformation operation contracts for Phlo.
+"""Provider-neutral operations surface (ADR 0049, Plan 010)."""
 
-Exposes sync and async ingester/transformer base classes plus adapters that
-bridge sync implementations into async pipelines and vice versa.
-"""
-
-from phlo.operations.adapters import (
-    AsyncToSyncIngesterAdapter,
-    AsyncToSyncTransformerAdapter,
-    SyncToAsyncIngesterAdapter,
-    SyncToAsyncTransformerAdapter,
+from phlo.operations.journal import (
+    InMemoryOperationJournalStore,
+    OperationJournalEntry,
+    OperationJournalError,
+    OperationJournalState,
+    OperationJournalStore,
+    claim_operation,
+    complete_operation,
+    mark_submitted,
+    mark_unknown,
+    read_or_replay,
+    reconcile_unknown,
 )
-from phlo.operations.ingestion import AsyncIngester, BaseIngester, IngestionResult
-from phlo.operations.transformation import AsyncTransformer, BaseTransformer, TransformationResult
 
 __all__ = [
-    "AsyncToSyncIngesterAdapter",
-    "AsyncToSyncTransformerAdapter",
-    "AsyncIngester",
-    "AsyncTransformer",
-    "BaseIngester",
-    "BaseTransformer",
-    "IngestionResult",
-    "SyncToAsyncIngesterAdapter",
-    "SyncToAsyncTransformerAdapter",
-    "TransformationResult",
+    "InMemoryOperationJournalStore",
+    "OperationJournalEntry",
+    "OperationJournalError",
+    "OperationJournalState",
+    "OperationJournalStore",
+    "claim_operation",
+    "complete_operation",
+    "mark_submitted",
+    "mark_unknown",
+    "read_or_replay",
+    "reconcile_unknown",
 ]
