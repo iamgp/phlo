@@ -1,34 +1,47 @@
-# Plugin check
+# Plugin lifecycle
 
-A user can list discovered plugins and validate that installed plugins satisfy their interfaces. `phlo plugin check` reports valid vs invalid plugin ids; `--json` is parseable without prose prefixes. `--containers` is a separate, Docker-backed check of generated Dockerfiles.
+A user can list, inspect, validate, search, install, update, and scaffold Phlo plugins. `phlo plugin` is a core group (`src/phlo/cli/commands/plugin`). Check is the usual health gate; `--containers` is a separate Docker-backed scan of generated Dockerfiles.
 
 ## Sub-features
 
-- `plugin-list` — list installed plugins; `--json` has `installed` (and `available` with `--all`).
-- `plugin-check` — interface validation; success prints `All plugins are valid!` or JSON with empty `invalid`.
-- `plugin-check-containers` — generate a temporary user project and lint/scan container files (Docker required).
+- `plugin-list` — `list --json` has `installed`; `--all` adds `available`.
+- `plugin-info` — `info NAME --json` (type auto-detected; `--type` optional).
+- `plugin-check` — interface validation; JSON keys `valid` / `invalid`.
+- `plugin-check-containers` — **Docker required.** `--remote-images` requires `--containers`.
+- `plugin-search` — `search QUERY --json` (installed + registry).
+- `plugin-install` — `install NAME` (mutation; registry pin).
+- `plugin-update` — `update --dry-run` / `--json` is read-only; applying updates is a mutation.
+- `plugin-create` — `create NAME --type source|quality|… --json` writes a package scaffold.
 
 ## How to get to it (user POV)
 
 - `phlo plugin --help`
-- `phlo plugin list` / `phlo plugin list --json` / `phlo plugin list --type sources`
-- `phlo plugin check` / `phlo plugin check --json`
-- `phlo plugin check --containers` (and optional `--remote-images`)
+- `phlo plugin list` / `--type cli` / `--json` / `--all`
+- `phlo plugin info dagster --json`
+- `phlo plugin check` / `--json` / `--containers`
+- `phlo plugin search trino --json`
+- `phlo plugin install phlo-trino` (not for this checkout’s workspace members)
+- `phlo plugin update --dry-run`
+- `phlo plugin create my-source --path /tmp/…`
 
 ## Driving it with CLI
 
 Preconditions:
 
 - Launch complete from repo root so workspace providers are on the entry-point path.
-- For `--containers`: Docker CLI + Compose, daemon reachable. Skip that sub-feature without Docker.
+- For `--containers`: Docker CLI + Compose, daemon reachable.
+- Drive create/install only in `/tmp/phlo-verify-$RUN_ID`, never this repo.
 
-- List plugins: `uv run --locked phlo plugin list --json` → exit 0; JSON object with `installed` array; entries include `type` values such as `cli` or provider types when those packages are installed.
-- Validate plugins: `uv run --locked phlo plugin check --json` → exit 0; object has `valid` and `invalid`; `invalid` is `[]` on a healthy workspace; human mode without `--json` ends with `All plugins are valid!`.
-- Containers (Docker only): `uv run --locked phlo plugin check --containers` → exit 0; stdout mentions generated Dockerfile checks. `--remote-images` without `--containers` is a UsageError.
+- List CLI plugins: `uv run --locked phlo plugin list --type cli --json` → exit 0; `installed` names in this workspace include `alerts`, `clickhouse`, `clickstack`, `dagster`, `dbt`, `dlt`, `hasura`, `lineage`, `mcp`, `minio`, `nessie`, `openmetadata`, `postgres`, `postgrest`, `quality`, `sling`, `trino` (17).
+- Info: `uv run --locked phlo plugin info dagster --json` → exit 0; `name` is `dagster`; description mentions materialize/backfill.
+- Validate: `uv run --locked phlo plugin check --json` → exit 0; `invalid` is `[]`; `valid` is a non-empty list (76 on a full workspace sync). Human mode ends with `All plugins are valid!`.
+- Dry update: `uv run --locked phlo plugin update --dry-run` → lists updates or none; does not pip-install.
+- Containers (**Docker**): `uv run --locked phlo plugin check --containers` → generated Dockerfile checks. `--remote-images` without `--containers` → UsageError.
 
 ## Gotchas
 
-- `plugin check --json` is raw JSON (`valid`/`invalid`), not the init `data/warnings/errors` envelope.
-- `--containers` generates a **temporary** user project internally; do not confuse it with `/tmp/phlo-verify-*` you created. It needs Docker images for hadolint/Trivy.
-- A broken plugin can fail discovery for other commands; `phlo doctor` still loads on a fast path.
-- Do not treat unit tests in `tests/cli/test_cli_plugin.py` as the user-visible proof; they are the harness, not the path.
+- `plugin check --json` is raw `{valid, invalid}`, not the init envelope. `create`/`install` `--json` use the envelope.
+- `--type` CLI aliases: `cli` maps to `cli_command`.
+- Search/install hit the plugin registry over the network.
+- `--containers` builds a **temporary** user project internally; not your `/tmp/phlo-verify-*`.
+- `phlo doctor` still loads if a plugin is broken; most other commands do not.

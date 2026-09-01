@@ -5,7 +5,7 @@ A user can ask the installed `phlo` binary who it is and which commands exist. `
 ## Sub-features
 
 - `version` — print `phlo, version 0.14.0` and exit 0.
-- `help` — print usage including `init`, `services`, `plugin`, `doctor`, and `test`.
+- `help` — print usage including core groups from `src/phlo/cli/main.py` and discovered plugin commands.
 - `quiet-nocolor` — global `--quiet` and `--no-color` flags are accepted on the root group.
 
 ## How to get to it (user POV)
@@ -22,11 +22,13 @@ Preconditions:
 - Any cwd is fine; prefer repo root so the locked env is used.
 
 - Ask for the version: `uv run --locked phlo --version` → stdout is `phlo, version 0.14.0`, exit 0.
-- Ask for root help: `uv run --locked phlo --help` → stdout Usage line `phlo [OPTIONS] COMMAND [ARGS]...`, Commands include `init`, `services`, `plugin`, `doctor`, `test`; exit 0.
+- Ask for root help: `uv run --locked phlo --help` → stdout Usage line `phlo [OPTIONS] COMMAND [ARGS]...`; **core** Commands include `init`, `doctor`, `support`, `test`, `audit`, `logs`, `services`, `workflow`, `plugin`, `schema-migrate`, `migrate`, `metrics`, `contracts`, `config`, `env`, `authz`, `compliance`, `governance`.
+- With workspace plugins installed, the same `--help` also lists plugin roots: `alerts`, `backfill`, `branch`, `catalog`, `clickhouse`, `clickstack`, `dbt`, `dev`, `hasura`, `lineage`, `materialize`, `mcp`, `minio`, `openmetadata`, `postgres`, `postgrest`, `schema`, `sling`, `status`, `trino`, `validate-schema`, `validate-workflow`.
 - Confirm the console script: `uv run --locked python -c "from importlib.metadata import version; print(version('phlo'))"` → `0.14.0`.
 
 ## Gotchas
 
 - A global `phlo` on PATH may be a different install; always use `uv run --locked` in this repo.
-- Alpha: command list grows with installed provider plugins; `init` / `services` / `plugin` / `doctor` are core.
-- `--help` on a subcommand (for example `phlo init --help`) is a different entry; this feature is the root group only.
+- Plugin command names that collide with core are **skipped** (`cli.add_command` only if `command.name not in cli.commands`). In this tree, core `logs` wins over Dagster `logs`; core `workflow` wins over dlt `workflow`.
+- Alpha: extra provider packages change the help list; do not invent names that `--help` does not print.
+- `--help` on a subcommand is a different entry; this feature is the root group plus `--version`.

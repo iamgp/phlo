@@ -1,13 +1,13 @@
 ---
 name: verify-phlo
-description: Verify Phlo (alpha lakehouse framework, 0.14.0) on the primary phlo CLI surface—plugin runtime, project layout, generated services, plugin check, and doctor. Reach for this skill when proving local CLI behavior in an isolated project; not for Observatory UI, docs, or marketing.
+description: Verify Phlo (alpha lakehouse framework, 0.14.0) on the primary phlo CLI surface—core groups in src/phlo/cli/main.py, discovered cli_command plugins, and Python authoring decorators. Reach for this skill when proving local CLI/project behavior in an isolated dir; Observatory is secondary after generated services.
 ---
 
 # Verify Phlo
 
 Phlo is an AGPL-3.0-or-later **alpha** lakehouse framework. Public APIs and on-disk layout can move; this skill is pinned to **phlo 0.14.0** (workspace `pyproject.toml`). v1 support is **single-project, single-tenant**. Do not invent Kubernetes, HA, or multi-region checks.
 
-**Primary surface:** the `phlo` CLI (`phlo = "phlo.cli.main:cli"`). Observatory is a provider UI, not this skill's verification surface. `phlo-api` is secondary (HTTP behind generated services). Drive CLI handles: command names, flags, stdout contracts, exit codes, generated files.
+**Primary surface:** the `phlo` CLI (`phlo = "phlo.cli.main:cli"`). Core groups: `init`, `doctor`, `support`, `test`, `audit`, `logs`, `services`, `workflow`, `plugin`, `schema-migrate`, `migrate`, `metrics`, `contracts`, `config`, `env`, `authz`, `compliance`, `governance`. Plugin roots come from `phlo.plugins.cli` (17 in this workspace). Authoring is Python under `workflows/` (`@phlo.ingestion`, `phlo.quality`, `phlo.transform.sql`). Observatory / `phlo-api` are secondary after generated services. Drive command names, flags, stdout contracts, exit codes, generated files. Feature index: `features/README.md`.
 
 ## Launch
 
@@ -76,28 +76,33 @@ Prefer existing harnesses, then a PTY/CLI recipe.
 - `uv run --locked pytest tests/cli/test_cli_plugin.py` — `plugin list` / `plugin check --json`.
 - `uv run --locked pytest tests/cli/test_quickstart_smoke.py` — init → services init → start with fakes (not a live Docker stack).
 
-**CLI recipe (real user path):** from repo root after Launch:
+**CLI recipes (real user path):** from repo root after Launch:
 
 ```bash
 .cursor/skills/verify-phlo/scripts/prove-project-init.sh
+.cursor/skills/verify-phlo/scripts/prove-cli-surface.sh
 ```
 
-Or the same steps by hand (see `features/project-init.md`). Drive **one** mapped feature per proof run. Default proof target is **project-init** (no Docker). Map `services-generate` start/status only when Docker Compose v2 is healthy.
+Or the same steps by hand (`features/project-init.md`, `features/cli-identity.md`, `features/plugin-check.md`). Default proofs are CLI-only. `phlo services start` / `status` / query shells / Observatory need Docker Compose v2; do not mark them proven without a daemon.
 
 Stable handles:
 
 | Handle | Contract |
 | --- | --- |
 | `phlo --version` | stdout `phlo, version 0.14.0`; exit 0 |
-| `phlo --help` | lists `init`, `services`, `plugin`, `doctor`, `test`; exit 0 |
+| `phlo --help` | lists core groups above plus installed plugin roots; exit 0 |
 | `phlo init --list-templates --json` | envelope `{"data","warnings","errors"}`; `data.items[].name` includes `minimal`, `csv-batch` |
 | `phlo init PATH --template csv-batch --json` | exit 0; `data.template` is `csv-batch`; writes `phlo.yaml`, `workflows/ingestion/csv/events.py` |
-| `phlo plugin check --json` | exit 0 when `invalid` is empty; keys `valid` and `invalid` |
+| `phlo plugin check --json` | exit 0 when `invalid` is `[]`; keys `valid` and `invalid` |
+| `phlo plugin list --type cli --json` | `installed[].name` is the 17 workspace CLI plugins |
+| `phlo support status --json` | `compatible`, `gates`, `items`; exit 1 if incompatible (extra workspace packages count) |
+| `phlo audit tail --json` | envelope `data.items` (possibly `[]`) |
+| `phlo governance check --json` | `{ok, warnings, warning_count}` |
 | `phlo doctor --json` | exit 0 only when no `fail` checks |
 | `phlo services init` | writes `.phlo/docker-compose.yml`, `.phlo/.env`, `.phlo/.env.local`; stdout contains `Phlo infrastructure initialized.` |
-| `phlo services start` / `status` | require container backend + generated compose; not CLI-only |
+| `phlo services start` / `status` | require container backend + generated compose; **Docker** |
 
-`--json` on init uses the shared envelope (`data` / `warnings` / `errors`). `plugin check --json` and `doctor --json` use their own shapes (not the envelope).
+`--json` on init / audit / metrics / mcp uses the shared envelope (`data` / `warnings` / `errors`). `plugin check --json`, `doctor --json`, `support status --json`, and `governance check --json` use their own shapes.
 
 ## Evidence
 
@@ -107,7 +112,7 @@ Capture under:
 .cursor/skills/verify-phlo/artifacts/runs/$RUN_ID/
 ```
 
-That directory is gitignored. A small committed example lives at `.cursor/skills/verify-phlo/artifacts/project-init.example.md`. Proof standards:
+That directory is gitignored. Committed examples: `.cursor/skills/verify-phlo/artifacts/project-init.example.md` and `cli-surface.example.md`. Proof standards:
 
 - Real user path through `uv run --locked phlo …`, not pytest internals.
 - Capture the **action** (full command, cwd, argv, stdout, stderr, exit code) **and** the **resulting state** (generated files, parsed JSON).
@@ -122,7 +127,7 @@ Minimum files in a run dir:
 - `tree.txt` — generated project paths
 - `summary.md` — what was proven
 
-Copy `summary.md` (and short excerpts) to `artifacts/project-init.example.md` when refreshing the committed example. Evidence must remain after cleanup.
+Copy `summary.md` (and short excerpts) into the matching `artifacts/*.example.md` when refreshing committed examples. Evidence must remain after cleanup.
 
 ## Cleanup
 
@@ -134,18 +139,19 @@ Copy `summary.md` (and short excerpts) to `artifacts/project-init.example.md` wh
 
 ## Helpers
 
-`scripts/prove-project-init.sh` is executable. From repo root:
+Scripts are executable. From repo root:
 
 ```bash
 .cursor/skills/verify-phlo/scripts/prove-project-init.sh
+.cursor/skills/verify-phlo/scripts/prove-cli-surface.sh
 ```
 
-Optional env: `RUN_ID`, `PHLO_VERIFY_TEMPLATE` (default `csv-batch`). Writes `artifacts/runs/$RUN_ID/` and refreshes `artifacts/project-init.example.md`. Removes `/tmp/phlo-verify-$RUN_ID` on success.
+Optional env: `RUN_ID`, `PHLO_VERIFY_TEMPLATE` (default `csv-batch` for init). Each writes `artifacts/runs/$RUN_ID/` and refreshes the matching `artifacts/*.example.md`. Init proof removes `/tmp/phlo-verify-$RUN_ID` on success.
 
 ## Gotchas
 
 - Providers generate Compose; do not hand-write `docker-compose.yml`.
-- `phlo services start` / `status` / `plugin check --containers` need Docker with Compose v2. This VM may not run Docker; prove a CLI-only feature instead.
+- `phlo services start` / `status` / `logs` / `exec` / `plugin check --containers` / query shells / Observatory need Docker with Compose v2. This VM may not run Docker; prove CLI-only features instead. See `features/README.md` Docker column.
 - Two CLI inits can run side by side. Two **started** stacks usually cannot: host ports collide. One live stack per machine unless you change ports in generated config.
 - `phlo doctor` as a product command is not the same as this skill's Doctor section; still run product doctor and record its JSON.
 - Do not expand Observatory UI or docs/marketing as verification surfaces.

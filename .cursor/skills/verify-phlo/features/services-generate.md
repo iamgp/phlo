@@ -1,43 +1,39 @@
-# Services generate and run
+# Services generate
 
-A user generates a local lakehouse stack from installed service plugins (no hand-written Compose), then can start and inspect it when Docker is available. `phlo services init` writes `.phlo/docker-compose.yml` and env files; `start` / `status` / `stop` talk to the container backend.
+A user generates a local lakehouse stack from installed service plugins without hand-writing Compose. `phlo services init` writes `.phlo/docker-compose.yml` and env files. `list` / `add` / `remove` / `ports` inspect or change the rendered set. Starting the stack is [services-run.md](services-run.md).
 
 ## Sub-features
 
-- `services-help` — `phlo services` with no subcommand prints help listing `init`, `start`, `status`, `stop`.
-- `services-init` — generate `.phlo/` runtime files from discovered plugins.
-- `services-start-status` — start the generated compose project and show service state (Docker required).
-- `services-stop` — stop only the stack this project started.
+- `services-help` — `phlo services` with no subcommand prints help.
+- `services-init` — generate `.phlo/` (`--force`, `--name`, `--dev`, `--no-dev`, `--phlo-source`, `--service-dev`, `--production`, `--profile`).
+- `services-list` — discovered services; `--json`; `--all`; `--backend`.
+- `services-ports` — declared host/container ports (`--json`, `--all`).
+- `services-add` / `services-remove` — change rendered services (`add` has `--no-start`, `--profile`).
 
 ## How to get to it (user POV)
 
-- After `phlo init`, from the project directory:
-  - `phlo services init`
-  - `phlo services start`
-  - `phlo services status` / `phlo services status --json`
-  - `phlo services stop`
-- Optional: `phlo services init --profile observability`, `--dev`, `--no-dev`, `--force`.
-- `phlo services list --json` lists discovered services even before init (runtime status may be empty without Docker).
+- After `phlo init`, from the project directory: `phlo services init` (prefer `--no-dev` in disposable dirs).
+- `phlo services list --json`
+- `phlo services ports --json`
+- `phlo services add <service> --no-start` / `phlo services remove <service>`
+- Optional init: `--profile observability`, `--profile api`, `--force`, `--production`.
 
 ## Driving it with CLI
 
 Preconditions:
 
-- Isolated project already created (`phlo init`); cwd is that project.
-- Workspace `phlo` on PATH via `uv run --locked` from the **repo** (or the project env after `uv pip install -e .` plus defaults).
-- `services-init` does not need a running daemon; it writes files.
-- `start` / `status` require Docker + Compose v2 (README prerequisites). If the VM cannot run Docker, stop after init proof or skip this feature and prove `project-init` instead.
+- Isolated project from `phlo init`; cwd is that project when generating files.
+- `uv run --locked phlo` from the **repo** (or project env after `uv pip install -e .` plus defaults).
+- Init/list do **not** need a running Docker daemon; they write or discover. `ports` / `add` after init still talk to generated compose; `add` without `--no-start` will try to start (**Docker**).
 
-- Show the group: `uv run --locked phlo services --help` → Commands include `init`, `start`, `status`, `stop`; exit 0.
-- Generate the stack: from the project cwd, `uv run --locked phlo services init --no-dev` → exit 0; stdout includes `Created: .phlo/docker-compose.yml`, `Created: .phlo/.env`, `Created: .phlo/.env.local`, and `Phlo infrastructure initialized.`; those three files exist. `--no-dev` avoids auto-enabling checkout mounts when the repo is detectable.
-- Start (Docker only): `uv run --locked phlo services start` → wait until the command exits 0 (readiness is driven by generated healthchecks, timeout on the order of 60s per start path). Then `uv run --locked phlo services status` → exit 0; table or JSON of services, not `No services running`.
-- Stop what this run started: `uv run --locked phlo services stop` from the same cwd.
+- Help: `uv run --locked phlo services --help` → Commands include `add`, `exec`, `init`, `list`, `logs`, `ports`, `remove`, `reset`, `restart`, `start`, `status`, `stop`; exit 0.
+- Generate: from the project cwd, `uv run --locked phlo services init --no-dev` → exit 0; stdout includes `Created: .phlo/docker-compose.yml`, `Created: .phlo/.env`, `Created: .phlo/.env.local`, and `Phlo infrastructure initialized.`; those files exist.
+- List: `uv run --locked phlo services list --json` → JSON array of service objects with `name`, `default`, `disabled`, `running` (running is false without a backend).
+- Live start/status: see [services-run.md](services-run.md). **Not proven on a Docker-less VM.**
 
 ## Gotchas
 
-- Do not hand-write Compose; providers generate it. Regenerating into a non-empty `.phlo/` needs `--force`.
-- Auto `--dev` can enable if a Phlo checkout is detected; use `--no-dev` in disposable verify projects unless you intend mounts.
-- Host ports collide if two stacks run at once. One live stack per machine for v1 verify.
-- `status` requires `.phlo/docker-compose.yml` and a container backend; without Docker it errors rather than listing files.
-- `plugin check --containers` is a different path (temp project + image scanners), not a substitute for `services start`.
-- Materialize / catalog / Observatory need a running stack; they are out of this feature's CLI-only slice.
+- Do not hand-write Compose. Re-init into a non-empty `.phlo/` needs `--force`.
+- Auto `--dev` enables if a Phlo checkout is detected; use `--no-dev` unless you intend mounts.
+- `add` without `--no-start` is a run mutation, not generate-only.
+- Production init rejects default postgres/minio credentials.
