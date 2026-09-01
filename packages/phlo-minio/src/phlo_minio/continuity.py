@@ -110,15 +110,14 @@ class MinioBackupContributor:
         try:
             mc = self._mc_runner or _default_mc
 
-            def _runner_bytes_from_text(args: list[str]) -> bytes:
-                out = self._mc_runner(args)  # type: ignore[union-attr]
-                return out if isinstance(out, bytes) else out.encode("utf-8")
-
             if self._mc_bytes_runner is not None:
                 mc_bytes = self._mc_bytes_runner
             elif self._mc_runner is not None:
                 # A str-returning runner was injected without a bytes runner
                 # (unit-test convenience); object payloads are plain ASCII there.
+                def _runner_bytes_from_text(args: list[str]) -> bytes:
+                    return mc(args).encode("utf-8")
+
                 mc_bytes = _runner_bytes_from_text
             else:
                 mc_bytes = _default_mc_bytes
