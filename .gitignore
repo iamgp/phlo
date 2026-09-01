@@ -124,6 +124,9 @@ logs/
 ehthumbs.db
 Thumbs.db
 
+# verify-phlo run transcripts (committed examples stay beside this dir)
+.cursor/skills/verify-phlo/artifacts/runs/
+
 # IDE and editor files
 .vscode/
 .idea/
