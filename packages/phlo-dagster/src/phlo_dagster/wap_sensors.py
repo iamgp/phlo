@@ -63,6 +63,7 @@ from phlo.hooks import HookCorrelation, QualityResultEvent, get_hook_bus
 from phlo.logging import get_logger
 from phlo.config import get_settings
 from phlo.run_evidence import (
+    RequiredEvidenceProfile,
     RunReconciler,
     default_run_evidence_store,
     emit_observation,
@@ -577,11 +578,17 @@ def _reconcile_promoted_wap_run(run: Any, instance: Any) -> bool:
                 dagster_run_id=dagster_run_id,
                 missing=composed.missing_contribution_ids,
             )
-            return False
+            # Fall back to a minimal profile when provider contributions
+            # are not yet registered (intermediate stacked-PR state).  Once
+            # all six contributions are declared (Plan 008), the composed
+            # profile is used instead.
+            profile = RequiredEvidenceProfile(profile_id="wap", version="1", provider="dagster")
+        else:
+            profile = composed.profile
         RunReconciler(
             default_run_evidence_store(),
             DagsterRunEvidenceSource(instance, project_id=project_id),
-        ).reconcile(project_id, dagster_run_id, composed.profile)
+        ).reconcile(project_id, dagster_run_id, profile)
         return True
     except Exception:
         logger.warning(
