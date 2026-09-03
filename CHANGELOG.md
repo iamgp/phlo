@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Deprecated
+- phlo: deprecate the `phlo.ingestion` compatibility alias (B-37, #837 row 6): calls through `phlo.ingestion(...)`, `phlo.phlo_ingestion(...)`, and `phlo.ingestion.get_ingestion_assets()` now emit a `DeprecationWarning`; migrate with `phlo migrate decorators-2026-05` (#860)
+
 ## [phlo 0.14.0 + 34 packages] - 2026-08-21
 
 ### Added
