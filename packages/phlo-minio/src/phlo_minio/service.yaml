@@ -1,0 +1,121 @@
+name: minio
+description: S3-compatible object storage for data lake
+category: core
+default: true
+
+image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "minio:9000"
+    phlo.metrics.path: "/minio/v2/metrics/cluster"
+    traefik.enable: "true"
+    traefik.http.routers.minio.rule: "Host(`minio.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.minio.entrypoints: "web"
+    traefik.http.routers.minio.service: "minio"
+    traefik.http.services.minio.loadbalancer.server.port: "9001"
+    traefik.http.routers.minio-api.rule: "Host(`minio-api.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.minio-api.entrypoints: "web"
+    traefik.http.routers.minio-api.service: "minio-api"
+    traefik.http.services.minio-api.loadbalancer.server.port: "9000"
+  environment:
+    MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+    MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
+    # TLS
+    MINIO_SERVER_URL: ${MINIO_SERVER_URL:-}
+    # LDAP
+    MINIO_IDENTITY_LDAP_SERVER_ADDR: ${MINIO_LDAP_SERVER:-}
+    MINIO_IDENTITY_LDAP_LOOKUP_BIND_DN: ${MINIO_LDAP_BIND_DN:-}
+    MINIO_IDENTITY_LDAP_LOOKUP_BIND_PASSWORD: ${MINIO_LDAP_BIND_PASSWORD:-}
+    MINIO_IDENTITY_LDAP_USER_DN_SEARCH_BASE_DN: ${MINIO_LDAP_USER_BASE_DN:-}
+    MINIO_IDENTITY_LDAP_USER_DN_SEARCH_FILTER: ${MINIO_LDAP_USER_FILTER:-}
+    # Encryption
+    MINIO_KMS_AUTO_ENCRYPTION: ${MINIO_AUTO_ENCRYPTION:-off}
+    # Audit logging
+    MINIO_AUDIT_WEBHOOK_ENABLE: ${MINIO_AUDIT_ENABLED:-off}
+    MINIO_AUDIT_WEBHOOK_ENDPOINT: ${MINIO_AUDIT_ENDPOINT:-}
+  conditional_environment:
+    MINIO_OIDC_CONFIG_URL:
+      MINIO_IDENTITY_OPENID_CONFIG_URL: ${MINIO_OIDC_CONFIG_URL}
+      MINIO_IDENTITY_OPENID_CLIENT_ID: ${MINIO_OIDC_CLIENT_ID:-}
+      MINIO_IDENTITY_OPENID_CLIENT_SECRET: ${MINIO_OIDC_CLIENT_SECRET:-}
+      MINIO_IDENTITY_OPENID_CLAIM_NAME: ${MINIO_OIDC_CLAIM_NAME:-policy}
+      MINIO_IDENTITY_OPENID_SCOPES: ${MINIO_OIDC_SCOPES:-openid}
+  command: ["server", "/data", "--console-address", ":9001"]
+  ports:
+    - "${MINIO_API_PORT:-10001}:9000"
+    - "${MINIO_CONSOLE_PORT:-10002}:9001"
+  volumes:
+    - minio-data:/data
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+
+env_vars:
+  MINIO_ROOT_USER:
+    default: minio
+    description: MinIO root username
+
+  MINIO_ROOT_PASSWORD:
+    default: minio123
+    description: MinIO root password
+    secret: true
+  MINIO_API_PORT:
+    default: 10001
+    description: MinIO API host port
+  MINIO_CONSOLE_PORT:
+    default: 10002
+    description: MinIO console host port
+  # TLS
+  MINIO_SERVER_URL:
+    default: ""
+    description: "Public URL for MinIO (e.g., https://minio.example.com). Enables TLS if https://"
+  # OIDC Authentication
+  MINIO_OIDC_CONFIG_URL:
+    default: ""
+    description: "OIDC discovery URL (e.g., https://auth.example.com/.well-known/openid-configuration)"
+  MINIO_OIDC_CLIENT_ID:
+    default: ""
+    description: "OIDC client ID"
+  MINIO_OIDC_CLIENT_SECRET:
+    default: ""
+    description: "OIDC client secret"
+    secret: true
+  MINIO_OIDC_CLAIM_NAME:
+    default: "policy"
+    description: "JWT claim name containing MinIO policy"
+  MINIO_OIDC_SCOPES:
+    default: "openid"
+    description: "OIDC scopes to request"
+  # LDAP Authentication
+  MINIO_LDAP_SERVER:
+    default: ""
+    description: "LDAP server address (e.g., ldap.example.com:636)"
+  MINIO_LDAP_BIND_DN:
+    default: ""
+    description: "LDAP bind DN for lookups"
+  MINIO_LDAP_BIND_PASSWORD:
+    default: ""
+    description: "LDAP bind password"
+    secret: true
+  MINIO_LDAP_USER_BASE_DN:
+    default: ""
+    description: "LDAP user search base DN"
+  MINIO_LDAP_USER_FILTER:
+    default: ""
+    description: "LDAP user search filter (e.g., (uid=%s))"
+  # Encryption
+  MINIO_AUTO_ENCRYPTION:
+    default: "off"
+    description: "Enable automatic server-side encryption (on/off)"
+  # Audit Logging
+  MINIO_AUDIT_ENABLED:
+    default: "off"
+    description: "Enable audit logging via webhook (on/off)"
+  MINIO_AUDIT_ENDPOINT:
+    default: ""
+    description: "Webhook endpoint for audit logs"

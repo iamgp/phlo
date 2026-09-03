@@ -1,0 +1,140 @@
+{
+  "dashboard_title": "Platform Health Dashboard",
+  "description": "Operational view of asset freshness, job failures, quality coverage, and maintenance activity",
+  "slug": "platform-health",
+  "position_json": {
+    "CHART-1": { "col": 0, "row": 0, "size_x": 6, "size_y": 4 },
+    "CHART-2": { "col": 6, "row": 0, "size_x": 6, "size_y": 4 },
+    "CHART-3": { "col": 0, "row": 4, "size_x": 12, "size_y": 6 },
+    "CHART-4": { "col": 0, "row": 10, "size_x": 6, "size_y": 5 },
+    "CHART-5": { "col": 6, "row": 10, "size_x": 6, "size_y": 5 }
+  },
+  "charts": [
+    {
+      "id": "CHART-1",
+      "viz_type": "big_number",
+      "slice_name": "Tracked Assets",
+      "description": "Total assets currently tracked by the platform",
+      "params": {
+        "metric": "asset_total",
+        "adhoc_filters": [],
+        "time_grain_sqla": "P1D"
+      },
+      "query_context": {
+        "datasource": "mart_platform_health_overview",
+        "queries": [
+          {
+            "columns": [],
+            "metrics": ["asset_total"],
+            "orderby": [["snapshot_date", false]],
+            "row_limit": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-2",
+      "viz_type": "big_number",
+      "slice_name": "Freshness Coverage",
+      "description": "Percentage of tracked assets that are currently fresh",
+      "params": {
+        "metric": "fresh_assets_pct",
+        "adhoc_filters": [
+          {
+            "clause": "WHERE",
+            "expressionType": "SIMPLE",
+            "comparator": "today",
+            "operator": "=="
+          }
+        ]
+      },
+      "query_context": {
+        "datasource": "mart_platform_health_overview",
+        "queries": [
+          {
+            "columns": [],
+            "metrics": ["fresh_assets_pct"],
+            "filters": [{ "col": "snapshot_date", "op": "==", "val": "today" }]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-3",
+      "viz_type": "line",
+      "slice_name": "Failed Jobs (7 Days)",
+      "description": "Daily failed job count over the last week",
+      "params": {
+        "metrics": ["failed_jobs_count"],
+        "time_grain_sqla": "P1D",
+        "time_range": "7 days ago : now",
+        "x_axis_format": "%b %d",
+        "y_axis_bounds": [0, 50],
+        "y_axis_format": ".0f"
+      },
+      "query_context": {
+        "datasource": "mart_pipeline_failures_daily",
+        "queries": [
+          {
+            "columns": ["run_date"],
+            "metrics": ["failed_jobs_count"],
+            "orderby": [["run_date", true]],
+            "time_range": "7 days ago : now"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-4",
+      "viz_type": "heatmap",
+      "slice_name": "Quality Coverage by Domain",
+      "description": "Passing quality-check percentage across domains",
+      "params": {
+        "all_columns_x": "domain_name",
+        "all_columns_y": "status_bucket",
+        "metric": "passing_checks_pct",
+        "linear_color_scheme": "blue_white_yellow",
+        "xscale_interval": 1,
+        "yscale_interval": 1
+      },
+      "query_context": {
+        "datasource": "mart_quality_checks_by_domain",
+        "queries": [
+          {
+            "columns": ["domain_name", "status_bucket"],
+            "metrics": ["passing_checks_pct"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-5",
+      "viz_type": "pie",
+      "slice_name": "Maintenance Outcomes",
+      "description": "Distribution of recent maintenance run outcomes",
+      "params": {
+        "metric": "run_count",
+        "groupby": ["status"],
+        "donut": true,
+        "show_labels": true,
+        "labels_outside": true,
+        "color_scheme": "supersetColors"
+      },
+      "query_context": {
+        "datasource": "mart_maintenance_runs",
+        "queries": [
+          {
+            "columns": [],
+            "metrics": ["run_count"],
+            "time_range": "7 days ago : now"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "native_filter_configuration": [],
+    "color_scheme": "supersetColors",
+    "refresh_frequency": 300
+  }
+}

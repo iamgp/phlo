@@ -1,0 +1,52 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = ["phlo>=0.14.0,<0.15"]
+description = "prometheus service plugin for Phlo"
+name = "phlo-prometheus"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.services"]
+prometheus = "phlo_prometheus.plugin:PrometheusServicePlugin"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.readme]
+content-type = "text/plain"
+text = "prometheus service plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+phlo_prometheus = [
+    "service.yaml",
+    "prometheus.yml",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

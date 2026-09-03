@@ -1,0 +1,55 @@
+name: clickstack
+description: ClickStack all-in-one observability backend
+category: observability
+default: false
+profile: observability
+
+image: docker.io/hyperdx/hyperdx-all-in-one:2.31.0@sha256:b01cc48cb5aaf30d630865a88217c826ab86fb9828374201f6cd7c539d5beed1
+
+compose:
+  restart: unless-stopped
+  user: "0"
+  environment:
+    FRONTEND_URL: ${CLICKSTACK_PUBLIC_URL:-}
+  ports:
+    - "${CLICKSTACK_PORT:-18080}:8080"
+    - "${CLICKSTACK_HTTP_PORT:-18123}:8123"
+    - "${CLICKSTACK_NATIVE_PORT:-19002}:9000"
+  volumes:
+    - clickstack-data:/var/lib/clickhouse
+  healthcheck:
+    test:
+      [
+        "CMD",
+        "wget",
+        "--quiet",
+        "--tries=1",
+        "--spider",
+        "http://127.0.0.1:8080",
+      ]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+
+env_vars:
+  CLICKSTACK_PORT:
+    default: 18080
+    description: ClickStack UI port
+  CLICKSTACK_HTTP_PORT:
+    default: 18123
+    description: ClickHouse HTTP query port used by phlo-api trace endpoints
+  CLICKSTACK_NATIVE_PORT:
+    default: 19002
+    description: ClickHouse native port exposed by the all-in-one image
+  CLICKSTACK_PUBLIC_URL:
+    default: ""
+    description: Public ClickStack base URL used by observability links
+  CLICKSTACK_LOGS_PATH:
+    default: "/"
+    description: Path used to build ClickStack log links
+  CLICKSTACK_METRICS_PATH:
+    default: "/"
+    description: Path used to build ClickStack metric links
+  CLICKSTACK_DASHBOARDS_PATH:
+    default: "/"
+    description: Path used to build ClickStack dashboard links

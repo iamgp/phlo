@@ -1,0 +1,48 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27.0",
+]
+description = "OpenTelemetry traces and metrics for Phlo"
+name = "phlo-otel"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.hooks"]
+otel = "phlo_otel.hooks_plugin:OtelHookPlugin"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.readme]
+content-type = "text/plain"
+text = "OpenTelemetry instrumentation for Phlo hook events."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

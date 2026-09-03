@@ -1,0 +1,49 @@
+name: oauth2-proxy
+description: OAuth2/OIDC authentication proxy for forward-auth with Traefik
+category: auth
+default: false
+profile: proxy
+
+image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3@sha256:10a1165743a192e1940b4708fb9647027185ce11a681a1c5519b442ff7f1f561
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false"
+  environment:
+    OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+    OAUTH2_PROXY_REVERSE_PROXY: "true"
+    OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+    OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+    OAUTH2_PROXY_PROVIDER: "${OAUTH2_PROXY_PROVIDER:-oidc}"
+    OAUTH2_PROXY_OIDC_ISSUER_URL: "${OAUTH2_PROXY_OIDC_ISSUER_URL}"
+    OAUTH2_PROXY_CLIENT_ID: "${OAUTH2_PROXY_CLIENT_ID}"
+    OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
+    OAUTH2_PROXY_COOKIE_SECRET: "${OAUTH2_PROXY_COOKIE_SECRET}"
+    OAUTH2_PROXY_COOKIE_SECURE: "${OAUTH2_PROXY_COOKIE_SECURE:-false}"
+    OAUTH2_PROXY_REDIRECT_URL: "${OAUTH2_PROXY_REDIRECT_URL:-http://api.phlo.localhost/oauth2/callback}"
+    OAUTH2_PROXY_EMAIL_DOMAINS: "${OAUTH2_PROXY_EMAIL_DOMAINS:-*}"
+    OAUTH2_PROXY_UPSTREAMS: "static://202"
+    OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+
+env_vars:
+  OAUTH2_PROXY_PROVIDER:
+    default: oidc
+    description: OAuth2 provider type (oidc, google, github, etc.)
+  OAUTH2_PROXY_OIDC_ISSUER_URL:
+    description: OIDC issuer URL (e.g., https://accounts.google.com)
+  OAUTH2_PROXY_CLIENT_ID:
+    description: OAuth2 client ID from your identity provider
+  OAUTH2_PROXY_CLIENT_SECRET:
+    description: OAuth2 client secret (store in .phlo/.env.local)
+  OAUTH2_PROXY_COOKIE_SECRET:
+    description: Random 32-byte base64 string for cookie encryption (generate with python -c "import secrets; print(secrets.token_urlsafe(32))")
+  OAUTH2_PROXY_COOKIE_SECURE:
+    default: "false"
+    description: Set to true when using HTTPS
+  OAUTH2_PROXY_REDIRECT_URL:
+    default: http://api.phlo.localhost/oauth2/callback
+    description: OAuth2 callback URL (must match IdP config)
+  OAUTH2_PROXY_EMAIL_DOMAINS:
+    default: "*"
+    description: Comma-separated list of allowed email domains (use * for any)

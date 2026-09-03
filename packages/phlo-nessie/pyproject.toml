@@ -1,0 +1,73 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "pynessie>=0.67.0",
+    "marshmallow>=3.18,<4",
+    "requests>=2.32.5",
+]
+description = "Nessie service plugin for Phlo"
+name = "phlo-nessie"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.catalogs"]
+iceberg = "phlo_nessie.adapters.trino:TrinoNessieIcebergCatalogPlugin"
+iceberg_dev = "phlo_nessie.adapters.trino:TrinoNessieIcebergDevCatalogPlugin"
+
+[project.entry-points."phlo.plugins.cli"]
+nessie = "phlo_nessie.cli_plugin:NessieCliPlugin"
+
+[project.entry-points."phlo.plugins.observatory"]
+nessie = "phlo_nessie.observatory_plugin:NessieObservatoryExtension"
+
+[project.entry-points."phlo.plugins.resources"]
+nessie = "phlo_nessie.resource_provider:NessieResourceProvider"
+
+[project.entry-points."phlo.plugins.services"]
+nessie = "phlo_nessie.plugin:NessieServicePlugin"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+iceberg-cli = ["phlo-iceberg>=0.1.0"]
+observatory = ["phlo-observatory>=0.1.0"]
+trino = ["phlo-trino>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "Nessie service plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+phlo_nessie = [
+    "service.yaml",
+    "observatory_assets/*",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

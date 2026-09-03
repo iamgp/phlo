@@ -1,0 +1,32 @@
+name: traefik
+description: Local reverse proxy for named service URLs
+category: networking
+default: false
+profile: proxy
+
+image: traefik:v3.7.9@sha256:652929a140a32d7cafafb13c6cdfab5376cfeff800f51397b87b524501ed02a8
+
+compose:
+  restart: unless-stopped
+  command:
+    - "--providers.docker=true"
+    - "--providers.docker.exposedbydefault=false"
+    - "--entrypoints.web.address=:80"
+    - "--api.dashboard=true"
+  ports:
+    - "${TRAEFIK_HTTP_PORT:-80}:80"
+  volumes:
+    - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  labels:
+    traefik.enable: "true"
+    traefik.http.routers.traefik.rule: "Host(`traefik.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.traefik.service: "api@internal"
+    traefik.http.routers.traefik.entrypoints: "web"
+
+env_vars:
+  TRAEFIK_HTTP_PORT:
+    default: 80
+    description: Host port for Traefik HTTP entrypoint
+  TRAEFIK_DOMAIN:
+    default: phlo.localhost
+    description: Base domain used to build service hostnames

@@ -1,0 +1,35 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "phlo-observatory>=0.1.0",
+]
+description = "Example Observatory extension plugin"
+name = "phlo-observatory-example"
+readme = "README.md"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.observatory"]
+example = "phlo_observatory_example.observatory_plugin:ExampleObservatoryExtension"
+
+[project.license]
+text = "MIT"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/phlo_observatory_example"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src/phlo_observatory_example/observatory_assets/*"]
+packages = ["src/phlo_observatory_example"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

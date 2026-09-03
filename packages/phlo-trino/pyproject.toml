@@ -1,0 +1,72 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "pandas>=2.0.0",
+    "psycopg2-binary>=2.9.11",
+    "trino>=0.336.0",
+]
+description = "Trino service plugin for Phlo"
+name = "phlo-trino"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.cli"]
+trino = "phlo_trino.cli_plugin:TrinoCliPlugin"
+
+[project.entry-points."phlo.plugins.observatory"]
+trino = "phlo_trino.observatory_plugin:TrinoObservatoryExtension"
+
+[project.entry-points."phlo.plugins.resources"]
+trino = "phlo_trino.plugin:TrinoResourceProvider"
+
+[project.entry-points."phlo.plugins.services"]
+trino = "phlo_trino.plugin:TrinoServicePlugin"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+observatory = ["phlo-observatory>=0.1.0"]
+postgres = ["phlo-postgres>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "Trino service plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+phlo_trino = [
+    "service.yaml",
+    "jvm.config",
+    "config.properties",
+    "node.properties",
+    "catalog/*.properties",
+    "observatory_assets/*",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

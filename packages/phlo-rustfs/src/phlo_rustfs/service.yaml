@@ -1,0 +1,53 @@
+name: rustfs
+description: S3-compatible object storage for data lake (RustFS)
+category: core
+default: false
+
+depends_on:
+  - rustfs-volume-setup
+
+image: rustfs/rustfs:1.0.0-beta.11@sha256:84ce557a0245a06a9aae5516f55ee0f007fca78d41df356f419306fdc0cb168c
+
+compose:
+  restart: unless-stopped
+  user: "10001:10001"
+  environment:
+    RUSTFS_VOLUMES: /data
+    RUSTFS_ADDRESS: "0.0.0.0:9000"
+    RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+    RUSTFS_CONSOLE_ENABLE: "true"
+    RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+    RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+    RUSTFS_CORS_ALLOWED_ORIGINS: ${RUSTFS_CORS_ALLOWED_ORIGINS:-*}
+    RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: ${RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS:-*}
+  ports:
+    - "${RUSTFS_API_PORT:-9000}:9000"
+    - "${RUSTFS_CONSOLE_PORT:-9001}:9001"
+  volumes:
+    - rustfs-data:/data
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+
+env_vars:
+  RUSTFS_ACCESS_KEY:
+    default: rustfsadmin
+    description: RustFS access key (username)
+  RUSTFS_SECRET_KEY:
+    default: rustfsadmin
+    description: RustFS secret key (password)
+    secret: true
+  RUSTFS_API_PORT:
+    default: 9000
+    description: RustFS S3 API host port
+  RUSTFS_CONSOLE_PORT:
+    default: 9001
+    description: RustFS web console host port
+  RUSTFS_CORS_ALLOWED_ORIGINS:
+    default: "*"
+    description: CORS allowed origins for S3 API
+  RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS:
+    default: "*"
+    description: CORS allowed origins for web console

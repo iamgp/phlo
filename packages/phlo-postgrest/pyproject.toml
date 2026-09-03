@@ -1,0 +1,61 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "psycopg2-binary>=2.9.11",
+]
+description = "postgrest service plugin for Phlo"
+name = "phlo-postgrest"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.cli"]
+postgrest = "phlo_postgrest.cli_plugin:PostgrestCliPlugin"
+
+[project.entry-points."phlo.plugins.services"]
+postgrest = "phlo_postgrest.plugin:PostgrestServicePlugin"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dbt = ["phlo-dbt>=0.1.0"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+postgres = ["phlo-postgres>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "postgrest service plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+phlo_postgrest = [
+    "service.yaml",
+    "sql/*.sql",
+    "conf/*.conf",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,56 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "phlo-api>=0.1.0",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.28.1",
+    "opentelemetry-sdk>=1.38.0",
+    "python-multipart>=0.0.31",
+]
+description = "MCP server for Phlo observability and lakehouse operations"
+name = "phlo-mcp"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.cli"]
+mcp = "phlo_mcp.cli_plugin:McpCliPlugin"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.readme]
+content-type = "text/plain"
+text = "MCP server for Phlo observability and lakehouse operations."
+
+[project.scripts]
+phlo-mcp = "phlo_mcp.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

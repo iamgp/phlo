@@ -1,0 +1,52 @@
+name: postgrest
+description: RESTful API automatically generated from PostgreSQL schema
+category: api
+default: false
+profile: api
+
+image: postgrest/postgrest:v14.15@sha256:2f8e7b656f09db697a8875177694b417b35cb76c21370de07fc54e711e902326
+
+depends_on:
+  - postgres
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false"
+  environment:
+    # Project initialization generates POSTGRES_PASSWORD.  Override the
+    # static template's development fallback so PostgREST uses that secret.
+    PGRST_DB_URI: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
+  command: ["/bin/postgrest", "/etc/postgrest/postgrest.conf"]
+  volumes:
+    - ./postgrest/conf:/etc/postgrest:ro
+  ports:
+    - "${POSTGREST_PORT:-3002}:3000"
+  healthcheck:
+    test: ["CMD", "pgrep", "postgrest"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+env_vars:
+  POSTGREST_PORT:
+    default: 3002
+    description: PostgREST API port
+  PGRST_DB_SCHEMAS:
+    default: public
+    description: Comma-separated list of schemas to expose (auto-configured by hook)
+
+files:
+  - source: conf
+    dest: postgrest/conf
+
+hooks:
+  post_start:
+    - name: configure-schemas
+      delay: 5
+      command:
+        - python
+        - -m
+        - phlo_postgrest.hooks
+        - configure-schemas
+      timeout_seconds: 60

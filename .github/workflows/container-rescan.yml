@@ -1,0 +1,80 @@
+name: Container Rescan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 4 * * *"
+
+permissions:
+  actions: read
+  contents: read
+  packages: read
+
+jobs:
+  rescan:
+    name: containers / published digest rescan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate waiver expiry
+        run: uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py validate-waivers
+      - name: Resolve the complete current published fleet
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p published resolved
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            published-fleet > "$RUNNER_TEMP/expected-fleet.json"
+          jq -c '.[]' "$RUNNER_TEMP/expected-fleet.json" | while read -r target; do
+            image="$(jq -r .image <<< "$target")"
+            services="$(jq -c .services <<< "$target")"
+            digest="$(
+              docker buildx imagetools inspect \
+                --format '{{json .Manifest.Digest}}' "$image" | jq -r .
+            )"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            safe="$(tr -d '\n' <<< "$image" | tr '/:@' '___')"
+            jq -n --arg image "$image" --arg digest "$digest" --argjson services "$services" \
+              '{image: $image, digest: $digest, services: $services}' > "resolved/${safe}.json"
+          done
+          jq -s '.' resolved/*.json > "$RUNNER_TEMP/resolved-fleet.json"
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            assemble-rescan-manifest --records "$RUNNER_TEMP/resolved-fleet.json" \
+            --output published/generated-service-images.json
+      - name: Rescan immutable images with fresh Trivy data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          jq -c '.[]' published/generated-service-images.json | while read -r target; do
+            image="$(jq -r .image <<< "$target")"
+            digest="$(jq -r .digest <<< "$target")"
+            safe="$(tr -d '\n' <<< "$image" | tr '/:@' '___')"
+            report="reports/${safe}.json"
+            docker run --rm -v "$PWD:/work" -w /work aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+              image --format json --output "/work/$report" --scanners vuln "$image@$digest"
+            uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+              apply-policy --image "$image@$digest" --report "$report"
+          done
+      - name: Upload rescan reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: container-rescan-${{ github.run_id }}
+          path: |
+            published/generated-service-images.json
+            reports
+          if-no-files-found: warn

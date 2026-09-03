@@ -1,0 +1,83 @@
+name: Nightly
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      POSTGRES_PASSWORD:
+        required: true
+      MINIO_ROOT_PASSWORD:
+        required: true
+      SUPERSET_ADMIN_PASSWORD:
+        required: true
+  schedule:
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  full-integration:
+    name: nightly / full integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Run full integration suite
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
+        run: uv run --locked pytest -m integration --tb=short tests packages/*/tests
+
+  release-golden-path:
+    name: python / release golden path
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Run release artifact golden path
+        run: python3 scripts/release_golden_path.py
+
+  nightly-status:
+    name: nightly / status
+    if: always()
+    needs:
+      - full-integration
+      - release-golden-path
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every nightly check to succeed
+        env:
+          FULL_INTEGRATION: ${{ needs.full-integration.result }}
+          RELEASE_GOLDEN_PATH: ${{ needs.release-golden-path.result }}
+        run: |
+          set -euo pipefail
+          for result in "$FULL_INTEGRATION" "$RELEASE_GOLDEN_PATH"; do
+            if [ "$result" != "success" ]; then
+              echo "::error::Required nightly check finished with result: $result"
+              exit 1
+            fi
+          done

@@ -1,0 +1,59 @@
+name: prometheus
+description: Metrics collection and monitoring
+category: observability
+default: false
+profile: observability
+
+image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.13.1@sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893}
+
+compose:
+  restart: unless-stopped
+  user: "0"
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "prometheus:9090"
+    phlo.metrics.path: "/metrics"
+  command:
+    - "--config.file=/etc/prometheus/prometheus.yml"
+    - "--storage.tsdb.path=/prometheus"
+    - "--web.enable-lifecycle"
+    - "--storage.tsdb.retention.time=30d"
+  ports:
+    - "${PROMETHEUS_PORT:-9090}:9090"
+  volumes:
+    - ./prometheus:/etc/prometheus:ro
+    - prometheus-data:/prometheus
+  healthcheck:
+    test:
+      [
+        "CMD",
+        "wget",
+        "--quiet",
+        "--tries=1",
+        "--spider",
+        "http://localhost:9090/-/healthy",
+      ]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+env_vars:
+  PROMETHEUS_IMAGE:
+    default: prom/prometheus:v3.13.1@sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893
+    description: Pinned Prometheus image to run
+  PROMETHEUS_VERSION:
+    default: v3.13.1
+    description: Prometheus version
+  PROMETHEUS_PORT:
+    default: 9090
+    description: Prometheus web UI port
+  PROMETHEUS_PUBLIC_URL:
+    default: ""
+    description: Public Prometheus base URL used by observability links
+  PROMETHEUS_QUERY_PATH:
+    default: "/graph"
+    description: Path used to build Prometheus query links
+
+files:
+  - source: prometheus.yml
+    dest: prometheus/prometheus.yml

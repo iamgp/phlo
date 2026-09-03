@@ -1,0 +1,99 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-ast
+      - id: check-docstring-first
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: (^|/)tsconfig(\..+)?\.json$
+      - id: debug-statements
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: ["-c", ".yamllint"]
+        files: ^(\.github/|packages/.+/src/.+/service\.yaml$|.*\.ya?ml$)
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        files: ^(scripts/.*|.*\.sh)$
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.14.0
+    hooks:
+      - id: hadolint-docker
+        args: ["--failure-threshold", "error"]
+        files: (^|/)(Dockerfile|.*\.Dockerfile)$
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        args: ["--config=.codespellrc"]
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.9.1
+    hooks:
+      - id: commitizen
+
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (locked project tool)
+        entry: uv run --locked ruff check --fix
+        language: system
+        types_or: [python, pyi, jupyter]
+      - id: ruff-format
+        name: ruff format (locked project tool)
+        entry: uv run --locked ruff format
+        language: system
+        types_or: [python, pyi, jupyter]
+      - id: check-file-headers
+        name: check file headers (module docstring / comment block)
+        entry: python3 scripts/check_file_headers.py
+        language: system
+        types_or: [python, ts, tsx, javascript, sql, shell]
+      - id: prettier-observatory
+        name: prettier (Observatory)
+        entry: packages/phlo-observatory/src/phlo_observatory/node_modules/.bin/prettier --cache --write
+        language: system
+        files: ^packages/phlo-observatory/src/phlo_observatory/.*(\.ts|\.tsx)$
+      - id: zizmor
+        name: zizmor (GitHub Actions security lint)
+        entry: uvx zizmor --no-online-audits --no-progress --min-severity low
+        language: system
+        files: ^\.github/(workflows/.*\.(yml|yaml)|dependabot\.yml)$
+      - id: sqlfluff-dbt
+        name: sqlfluff (dbt models)
+        entry: uv run --locked sqlfluff lint
+        language: system
+        files: ^workflows/transforms/dbt/.*\.sql$
+      - id: sqlfluff-dbt-fix
+        name: sqlfluff fix (dbt models)
+        entry: uv run --locked sqlfluff fix workflows/transforms/dbt
+        language: system
+        pass_filenames: false
+        stages: [manual]
+      - id: ty-check
+        name: ty check (repo scope)
+        entry: uv run --locked ty check src/phlo packages
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: pytest-unit
+        name: pytest (not integration)
+        entry: uv run --locked pytest -m "not integration"
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

@@ -1,0 +1,31 @@
+name: openmetadata-elasticsearch
+description: OpenMetadata search backend
+category: catalog
+default: false
+profile: openmetadata
+
+image: docker.elastic.co/elasticsearch/elasticsearch:9.3.0@sha256:4f6bdcb742e892539c6ac49b0dd3e4e182e90218546e8c6a22db378c344acb60
+
+compose:
+  restart: unless-stopped
+  environment:
+    discovery.type: single-node
+    ES_JAVA_OPTS: ${OPENMETADATA_ES_JAVA_OPTS:--Xms256m -Xmx256m}
+    xpack.security.enabled: "false"
+  healthcheck:
+    test:
+      [
+        "CMD",
+        "sh",
+        "-c",
+        "curl -s http://localhost:9200/_cluster/health?pretty | grep status | grep -qE 'green|yellow'",
+      ]
+    interval: 15s
+    timeout: 10s
+    retries: 10
+    start_period: 120s
+
+env_vars:
+  OPENMETADATA_ES_JAVA_OPTS:
+    default: "-Xms256m -Xmx256m"
+    description: JVM heap settings for the bundled OpenMetadata Elasticsearch service

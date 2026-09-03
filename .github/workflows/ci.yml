@@ -1,0 +1,558 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, beta]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  ci-config:
+    name: ci / config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Validate workflow YAML
+        run: ruby -e 'Dir[".github/workflows/*.yml"].each { |file| YAML.load_file(file) }' -r yaml
+
+      - name: Check package test groups
+        run: python3 scripts/check_ci_package_groups.py
+
+      - name: Validate v1 support boundary
+        run: python3 scripts/validate_support_manifest.py
+
+      - name: Lint workflows with actionlint
+        run: make actionlint
+
+  installed-provider-artifacts:
+    name: python / installed provider artifacts (${{ matrix.docker-shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        docker-shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Verify installed provider artifacts
+        id: installed_provider_artifacts
+        shell: bash
+        run: |
+          mkdir -p provider-artifacts
+          python3 scripts/verify_installed_provider_artifacts.py \
+            --include-docker-builds \
+            --include-docker-health \
+            --docker-shard-index ${{ matrix.docker-shard }} \
+            --docker-shard-count 4 \
+            --output provider-artifacts/installed-provider-artifacts.json
+
+      - name: Upload installed provider artifact evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: installed-provider-artifacts-${{ matrix.docker-shard }}
+          path: provider-artifacts/installed-provider-artifacts.json
+          if-no-files-found: warn
+
+  python-quality:
+    name: python / quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Lint with ruff
+        run: uv run --locked ruff check .
+
+      - name: Check Python formatting
+        run: uv run --locked ruff format --check .
+
+      - name: Type check with ty
+        run: make typecheck-python
+
+      - name: Lint SQL with sqlfluff
+        run: |
+          set -euo pipefail
+          if [ -d "workflows/transforms/dbt" ]; then
+            uv run --locked sqlfluff lint workflows/transforms/dbt
+          else
+            echo "Skipping sqlfluff: no workflows/transforms/dbt directory."
+          fi
+
+  python-core-tests:
+    name: python / core tests (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Run core regression suite
+        id: core_regression
+        run: make test-core-regression
+
+      - name: Run core tests
+        id: core_tests
+        run: uv run --locked pytest tests -m "not integration and not core_regression" --tb=short --cov=phlo --cov-report=term-missing
+
+  postgres-concurrency-gates:
+    name: python / postgres concurrency gates
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: phlo_ci
+          POSTGRES_USER: phlo_ci
+          POSTGRES_PASSWORD: phlo_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U phlo_ci -d phlo_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN: postgresql://phlo_ci:phlo_ci_password@localhost:5432/phlo_ci
+      PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN: postgresql://phlo_ci:phlo_ci_password@localhost:5432/phlo_ci
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Preflight PostgreSQL gate dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for dsn_name in \
+            PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN \
+            PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN; do
+            if [ -z "${!dsn_name:-}" ]; then
+              echo "::error::${dsn_name} must be set for the required PostgreSQL gate"
+              exit 1
+            fi
+          done
+
+          uv run --locked python - <<'PY'
+          import os
+
+          import psycopg2
+
+          for name in (
+              "PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN",
+              "PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN",
+          ):
+              connection = psycopg2.connect(os.environ[name], connect_timeout=5)
+              try:
+                  with connection.cursor() as cursor:
+                      cursor.execute("SELECT 1")
+                      assert cursor.fetchone() == (1,)
+              finally:
+                  connection.close()
+          PY
+
+      - name: Run PostgreSQL concurrency gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          results_file="$(mktemp)"
+          trap 'rm -f "${results_file}"' EXIT
+
+          PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN="${PHLO_SERVICE_TOKEN_TEST_POSTGRES_DSN}" \
+          PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN="${PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN}" \
+          uv run --locked pytest --import-mode=importlib \
+            tests/unit/phlo/security/test_service_identity.py::test_postgres_nonce_store_rejects_one_of_two_simultaneous_consumers \
+            tests/observability/test_run_evidence.py::test_postgres_concurrent_duplicate_replay_does_not_apply_loser_run_metadata \
+            tests/observability/test_run_evidence.py::test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres \
+            -q | tee "${results_file}"
+
+          python3 - "${results_file}" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          output = Path(sys.argv[1]).read_text(encoding="utf-8")
+          summary_lines = [
+              line.strip()
+              for line in output.splitlines()
+              if re.search(r"\b(?:passed|skipped|failed|error|xfailed|xpassed)\b", line)
+          ]
+          summary = summary_lines[-1] if summary_lines else ""
+          passed_match = re.search(r"(\d+) passed\b", summary)
+          skipped_match = re.search(r"(\d+) skipped\b", summary)
+          passed = int(passed_match.group(1)) if passed_match else 0
+          skipped = int(skipped_match.group(1)) if skipped_match else 0
+          if passed != 3 or skipped != 0:
+              raise SystemExit(
+                  f"PostgreSQL concurrency gate expected exactly 3 passed, 0 skipped; got: {summary}"
+              )
+          print(f"PostgreSQL concurrency gates: {passed} passed, {skipped} skipped")
+          PY
+
+  quickstart-smoke:
+    name: python / quickstart smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Run quickstart smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p quickstart-artifacts
+          PHLO_QUICKSTART_SMOKE_ARTIFACT_DIR="$PWD/quickstart-artifacts" \
+            uv run --locked pytest tests/cli/test_quickstart_smoke.py --tb=short
+
+      - name: Upload quickstart smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: quickstart-smoke
+          path: quickstart-artifacts/
+          if-no-files-found: warn
+
+  recovery-continuity-drill:
+    name: python / recovery continuity drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Run owned backup and restore drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-artifacts
+          uv run --locked python scripts/recovery_drill.py | tee recovery-artifacts/recovery-drill.json
+
+      - name: Summarize recovery evidence
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          report = Path("recovery-artifacts/recovery-drill.json")
+          print("### Recovery continuity drill")
+          if not report.is_file():
+              print("The drill produced no report; inspect the job log.")
+          else:
+              result = json.loads(report.read_text(encoding="utf-8"))
+              print(f"- Outcome: `{result.get('outcome', 'unknown')}`")
+              print(f"- Backup duration: `{result.get('backup_seconds', 'unavailable')}` seconds")
+              print(f"- Restore duration: `{result.get('restore_seconds', 'unavailable')}` seconds")
+              print("- Scope: owned PostgreSQL run evidence, Nessie/Iceberg catalog state, and object checksum.")
+              print("- This drill records observed durations; it does not assert an RPO or RTO.")
+          PY
+
+      - name: Upload recovery evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: recovery-continuity-drill
+          path: recovery-artifacts/recovery-drill.json
+          if-no-files-found: warn
+
+  windows-release-contract:
+    name: windows / release golden path contract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: "3.11"
+
+      - name: Install focused Python test dependency
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Run focused Python harness tests
+        shell: pwsh
+        run: python -m pytest tests/scripts/test_release_golden_path.py --tb=short
+
+      - name: Run PowerShell launcher contract tests
+        shell: pwsh
+        run: ./tests/scripts/test_release_golden_path.ps1
+
+  python-package-tests:
+    name: python / package tests (${{ matrix.group }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: platform
+            packages: phlo-alerting phlo-clickstack phlo-delta phlo-iceberg phlo-minio phlo-observatory-example phlo-pgweb phlo-rustfs phlo-traefik
+          - group: data
+            packages: phlo-alloy phlo-core-plugins phlo-dlt phlo-lineage phlo-nessie phlo-openmetadata phlo-postgres phlo-sling phlo-trino
+          - group: runtime
+            packages: phlo-api phlo-dagster phlo-grafana phlo-loki phlo-oauth2-proxy phlo-otel phlo-postgrest phlo-superset
+          - group: interfaces
+            packages: phlo-clickhouse phlo-dbt phlo-hasura phlo-mcp phlo-observatory phlo-pandera phlo-prometheus phlo-testing
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Run package test group
+        env:
+          PACKAGES: ${{ matrix.packages }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          failed_count=0
+          for package in ${PACKAGES}; do
+            test_dir="packages/${package}/tests"
+            if [ ! -d "${test_dir}" ]; then
+              echo "::error::Package test directory missing: ${test_dir}"
+              failed_count=$((failed_count + 1))
+              continue
+            fi
+
+            echo "::group::${package}"
+            set +e
+            uv run --locked --package "${package}" --with-editable ./packages/phlo-testing --with pytest \
+              pytest -m "not integration" --tb=short "${test_dir}"
+            exit_code=$?
+            set -e
+            echo "::endgroup::"
+
+            if [ "${exit_code}" -eq 5 ]; then
+              echo "No tests selected for ${package} under marker filter; skipping."
+            elif [ "${exit_code}" -ne 0 ]; then
+              echo "::error::${package} tests failed with exit ${exit_code}"
+              failed_count=$((failed_count + 1))
+            fi
+          done
+
+          if [ "${failed_count}" -ne 0 ]; then
+            exit 1
+          fi
+
+  frontend:
+    name: frontend / observatory
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/phlo-observatory/src/phlo_observatory
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: packages/phlo-observatory/src/phlo_observatory/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting with Prettier
+        run: npx prettier --check .
+
+      - name: Lint with ESLint
+        run: npx eslint src --ext .ts,.tsx
+
+      - name: Type check with TypeScript
+        run: npx tsc --noEmit
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+  phlo-agent:
+    name: agent / eve
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/phlo-agent
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: apps/phlo-agent/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build agent
+        run: npm run build
+
+  ci-status:
+    name: ci / status
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - ci-config
+      - installed-provider-artifacts
+      - python-quality
+      - python-core-tests
+      - quickstart-smoke
+      - postgres-concurrency-gates
+      - recovery-continuity-drill
+      - windows-release-contract
+      - python-package-tests
+      - frontend
+      - phlo-agent
+    steps:
+      - name: Summarize CI lane results
+        shell: bash
+        env:
+          CI_CONFIG: ${{ needs.ci-config.result }}
+          INSTALLED_PROVIDER_ARTIFACTS: ${{ needs.installed-provider-artifacts.result }}
+          PYTHON_QUALITY: ${{ needs.python-quality.result }}
+          PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
+          QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
+          POSTGRES_CONCURRENCY_GATES: ${{ needs.postgres-concurrency-gates.result }}
+          RECOVERY_CONTINUITY_DRILL: ${{ needs.recovery-continuity-drill.result }}
+          WINDOWS_RELEASE_CONTRACT: ${{ needs.windows-release-contract.result }}
+          PYTHON_PACKAGE_TESTS: ${{ needs.python-package-tests.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+          PHLO_AGENT: ${{ needs.phlo-agent.result }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "### CI summary"
+            echo ""
+            echo "| Lane | Result |"
+            echo "|---|---|"
+            echo "| ci / config | ${CI_CONFIG} |"
+            echo "| python / installed provider artifacts | ${INSTALLED_PROVIDER_ARTIFACTS} |"
+            echo "| python / quality | ${PYTHON_QUALITY} |"
+            echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
+            echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
+            echo "| python / postgres concurrency gates | ${POSTGRES_CONCURRENCY_GATES} |"
+            echo "| python / recovery continuity drill | ${RECOVERY_CONTINUITY_DRILL} |"
+            echo "| windows / release golden path contract | ${WINDOWS_RELEASE_CONTRACT} |"
+            echo "| python / package tests | ${PYTHON_PACKAGE_TESTS} |"
+            echo "| frontend / observatory | ${FRONTEND} |"
+            echo "| agent / eve | ${PHLO_AGENT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for result in \
+            "${CI_CONFIG}" \
+            "${INSTALLED_PROVIDER_ARTIFACTS}" \
+            "${PYTHON_QUALITY}" \
+            "${PYTHON_CORE_TESTS}" \
+            "${QUICKSTART_SMOKE}" \
+            "${POSTGRES_CONCURRENCY_GATES}" \
+            "${RECOVERY_CONTINUITY_DRILL}" \
+            "${WINDOWS_RELEASE_CONTRACT}" \
+            "${PYTHON_PACKAGE_TESTS}" \
+            "${FRONTEND}" \
+            "${PHLO_AGENT}"; do
+            if [ "${result}" != "success" ]; then
+              exit 1
+            fi
+          done

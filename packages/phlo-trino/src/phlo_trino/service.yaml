@@ -1,0 +1,110 @@
+name: trino
+description: Distributed SQL query engine for the data lake
+category: core
+default: true
+
+image: trinodb/trino:483@sha256:db58cc93e593a2706553745f276bb119c9810e69918be56ecde088ba7ccb0534
+
+depends_on:
+  - nessie
+  - minio
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false" # Trino doesn't expose /metrics natively; use JMX exporter for metrics
+    phlo.grafana.datasource: "true"
+    phlo.grafana.datasource.type: "trino"
+    phlo.grafana.datasource.name: "Trino"
+    phlo.grafana.datasource.url: "trino:8080"
+    traefik.enable: "true"
+    traefik.http.routers.trino.rule: "Host(`trino.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.trino.entrypoints: "web"
+    traefik.http.services.trino.loadbalancer.server.port: "8080"
+  environment:
+    AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
+    AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}
+    AWS_REGION: us-east-1
+    S3_ENDPOINT: http://minio:9000
+    S3_PATH_STYLE_ACCESS: "true"
+  ports:
+    - "${TRINO_PORT:-10005}:8080"
+  mem_limit: 2g
+  volumes:
+    - ./trino:/etc/trino:rw
+  healthcheck:
+    test: ["CMD-SHELL", "[ \"$(curl -fsS http://127.0.0.1:8080/v1/info/state | tr -d '\"')\" = \"ACTIVE\" ]"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+    start_period: 90s
+
+env_vars:
+  TRINO_VERSION:
+    default: "483"
+    description: Trino version
+  TRINO_PORT:
+    default: 10005
+    description: Trino HTTP host port
+  # Authentication
+  TRINO_AUTH_TYPE:
+    default: ""
+    description: "Authentication type: PASSWORD, OAUTH2, JWT, CERTIFICATE, KERBEROS, or empty for none"
+  TRINO_LDAP_URL:
+    default: ""
+    description: "LDAP server URL for PASSWORD auth (e.g., ldaps://ldap.example.com:636)"
+  TRINO_LDAP_USER_BIND_PATTERN:
+    default: ""
+    description: "LDAP user bind pattern (e.g., ${USER}@example.com)"
+  TRINO_OAUTH2_ISSUER:
+    default: ""
+    description: "OAuth2/OIDC issuer URL"
+  TRINO_OAUTH2_CLIENT_ID:
+    default: ""
+    description: "OAuth2 client ID"
+  TRINO_OAUTH2_CLIENT_SECRET:
+    default: ""
+    description: "OAuth2 client secret"
+    secret: true
+  # TLS/HTTPS
+  TRINO_HTTPS_ENABLED:
+    default: "false"
+    description: "Enable HTTPS for Trino coordinator"
+  TRINO_HTTPS_KEYSTORE_PATH:
+    default: ""
+    description: "Path to Java keystore for HTTPS"
+  TRINO_HTTPS_KEYSTORE_PASSWORD:
+    default: ""
+    description: "Keystore password"
+    secret: true
+  # Access Control
+  TRINO_ACCESS_CONTROL_TYPE:
+    default: ""
+    description: "Access control type: file, read-only, allow-all, or empty for default"
+  TRINO_ACCESS_CONTROL_CONFIG_FILE:
+    default: ""
+    description: "Path to access control rules JSON file"
+  # Query result caching (requires Trino Enterprise or equivalent setup)
+  TRINO_QUERY_CACHE_ENABLED:
+    default: "false"
+    description: Enable query result caching
+  TRINO_QUERY_CACHE_MAX_SIZE:
+    default: "100MB"
+    description: Maximum size of query result cache
+  TRINO_QUERY_CACHE_TTL:
+    default: "1h"
+    description: Time-to-live for cached query results
+
+files:
+  - source: jvm.config
+    dest: trino/jvm.config
+  - source: config.properties
+    dest: trino/config.properties
+  - source: node.properties
+    dest: trino/node.properties
+  - source: catalog/iceberg.properties
+    dest: trino/catalog/iceberg.properties
+  - source: catalog/iceberg_dev.properties
+    dest: trino/catalog/iceberg_dev.properties
+  - source: catalog/delta.properties
+    dest: trino/catalog/delta.properties

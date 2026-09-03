@@ -1,0 +1,35 @@
+name: Renovate Config
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "renovate.json"
+      - ".github/workflows/renovate-config.yml"
+      - "tests/tooling/test_renovate_container_images.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version: 24
+
+      - name: Validate Renovate configuration
+        # zizmor: ignore[adhoc-packages] -- the validator version is explicit and
+        # independently checked; this repository does not ship a Node tool lockfile.
+        run: |
+          npm install --global renovate@44.20.1
+          renovate-config-validator renovate.json

@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+observatory_dir="$repo_root/packages/phlo-observatory/src/phlo_observatory"
+agent_dir="$repo_root/apps/phlo-agent"
+
+run_step() {
+  local label="$1"
+  shift
+  echo "==> $label"
+  time "$@"
+}
+
+install_docker() {
+  if command -v docker >/dev/null 2>&1 &&
+    docker compose version >/dev/null 2>&1 &&
+    docker buildx version >/dev/null 2>&1; then
+    return
+  fi
+
+  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo curl -fsSL https://download.docker.com/linux/debian/gpg \
+    -o /etc/apt/keyrings/docker.asc
+  sudo chmod a+r /etc/apt/keyrings/docker.asc
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" |
+    sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+  sudo apt-get update
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+}
+
+ensure_docker_daemon() {
+  if docker info >/dev/null 2>&1; then
+    return
+  fi
+
+  amp orb service start docker-daemon --command "sudo dockerd --group $(id -gn)"
+
+  for _ in {1..50}; do
+    if docker info >/dev/null 2>&1; then
+      return
+    fi
+    sleep 0.2
+  done
+  echo "Docker daemon did not become ready" >&2
+  amp orb service logs docker-daemon >&2 || true
+  return 1
+}
+
+install_uv() {
+  if ! command -v uv >/dev/null 2>&1 || [[ "$(uv --version | awk '{print $2}')" != "0.12.1" ]]; then
+    curl -LsSf https://astral.sh/uv/0.12.1/install.sh | sh
+  fi
+}
+
+install_node() {
+  local node_version node_root archive architecture
+  node_version="v24.6.0"
+  node_root="$HOME/.local/share/nodejs/node-$node_version"
+
+  if [[ ! -x "$node_root/bin/node" ]]; then
+    case "$(uname -m)" in
+      x86_64) architecture="x64" ;;
+      aarch64|arm64) architecture="arm64" ;;
+      *) echo "Unsupported architecture for Node.js: $(uname -m)" >&2; return 1 ;;
+    esac
+    archive="node-$node_version-linux-$architecture.tar.xz"
+    mkdir -p "$node_root"
+    curl -LsSf "https://nodejs.org/dist/$node_version/$archive" |
+      tar -xJ --strip-components=1 -C "$node_root"
+  fi
+
+  export PATH="$node_root/bin:$PATH"
+
+  local marker="# phlo orb Node.js"
+  if ! grep -Fqx "$marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >> "$HOME/.bash_profile" <<EOF
+
+$marker
+if [[ "\${PWD}" == "$repo_root" || "\${PWD}" == "$repo_root/"* ]]; then
+  export PATH="$node_root/bin:\$PATH"
+fi
+EOF
+  fi
+}
+
+cd "$repo_root"
+run_step "Install Docker" install_docker
+run_step "Start Docker daemon" ensure_docker_daemon
+run_step "Install uv 0.12.1" install_uv
+export PATH="$HOME/.local/bin:$PATH"
+run_step "Install Python 3.11" uv python install 3.11
+run_step "Sync Python workspace" uv sync --python 3.11 --dev --locked
+run_step "Install Node.js 24" install_node
+run_step "Sync Observatory dependencies" npm ci --prefix "$observatory_dir"
+run_step "Sync Phlo agent dependencies" npm ci --prefix "$agent_dir"
+
+echo "Orb setup complete."

@@ -1,0 +1,27 @@
+name: openmetadata-mysql
+description: OpenMetadata MySQL datastore
+category: catalog
+default: false
+profile: openmetadata
+
+image: docker.io/openmetadata/db:1.13.1@sha256:6659446dba183f1e9364602839dd999c06a83f7d2e905d1c3fb22a74f3e27288
+
+compose:
+  restart: unless-stopped
+  command: "--sort_buffer_size=10M"
+  environment:
+    MYSQL_ROOT_PASSWORD: ${OPENMETADATA_DB_ROOT_PASSWORD:-password}
+  healthcheck:
+    test:
+      [
+        "CMD",
+        "mysqladmin",
+        "ping",
+        "--silent",
+        "--host=127.0.0.1",
+        "--user=root",
+        "--password=$$MYSQL_ROOT_PASSWORD",
+      ]
+    interval: 15s
+    timeout: 10s
+    retries: 10

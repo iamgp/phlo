@@ -1,0 +1,14 @@
+{
+  "title": "Operations",
+  "pages": [
+    "index",
+    "operations-guide",
+    "audit-logging",
+    "release-management",
+    "production-readiness",
+    "local-development-troubleshooting",
+    "best-practices",
+    "testing",
+    "troubleshooting"
+  ]
+}

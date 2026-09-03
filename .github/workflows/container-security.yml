@@ -1,0 +1,127 @@
+name: Container Security
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "scripts/container_security.py"
+      - "scripts/generated_image_matrix.py"
+      - "security/**"
+      - ".github/workflows/build-core-services.yml"
+      - ".github/workflows/container-rescan.yml"
+      - ".github/workflows/container-security.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+  schedule:
+    - cron: "10 2 * * *"
+
+concurrency:
+  group: container-security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  waivers:
+    name: containers / waiver register
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+      - name: Validate register and generated report
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py validate-waivers
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py render-waivers --output "$RUNNER_TEMP/container-waivers.md"
+          diff -u security/container-waivers.md "$RUNNER_TEMP/container-waivers.md"
+
+  affected:
+    name: containers / affected images
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.images.outputs.matrix }}
+      has_images: ${{ steps.images.outputs.has_images }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+      - id: images
+        name: Select generated service images
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git cat-file -e "$BASE_SHA^{commit}"
+            git cat-file -e "$HEAD_SHA^{commit}"
+            matrix="$(uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py affected-images --base "$BASE_SHA" --head "$HEAD_SHA")"
+          else
+            matrix="$(uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py affected-images --all)"
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          if [ "$(jq '.include | length' <<< "$matrix")" -gt 0 ]; then echo "has_images=true" >> "$GITHUB_OUTPUT"; else echo "has_images=false" >> "$GITHUB_OUTPUT"; fi
+
+  hadolint:
+    name: containers / lint ${{ matrix.target.service }}
+    needs: affected
+    if: needs.affected.outputs.has_images == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.affected.outputs.matrix).include }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Lint generated-service Dockerfile
+        run: docker run --rm -i hadolint/hadolint@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "${{ matrix.target.package }}/${{ matrix.target.dockerfile }}"
+
+  generated-files:
+    name: containers / generated files
+    needs: affected
+    if: needs.affected.outputs.has_images == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+      - name: Validate generated Dockerfiles and Compose configuration
+        env:
+          TARGETS: ${{ needs.affected.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          uv python install 3.11
+          uv sync --python 3.11 --all-packages --locked
+          mapfile -t services < <(jq -r '.include[].service' <<< "$TARGETS")
+          project="$RUNNER_TEMP/generated-service-project"
+          mkdir -p "$project"
+          cd "$project"
+          uv --project "$GITHUB_WORKSPACE" run --locked phlo services init --no-dev --force
+          add_args=()
+          for service in "${services[@]}"; do add_args+=(--service "$service"); done
+          uv --project "$GITHUB_WORKSPACE" run --locked phlo services add "${add_args[@]}" --no-start
+          docker compose --profile '*' -f "$project/.phlo/docker-compose.yml" --project-directory "$project/.phlo" config --format json > "$RUNNER_TEMP/generated-compose.json"

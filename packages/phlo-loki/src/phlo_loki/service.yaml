@@ -1,0 +1,36 @@
+name: loki
+description: Log aggregation and querying
+category: observability
+default: false
+profile: observability
+
+image: grafana/loki:3.7.4@sha256:87f0a067673756a3cede1bcbf0c74875f7df9b09fddb53e399d0c576f756cfcc
+
+compose:
+  restart: unless-stopped
+  user: "0"
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "loki:3100"
+    phlo.metrics.path: "/metrics"
+  command: -config.file=/etc/loki/loki-config.yml
+  ports:
+    - "${LOKI_PORT:-3100}:3100"
+  volumes:
+    - ./loki:/etc/loki:ro
+    - loki-data:/loki
+
+env_vars:
+  LOKI_PORT:
+    default: 3100
+    description: Loki API port
+  LOKI_PUBLIC_URL:
+    default: ""
+    description: Public Loki base URL used by observability links
+  LOKI_LOGS_PATH:
+    default: "/logs"
+    description: Path used to build Loki log query links
+
+files:
+  - source: loki-config.yml
+    dest: loki/loki-config.yml

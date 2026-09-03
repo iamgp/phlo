@@ -1,0 +1,85 @@
+name: clickhouse
+description: ClickHouse analytical database for data plane
+category: data
+default: false
+
+image: ${CLICKHOUSE_IMAGE:-clickhouse/clickhouse-server:26.5.6.64-alpine@sha256:446c9d82443b926a5aacb952448dd632672606acc691ce1b3c2292b68a1197c2}
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "clickhouse:9363"
+    phlo.metrics.path: "/metrics"
+    phlo.grafana.datasource: "true"
+    phlo.grafana.datasource.type: "grafana-clickhouse-datasource"
+    phlo.grafana.datasource.name: "ClickHouse"
+    phlo.grafana.datasource.url: "clickhouse:9000"
+    traefik.enable: "true"
+    traefik.http.routers.clickhouse.rule: "Host(`clickhouse.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.clickhouse.entrypoints: "web"
+    traefik.http.services.clickhouse.loadbalancer.server.port: "8123"
+  environment:
+    CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+    CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+    CLICKHOUSE_DB: ${CLICKHOUSE_DB:-default}
+    CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_ACCESS_MANAGEMENT:-1}
+  ports:
+    - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+    - "${CLICKHOUSE_NATIVE_PORT:-19000}:9000"
+    - "${CLICKHOUSE_METRICS_PORT:-9363}:9363"
+  volumes:
+    - clickhouse-data:/var/lib/clickhouse
+    - clickhouse-logs:/var/log/clickhouse-server
+  healthcheck:
+    test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8123/ping"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+    start_period: 30s
+  ulimits:
+    nofile:
+      soft: 262144
+      hard: 262144
+
+env_vars:
+  CLICKHOUSE_IMAGE:
+    default: "clickhouse/clickhouse-server:26.5.6.64-alpine@sha256:446c9d82443b926a5aacb952448dd632672606acc691ce1b3c2292b68a1197c2"
+    description: Complete ClickHouse server image reference
+  CLICKHOUSE_HTTP_PORT:
+    default: 8123
+    description: ClickHouse HTTP interface port
+  CLICKHOUSE_NATIVE_PORT:
+    default: 19000
+    description: ClickHouse native protocol port
+  CLICKHOUSE_METRICS_PORT:
+    default: 9363
+    description: ClickHouse Prometheus metrics port
+  CLICKHOUSE_USER:
+    default: "default"
+    description: ClickHouse default username
+  CLICKHOUSE_PASSWORD:
+    default: ""
+    description: ClickHouse default user password
+    secret: true
+  CLICKHOUSE_DB:
+    default: "default"
+    description: Default ClickHouse database
+  CLICKHOUSE_ACCESS_MANAGEMENT:
+    default: "1"
+    description: "Enable SQL-driven access management (1=enabled, 0=disabled)"
+  CLICKHOUSE_HTTPS_PORT:
+    default: ""
+    description: "HTTPS port (empty = disabled)"
+  CLICKHOUSE_TLS_CERT_FILE:
+    default: ""
+    description: "Path to TLS certificate file"
+  CLICKHOUSE_TLS_KEY_FILE:
+    default: ""
+    description: "Path to TLS private key file"
+  CLICKHOUSE_MAX_MEMORY_USAGE:
+    default: ""
+    description: "Maximum memory usage per query (e.g., 10000000000 for ~10GB)"
+  CLICKHOUSE_MAX_SERVER_MEMORY_USAGE_RATIO:
+    default: ""
+    description: "Max fraction of total RAM the server can use (e.g., 0.9)"

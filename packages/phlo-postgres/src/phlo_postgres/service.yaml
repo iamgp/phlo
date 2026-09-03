@@ -1,0 +1,63 @@
+name: postgres
+description: PostgreSQL database for metadata and operational storage
+category: core
+default: true
+
+depends_on:
+  - postgres-volume-setup
+
+image: postgres:18.4-alpine3.24@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false"
+    phlo.grafana.datasource: "true"
+    phlo.grafana.datasource.type: "postgres"
+    phlo.grafana.datasource.name: "PostgreSQL"
+    phlo.grafana.datasource.url: "postgres:5432"
+    phlo.grafana.datasource.database: "${POSTGRES_DB:-phlo}"
+  environment:
+    POSTGRES_USER: ${POSTGRES_USER:-phlo}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
+    POSTGRES_DB: ${POSTGRES_DB:-phlo}
+    # SSL/TLS
+    POSTGRES_SSL_MODE: ${POSTGRES_SSL_MODE:-prefer}
+  ports:
+    - "${POSTGRES_PORT:-10000}:5432"
+  volumes:
+    - postgres-data:/var/lib/postgresql
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-phlo}"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+
+env_vars:
+  POSTGRES_USER:
+    default: phlo
+    description: PostgreSQL username
+  POSTGRES_PASSWORD:
+    default: phlo
+    description: PostgreSQL password
+    secret: true
+  POSTGRES_DB:
+    default: phlo
+    description: PostgreSQL database name
+  POSTGRES_PORT:
+    default: 10000
+    description: PostgreSQL host port
+
+  # SSL/TLS
+  POSTGRES_SSL_MODE:
+    default: "prefer"
+    description: "SSL mode: disable, allow, prefer, require, verify-ca, verify-full"
+  POSTGRES_SSL_CERT_FILE:
+    default: ""
+    description: "Path to SSL certificate file"
+  POSTGRES_SSL_KEY_FILE:
+    default: ""
+    description: "Path to SSL private key file"
+  POSTGRES_SSL_CA_FILE:
+    default: ""
+    description: "Path to SSL CA certificate file"

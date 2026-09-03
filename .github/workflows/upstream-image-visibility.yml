@@ -1,0 +1,264 @@
+name: Upstream Image Visibility
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    paths:
+      - "packages/**"
+      - "scripts/container_security.py"
+  workflow_dispatch:
+  schedule:
+    # Runs after the blocking first-party rescan (04:25 UTC). Scanning 24 large
+    # vendor images sequentially is intentionally thorough and may approach an hour.
+    - cron: "20 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  discover-candidates:
+    name: discover upstream image candidates
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.type == 'Bot' &&
+      startsWith(github.head_ref, 'renovate/') &&
+      contains(github.event.pull_request.labels.*.name, 'dependencies')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      count: ${{ steps.manifest.outputs.count }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+          enable-cache: true
+
+      - name: Derive exact base and candidate image references
+        id: manifest
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            write-upstream-candidates \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --output upstream-candidates.json
+          echo "count=$(jq '.images | length' upstream-candidates.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload candidate manifest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: upstream-image-candidates
+          path: upstream-candidates.json
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-candidates:
+    name: compare upstream image candidate security
+    needs: discover-candidates
+    if: needs.discover-candidates.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+          enable-cache: true
+
+      - name: Derive exact base and candidate image references
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            write-upstream-candidates \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --output upstream-candidates.json
+          mkdir -p base-reports candidate-reports upstream-trivy-cache
+
+      - name: Download one pinned Trivy database snapshot
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/upstream-trivy-cache:/cache" \
+            aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+            image --cache-dir /cache --download-db-only < /dev/null
+
+      - name: Scan exact base and candidate references with the same database snapshot
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r base candidate base_report candidate_report; do
+            echo "Scanning base $base"
+            docker run --rm \
+              -v "$PWD:/work" \
+              -v "$PWD/upstream-trivy-cache:/cache" \
+              -w /work \
+              aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+              image --cache-dir /cache --skip-db-update --timeout 10m --scanners vuln --format json \
+              --output "/work/base-reports/$base_report" "$base" < /dev/null
+            echo "Scanning candidate $candidate"
+            docker run --rm \
+              -v "$PWD:/work" \
+              -v "$PWD/upstream-trivy-cache:/cache" \
+              -w /work \
+              aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+              image --cache-dir /cache --skip-db-update --timeout 10m --scanners vuln --format json \
+              --output "/work/candidate-reports/$candidate_report" "$candidate" < /dev/null
+          done < <(jq -r '.images[] | [.base, .candidate, .base_report, .candidate_report] | @tsv' upstream-candidates.json)
+
+      - name: Compare candidate security
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            compare-upstream-candidates \
+            --manifest upstream-candidates.json \
+            --base-reports base-reports \
+            --candidate-reports candidate-reports \
+            --output upstream-candidate-summary.md
+
+      - name: Publish candidate comparison
+        if: always()
+        run: cat upstream-candidate-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload candidate comparison evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: upstream-image-candidate-comparison
+          path: |
+            upstream-candidates.json
+            upstream-candidate-summary.md
+            base-reports/*.json
+            candidate-reports/*.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-candidate-comparison:
+    name: publish upstream image candidate comparison
+    needs: [discover-candidates, compare-candidates]
+    if: >-
+      always() &&
+      needs.discover-candidates.result == 'success' &&
+      fromJSON(needs.discover-candidates.outputs.count) > 0
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Download candidate comparison summary
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: upstream-image-candidate-comparison
+          path: comparison
+
+      - name: Create or update one candidate comparison comment
+        env:
+          COMPARISON_RESULT: ${{ needs.compare-candidates.result }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          marker='<!-- phlo-upstream-image-candidate-comparison -->'
+          if [ "$COMPARISON_RESULT" = success ]; then
+            result='PASS: candidate strictly improves CRITICAL/HIGH findings.'
+          else
+            result='FAIL: candidate does not meet the CRITICAL/HIGH improvement gate.'
+          fi
+          {
+            printf '%s\n\n' "$marker"
+            printf '> **Upstream image candidate comparison: %s**\n\n' "$result"
+            cat comparison/upstream-candidate-summary.md
+          } > comment.md
+          jq --rawfile body comment.md '{body: $body}' > comment-payload.json
+          mapfile -t comment_ids < <(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" |
+              jq -r --arg marker "$marker" \
+                '.[] | select(.user.login == "github-actions[bot]" and (.body | contains($marker))) | .id'
+          )
+          if [ "${#comment_ids[@]}" -eq 0 ]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+              --input comment-payload.json
+          else
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/${comment_ids[0]}" \
+              --input comment-payload.json
+            for comment_id in "${comment_ids[@]:1}"; do
+              gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id"
+            done
+          fi
+
+  scan:
+    name: scan vendor runtime images
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "0.12.1"
+          enable-cache: true
+
+      - name: Derive immutable upstream inventory
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            write-upstream-inventory \
+            --output upstream-inventory.json
+          mkdir -p upstream-reports upstream-trivy-cache
+
+      - name: Scan every upstream runtime image
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r reference report; do
+            echo "Scanning $reference"
+            docker run --rm \
+              -v "$PWD:/work" \
+              -v "$PWD/upstream-trivy-cache:/cache" \
+              -w /work \
+              aquasec/trivy@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+              image --cache-dir /cache --timeout 10m --scanners vuln --format json \
+              --output "/work/upstream-reports/$report" "$reference" < /dev/null
+          done < <(jq -r '.images[] | [.reference, .report] | @tsv' upstream-inventory.json)
+
+      - name: Validate reports and publish summary
+        run: |
+          set -euo pipefail
+          uv run --no-project --with pyyaml==6.0.3 python scripts/container_security.py \
+            summarize-upstream-reports \
+            --inventory upstream-inventory.json \
+            --reports upstream-reports \
+            --output upstream-summary.md
+          cat upstream-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload inventory, summary, and raw reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: upstream-image-visibility
+          path: |
+            upstream-inventory.json
+            upstream-summary.md
+            upstream-reports/*.json
+          if-no-files-found: error
+          retention-days: 30

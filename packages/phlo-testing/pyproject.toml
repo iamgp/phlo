@@ -1,0 +1,54 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "dagster>=1.13,<1.14",
+    "dagster-graphql>=1.13,<1.14",
+    "phlo>=0.14.0,<0.15",
+    "phlo-postgres>=0.1.0",
+    "duckdb>=0.9.0",
+    "pyarrow>=21.0.0",
+    "pyiceberg>=0.10.0",
+    "pandas>=2.3.3",
+    "pandera>=0.26.1",
+    "dlt>=1.18.2",
+    "requests>=2.32.5",
+]
+description = "Testing utilities for Phlo"
+name = "phlo-testing"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+dlt = ["phlo-dlt>=0.1.0"]
+trino = ["phlo-trino>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "Testing utilities for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

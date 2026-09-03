@@ -1,0 +1,80 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "dagster>=1.13,<1.14",
+    "dagster-graphql>=1.13,<1.14",
+    "dagster-webserver>=1.13,<1.14",
+    "psycopg2-binary>=2.9.11",
+    "pyyaml>=6.0.1",
+    "requests>=2.32.5",
+    "PyJWT[crypto]>=2.13.0",
+    "cryptography>=48.0.1",
+]
+description = "Dagster service plugin for Phlo"
+name = "phlo-dagster"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.cli"]
+dagster = "phlo_dagster.cli_plugin:DagsterCliPlugin"
+
+[project.entry-points."phlo.plugins.observatory"]
+dagster = "phlo_dagster.observatory_plugin:DagsterObservatoryExtension"
+
+[project.entry-points."phlo.plugins.orchestrators"]
+dagster = "phlo_dagster.adapter:DagsterOrchestratorAdapter"
+
+[project.entry-points."phlo.plugins.services"]
+dagster = "phlo_dagster.plugin:DagsterServicePlugin"
+dagster-daemon = "phlo_dagster.plugin:DagsterDaemonServicePlugin"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+alerting = ["phlo-alerting>=0.1.0"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+iceberg = ["phlo-iceberg>=0.1.0"]
+nessie = ["phlo-nessie>=0.1.0"]
+observatory = ["phlo-observatory>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "Dagster service plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+phlo_dagster = [
+    "service.yaml",
+    "dagster-daemon.yaml",
+    "Dockerfile",
+    "entrypoint.sh",
+    "templates/*.yaml",
+    "observatory_assets/*",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

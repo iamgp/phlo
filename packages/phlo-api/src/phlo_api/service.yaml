@@ -1,0 +1,103 @@
+name: phlo-api
+description: Phlo API - Backend service exposing phlo internals to Observatory
+category: api
+default: false
+profile: api
+phlo_dev: true
+
+image: ghcr.io/phlohouse/phlo-api:0.14.0
+build:
+    context: .
+    dockerfile: phlo-api/Dockerfile
+    args:
+        PHLO_VERSION: ${PHLO_VERSION:-}
+        PHLO_API_VERSION: ${PHLO_API_VERSION:-}
+        PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
+
+depends_on:
+    - postgres
+
+compose:
+    restart: unless-stopped
+    labels:
+        phlo.metrics.enabled: "true"
+        phlo.metrics.port: "phlo-api:4000"
+        phlo.metrics.path: "/api/maintenance/metrics"
+    environment:
+        HOST: 0.0.0.0
+        PORT: 4000
+        PYTHONUNBUFFERED: "1"
+        PHLO_AUTHORIZATION_MODE: ${PHLO_AUTHORIZATION_MODE:-required}
+        PHLO_SERVICE_CREDENTIALS_FILE: ${PHLO_SERVICE_CREDENTIALS_FILE:-}
+        CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}
+        CLICKSTACK_QUERY_USER: ${CLICKSTACK_QUERY_USER:-}
+        CLICKSTACK_QUERY_PASSWORD: ${CLICKSTACK_QUERY_PASSWORD:-}
+        PHLO_PROJECT_PATH: /app
+        PHLO_RUN_EVIDENCE_DB_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
+    ports:
+        - "${PHLO_API_PORT:-4000}:4000"
+    volumes:
+        - ../:/app:ro
+        - ./logs:/app/.phlo/logs
+        # API-managed state must remain writable while the project definition
+        # itself stays immutable inside a release container.
+        - ../.phlo/observatory:/app/.phlo/observatory
+        - ../.phlo/state:/app/.phlo/state
+    healthcheck:
+        test:
+            [
+                "CMD",
+                "python",
+                "-c",
+                "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health')",
+            ]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 10s
+
+env_vars:
+    PHLO_VERSION:
+        default: ""
+        package: phlo
+        description: Phlo package version to install in service images
+    PHLO_API_VERSION:
+        default: ""
+        package: phlo-api
+        description: phlo-api package version to install in the service image
+    PHLO_API_PORT:
+        default: 4000
+        description: Phlo API port
+
+files:
+    - source: Dockerfile
+      dest: phlo-api/Dockerfile
+    - source: entrypoint.sh
+      dest: phlo-api/entrypoint.sh
+
+# Dev mode: run as subprocess (no Docker)
+dev:
+    command:
+        [
+            "python",
+            "-m",
+            "uvicorn",
+            "phlo_api.main:app",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "4000",
+        ]
+    environment:
+        PYTHONUNBUFFERED: "1"
+        PHLO_DEV_MODE: "true"
+        DAGSTER_GRAPHQL_URL: "http://127.0.0.1:${DAGSTER_PORT:-10006}/graphql"
+        NESSIE_URL: "http://127.0.0.1:${NESSIE_PORT:-10003}/api/v2"
+        TRINO_URL: "http://127.0.0.1:${TRINO_PORT:-10005}"
+        TRINO_USER: ${PHLO_API_TRINO_USER:-phlo-api}
+        TRINO_ROLE: ${PHLO_API_TRINO_ROLE:-}
+        CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}
+        CLICKSTACK_QUERY_USER: ${CLICKSTACK_QUERY_USER:-}
+        CLICKSTACK_QUERY_PASSWORD: ${CLICKSTACK_QUERY_PASSWORD:-}
+    health_check: "http://127.0.0.1:4000/health"
+    cwd: "{project_root}"

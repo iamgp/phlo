@@ -1,0 +1,59 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "dlt>=1.18.2",
+    "pandas>=2.3.3",
+    "pyarrow>=21.0.0",
+    "pyiceberg>=0.10.0",
+    "python-ulid>=2.0.0",
+]
+description = "DLT ingestion engine capability plugin for Phlo"
+name = "phlo-dlt"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.assets"]
+dlt = "phlo_dlt.plugin:DltAssetProvider"
+
+[project.entry-points."phlo.plugins.cli"]
+dlt = "phlo_dlt.cli_plugin:DltCliPlugin"
+
+[project.entry-points."phlo.plugins.ingestion_providers"]
+dlt = "phlo_dlt.plugin:DLTIngestionProvider"
+
+[project.entry-points."phlo.project_templates"]
+dlt = "phlo_dlt.templates:templates"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.readme]
+content-type = "text/plain"
+text = "DLT ingestion engine capability plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

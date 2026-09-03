@@ -1,0 +1,4 @@
+# Container vulnerability exceptions. Do not put credentials or other secrets here.
+# Keep this list empty until an approved, time-limited exception is necessary.
+version: 1
+waivers: []

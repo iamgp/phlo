@@ -1,0 +1,49 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
+
+[project]
+dependencies = [
+    "phlo>=0.14.0,<0.15",
+    "pandera[pandas]>=0.26.1",
+    "deltalake>=0.25.0",
+    "pyarrow>=14.0.0",
+]
+description = "Delta Lake table-store capability plugin for Phlo"
+name = "phlo-delta"
+requires-python = ">=3.11"
+version = "0.14.0"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.resources"]
+delta = "phlo_delta.plugin:DeltaResourceProvider"
+
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+minio = ["phlo-minio>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "Delta Lake table-store capability plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 3am every day"],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 4,
+  "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update immutable package runtime image defaults.",
+      "managerFilePatterns": ["^packages/[^/]+/src/[^/]+/.+\\.ya?ml$"],
+      "matchStrings": [
+        "(?m)^image:(?<spacing>[ \\t]+)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})[ \\t]*$",
+        "(?m)^image:(?<spacing>[ \\t]+)(?<wrapperPrefix>\\$\\{(?<envName>[A-Z][A-Z0-9_]*)\\:-)(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[^@\\s}]+)@(?<currentDigest>sha256:[0-9a-f]{64})(?<wrapperSuffix>\\})[ \\t]*$"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker",
+      "autoReplaceStringTemplate": "image:{{{spacing}}}{{{wrapperPrefix}}}{{{depName}}}:{{{newValue}}}@{{{newDigest}}}{{{wrapperSuffix}}}"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security"],
+    "groupName": "security dependency remediation",
+    "rangeStrategy": "update-lockfile",
+    "vulnerabilityFixStrategy": "lowest"
+  },
+  "packageRules": [
+    {
+      "description": "Keep upstream runtime image digest updates review-required.",
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["docker"],
+      "automerge": false
+    },
+    {
+      "description": "Do not update Phlo-owned published images as upstream dependencies.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["ghcr.io/phlohouse/phlo-*"],
+      "enabled": false
+    },
+    {
+      "description": "Group GitHub Actions updates.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Group Python dependency updates outside release refresh lanes.",
+      "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
+      "excludePackageNames": [
+        "ruff",
+        "pytest",
+        "psycopg2-binary",
+        "dbt-core",
+        "pyarrow",
+        "opentelemetry-api",
+        "opentelemetry-sdk",
+        "opentelemetry-exporter-otlp-proto-grpc",
+        "dagster",
+        "dagster-webserver",
+        "rich",
+        "clickhouse-connect"
+      ],
+      "groupName": "python-deps"
+    },
+    {
+      "description": "Release refresh lane: patch-only low-risk Python dependency updates.",
+      "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
+      "matchPackageNames": ["ruff", "pytest", "psycopg2-binary"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "release-safe-python-patches",
+      "dependencyDashboardApproval": true,
+      "labels": ["dependencies", "release-refresh", "safe-patch"]
+    },
+    {
+      "description": "Release refresh lane: larger runtime/tooling jumps that need explicit release validation.",
+      "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
+      "matchPackageNames": [
+        "pyarrow",
+        "dbt-core",
+        "opentelemetry-api",
+        "opentelemetry-sdk",
+        "opentelemetry-exporter-otlp-proto-grpc",
+        "dagster",
+        "dagster-webserver",
+        "rich",
+        "clickhouse-connect"
+      ],
+      "groupName": "release-risk-managed-python-deps",
+      "dependencyDashboardApproval": true,
+      "labels": ["dependencies", "release-refresh", "risk-managed"]
+    },
+    {
+      "description": "Group Observatory (JS/TS) dependencies.",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["packages/phlo-observatory/src/phlo_observatory/package.json"],
+      "groupName": "observatory-js"
+    },
+    {
+      "description": "Automerge patch/minor dev-only updates.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Keep major updates manual.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "matchPackageNames": ["python"],
+      "matchDatasources": ["docker"],
+      "enabled": false
+    }
+  ]
+}

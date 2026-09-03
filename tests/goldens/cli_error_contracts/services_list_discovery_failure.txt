@@ -1,0 +1,4 @@
+exit_code=1
+output<<EOF
+Error: Failed to discover services. Verify service plugins are installed and run `phlo plugins list` for diagnostics.
+EOF
