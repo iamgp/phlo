@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "delta_schema": "phlo.support.delta.v1",
+  "schema_version": "1.0",
+  "status": "proposed_unapplied",
+  "title": "Unapplied v1 support-manifest delta proposed by issue #837",
+  "decision_record": "docs/architecture/support-decisions.md",
+  "census_input": "docs/architecture/external-support-census.md",
+  "based_on_commit": "4daaec7d68",
+  "apply_in": [
+    "#859 (narrowing pass)",
+    "#860 (deprecation pass)"
+  ],
+  "not_applied_note": "This file is a proposal only. The applied manifest registry/support/v1.json, its schema registry/support/schema/v1.json, and scripts/validate_support_manifest.py behavior are unchanged while this file remains unapplied.",
+  "changes": [
+    {
+      "op": "schema-status-enum-add",
+      "target": "registry/support/schema/v1.json#/$defs/status/enum",
+      "add": "legacy_verified",
+      "census_rows": [5, 7, 12],
+      "rationale": "The census T3 tier (works, documented, no roadmap investment, honesty-mandatory) needs a manifest status that is not 'supported'. 'legacy_verified' records mechanical evidence of working-at-HEAD without implying investment. Applied together with the registry rename below so the two honest-support vocabularies match."
+    },
+    {
+      "op": "registry-flag-rename",
+      "target": [
+        "registry/plugins.json",
+        "src/phlo/plugins/registry_data.json"
+      ],
+      "change": "rename flag verified -> legacy_verified on all 31 entries; both byte-identical copies change together in one commit",
+      "census_rows": [14],
+      "rationale": "Census row 14: 'verified: true' reads as a support claim; the honest support record is registry/support/v1.json. Pure honesty rename, no behavior change. Preferred follow-up (separate slice): derive one registry copy from the other to end dual-file drift."
+    },
+    {
+      "op": "annotate",
+      "target": "registry/support/v1.json#/packages[?name=phlo-observatory-example]",
+      "change": "reason updated to note the example is community-tier documentation and is no longer auto-installed by the root dev dependency group (moved to an examples extra)",
+      "census_rows": [12],
+      "rationale": "Keeps the manifest reason consistent with the row-12 verdict; target_status development_only is already correct and does not change."
+    },
+    {
+      "op": "annotate",
+      "target": "registry/support/v1.json#/packages[?name=phlo-testing]",
+      "change": "reason updated to record the T2 internal-test-contract verdict and the packaging fix for the repo-only scripts/run_golden_path.py load",
+      "census_rows": [19],
+      "rationale": "The census contradicted the 'unconsumed' premise: 25 test files consume it. target_status development_only is unchanged; only the reason text becomes truthful."
+    }
+  ],
+  "non_changes": [
+    "No gate status changes; gates.required and gates.status are untouched.",
+    "No surface is deleted, shimmed, or reclassified by this proposal; implementation belongs to #859/#860/#861.",
+    "Module-level surfaces (census rows 1-6 and 10) intentionally receive no manifest entity; their verdicts live in the decision record only."
+  ]
+}
