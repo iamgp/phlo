@@ -508,10 +508,10 @@ class BundledStackHarness:
         .env.local overriding .env.
         """
         phlo_dir = self.project_dir / ".phlo"
-        env_vars = cast(dict[str, str], read_env_file(phlo_dir / ".env"))
+        env_vars = read_env_file(phlo_dir / ".env")
         local_env_path = phlo_dir / ".env.local"
         if local_env_path.exists():
-            env_vars.update(cast(dict[str, str], read_env_file(local_env_path)))
+            env_vars.update(read_env_file(local_env_path))
         return env_vars
 
     def default_partition_date(self) -> str:
@@ -1402,7 +1402,7 @@ def _write_bundled_stack_workflow(
     """Write default workflow files for bundled stack testing: sample ingestion,
     transformation, and publishing assets.
     """
-    env_vars = cast(dict[str, str], read_env_file(project_dir / ".phlo" / ".env"))
+    env_vars = read_env_file(project_dir / ".phlo" / ".env")
 
     run_phlo(
         [
@@ -1647,7 +1647,7 @@ def bootstrap_bundled_stack_harness(
             python_exe=python_executable,
         )
 
-        env_vars = cast(dict[str, str], read_env_file(target_project_dir / ".phlo" / ".env"))
+        env_vars = read_env_file(target_project_dir / ".phlo" / ".env")
         ports = BundledStackPorts.from_env(env_vars)
         _wait_for_bundled_stack_services(ports)
         return BundledStackHarness(
