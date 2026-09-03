@@ -534,7 +534,7 @@
       "scope": "outside_v1",
       "target_status": "development_only",
       "current_maturity": "development_only",
-      "reason": "Internal test contract (T2): first-party packages and repo test suites consume it. Packaging fixed so the installed harness no longer loads the repo-only scripts/run_golden_path.py; not a deployed v1 runtime guarantee.",
+      "reason": "Internal test contract (T2): first-party packages and repo test suites consume it. Packaging fixed so the installed harness owns its utilities instead of loading the repo-only golden-path script; not a deployed v1 runtime guarantee.",
       "evidence": [
         "packages/phlo-testing/pyproject.toml",
         "packages/phlo-testing/src/phlo_testing/harness_utils.py",
