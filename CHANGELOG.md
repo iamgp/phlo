@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Deprecated
+- phlo: deprecate the operations adapter quartet (#837 row 10 / S-10): instantiating `SyncToAsyncIngesterAdapter`, `AsyncToSyncIngesterAdapter`, `SyncToAsyncTransformerAdapter`, or `AsyncToSyncTransformerAdapter` now emits a `DeprecationWarning`; implement the target contract directly — no shim will be provided, removal after the deprecation cycle (#860)
 - phlo: deprecate the legacy `transformation` plugin SDK family (#837 SP9-DECISION-01, row 7): subclassing `TransformationPlugin` now emits a `DeprecationWarning`; build asset-provider plugins for new integrations. The family stays discoverable, scaffoldable, and importable as community tier (`legacy_verified`) (#860)
 - phlo: deprecate the dormant flow/transform authoring decorators (#837 rows 1–4): `@phlo.backfill` (B-30), `@phlo.schedule` (B-31), and `@phlo.transform.sql` (B-34) now emit a `DeprecationWarning` at decoration time and will be removed in an upcoming release; the execution implication taught for `@phlo.publish`/`@phlo.observe`/`@phlo.contract`/`@phlo.access` is deprecated — the governance-metadata path stays supported, and orchestration requires explicit asset/provider definitions (#860)
 - phlo: deprecate the `phlo.ingestion` compatibility alias (B-37, #837 row 6): calls through `phlo.ingestion(...)`, `phlo.phlo_ingestion(...)`, and `phlo.ingestion.get_ingestion_assets()` now emit a `DeprecationWarning`; migrate with `phlo migrate decorators-2026-05` (#860)
