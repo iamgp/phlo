@@ -147,6 +147,7 @@ For comprehensive testing patterns and best practices, see:
 `docs/TESTING_GUIDE.md`
 """
 
+from importlib.metadata import version
 import importlib
 from phlo.logging import get_logger
 
@@ -341,4 +342,4 @@ __all__ = [
 if _FIXTURES_AVAILABLE:
     __all__.extend(_FIXTURE_EXPORTS)
 
-__version__ = "0.14.0"
+__version__ = version("phlo-testing")

@@ -8,6 +8,7 @@ NPM_OBSERVATORY := npm --prefix $(OBSERVATORY_DIR)
 TY_CHECK_SCOPE := src/phlo $(wildcard packages/*/src)
 CHECK_CMD := scripts/run-parallel \
 	"support manifest" "python3 scripts/validate_support_manifest.py" \
+	"version drift" "python3 scripts/check_version_drift.py" \
 	"py lint" "uv run --locked ruff check ." \
 	"py format" "uv run --locked ruff format --check ." \
 	"py typecheck" "uv run --locked ty check --error-on-warning $(TY_CHECK_SCOPE)" \
