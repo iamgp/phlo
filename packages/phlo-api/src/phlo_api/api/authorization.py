@@ -55,6 +55,7 @@ from phlo.capabilities import (
 )
 from phlo.logging import get_logger
 from phlo.security import enforce, is_regulated
+from phlo.security.mode import requires_http_authorization
 from phlo.infrastructure.config import (
     get_api_authorization_config,
     get_configured_authorization_backend_name,
@@ -128,17 +129,26 @@ def require_authorization_backend() -> AuthorizationPolicyBackend:
 
 
 def get_authorization_mode() -> str:
-    """Return how route guards behave when no authorization backend exists."""
+    """Return how route guards behave when no authorization backend exists.
+
+    Explicit environment values, then service-specific YAML, then top-level
+    YAML keep their existing precedence. An unset mode resolves to ``required``
+    when production HTTP authorization is required (ADR 0047) and to
+    ``optional`` otherwise, so development stays opt-in.
+    """
     configured_mode = os.environ.get(_AUTHORIZATION_MODE_ENV)
     if configured_mode is not None:
         configured_mode = configured_mode.strip() or None
     if configured_mode is None:
         config = get_api_authorization_config()
-        configured_mode = (
-            config.mode
-            if config is not None and config.mode is not None
-            else _AUTHORIZATION_MODE_OPTIONAL
-        )
+        if config is not None and config.mode is not None:
+            configured_mode = config.mode
+        else:
+            configured_mode = (
+                _AUTHORIZATION_MODE_REQUIRED
+                if requires_http_authorization()
+                else _AUTHORIZATION_MODE_OPTIONAL
+            )
 
     mode = configured_mode.strip().lower()
     if mode not in {_AUTHORIZATION_MODE_OPTIONAL, _AUTHORIZATION_MODE_REQUIRED}:
@@ -198,12 +208,32 @@ def get_request_correlation_id(request: Request) -> str:
 
 
 def build_downstream_service_headers(request: Request, service_id: str) -> dict[str, str]:
-    """Build authenticated headers for service-to-service requests from phlo-api."""
+    """Build authenticated headers for service-to-service requests from phlo-api.
+
+    In production the headers carry a verified phlo1 workload token for the
+    ``phlo-api`` caller and the receiver audience; missing credentials raise
+    before any HTTP call. Development keeps the legacy shared-secret path.
+    """
     correlation_id = get_request_correlation_id(request)
     initiator = None
     auth_principal = get_request_principal(request)
     if auth_principal is not None:
         initiator = auth_principal.subject
+
+    if requires_http_authorization():
+        from phlo.security.service_identity import (
+            build_scoped_service_headers,
+            load_service_identity_credentials,
+        )
+
+        return build_scoped_service_headers(
+            "phlo-api",
+            audience=service_id,
+            scp=("dagster:control",),
+            credentials=load_service_identity_credentials(),
+            initiator=initiator,
+            correlation_id=correlation_id,
+        )
     return build_service_headers(
         service_id=service_id,
         initiator=initiator,

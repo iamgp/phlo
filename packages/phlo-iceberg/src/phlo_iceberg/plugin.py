@@ -22,7 +22,7 @@ Example:
 
     Access via Phlo capability system::
 
-        from phlo.capabilities import get_resource
+        from phlo.capabilities import SlingConnectionSpec, get_resource
 
         # Get Iceberg resource
         iceberg = get_resource("table_store", name="iceberg")
@@ -37,7 +37,15 @@ Loaded through the phlo plugin entry-point mechanism at startup rather than impo
 directly; registers IcebergResourceProvider through phlo.capabilities and phlo.plugins.
 """
 
-from phlo.capabilities import CapabilitySupport, ResourceSpec, SchemaMigrationSpec, TableStoreSpec
+from phlo.capabilities import (
+    EvidenceProfileContributionSpec,
+    CapabilitySupport,
+    ResourceSpec,
+    SchemaMigrationSpec,
+    SlingConnectionSpec,
+    TableStoreSpec,
+)
+from phlo.capabilities import BackupContributorSpec
 from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 
 from phlo_iceberg.resource import IcebergResource
@@ -59,6 +67,33 @@ ICEBERG_COMPATIBILITY_METADATA = {
 
 
 class IcebergResourceProvider(ResourceProviderPlugin):
+    def get_backup_contributors(self) -> list[BackupContributorSpec]:
+        """Expose the iceberg metadata inventory contribution (ADR 0049 §3)."""
+        from phlo_iceberg.continuity import IcebergBackupContributor
+
+        return [BackupContributorSpec(name="iceberg", provider=IcebergBackupContributor())]
+
+    def get_evidence_profile_contributions(self) -> list[EvidenceProfileContributionSpec]:
+        """Declare this provider's blessed run-evidence contribution."""
+        from phlo.run_evidence.profiles import EvidenceProfileContribution
+        from phlo.run_evidence.reconciliation import RequiredEvidenceRecord, RequiredEvidenceStage
+
+        contribution = EvidenceProfileContribution(
+            contribution_id="iceberg.snapshot",
+            provider="iceberg",
+            profile_id="wap",
+            profile_version="1",
+            stages=(RequiredEvidenceStage(stage_type="publish", provider="iceberg"),),
+            required_records=(RequiredEvidenceRecord(family="resource", minimum=1),),
+        )
+        return [EvidenceProfileContributionSpec(name="iceberg.snapshot", provider=contribution)]
+
+    def get_sling_connections(self) -> list[SlingConnectionSpec]:
+        """Expose the iceberg Sling connection through the neutral seam."""
+        from phlo_iceberg.settings import get_settings
+
+        return [SlingConnectionSpec(name="iceberg", provider=get_settings())]
+
     """Resource provider plugin for Iceberg/Nessie catalog access.
 
     Registers Iceberg capabilities with Phlo's plugin system, providing:

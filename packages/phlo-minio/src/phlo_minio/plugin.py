@@ -44,7 +44,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from phlo.capabilities import ObjectStoreSpec, ResourceSpec
+from phlo.capabilities import (
+    BackendReadinessSpec,
+    BackupContributorSpec,
+    ObjectStoreSpec,
+    ResourceSpec,
+)
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin, service_plugin_class
 
 
@@ -175,6 +180,18 @@ class MinioObjectStoreProvider:
 
 
 class MinioResourceProvider(ResourceProviderPlugin):
+    def get_backend_readiness(self) -> list[BackendReadinessSpec]:
+        """Expose the minio security readiness inspector (read-only)."""
+        from phlo_minio.security_readiness import MinioReadinessProvider
+
+        return [BackendReadinessSpec(name="minio", provider=MinioReadinessProvider())]
+
+    def get_backup_contributors(self) -> list[BackupContributorSpec]:
+        """Expose the minio object backup contribution capability (ADR 0049 §3)."""
+        from phlo_minio.continuity import MinioBackupContributor
+
+        return [BackupContributorSpec(name="minio", provider=MinioBackupContributor())]
+
     """Resource provider plugin exposing MinIO object storage capabilities.
 
     This plugin implements the ResourceProviderPlugin interface to

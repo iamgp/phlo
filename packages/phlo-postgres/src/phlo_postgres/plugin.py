@@ -21,7 +21,14 @@ from __future__ import annotations
 import shlex
 from typing import Any
 
-from phlo.capabilities import PublishTargetSpec, ResourceSpec, SettingsStoreSpec
+from phlo.capabilities import (
+    PublishTargetSpec,
+    ResourceSpec,
+    SettingsStoreSpec,
+    SlingConnectionSpec,
+    BackendReadinessSpec,
+    BackupContributorSpec,
+)
 from phlo.plugins import (
     PackageYamlServicePlugin,
     PluginMetadata,
@@ -114,6 +121,18 @@ PostgresExporterServicePlugin = service_plugin_class(
 
 
 class PostgresResourceProvider(ResourceProviderPlugin):
+    def get_backend_readiness(self) -> list[BackendReadinessSpec]:
+        """Expose the postgres security readiness inspector (read-only)."""
+        from phlo_postgres.security_readiness import PostgresReadinessProvider
+
+        return [BackendReadinessSpec(name="postgres", provider=PostgresReadinessProvider())]
+
+    def get_backup_contributors(self) -> list[BackupContributorSpec]:
+        """Expose the postgres backup contribution capability (ADR 0049 §3)."""
+        from phlo_postgres.continuity import PostgresBackupContributor
+
+        return [BackupContributorSpec(name="postgres", provider=PostgresBackupContributor())]
+
     """Resource provider plugin that exposes PostgreSQL capabilities.
 
     This plugin registers the PostgresResource and PostgresPublishTarget with
@@ -143,6 +162,12 @@ class PostgresResourceProvider(ResourceProviderPlugin):
             version="0.1.0",
             description="Postgres resource for Phlo",
         )
+
+    def get_sling_connections(self) -> list[SlingConnectionSpec]:
+        """Expose the PostgreSQL Sling connection through the neutral seam."""
+        from phlo_postgres.settings import get_settings
+
+        return [SlingConnectionSpec(name="postgres", provider=get_settings())]
 
     def get_resources(self) -> list[ResourceSpec]:
         """Return resource specifications exposed by this provider.

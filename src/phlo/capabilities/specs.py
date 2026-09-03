@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date
+from enum import StrEnum
 from typing import Any
 
 from phlo.capabilities.runtime import RuntimeContext
@@ -154,6 +155,65 @@ class MaintenanceExecutorSpec:
 @dataclass(frozen=True, slots=True)
 class ObjectStoreSpec:
     """Object storage capability (for example MinIO, RustFS, S3)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class SlingConnectionSpec:
+    """A provider-owned Sling connection capability.
+
+    The provider exposes ``to_sling_connection()`` returning a
+    Sling-compatible connection dict, so Sling never imports another
+    provider package (ADR 0047: a provider never imports another).
+    """
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceProfileContributionSpec:
+    """Declarative run-evidence contribution capability.
+
+    The provider payload is declarative contribution data (or a read-only
+    provider returning it); it must not execute a workflow or inspect another
+    provider.
+    """
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class BackendReadinessSpec:
+    """A provider-owned backend security readiness capability.
+
+    The provider exposes a read-only ``inspect()`` returning a sanitized
+    readiness result; core never imports the provider package.
+    """
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class BackupContributorSpec:
+    """A provider-owned backup contribution capability (ADR 0049 §3).
+
+    The provider exposes ``contribute(destination, operation_id)`` returning
+    artifact descriptors for its own state; core owns ordering, hashing, and
+    finalization, and never imports the provider package.
+    """
 
     name: str
     provider: Any
@@ -384,6 +444,38 @@ class MaterializeResult:
     status: str | None = None
 
 
+class CheckSeverity(StrEnum):
+    """Single owner of quality/check severity and its blocking semantics.
+
+    Only ``error`` and ``critical`` block. Providers stop inventing their own
+    severity vocabularies; unknown values are normalized to ``info``.
+    """
+
+    ERROR = "error"
+    CRITICAL = "critical"
+    WARNING = "warning"
+    INFO = "info"
+
+    @property
+    def blocking(self) -> bool:
+        return self in (CheckSeverity.ERROR, CheckSeverity.CRITICAL)
+
+    @classmethod
+    def normalize(cls, value: str | None) -> CheckSeverity | None:
+        if value is None:
+            return None
+        try:
+            return cls(str(value).strip().lower())
+        except ValueError:
+            return cls.INFO
+
+
+def is_blocking_severity(value: str | CheckSeverity | None) -> bool:
+    """Return whether a severity value blocks (single owner of the rule)."""
+    severity = value if isinstance(value, CheckSeverity) else CheckSeverity.normalize(value)
+    return severity is not None and severity.blocking
+
+
 @dataclass(frozen=True, slots=True)
 class CheckResult:
     """Result for a quality or contract check."""
@@ -391,7 +483,7 @@ class CheckResult:
     check_name: str
     asset_key: str
     passed: bool
-    severity: str | None = None
+    severity: CheckSeverity | str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
