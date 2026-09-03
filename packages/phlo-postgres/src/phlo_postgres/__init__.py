@@ -15,6 +15,7 @@ Example:
 
 """
 
+from phlo_postgres.checkpoints import PostgresIngestionCheckpointStore
 from phlo_postgres.plugin import PostgresServicePlugin
 from phlo_postgres.publish_target import PostgresPublishTarget
 from phlo_postgres.resource import PostgresResource
@@ -22,6 +23,7 @@ from phlo_postgres.settings import PostgresSettings, get_settings
 from phlo_postgres.settings_store import PostgresSettingsStore
 
 __all__ = [
+    "PostgresIngestionCheckpointStore",
     "PostgresPublishTarget",
     "PostgresResource",
     "PostgresServicePlugin",

@@ -1,0 +1,40 @@
+name: airbyte
+description: Self-managed Airbyte control plane for connector-managed ingestion
+category: ingestion
+default: false
+
+image: airbyte/server:2.2.0@sha256:70e125498a1c110bc3e9444ccf9b373cc82517a3cfc68b8d4c54dbc553a4f4eb
+
+depends_on:
+  - postgres
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false"
+  environment:
+    AIRBYTE_VERSION: "2.2.0"
+    CONFIG_ROOT: /data
+    DATABASE_USER: ${POSTGRES_USER:-phlo}
+    DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
+    DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-phlo}
+    AIRBYTE_API_PORT: "8006"
+    WORKSPACE_ID: ${AIRBYTE_WORKSPACE_ID:-}
+  ports:
+    - "${AIRBYTE_PORT:-10020}:8006"
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8006/api/v1/health"]
+    interval: 15s
+    timeout: 5s
+    retries: 12
+    start_period: 60s
+
+env_vars:
+  AIRBYTE_PORT:
+    default: 10020
+    description: Airbyte server API host port
+  AIRBYTE_WORKSPACE_ID:
+    default: ""
+    description: Airbyte workspace id used for connection lookups
+
+files:
