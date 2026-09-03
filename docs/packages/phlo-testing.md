@@ -172,8 +172,8 @@ packages and this repository's test suites consume it, but it is not a runtime
 v1 guarantee for end users. Its harness helpers (`phlo_testing.harness_utils`,
 `phlo_testing.profile_harness`) are bundled inside the package, so the
 installed distribution is self-contained and does not depend on repository
-scripts such as `scripts/run_golden_path.py` (which remains a repo-only
-debugging tool for the golden-path E2E workflow).
+scripts. The repo's golden-path E2E runner remains a standalone repo-only
+debugging tool.
 
 ### Testing Quality Checks
 
