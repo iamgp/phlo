@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "public-system-design",
-    "external-support-census"
+    "external-support-census",
+    "support-decisions"
   ]
 }
