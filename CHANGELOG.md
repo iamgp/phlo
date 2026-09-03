@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Deprecated
+- phlo: deprecate the dormant flow/transform authoring decorators (#837 rows 1–4): `@phlo.backfill` (B-30), `@phlo.schedule` (B-31), and `@phlo.transform.sql` (B-34) now emit a `DeprecationWarning` at decoration time and will be removed in an upcoming release; the execution implication taught for `@phlo.publish`/`@phlo.observe`/`@phlo.contract`/`@phlo.access` is deprecated — the governance-metadata path stays supported, and orchestration requires explicit asset/provider definitions (#860)
 - phlo: deprecate the `phlo.ingestion` compatibility alias (B-37, #837 row 6): calls through `phlo.ingestion(...)`, `phlo.phlo_ingestion(...)`, and `phlo.ingestion.get_ingestion_assets()` now emit a `DeprecationWarning`; migrate with `phlo migrate decorators-2026-05` (#860)
 
 ## [phlo 0.14.0 + 34 packages] - 2026-08-21
