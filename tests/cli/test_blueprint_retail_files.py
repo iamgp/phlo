@@ -1,11 +1,11 @@
-"""Retail Files blueprint package contract tests (ADR 0052 / issue #851).
+"""Retail Files project-template package contract tests.
 
 The blueprint package at `examples/lakehouses/retail-files/` must satisfy the
-frozen distribution contract: exact released phlo-family pins, the four-package
-third-party allowlist, no VCS/path/editable dependencies, entry-point
-discovery, and a static contract whose resource digest matches the shipped
-template resources. Rendered output must be equivalent to the canonical
-resources — the package is the sole executable source.
+package contract: exact released phlo-family pins, the four-package third-party
+allowlist, no VCS/path/editable dependencies, entry-point discovery, and a
+static contract whose resource digest matches the shipped template resources.
+Rendered output must be equivalent to the canonical resources — the package is
+the sole executable source.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ PACKAGE_SRC = BLUEPRINT_DIR / "src"
 PACKAGE_DIR = PACKAGE_SRC / "phlo_retail_files"
 SUPPORT_MANIFEST = REPO_ROOT / "registry" / "support" / "v1.json"
 
-ADR_ALLOWLIST = ("pandas", "pyarrow", "duckdb", "dbt-duckdb")
+THIRD_PARTY_ALLOWLIST = ("pandas", "pyarrow", "duckdb", "dbt-duckdb")
 
 
 @pytest.fixture()
@@ -76,14 +76,14 @@ def test_package_distribution_contract() -> None:
     phlo_family = [dep for dep in dependencies if _requirement_names([dep])[0].startswith("phlo")]
     third_party = [dep for dep in dependencies if dep not in phlo_family]
     assert all("==" in dep for dep in phlo_family), f"phlo pins must be exact: {phlo_family}"
-    assert set(_requirement_names(third_party)) <= set(ADR_ALLOWLIST)
+    assert set(_requirement_names(third_party)) <= set(THIRD_PARTY_ALLOWLIST)
     _assert_no_floating_references(dependencies)
 
     dev_group = project["dependency-groups"]["dev"]
     dev_names = _requirement_names(dev_group)
     dev_phlo_family = {name for name in dev_names if name == "phlo" or name.startswith("phlo-")}
     assert all("==" in dep for dep in dev_group if dep.split("==")[0].startswith("phlo"))
-    assert set(dev_names) - dev_phlo_family <= set(ADR_ALLOWLIST)
+    assert set(dev_names) - dev_phlo_family <= set(THIRD_PARTY_ALLOWLIST)
     _assert_no_floating_references(dev_group)
 
 
@@ -100,7 +100,7 @@ def test_root_blueprints_extra_and_support_boundaries() -> None:
     assert "phlo-retail-files" not in release_packages
 
 
-def test_contract_document_matches_package(blueprint_contract: ModuleType) -> None:
+def test_contract_matches_package(blueprint_contract: ModuleType) -> None:
     contract = blueprint_contract.load_contract()
     project = _load_pyproject(BLUEPRINT_DIR / "pyproject.toml")
     dependencies = project["project"]["dependencies"]
@@ -109,7 +109,7 @@ def test_contract_document_matches_package(blueprint_contract: ModuleType) -> No
     assert contract["version"] == project["project"]["version"]
     assert contract["template"] == "retail-files"
     assert contract["entry_point_group"] == "phlo.project_templates"
-    assert contract["third_party_allowlist"] == list(ADR_ALLOWLIST)
+    assert contract["third_party_allowlist"] == list(THIRD_PARTY_ALLOWLIST)
 
     for pin in contract["phlo_family_pins"]:
         assert pin in dependencies + project["dependency-groups"]["dev"], (
@@ -172,7 +172,7 @@ def test_render_creates_complete_project(
         assert pin in dependencies
     names = _requirement_names(dependencies + dev_group)
     phlo_family = {name for name in names if name == "phlo" or name.startswith("phlo-")}
-    assert set(names) - phlo_family <= set(ADR_ALLOWLIST)
+    assert set(names) - phlo_family <= set(THIRD_PARTY_ALLOWLIST)
     _assert_no_floating_references(dependencies + dev_group)
 
     assert "name: retail-demo" in (project_dir / "phlo.yaml").read_text(encoding="utf-8")

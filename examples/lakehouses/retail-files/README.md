@@ -1,10 +1,10 @@
 # Retail Files blueprint
 
 The Retail Files lakehouse is distributed as the **`phlo-retail-files`** blueprint
-package (composition-owned per ADR 0052,
-`docs/architecture/decisions/0052-retail-files-blueprint-distribution.md`). The
-canonical project lives inside the package; this directory is a thin pointer and
-is not an executable source.
+package. The canonical project lives inside the package; this directory is a
+thin pointer and is not an executable source. The package is a project template,
+its phlo-family dependencies use exact released versions, and its resources must
+match the recorded digest. The wheel is tested in a clean environment.
 
 ## Use the blueprint
 

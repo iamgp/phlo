@@ -1,11 +1,10 @@
-"""Static blueprint contract for the Retail Files blueprint.
+"""Static package contract for the Retail Files project template.
 
-The contract is the machine-checkable record of ADR 0052 (Retail Files
-blueprint distribution): exact released phlo-family pins, the frozen
-third-party allowlist, the bounded-starter evidence facts, and a stable
-digest over the packaged template resources. It is committed, not generated;
-`resource_digest()` recomputes the digest from the shipped resources so tests
-can prove the contract stays current.
+The package is a project template. Its phlo-family dependencies use exact
+released versions, its third-party dependencies stay within the declared
+allowlist, and its resources must match the recorded digest. The contract is
+committed, not generated; `resource_digest()` recomputes the digest from the
+shipped resources so tests can verify it remains current.
 """
 
 from __future__ import annotations

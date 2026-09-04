@@ -1,1 +1,1 @@
-"""Retail Files blueprint: composition-owned phlo project template (ADR 0052)."""
+"""Retail Files: a composition-owned phlo project template."""

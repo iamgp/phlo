@@ -1,4 +1,4 @@
-"""Clean-environment wheel proof for the Retail Files blueprint (issue #851).
+"""Clean-environment wheel proof for the Retail Files project template.
 
 Builds the `phlo-retail-files` wheel, installs it with its real dependencies
 into a throwaway virtual environment, and proves the template is discovered

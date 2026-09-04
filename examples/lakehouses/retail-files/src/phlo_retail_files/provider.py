@@ -1,10 +1,9 @@
-"""Retail Files blueprint template provider.
+"""Retail Files project-template provider.
 
-Implements the frozen distribution contract from ADR 0052: the blueprint is
-discovered through the `phlo.project_templates` entry-point group, renders the
-canonical Retail Files project from packaged resources, and writes a rendered
-pyproject whose dependencies satisfy the ADR's exact-released-pin and
-third-party allowlist rules.
+The package is discovered through the `phlo.project_templates` entry-point
+group and renders the canonical Retail Files project from packaged resources.
+Its rendered pyproject uses the contract's exact released phlo-family pins and
+declared third-party dependencies.
 """
 
 from __future__ import annotations

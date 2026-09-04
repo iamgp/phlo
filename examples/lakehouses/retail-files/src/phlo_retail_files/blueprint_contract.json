@@ -1,6 +1,5 @@
 {
   "contract": "phlo.blueprint.v1",
-  "adr": "0052-retail-files-blueprint-distribution",
   "distribution": "phlo-retail-files",
   "package": "phlo_retail_files",
   "template": "retail-files",
