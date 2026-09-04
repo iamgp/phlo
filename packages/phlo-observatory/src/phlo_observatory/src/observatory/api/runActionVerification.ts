@@ -1,9 +1,9 @@
 /**
- * Bounded verify-after-action for guarded run actions (#847).
+ * Bounded verify-after-action for guarded run actions.
  *
  * Frozen verification semantics over durable canonical evidence: only a
- * complete canonical run report (#820 evidence profile: complete run header,
- * authoritative terminal outcome, no report gaps) may turn an accepted retry
+ * complete canonical run report (complete run header, authoritative terminal
+ * outcome, no report gaps) may turn an accepted retry
  * into a recovery claim or a cancel into a terminal-state claim. Missing,
  * legacy, or incomplete evidence stays pending-incomplete — it never renders
  * as success and never fabricates a report link.
@@ -31,8 +31,8 @@ export interface RunActionVerification {
   /**
    * The exact durable report identity backing this verification, when one is
    * known. A report link may be rendered only from this identity — it is
-   * populated exclusively from durable evidence (the #845 reconciliation or
-   * the durable run read model), never from provider payloads or display
+   * populated exclusively from durable evidence or the durable run read model,
+   * never from provider payloads or display
    * names.
    */
   identity: ObservatoryRunReportIdentity | null
@@ -61,7 +61,7 @@ const intentFor = (actionKind: RunActionKind): string =>
  * Resolve one action result to the exact durable run/report data verification
  * reads. Retry verifies the resulting (new) run; cancel verifies the target
  * run reached its terminal state. Only durable canonical identities
- * (`canonical_report` from the #845 reconciliation seam, or a durable run row
+ * (`canonical_report` from the reconciliation seam, or a durable run row
  * discovered by exact run-id match) ever become a verification target.
  */
 export function resolveVerificationTarget(

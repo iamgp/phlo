@@ -535,7 +535,7 @@ export function RunActionDialog({
   const [submitting, setSubmitting] = useState(false)
   const [outcome, setOutcome] =
     useState<ObservatoryResourceResult<RunActionResult> | null>(null)
-  // Bounded verify-after-action (#847): after a guarded result, poll durable
+  // Bounded verify-after-action: after a guarded result, poll durable
   // run/report reads until complete canonical evidence proves or refutes
   // recovery. Verification never resubmits the mutation and is cancellable by
   // the operator or when the dialog closes.

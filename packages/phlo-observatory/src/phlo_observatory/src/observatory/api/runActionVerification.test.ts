@@ -1,5 +1,5 @@
 /**
- * Tests the bounded verify-after-action semantics (#847): the frozen
+ * Tests the bounded verify-after-action semantics: the frozen
  * proven / pending-incomplete / failed states over durable canonical
  * evidence, retry-vs-cancel variants, exact action-result-to-run/report
  * resolution, and the bounded, cancellable, never-resubmitting poller.
