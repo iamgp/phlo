@@ -1,4 +1,4 @@
-"""Guarded continuity action API tests (issue #848).
+"""Guarded continuity action API tests.
 
 Proves the HTTP projection of the landed neutral continuity contracts:
 one supported operation per landed family, immutable target-bound dry-run

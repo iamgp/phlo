@@ -1,10 +1,10 @@
-"""Guarded continuity action API (issue #848, roadmap T5-04).
+"""Guarded continuity action API.
 
-HTTP projection of the landed neutral continuity contracts (ADR 0049,
-Plans 010-013): plan-first maintenance, verified backup sets, explicit-target
-restore, and supported version upgrade. Every endpoint maps 1:1 to exactly one
-landed core service; this adapter adds no provider behavior, invokes no CLI
-process, and never widens the provider deletion/restore boundary.
+HTTP projection of neutral continuity contracts: plan-first maintenance,
+verified backup sets, explicit-target restore, and supported version upgrade.
+Every endpoint maps 1:1 to exactly one landed core service; this adapter adds
+no provider behavior, invokes no CLI process, and never widens the provider
+deletion/restore boundary.
 
 The vocabulary is explain > confirm > act > verify:
 
@@ -15,8 +15,8 @@ The vocabulary is explain > confirm > act > verify:
   immutable, target-bound plan (deterministic token for identical inputs).
 - ``POST /apply`` — one guarded apply endpoint: authenticated, authorized,
   confirmed, bounded to the landed operation allow-list, audited, and
-  durable-idempotent through the Plan 010 operation journal before any
-  provider invocation.
+  durable-idempotent through the operation journal before any provider
+  invocation.
 - ``GET  /verifications/{operation_id}`` — canonical verification lookup of
   the durable journal entry; restart-safe. An unknown post-submission outcome
   is reported as such and blocks new-key replay.
@@ -429,7 +429,7 @@ def _maintenance_execution(
 
     def execute() -> dict[str, Any]:
         provider = _maintenance_executor(maintenance_operation)
-        # Claim the Plan 010 journal exactly like the CLI surface.
+        # Claim the durable journal exactly like the CLI surface.
         claim_operation(
             journal,
             operation_id=plan_id,
@@ -444,7 +444,7 @@ def _maintenance_execution(
             result_dict = result.to_dict() if hasattr(result, "to_dict") else dict(result)
         except Exception as exc:
             # Submitted but the outcome is unknown: record UNKNOWN so no new
-            # key can replay this operation automatically (Plan 010 contract).
+            # key can replay this operation automatically.
             mark_unknown(journal, plan_id)
             raise _error(502, "apply_outcome_unknown", (plan_id,)) from exc
         complete_operation(journal, plan_id, result_dict)
@@ -458,8 +458,8 @@ def post_continuity_apply(request: ContinuityApplyRequest, http_request: Request
     """Apply one confirmed, authorized, idempotent continuity operation.
 
     Every guard runs before any provider invocation: operation allow-list,
-    confirmation-token match, idempotency-key binding, and the durable Plan 010
-    journal claim inside the core service itself.
+    confirmation-token match, idempotency-key binding, and the durable journal
+    claim inside the core service itself.
     """
     auth = require_scope(http_request, "lakehouse:operate")
     enforce_rate_limit(auth["subject"], "continuity_apply")
@@ -511,7 +511,7 @@ def post_continuity_apply(request: ContinuityApplyRequest, http_request: Request
 def get_continuity_verification(operation_id: str, http_request: Request) -> dict[str, Any]:
     """Resolve one durable evidence handle to its canonical journal state.
 
-    Restart-safe: the handle reads the durable Plan 010 journal, so the result
+    Restart-safe: the handle reads the durable operation journal, so the result
     survives process restarts. An ``unknown`` post-submission outcome is
     reported as such and can never be automatically replayed.
     """

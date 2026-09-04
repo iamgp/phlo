@@ -240,7 +240,7 @@ def _artifacts_for(manifest: BackupSetManifest, provider: str) -> Sequence[Backu
 
 
 def restore_operation_id(plan: RestorePlan) -> str:
-    """Canonical, durable Plan 010 journal id for one restore plan.
+    """Canonical, durable journal id for one restore plan.
 
     Public so every surface (CLI, HTTP) resolves the same verification handle
     for a plan instead of re-deriving the digest format.

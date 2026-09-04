@@ -521,7 +521,7 @@ def _finish_failed(
 
 
 def upgrade_operation_id(plan: UpgradePlan) -> str:
-    """Canonical, durable Plan 010 journal id for one upgrade plan.
+    """Canonical, durable journal id for one upgrade plan.
 
     Public so every surface (CLI, HTTP) resolves the same verification handle
     for a plan instead of re-deriving the digest format.
