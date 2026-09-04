@@ -573,7 +573,7 @@ def _metadata_strings(metadata: Mapping[str, Any], *keys: str) -> list[str]:
     return sorted(set(values))
 
 
-def _publication_state(metadata: Mapping[str, Any]) -> str:
+def _asset_publication_state(metadata: Mapping[str, Any]) -> str:
     value = metadata.get("publication_state") or metadata.get("publishing_state")
     if isinstance(value, str) and value.lower() in {"draft", "published", "retired"}:
         return value.lower()
@@ -1204,7 +1204,7 @@ def _dataset_from_asset(
         if record is not None
         else "draft"
         if governed is not None
-        else _publication_state(metadata)
+        else _asset_publication_state(metadata)
     )
     return ObservatoryDataset(
         id=asset.id,
