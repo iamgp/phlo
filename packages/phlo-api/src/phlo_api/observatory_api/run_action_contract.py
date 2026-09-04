@@ -7,8 +7,8 @@ into :class:`RunActionResult` before persisting it, so a replayed idempotent
 response is byte-identical to the original and never re-invokes the provider.
 
 Canonical report identity (``project_id/run_id/attempt``) is attached only
-when the durable Plan 008 run-evidence store already holds a record for the
-resulting run; it is never inferred from provider payloads or display names.
+when the durable run-evidence store already holds a record for the resulting
+run; it is never inferred from provider payloads or display names.
 """
 
 from __future__ import annotations
@@ -238,7 +238,7 @@ def resolve_run_action_reconciliation(
     """Attach canonical run/report identity when durable evidence proves it.
 
     The canonical ``project_id/run_id/attempt`` identity is taken only from a
-    durable Plan 008 run-evidence record for the resulting run; without such a
+    durable run-evidence record for the resulting run; without such a
     record the result is returned unchanged and stays ``accepted``/``pending``.
     """
     if result.canonical_report is not None or project_id is None:

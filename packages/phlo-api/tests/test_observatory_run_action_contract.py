@@ -4,7 +4,7 @@ Covers the one provider-neutral run-action result: mandatory idempotency keys
 rejected before invocation, distinct safe outcomes (accepted, pending,
 rejected, skipped, unauthorized, duplicate/pending key, missing/ambiguous
 capability, response loss), identical durable verification handles on replay,
-and canonical report identity resolved only from durable Plan 008 evidence.
+and canonical report identity resolved only from durable evidence.
 """
 
 from __future__ import annotations
@@ -463,7 +463,7 @@ def test_ambiguous_provider_outcome_stays_pending_with_handle(monkeypatch, tmp_p
 def test_reconciliation_resolves_canonical_identity_only_from_durable_evidence(
     tmp_path: Path,
 ) -> None:
-    """Canonical report identity comes only from durable Plan 008 evidence."""
+    """Canonical report identity comes only from durable evidence."""
     database = tmp_path / "run-evidence.sqlite"
     store = SQLiteRunEvidenceStore(database)
 
