@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-conformance-fixture-sqlite"
+version = "0.1.0"
+description = "Independently packaged SQLite query-engine conformance fixture (not part of the Phlo estate)"
+requires-python = ">=3.11"
+
+[project.entry-points."phlo.plugins.resources"]
+sqlite-fixture = "fixture_sqlite_query_engine:SQLiteQueryEngineProvider"
+
+[tool.setuptools]
+py-modules = ["fixture_sqlite_query_engine"]

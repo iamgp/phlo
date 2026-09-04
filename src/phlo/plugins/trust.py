@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -387,6 +388,7 @@ def resolve_tier(
     now: datetime | None = None,
     epoch: int = CURRENT_COMPATIBILITY_EPOCH,
     legacy_verified: bool = False,
+    artifact_digest: str | None = None,
 ) -> TierResolution:
     """Resolve the tier of one provider entry from typed authority inputs.
 
@@ -397,11 +399,19 @@ def resolve_tier(
     requires a typed support-manifest decision (with receipts when
     required) — it is never derived from the other authorities. Expired
     or failing evidence degrades the tier mechanically.
+
+    ``artifact_digest`` is the SHA-256 content digest of the concrete
+    artifact the descriptor instance refers to (e.g. the candidate wheel
+    a tracer exercised, per the ADR 0050 identity model). When omitted,
+    the descriptor claim's own canonical digest is used, which binds
+    verdicts to the registered descriptor itself.
     """
     now = now or datetime.now(UTC)
-    identity = descriptor.artifact_identity()
+    if artifact_digest is not None:
+        identity = (descriptor.package, descriptor.version, artifact_digest)
+    else:
+        identity = descriptor.artifact_identity()
     tier = TrustTier.COMMUNITY
-
     if any(result.qualifies(now=now, identity=identity) for result in conformance_results):
         tier = TrustTier.CONFORMANCE_TESTED
 
@@ -426,10 +436,14 @@ def resolve_tiers(
     legacy_verified_names: frozenset[str] = frozenset(),
     now: datetime | None = None,
     epoch: int = CURRENT_COMPATIBILITY_EPOCH,
+    artifact_digests: Mapping[str, str] | None = None,
 ) -> dict[str, TierResolution]:
     """Resolve tiers for every descriptor. ``release-supported`` decisions
     bind to (package, version) component identities, so at most the
-    matching entries may carry the tier — and only through Authority C."""
+    matching entries may carry the tier — and only through Authority C.
+    ``artifact_digests`` optionally names the concrete artifact digest per
+    registry key (see ``resolve_tier``)."""
+    digests = artifact_digests or {}
     return {
         name: resolve_tier(
             descriptor,
@@ -438,6 +452,7 @@ def resolve_tiers(
             now=now,
             epoch=epoch,
             legacy_verified=name in legacy_verified_names,
+            artifact_digest=digests.get(name),
         )
         for name, descriptor in descriptors.items()
     }

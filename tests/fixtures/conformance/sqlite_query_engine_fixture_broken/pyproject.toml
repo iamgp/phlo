@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-conformance-fixture-sqlite-broken"
+version = "0.1.0"
+description = "Deliberately broken SQLite query-engine conformance fixture (fails the query_engine.v1 suite)"
+requires-python = ">=3.11"
+
+[project.entry-points."phlo.plugins.resources"]
+sqlite-fixture-broken = "fixture_sqlite_query_engine_broken:BrokenQueryEngineProvider"
+
+[tool.setuptools]
+py-modules = ["fixture_sqlite_query_engine_broken"]

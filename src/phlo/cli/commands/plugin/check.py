@@ -561,6 +561,78 @@ def _check_remote_service_images(
     return service_results
 
 
+def _run_conformance_mode(
+    *,
+    artifact_path: Path | None,
+    descriptor_path: Path | None,
+    suite_id: str | None,
+    evidence_output: Path | None,
+    output_json: bool,
+) -> None:
+    """Artifact-bound conformance mode: a separate code path from the
+    installed-plugin checks above. Never touches plugin discovery, the
+    registry, or the support profiles; executes the candidate only
+    inside the disposable worker."""
+    from phlo.conformance import ConformanceBindingError, ConformanceRunError, run_conformance
+    from phlo.conformance.suites import UnknownSuiteError
+
+    missing = [
+        name
+        for name, value in (
+            ("--artifact", artifact_path),
+            ("--descriptor", descriptor_path),
+            ("--suite", suite_id),
+        )
+        if value is None
+    ]
+    if missing:
+        raise click.UsageError(f"--conformance requires {', '.join(missing)}")
+    assert artifact_path is not None and descriptor_path is not None and suite_id is not None
+
+    try:
+        outcome = run_conformance(
+            wheel=artifact_path,
+            descriptor=descriptor_path,
+            suite_id=suite_id,
+            evidence_output=evidence_output,
+        )
+    except (ConformanceBindingError, ConformanceRunError, UnknownSuiteError) as exc:
+        if output_json:
+            click.echo(json.dumps({"error": str(exc)}))
+        else:
+            console.print(f"[red]Conformance run failed:[/red] {exc}")
+        sys.exit(2)
+
+    if output_json:
+        click.echo(
+            json.dumps(
+                {
+                    "suite": outcome.suite,
+                    "result": outcome.result,
+                    "artifact": outcome.artifact,
+                    "specs": outcome.specs,
+                    "cases": outcome.cases,
+                    "evidence": outcome.evidence,
+                    "evidence_output": outcome.evidence_output,
+                },
+                indent=2,
+            )
+        )
+    else:
+        console.print(f"[bold]Conformance suite:[/bold] {outcome.suite} → {outcome.result}")
+        for case in outcome.cases:
+            style = "green" if case["passed"] else "red"
+            marker = "✓" if case["passed"] else "✗"
+            console.print(
+                Text(f"  {marker} {case['spec']}/{case['name']}: {case['detail']}", style=style)
+            )
+        if outcome.evidence_output:
+            console.print(f"  Evidence: {outcome.evidence_output}")
+
+    if not outcome.passed:
+        sys.exit(1)
+
+
 def check_generated_containers(
     *,
     project_parent: Path | None = None,
@@ -1136,11 +1208,53 @@ def check_generated_containers(
     metavar="SERVICE=IMAGE=EVIDENCE_SHA256=REASON",
     help="Waive one exact HIGH/CRITICAL finding set for one generated service image.",
 )
+@click.option(
+    "--conformance",
+    "conformance_mode",
+    is_flag=True,
+    default=False,
+    help=(
+        "Run the artifact-bound conformance runner (separate mode; ignores installed "
+        "plugins). Requires --artifact, --descriptor, and --suite."
+    ),
+)
+@click.option(
+    "--artifact",
+    "artifact_path",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Candidate wheel for --conformance.",
+)
+@click.option(
+    "--descriptor",
+    "descriptor_path",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Static descriptor JSON for --conformance.",
+)
+@click.option(
+    "--suite",
+    "suite_id",
+    default=None,
+    help="Conformance suite id for --conformance (approved: query_engine.v1).",
+)
+@click.option(
+    "--evidence-output",
+    "evidence_output",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write the schema-valid conformance result document to this path.",
+)
 def check_cmd(
     output_json: bool,
     containers: bool,
     remote_images: bool,
     vulnerability_waiver_values: tuple[str, ...],
+    conformance_mode: bool,
+    artifact_path: Path | None,
+    descriptor_path: Path | None,
+    suite_id: str | None,
+    evidence_output: Path | None,
 ):
     """Validate installed plugins.
 
@@ -1154,6 +1268,15 @@ def check_cmd(
         phlo plugin check --containers \\
           --allow-vulnerable-image SERVICE=IMAGE=EVIDENCE_SHA256=REASON
     """
+    if conformance_mode:
+        _run_conformance_mode(
+            artifact_path=artifact_path,
+            descriptor_path=descriptor_path,
+            suite_id=suite_id,
+            evidence_output=evidence_output,
+            output_json=output_json,
+        )
+        return
     try:
         if remote_images and not containers:
             raise click.UsageError("--remote-images requires --containers")
