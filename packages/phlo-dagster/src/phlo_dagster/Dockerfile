@@ -66,10 +66,9 @@ RUN if [ "$PHLO_UV_LOCKED" = "true" ]; then \
             echo "PHLO_UV_LOCKED=true but uv.lock is missing or empty in the build context; run 'phlo services init' to stage project lock metadata" >&2; \
             exit 1; \
         }; \
-        cd /tmp/project \
-        && UV_PROJECT_ENVIRONMENT=/opt/phlo-project-venv \
+        UV_PROJECT_ENVIRONMENT=/opt/phlo-project-venv \
             UV_PYTHON=/usr/local/bin/python \
-            uv sync --locked --no-dev --no-install-project; \
+            uv sync --locked --no-dev --no-install-project --directory /tmp/project; \
     fi
 
 ENV PATH="/opt/phlo-project-venv/bin:${PATH}"
