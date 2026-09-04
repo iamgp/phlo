@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""Gate Phlo release promotion on repeated, ADR-0050-qualifying evidence.
+"""Gate Phlo release promotion on repeated qualifying evidence.
 
-This module is the Horizon A promotion gate (issue #835). It consumes one
-immutable, staged #834 candidate BOM (``phlo.release-candidate-bom/v1``) and a
-set of real #834 evidence bundles (``phlo.release-candidate-evidence/v1``), and
-only when the evidence set qualifies under ADR 0050 §5 — at least three
-qualifying runs, on three distinct clean hosts, spanning at least two distinct
-UTC calendar days, with the newest run no older than seven days at authorization
-time, all bound to the same canonical candidate digest — does it allow
-promotion of the exact staged bytes.
+It consumes one immutable staged candidate BOM (``phlo.release-candidate-bom/v1``)
+and a set of real evidence bundles (``phlo.release-candidate-evidence/v1``).
+It allows promotion only when at least three successful qualifying runs are
+bound to the same canonical candidate digest, ran on three distinct clean
+hosts across at least two distinct UTC days, and the newest run is no older
+than seven days at authorization time.
+
+Those checks allow promotion of the exact staged bytes.
 
 Promotion is a change of visibility and namespace, never a rebuild: every step
-is digest-verified against the BOM before it acts, runs in the fixed ADR 0050
-§6b order (release tag → PyPI → images by digest → GitHub Release finalisation),
+is digest-verified against the BOM before it acts, runs in the fixed order
+(release tag → PyPI → images by digest → GitHub Release finalisation),
 and requires an explicit, recorded release-owner authorization bound to the
 candidate identity, the exact qualifying evidence bundle checksums, and the
 target channel. The result is a checksummed promotion receipt reconciled to
 BOM-bound public identities; a partial publication can only produce a
-non-success ``partial_publication`` receipt (ADR 0050 §6d).
+non-success ``partial_publication`` receipt.
 
 Every operation is bounded, non-publishing verification by default (dry run).
 Real publication additionally requires ``--execute`` together with a validated
 authorization record; without both, nothing is tagged, pushed, uploaded, or
 finalised.
 
-Support-status promotion is explicitly out of scope (ADR 0050 §7):
+Support-status promotion is explicitly out of scope:
 ``registry/support/v1.json`` and ``scripts/validate_support_manifest.py`` are
 neither a promotion gate nor a promotion output and are not touched here.
 """
@@ -51,14 +51,14 @@ RECEIPT_SCHEMA = "phlo.release-promotion-receipt/v1"
 REJECTION_SCHEMA = "phlo.release-promotion-rejection/v1"
 LOCK_SCHEMA = "phlo.release-candidate-lock/v1"
 
-#: ADR 0050 §5 qualifying-evidence thresholds. These are frozen by the ADR and
-#: must never be tuned here; changing them requires a new ADR.
+#: Qualifying-evidence thresholds. These values define the promotion contract
+#: and must not be tuned at this call site.
 MIN_QUALIFYING_RUNS = 3
 MIN_DISTINCT_HOSTS = 3
 MIN_DISTINCT_DAYS = 2
 MAX_EVIDENCE_AGE_DAYS = 7
 
-#: ADR 0050 §6b fixed publish ordering.
+#: Fixed publish ordering.
 STEP_ORDER = ("release_tag", "pypi_publish", "image_promotion", "release_finalisation")
 
 STATUS_PROMOTED = "promoted"
@@ -88,7 +88,7 @@ class PublishBlockedError(RuntimeError):
 
 
 def parse_utc(timestamp: str) -> datetime:
-    """Parse an ADR-0050 ``YYYY-MM-DDTHH:MM:SSZ`` UTC timestamp."""
+    """Parse a ``YYYY-MM-DDTHH:MM:SSZ`` UTC timestamp."""
     try:
         return datetime.strptime(timestamp, UTC_FORMAT).replace(tzinfo=UTC)  # noqa: DTZ007
     except (TypeError, ValueError) as exc:
@@ -98,7 +98,7 @@ def parse_utc(timestamp: str) -> datetime:
 
 
 def format_utc(moment: datetime) -> str:
-    """Format one UTC instant as an ADR-0050 timestamp."""
+    """Format one UTC instant as a canonical timestamp."""
     return moment.astimezone(UTC).strftime(UTC_FORMAT)
 
 
@@ -199,7 +199,7 @@ def validate_authorization(
         raise PromotionGateError(
             "not_authorized",
             "publish workflow refuses to run: the authorization record does not carry "
-            "an explicit authorized=true release-owner decision (ADR 0050 §6a)",
+            "an explicit authorized=true release-owner decision",
         )
     for field_name in ("release_owner", "target_channel", "approval_reference"):
         value = record.get(field_name)
@@ -272,7 +272,7 @@ def _check_bundle_environment(bundle: dict[str, object]) -> None:
             "wrong_environment",
             f"bundle {bundle_checksum(bundle)!r} was produced by the promotion automation; "
             "no qualifying-run evidence may be added by the automation that will later "
-            "perform promotion (ADR 0050 §5)",
+            "perform promotion",
         )
 
 
@@ -301,7 +301,7 @@ def qualify_evidence_set(
     staged_utc: str | None = None,
     prior_receipt_bundles: set[str] | None = None,
 ) -> Qualification:
-    """Adjudicate one evidence set against the ADR 0050 §5 qualifying rules.
+    """Adjudicate one evidence set against the qualifying rules.
 
     Every submitted bundle is validated, bound to the BOM, and required to be a
     complete, passed run on a clean host. Set-level rules then enforce the
@@ -378,8 +378,7 @@ def qualify_evidence_set(
     if len(valid) < MIN_QUALIFYING_RUNS:
         raise PromotionGateError(
             "insufficient_runs",
-            f"{len(valid)} qualifying run(s) is below the ADR 0050 minimum of "
-            f"{MIN_QUALIFYING_RUNS}",
+            f"{len(valid)} qualifying run(s) is below the minimum of {MIN_QUALIFYING_RUNS}",
         )
 
     hosts = sorted({bundle_host(bundle) for bundle in valid})
@@ -387,7 +386,7 @@ def qualify_evidence_set(
         raise PromotionGateError(
             "insufficient_hosts",
             f"qualifying runs executed on {len(hosts)} distinct host(s) {hosts!r}, below "
-            f"the ADR 0050 minimum of {MIN_DISTINCT_HOSTS}",
+            f"the minimum of {MIN_DISTINCT_HOSTS}",
         )
 
     def started(bundle: dict[str, object]) -> datetime:
@@ -399,7 +398,7 @@ def qualify_evidence_set(
         raise PromotionGateError(
             "insufficient_days",
             f"qualifying runs span {len(days)} distinct UTC calendar day(s) "
-            f"{sorted(str(day) for day in days)!r}, below the ADR 0050 minimum of "
+            f"{sorted(str(day) for day in days)!r}, below the minimum of "
             f"{MIN_DISTINCT_DAYS}",
         )
 
@@ -408,7 +407,7 @@ def qualify_evidence_set(
         raise PromotionGateError(
             "stale_evidence",
             f"the newest qualifying run finished {format_utc(newest)}, older than the "
-            f"ADR 0050 freshness window of {MAX_EVIDENCE_AGE_DAYS} days at "
+            f"freshness window of {MAX_EVIDENCE_AGE_DAYS} days at "
             f"{format_utc(now_utc)}",
         )
 
@@ -452,7 +451,7 @@ class CandidateLock:
 def lock_candidate(
     bom_path: Path, lock_dir: Path, *, now_utc: datetime | None = None
 ) -> CandidateLock:
-    """Consume and lock one staged candidate identity (ADR 0050 §2, issue step 1).
+    """Consume and lock one staged candidate identity.
 
     Writes an append-only lock record naming the release commit, the canonical
     candidate digest, and the staged BOM's own content digest. Locking the same
@@ -702,7 +701,7 @@ def promote(
             )
         )
 
-    # Step 1 — create the release tag on the release commit (ADR 0050 §6b).
+    # Create the release tag on the release commit first.
     attempt(
         "release_tag",
         1,
@@ -784,7 +783,7 @@ def reconcile_publication(
     Every completed or planned step must be bound only to digests the BOM
     knows, and together the bound digests must cover every BOM artifact digest.
     A mismatch is a reconciliation failure and blocks a success receipt
-    (ADR 0050 §6c).
+    before a success receipt is issued.
     """
     bom_digests = {str(artifact["digest"]) for artifact in bom["artifacts"]}
     # The canonical candidate digest is a valid binding target too: it names
@@ -797,7 +796,7 @@ def reconcile_publication(
     # step: distributions, first-party images, and the source commit (the
     # tag). Provider images are consumed by digest from their existing
     # registry locations and the support manifest is a read-only acceptance
-    # input (ADR 0050 §1, §7); neither is re-published by promotion.
+    # input; neither is re-published by promotion.
     publishable = {
         str(artifact["digest"])
         for artifact in bom["artifacts"]
@@ -845,7 +844,7 @@ def reconcile_publication(
         "note": (
             "dry-run reconciliation against BOM digests"
             if isinstance(executor, DryRunExecutor)
-            else "post-publication reconciliation (ADR 0050 §6c)"
+            else "post-publication reconciliation"
         ),
     }
 
@@ -874,7 +873,7 @@ def build_receipt(
     ``status`` is ``promoted`` only when a real, authorized publication
     completed every ordered step and reconciliation matched. A real publication
     that stopped partway can only yield a non-success ``partial_publication``
-    receipt (ADR 0050 §6d); a bounded dry run yields ``dry_run``, which is
+    receipt; a bounded dry run yields ``dry_run``, which is
     never a success receipt because nothing was published.
     """
     finished = format_utc(now_utc or utc_now())
@@ -972,7 +971,7 @@ def write_rejection_record(
     *,
     now_utc: datetime | None = None,
 ) -> dict[str, object]:
-    """Write an ADR 0050 §8 pre-publication rejection record for audit."""
+    """Write a pre-publication rejection record for audit."""
     record = {
         "schema": REJECTION_SCHEMA,
         "candidate_bom": str(bom_path),
@@ -1112,7 +1111,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise PromotionGateError(
                     "not_authorized",
                     "real publication requires an explicit release-owner authorization "
-                    "record (ADR 0050 §6a); refusing to publish without one",
+                    "record; refusing to publish without one",
                 )
             authorization = load_authorization(args.authorization)
             validate_authorization(authorization, bom, qualification.checksums)

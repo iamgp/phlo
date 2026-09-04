@@ -1,8 +1,8 @@
 name: Release Promotion
 
-# ADR 0050 §6: promotion of one staged release candidate to a published
-# channel. This workflow NEVER runs on push, pull_request, or merge_group: it
-# is dispatched explicitly, collects the real #834 evidence bundles recorded by
+# Promotion moves one staged release candidate to a published channel. This
+# workflow NEVER runs on push, pull_request, or merge_group: it is dispatched
+# explicitly, collects the evidence bundles recorded by
 # the nightly artifact-acceptance runs, gates them through
 # `scripts/promote_release_candidate.py gate` (≥3 qualifying runs, 3 distinct
 # clean hosts, ≥2 distinct UTC days, newest ≤7 days, same canonical candidate
@@ -127,7 +127,7 @@ jobs:
           if-no-files-found: error
 
   gate:
-    name: promotion / gate on ADR 0050 qualifying evidence
+    name: promotion / gate on qualifying evidence
     needs: [collect]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -157,7 +157,7 @@ jobs:
   promote:
     name: promotion / authorized promote (dry run unless authorized)
     needs: [gate]
-    # ADR 0050 §6a: the release-owner approval is a human act on the `release`
+    # The release-owner approval is a human act on the `release`
     # environment; automation may prepare but never authorise. contents:write
     # is required only for the authorized push of the release tag.
     environment: release
@@ -186,7 +186,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$AUTHORIZATION_REF" ]; then
-            echo "::error::Real publication requires a release-owner authorization record (ADR 0050 §6a); refusing to publish without one"
+            echo "::error::Real publication requires a release-owner authorization record; refusing to publish without one"
             exit 1
           fi
           git fetch --depth 1 origin "$AUTHORIZATION_REF"

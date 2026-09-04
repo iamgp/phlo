@@ -1,4 +1,4 @@
-"""Tests for the #835 Horizon A promotion gate (ADR 0050 §5/§6).
+"""Tests for the release promotion gate.
 
 Pins the negative evidence matrix — missing, failed, stale, duplicated,
 replayed, wrong-BOM, wrong-environment, incomplete, and insufficient evidence
@@ -508,7 +508,7 @@ def test_qualifying_dry_run_promotes_identical_bytes_without_publishing(tmp_path
     assert receipt["evidence"]["hosts"] == [HOST_A, HOST_B, HOST_C]
     assert receipt["evidence"]["distinct_utc_days"] == 2
 
-    # Fixed ADR 0050 §6b ordering, and every step only ever plans commands.
+    # Fixed ordering, and every step only ever plans commands.
     assert [step["step_id"] for step in receipt["steps"]] == list(
         promote_release_candidate.STEP_ORDER
     )
