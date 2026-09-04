@@ -562,6 +562,26 @@ def _dataset_metadata(value: Mapping[str, Any]) -> dict[str, Any]:
     return _safe_metadata(value)
 
 
+def _metadata_strings(metadata: Mapping[str, Any], *keys: str) -> list[str]:
+    values: list[str] = []
+    for key in keys:
+        value = metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            values.append(value.strip())
+        elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            values.extend(str(item).strip() for item in value if str(item).strip())
+    return sorted(set(values))
+
+
+def _publication_state(metadata: Mapping[str, Any]) -> str:
+    value = metadata.get("publication_state") or metadata.get("publishing_state")
+    if isinstance(value, str) and value.lower() in {"draft", "published", "retired"}:
+        return value.lower()
+    if metadata.get("published") is True:
+        return "published"
+    return "draft"
+
+
 def _dataset_text(value: str) -> str:
     return value
 
@@ -1166,13 +1186,32 @@ def _dataset_from_asset(
     owner = record.owner if record is not None and record.owner else None
     if owner is None and governed is not None:
         owner = governed.owner
-    publication_state = record.publication_state if record is not None else "draft"
+    if owner is None:
+        owner = metadata.get("owner") or metadata.get("team") or metadata.get("maintainer")
+    classifications = (
+        list(governed.classifications)
+        if governed is not None
+        else _metadata_strings(
+            metadata,
+            "classification",
+            "classifications",
+            "sensitivity",
+            "tags",
+        )
+    )
+    publication_state = (
+        record.publication_state
+        if record is not None
+        else "draft"
+        if governed is not None
+        else _publication_state(metadata)
+    )
     return ObservatoryDataset(
         id=asset.id,
         name=_coerce_str(metadata.get("dataset_name"), asset.name),
         description=_dataset_text(asset.description) if asset.description else None,
         owner=_coerce_str(owner, "") or None,
-        classifications=list(governed.classifications) if governed else [],
+        classifications=classifications,
         publication_state=cast(PublicationState, publication_state),
         readiness_state=cast(HealthState, _readiness_state(dataset_quality)),
         candidate=False,
