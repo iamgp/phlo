@@ -23,6 +23,8 @@ REQUEST_TIMEOUT_SECONDS = 15
 class PolarisResource:
     """HTTP client for the Polaris management API."""
 
+    _cached_token: str | None = None
+
     def __init__(self, settings: PolarisSettings | None = None) -> None:
         self._settings = settings
 
@@ -41,16 +43,16 @@ class PolarisResource:
 
         The management API does not accept HTTP basic; principals
         authenticate against the OAuth2 token endpoint like any Iceberg REST
-        client. Polaris seeds the bootstrap principal from the
-        ``polaris.bootstrap.credentials`` env (comma-separated).
+        client. Polaris prints one-time root credentials to its startup log
+        (persistence is in-memory, so they rotate per boot).
         """
         client_id, _, client_secret = self.settings.polaris_root_credentials.partition(":")
-        if getattr(self, "_cached_token", None):
+        if self._cached_token:
             return self._cached_token
         response = requests.post(
             f"{self.settings.polaris_rest_catalog_uri()}/v1/oauth/tokens",
             auth=(client_id, client_secret),
-            data={"grant_type": "client_credentials"},
+            data={"grant_type": "client_credentials", "scope": "PRINCIPAL_ROLE:ALL"},
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()

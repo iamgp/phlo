@@ -20,7 +20,6 @@ compose:
     quarkus.datasource.username: ${POSTGRES_USER:-phlo}
     quarkus.datasource.password: ${POSTGRES_PASSWORD:-phlo}
     polaris.persistence.type: in-memory
-    polaris.bootstrap.credentials: ${POLARIS_ROOT_CREDENTIALS:-root,s3cr3t}
     JAVA_OPTS_APPEND: "-Djava.security.egd=file:/dev/urandom"
     quarkus.http.auth.basic: "true"
     AWS_REGION: ${ICEBERG_S3_REGION:-us-east-1}
