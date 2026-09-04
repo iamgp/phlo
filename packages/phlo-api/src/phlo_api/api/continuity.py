@@ -400,7 +400,7 @@ def _backup_execution(
             raise _error(503, "contributors_unavailable", (str(exc),)) from exc
         contributors = sorted(contributors, key=lambda item: BACKUP_PROVIDER_ORDER.index(item[0]))
         result = create_backup_set(
-            target=Path(request.target),  # type: ignore[arg-type]
+            target=Path(target),
             contributors=contributors,
             journal=journal,
             subject=subject,
