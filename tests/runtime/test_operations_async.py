@@ -147,11 +147,7 @@ async def test_async_to_sync_transformer_adapter_rejects_running_loop() -> None:
 
 
 def test_adapter_quartet_emits_deprecation_warning() -> None:
-    """#837 row 10 (S-10): instantiating any adapter quartet member warns.
-
-    The record requires a release-notes deprecation naming the four classes
-    before removal; this pins the in-code half of that announcement.
-    """
+    """Instantiating any deprecated adapter emits a warning."""
     ingester = _SyncIngester(context=object(), logger=_TestLogger())
     async_ingester = _AsyncIngester(context=object(), logger=object())
     transformer = _SyncTransformer(context=object(), logger=_TestLogger())

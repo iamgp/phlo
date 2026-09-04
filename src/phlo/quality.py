@@ -149,10 +149,9 @@ def _provider_api_module(provider: QualityProviderPlugin) -> Any | None:
 def _deprecate_phlo_quality_alias(decorator: Callable[..., Any]) -> Callable[..., Any]:
     """Wrap the provider decorator so the ``phlo_quality`` third name warns.
 
-    SP9-DECISION-04 deprecates the ``phlo_quality`` name (deprecated-with-
-    migration via the decorators-2026-05 codemod); the wrapped decorator stays
-    reachable through ``phlo.quality.__wrapped__`` so ownership pins can still
-    assert one engine behind the forwarders.
+    The alias can be migrated with the ``decorators-2026-05`` codemod. The
+    wrapped decorator stays reachable through ``phlo.quality.__wrapped__`` for
+    introspection and compatibility.
     """
 
     @functools.wraps(decorator)

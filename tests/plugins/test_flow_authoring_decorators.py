@@ -392,9 +392,7 @@ def test_top_level_exports_lazy_load_new_authoring_surfaces() -> None:
 
 
 def test_deprecated_dormant_decorators_warn_at_decoration_time() -> None:
-    """#837 rows 2-4 (B-30/B-31/B-34): backfill, schedule, and transform.sql
-    are deprecated-with-migration -- they warn at decoration time but keep
-    registering specs until the removal pass."""
+    """Deprecated decorators warn but retain their registration behavior."""
     import phlo
 
     transform = importlib.import_module("phlo.transform")
@@ -427,8 +425,7 @@ def test_deprecated_dormant_decorators_warn_at_decoration_time() -> None:
 
 
 def test_governance_metadata_decorators_do_not_warn() -> None:
-    """#837 row 1: publish/observe/contract/access stay supported for the
-    governance-metadata path, so they must not emit deprecation warnings."""
+    """Supported governance decorators do not emit deprecation warnings."""
     import warnings
 
     import phlo

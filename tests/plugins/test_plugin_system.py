@@ -474,8 +474,7 @@ class TestPluginIntegration:
 
 
 def test_transformation_plugin_subclassing_warns_deprecation():
-    """#837 SP9-DECISION-01: the legacy transformation SDK family is
-    deprecated-with-migration -- subclassing warns but keeps working."""
+    """Subclassing the deprecated transformation base warns but still works."""
     with pytest.warns(DeprecationWarning, match="TransformationPlugin is deprecated"):
 
         class _DeprecatedTransform(TransformationPlugin):

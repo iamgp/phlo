@@ -4,14 +4,13 @@ publish(), observe(), backfill(), contract(), access(), and schedule() append
 specs to module-level registries; get_* accessors drain them and clear_*
 resets them. Declaration order at import time is the only ordering guarantee.
 
-Support status (#837 decision record, census rows 1-4): the governance-
-metadata plane is supported -- publish/observe/contract/access specs are
-drained into the governance surface. The execution implication is deprecated:
-no adapter bridges flow specs into orchestration, so decorated functions never
-execute there. backfill(), schedule(), and phlo.transform.sql() emit a
-DeprecationWarning at decoration time and will be removed in an upcoming
-release; users needing orchestration should define explicit assets through
-provider plugins (for example phlo.ingest.dlt) instead.
+The governance-metadata plane is supported: publish/observe/contract/access
+specs are drained into the governance surface. The execution decorators are
+deprecated because no adapter bridges flow specs into orchestration, so
+decorated functions never execute there. backfill(), schedule(), and
+phlo.transform.sql() emit a DeprecationWarning at decoration time and will be
+removed in an upcoming release; users needing orchestration should define
+explicit assets through provider plugins (for example phlo.ingest.dlt) instead.
 """
 
 from __future__ import annotations
@@ -197,15 +196,15 @@ def backfill(
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Register a repeatable backfill job.
 
-    Deprecated (#837 row 2 / B-30): nothing executes registered backfills.
-    The decorator will be removed in an upcoming release; use explicit
-    asset/provider definitions for orchestration instead.
+    Deprecated: nothing executes registered backfills. The decorator will be
+    removed in an upcoming release; use explicit asset/provider definitions for
+    orchestration instead.
     """
 
     def _decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         warnings.warn(
             "phlo.backfill is deprecated and will be removed in an upcoming "
-            "release: nothing executes registered backfills (B-30). Define "
+            "release: nothing executes registered backfills. Define "
             "explicit assets through provider plugins instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -308,16 +307,16 @@ def schedule(
     The decorated function is stored as a dynamic parameter hook. Adapters can
     call it at run time for partition values, config, or tags.
 
-    Deprecated (#837 row 3 / B-31): no schedule is ever created from the
-    declaration. The decorator will be removed in an upcoming release; use
-    the orchestrator's native scheduling instead.
+    Deprecated: no schedule is ever created from the declaration. The
+    decorator will be removed in an upcoming release; use the orchestrator's
+    native scheduling instead.
     """
 
     def _decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         warnings.warn(
             "phlo.schedule is deprecated and will be removed in an upcoming "
-            "release: no schedule is ever created from the declaration "
-            "(B-31). Use the orchestrator's native scheduling instead.",
+            "release: no schedule is ever created from the declaration. "
+            "Use the orchestrator's native scheduling instead.",
             DeprecationWarning,
             stacklevel=2,
         )

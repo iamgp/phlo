@@ -5,12 +5,11 @@ on worker threads behind the async contract, async implementations run on a
 private event loop behind the sync contract. The sync wrappers refuse to run
 inside an active event loop instead of failing opaquely.
 
-Deprecated (#837 decision record, census row 10 / S-10): the adapter quartet
-(SyncToAsyncIngesterAdapter, AsyncToSyncIngesterAdapter,
+Deprecated: the adapter quartet (SyncToAsyncIngesterAdapter, AsyncToSyncIngesterAdapter,
 SyncToAsyncTransformerAdapter, AsyncToSyncTransformerAdapter) has zero
-production callers and is slated for removal after a deprecation cycle.
-Instantiating any of them emits a DeprecationWarning; implement the target
-contract directly instead. No shim is provided.
+production callers. Instantiating any of them emits a DeprecationWarning and
+they will be removed in an upcoming release; implement the target contract
+directly instead. No shim is provided.
 """
 
 from __future__ import annotations
@@ -24,10 +23,10 @@ from phlo.operations.transformation import AsyncTransformer, BaseTransformer, Tr
 
 
 def _warn_adapter_deprecated(class_name: str) -> None:
-    """Emit the shared row-10 deprecation warning for one adapter use."""
+    """Emit the deprecation warning for one adapter use."""
     warnings.warn(
         f"{class_name} is deprecated and will be removed in an upcoming "
-        "release (#837 row 10): implement the target ingestion/transform "
+        "release: implement the target ingestion/transform "
         "contract directly instead. No shim is provided.",
         DeprecationWarning,
         stacklevel=3,

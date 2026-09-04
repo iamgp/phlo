@@ -1,10 +1,8 @@
-"""Census row 6 / B-37: the ``phlo.ingestion`` alias must warn on use.
+"""The ``phlo.ingestion`` alias must warn on use.
 
-The #837 decision record marks the compatibility alias deprecated-with-
-migration: the DeprecationWarning ships in #860, the codemod
-(``phlo migrate decorators-2026-05``) stays through one minor cycle, and the
-alias itself is removed afterwards. These tests pin the warning; none of them
-pin the alias's survival past that removal.
+The compatibility alias has a migration codemod
+(``phlo migrate decorators-2026-05``) and will be removed in an upcoming
+release. These tests pin the warning without preserving the alias indefinitely.
 """
 
 from __future__ import annotations

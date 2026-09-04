@@ -6,11 +6,10 @@ functions with required parameters yield no static SQL rather than
 deferring evaluation. Assets accumulate in a module-level list owned by
 the core provider; clear_transform_assets() exists for test isolation.
 
-Deprecated (#837 decision record, census row 4 / B-34): no provider bridges
-transform specs to the orchestrator, so the registered asset is unreachable
-at runtime. sql() emits a DeprecationWarning at decoration time and will be
-removed in an upcoming release; define transformations in dbt or through
-explicit asset-provider plugins instead.
+Deprecated: no provider bridges transform specs to the orchestrator, so the
+registered asset is unreachable at runtime. sql() emits a DeprecationWarning
+at decoration time and will be removed in an upcoming release; define
+transformations in dbt or through explicit asset-provider plugins instead.
 """
 
 from __future__ import annotations
@@ -46,16 +45,16 @@ def sql(
 ) -> Callable[[Callable[..., str]], Callable[..., str]]:
     """Register a SQL transform asset.
 
-    Deprecated (#837 row 4 / B-34): the registered asset never reaches the
-    pipeline. The decorator will be removed in an upcoming release; define
-    transformations in dbt or through explicit asset-provider plugins instead.
+    Deprecated: the registered asset never reaches the pipeline. The decorator
+    will be removed in an upcoming release; define transformations in dbt or
+    through explicit asset-provider plugins instead.
     """
 
     def _decorator(fn: Callable[..., str]) -> Callable[..., str]:
         warnings.warn(
             "phlo.transform.sql is deprecated and will be removed in an "
             "upcoming release: the registered asset never reaches the "
-            "pipeline (B-34). Define transformations in dbt or through "
+            "pipeline. Define transformations in dbt or through "
             "explicit asset-provider plugins instead.",
             DeprecationWarning,
             stacklevel=2,

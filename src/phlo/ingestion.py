@@ -1,4 +1,4 @@
-"""Deprecated DLT ingestion compatibility alias (B-37).
+"""Deprecated DLT ingestion compatibility alias.
 
 New code must use ``phlo.ingest.dlt`` or ``phlo.ingest.provider(name)``. This
 module remains callable so existing ``@phlo.ingestion(...)`` workflows keep
