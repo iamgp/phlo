@@ -1,11 +1,11 @@
 /**
  * /continuity route. Capability-gated continuity actions in Observatory
- * (issue #849): the supported-operation surface comes only from the #848
- * backend inventory (GET /api/continuity/operations), every destructive
+ * The supported-operation surface comes only from the backend inventory
+ * (GET /api/continuity/operations), every destructive
  * action is plan-first with an exact, immutable plan-token confirmation,
  * apply is once per intent under a durable idempotency key, and every
  * outcome is verified against the canonical journal lookup rendered with
- * the #847 proven / pending-incomplete / failed vocabulary.
+ * the proven, pending-incomplete, and failed verification states.
  *
  * Unsupported or weakly bound operations (orphan_delete, anything the
  * inventory does not list) never render an actionable control, and nothing
@@ -47,7 +47,7 @@ const ACTION_LABELS: Record<ContinuityAction, string> = {
   maintenance: 'Maintenance',
 }
 
-/** Verification card tone per frozen #847 verification state. */
+/** Verification card tone for each verification state. */
 const VERIFICATION_TONES: Record<
   ContinuityActionVerification['state'],
   'ok' | 'warning' | 'error'

@@ -1,9 +1,9 @@
 /**
- * Bounded verify-after-action for guarded continuity actions (issue #849).
+ * Bounded verify-after-action for guarded continuity actions.
  *
- * Reuses the frozen #847 verification vocabulary (proven / pending-incomplete
- * / failed) over the #848 canonical verification lookup: only the durable
- * Plan 010 journal entry, bound to complete canonical evidence (a terminal
+ * Uses the proven, pending-incomplete, and failed verification states over the
+ * canonical verification lookup: only the durable operation journal entry,
+ * bound to complete canonical evidence (a terminal
  * succeeded state AND the core service's acceptance evidence in the recorded
  * result), may turn an applied continuity action into a proven claim. Missing,
  * claimed, submitted, or incomplete evidence stays pending-incomplete — it
@@ -16,7 +16,7 @@
  */
 import type { ContinuityVerificationEntry } from './continuity'
 
-/** The three verification states from the #847 vocabulary. */
+/** The three verification states. */
 export type ContinuityVerificationState =
   | 'proven'
   | 'pending-incomplete'

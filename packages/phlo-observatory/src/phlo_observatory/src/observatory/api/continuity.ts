@@ -1,15 +1,15 @@
 /**
- * Typed clients for the guarded continuity action API (issue #848).
+ * Typed clients for the guarded continuity action API.
  *
  * One typed client per landed endpoint on phlo-api
  * (packages/phlo-api/src/phlo_api/api/continuity.py): GET /api/continuity/operations,
  * POST /api/continuity/plan (read-only, immutable target-bound dry-run plan),
  * one guarded POST /api/continuity/apply (authenticated, authorized, confirmed,
- * durable-idempotent through the Plan 010 journal), and the canonical
+ * durable-idempotent through the operation journal), and the canonical
  * restart-safe GET /api/continuity/verifications/{operation_id}.
  *
- * There are no backend fallbacks: the shapes below mirror the landed #848
- * contract exactly, transport failures surface as error strings, and nothing
+ * There are no backend fallbacks: the shapes below mirror the API contract
+ * exactly, transport failures surface as error strings, and nothing
  * here invents a capability the API does not report. Supported operations come
  * only from the backend inventory; destructive orphan deletion is never
  * claimable from this surface.
@@ -178,7 +178,7 @@ export interface ContinuityApplyResult {
   failure?: Record<string, NonNullable<unknown>> | null
 }
 
-/** Mirror of the durable Plan 010 journal entry (verification lookup). */
+/** Mirror of the durable operation journal entry (verification lookup). */
 export interface ContinuityVerificationEntry {
   operation_id: string
   subject: string

@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 
 /**
- * Tests the continuity actions surface (issue #849): capability gating from
- * the #848 inventory, plan-first exact confirmation, apply-once under one
- * idempotency key, intent-closing unknown outcomes, and canonical evidence
- * rendering with the #847 vocabulary.
+ * Tests the continuity actions surface: capability gating from the inventory,
+ * plan-first exact confirmation, apply-once under one idempotency key,
+ * intent-closing unknown outcomes, and canonical evidence rendering.
  */
 import {
   cleanup,

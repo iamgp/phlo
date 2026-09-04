@@ -1,7 +1,7 @@
 /**
- * Tests the bounded continuity verify-after-action (issue #849): the #847
- * vocabulary (proven / pending-incomplete / failed) bound to the #848
- * canonical journal evidence, and the bounded, cancellable, pure-GET poller.
+ * Tests bounded continuity verify-after-action: the proven,
+ * pending-incomplete, and failed states bound to canonical journal evidence,
+ * and the bounded, cancellable, pure-GET poller.
  */
 import { describe, expect, it, vi } from 'vitest'
 
