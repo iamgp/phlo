@@ -1,7 +1,7 @@
 /**
- * Tests the guarded run-action clients (#846): both clients route through the
- * Plan 003B authenticated-mutation middleware, post to the #845 guarded
- * endpoints, always submit dry_run=false for retry with the mandatory
+ * Tests the guarded run-action clients: both clients route through the
+ * authenticated-mutation middleware, post to the guarded endpoints, always
+ * submit dry_run=false for retry with the mandatory
  * idempotency key, and surface transport failures as safe error results.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'

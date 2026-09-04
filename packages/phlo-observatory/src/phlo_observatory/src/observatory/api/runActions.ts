@@ -1,11 +1,11 @@
 /**
- * Guarded run-action clients for the #845 retry/cancel UI.
+ * Guarded run-action clients for retry and cancel controls.
  *
- * One typed client per guarded endpoint from the #845 run-action contract
+ * One typed client per guarded endpoint from the run-action contract
  * (packages/phlo-api/.../run_action_contract.py): POST /runs/{run_id}/retry and
- * POST /runs/{run_id}/cancel on phlo-api. Both are Plan 003B authenticated
- * mutations — the shared inbound mutation-authorization middleware forwards the
- * signed-in human's bearer credential and nothing else. Every submission sends
+ * POST /runs/{run_id}/cancel on phlo-api. Both are authenticated mutations:
+ * the shared inbound mutation-authorization middleware forwards the signed-in
+ * human's bearer credential and nothing else. Every submission sends
  * dry_run=false plus a mandatory non-blank idempotency key, so a replayed
  * intent answers from the persisted claim store with a byte-identical result.
  */

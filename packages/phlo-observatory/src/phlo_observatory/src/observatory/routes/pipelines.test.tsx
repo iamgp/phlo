@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 /**
- * Tests the guarded retry/cancel UI (#846): the label-to-control guard, the
- * safe outcome rendering per #845 status, and the Pipeline-local confirm
+ * Tests the guarded retry/cancel UI: the label-to-control guard, the safe
+ * outcome rendering for each status, and the Pipeline-local confirm
  * dialog's one-intent-one-idempotency-key submission contract.
  */
 import {
