@@ -559,9 +559,7 @@ def test_observability_support_flags_round_trip() -> None:
 
 
 def test_resolve_object_store_defaults_to_minio_when_ambiguous() -> None:
-    """SP9-DECISION-03: with MinIO and RustFS both installed and no explicit
-    choice, object_store resolution is deterministically MinIO, never
-    ambiguous and never RustFS-by-accident."""
+    """Multiple object stores resolve deterministically to MinIO by default."""
     register_capability(
         "object_store", ObjectStoreSpec(name="rustfs", provider={"endpoint": "rustfs"})
     )

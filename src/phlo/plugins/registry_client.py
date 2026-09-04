@@ -59,9 +59,9 @@ def _is_cache_valid(now: float, ttl_seconds: int) -> bool:
 def _plugin_version(package: str) -> str:
     """Derive a plugin version from installed package metadata.
 
-    The registry carries no hand-maintained version column (S-08 rule:
-    package metadata is the single version authority per distribution);
-    a package that is not installed reports an empty version.
+    The registry carries no hand-maintained version column: package metadata
+    is the single version authority per distribution. A package that is not
+    installed reports an empty version.
     """
     if not package:
         return ""

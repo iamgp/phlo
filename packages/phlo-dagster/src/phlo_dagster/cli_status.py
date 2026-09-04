@@ -5,9 +5,9 @@ into Dagster asset materialization status, freshness, and service health.
 It queries the Dagster GraphQL API to retrieve real-time state information.
 
 Features:
-    - Asset status: Materialization state, last run time, freshness indicators
-      derived only from wired evidence sources (B-25 status-truth rule);
-      assets without a wired evidence source report unknown
+    - Asset status: Materialization state, last run time, and freshness
+      indicators derived only from wired evidence sources; assets without a
+      wired evidence source report unknown
     - Service health: Dagster, Trino, MinIO, Nessie connectivity checks
     - Filtering: By asset group, stale status
     - Output formats: Rich tables or JSON for scripting
@@ -267,8 +267,8 @@ def _get_asset_status(
                         )
                         freshness = _get_freshness_indicator(last_run)
                     else:
-                        # B-25: no wired evidence source — report unknown,
-                        # never a stub-derived never_run/stale state.
+                        # No wired evidence source: report unknown, never a
+                        # stub-derived never_run/stale state.
                         last_run = None
                         is_stale = None
                         status_value = "unknown"
@@ -318,12 +318,11 @@ def _get_asset_status(
 class AssetRunEvidence:
     """Per-asset run evidence behind the status report.
 
-    ``available`` is False when no wired evidence source backs the asset.
-    Per the B-25 status-truth rule, an unwired asset must display as
-    unknown and must never inherit ``never_run``/``stale`` from a stub,
-    a default, or an empty snapshot. When ``available`` is True,
-    ``last_run`` is the wired record, or None when the wired source has
-    no run for the asset (a legitimate ``never_run``).
+    ``available`` is False when no wired evidence source backs the asset. An
+    unwired asset must display as unknown and must never inherit
+    ``never_run``/``stale`` from a stub, a default, or an empty snapshot. When
+    ``available`` is True, ``last_run`` is the wired record, or None when the
+    wired source has no run for the asset (a legitimate ``never_run``).
     """
 
     available: bool
@@ -333,10 +332,9 @@ class AssetRunEvidence:
 def _get_asset_last_run(asset_name: str) -> AssetRunEvidence:
     """Return the wired run evidence for an asset.
 
-    No per-asset run-evidence source is wired into this command yet
-    (wiring the run-evidence store is P3-03E / T7-06 work). Per the B-25
-    status-truth rule the command must report unknown instead of the old
-    stub behaviour that fabricated never_run/stale for every asset.
+    No per-asset run-evidence source is wired into this command yet. The
+    command therefore reports unknown instead of fabricating ``never_run`` or
+    ``stale`` for every asset.
     """
     return AssetRunEvidence(available=False)
 
@@ -574,7 +572,7 @@ def _display_asset_status(
         elif freshness == "failed":
             freshness_str = "[red]Failed[/red]"
         elif freshness == "unknown":
-            # B-25: no wired evidence source; never present unknown as never-run.
+            # No wired evidence source: never present unknown as never-run.
             freshness_str = "[dim]— unknown[/dim]"
         else:
             freshness_str = "[dim]Never run[/dim]"

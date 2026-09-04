@@ -425,8 +425,7 @@ class TestStatusEdgeCases:
         assert assets[0]["evidence_available"] is True
 
     def test_unwired_evidence_source_is_declared(self, monkeypatch: pytest.MonkeyPatch):
-        """B-25: no wired evidence source backs _get_asset_last_run yet, so
-        it must declare unavailability instead of returning run data."""
+        """An unwired evidence source declares unavailability, not run data."""
         evidence = status_module._get_asset_last_run("dlt_events")
 
         assert evidence.available is False

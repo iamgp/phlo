@@ -135,8 +135,7 @@ def test_observatory_package_install_uses_trusted_registry_package(
     assert response.status_code == 200
     assert response.json()["status"] == "succeeded"
     assert response.json()["package_name"] == "phlo-openmetadata"
-    # The registry carries no hand-maintained version column (S-08); the
-    # install spec derives its pin from installed package metadata.
+    # The install spec derives its pin from installed package metadata.
     assert installed == [f"phlo-openmetadata=={version('phlo-openmetadata')}"]
 
 

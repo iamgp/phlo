@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fail on version drift across package metadata, registries, and docs.
 
-S-08 version-drift check (#859): each distribution's ``pyproject.toml`` is the
-single version authority; its Python sources may not carry a hand-maintained
+Each distribution's ``pyproject.toml`` is the single version authority; its
+Python sources may not carry a hand-maintained
 ``__version__`` literal, the plugin registries may not carry a hand-maintained
 per-plugin ``version`` column, and the support manifest's release set must
 agree with the package metadata it pins.
@@ -50,7 +50,7 @@ def version_literal_errors(distributions: dict[str, str]) -> list[str]:
                     continue
                 errors.append(
                     f"{path.relative_to(ROOT)}: hand-maintained {statement!r}; "
-                    "use __version__ = version(<distribution name>) (S-08 rule)"
+                    "use __version__ = version(<distribution name>)"
                 )
     return errors
 
@@ -65,7 +65,7 @@ def registry_version_column_errors() -> list[str]:
             if "version" in entry:
                 errors.append(
                     f"{relative}: plugin {name!r} carries a hand-maintained "
-                    "'version' column; derive it from package metadata instead (S-08 rule)"
+                    "'version' column; derive it from package metadata instead"
                 )
     return errors
 

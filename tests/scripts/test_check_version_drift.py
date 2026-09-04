@@ -1,4 +1,4 @@
-"""Tests for scripts/check_version_drift.py: the S-08 version-drift gate.
+"""Tests for the version-drift check.
 
 Each distribution's pyproject is the single version authority; source
 ``__version__`` literals, hand-maintained registry version columns, and

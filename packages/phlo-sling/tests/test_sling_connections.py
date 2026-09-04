@@ -131,7 +131,7 @@ def test_resolve_s3_connection_skips_when_object_store_unresolved(monkeypatch) -
     """Auto-connections skip S3 when the resolver cannot resolve an object store.
 
     The MinIO deterministic default for ambiguous installs lives in the
-    capability resolver (SP9-DECISION-03); connections.py never guesses.
+    capability resolver; connections.py never guesses.
     """
     monkeypatch.setattr("phlo_sling.connections._ensure_capabilities_discovered", lambda *_k: None)
     monkeypatch.setattr(

@@ -217,12 +217,9 @@ def test_quality_rules_fails_when_provider_cannot_translate_rules(
 
 
 def test_phlo_quality_alias_is_the_blessed_pandera_decorator() -> None:
-    """SP9-DECISION-04 ownership: the ``phlo_quality`` third name must be the
-    exact decorator object the blessed ``phlo-pandera`` provider supplies —
-    one implementation behind the forwarders, never a divergent second engine.
+    """The ``phlo_quality`` alias and Pandera provider share one decorator.
 
-    The alias itself is deprecated-with-migration in #860; this pins that,
-    until then, both names resolve to the same Pandera implementation.
+    Both public names resolve to the same Pandera implementation.
     """
     from phlo_pandera import phlo_pandera
     from phlo_pandera.plugin import PanderaQualityProvider
@@ -235,9 +232,7 @@ def test_phlo_quality_alias_is_the_blessed_pandera_decorator() -> None:
 
 
 def test_quality_forwarders_route_through_pandera_provider_registry() -> None:
-    """SP9-DECISION-04: the ``phlo.quality`` forwarders resolve through the
-    discovered ``pandera`` quality provider, keeping registry ownership
-    unambiguous (one blessed engine, plugin-mediated)."""
+    """Quality forwarders resolve through the discovered Pandera provider."""
     from phlo.plugins.discovery import discover_plugins, get_global_registry
 
     discover_plugins(plugin_type="quality_provider", auto_register=True)

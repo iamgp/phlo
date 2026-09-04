@@ -1,6 +1,6 @@
 """Unit tests for the package-owned harness utilities.
 
-Guards the S-06 packaging fix: the installed ``phlo-testing`` package must
+Guards the packaging contract: the installed ``phlo-testing`` package must
 never load the repo-only ``scripts/run_golden_path.py``; its harness helpers
 live in ``phlo_testing.harness_utils``.
 """
