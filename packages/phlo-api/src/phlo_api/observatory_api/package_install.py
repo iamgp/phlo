@@ -21,7 +21,10 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from phlo.infrastructure import load_project_config
 from phlo.cli.commands.plugin.install import resolve_install_target
+from phlo.plugins import preflight
+from phlo.plugins.preflight import PreflightDecision
 from phlo.plugins.registry_client import get_registry_data
 from phlo_api.api.operation_controls import audit_operation, enforce_rate_limit, require_scope
 from phlo_api.observatory_api.observatory_services import (
@@ -36,6 +39,8 @@ class ObservatoryPackageInstallRequest(BaseModel):
     """Request to install a Phlo package from the trusted registry."""
 
     package_name: str
+    allow_community: bool = False
+    override_reason: str | None = None
 
 
 class ObservatoryPackageInstallResult(BaseModel):
@@ -134,6 +139,43 @@ def _clear_read_model_cache() -> None:
     clear_cache()
 
 
+def _evidence_paths() -> list[Path]:
+    """Conformance evidence paths from $PHLO_CONFORMANCE_EVIDENCE."""
+    configured = os.environ.get("PHLO_CONFORMANCE_EVIDENCE", "")
+    return [Path(part) for part in configured.split(os.pathsep) if part.strip()]
+
+
+def _preflight_decision(
+    registry_entry: Mapping[str, Any],
+    request: ObservatoryPackageInstallRequest,
+) -> PreflightDecision:
+    """Run the shared pure preflight for a registry-resolved candidate.
+
+    The identical decision the CLI enforces before its pip mutation
+    (issue #857); a rejection here prevents the Observatory mutation.
+    """
+    descriptor_data = {
+        "type": registry_entry.get("type", "service"),
+        "package": registry_entry.get("package", ""),
+        "version": registry_entry.get("version", ""),
+        "description": registry_entry.get("description", ""),
+        "author": registry_entry.get("author", ""),
+        "homepage": registry_entry.get("homepage"),
+        "tags": list(registry_entry.get("tags", [])),
+    }
+    override_reason = request.override_reason if request.allow_community else None
+    return preflight.evaluate_install_preflight(
+        descriptor_data=descriptor_data,
+        plugin_name=str(registry_entry.get("name", "")),
+        conformance_results=preflight.load_conformance_evidence(_evidence_paths()),
+        project_requirements=preflight.read_project_requirements(
+            load_project_config(_project_root())
+        ),
+        override_reason=override_reason,
+        legacy_verified=bool(registry_entry.get("verified", False)),
+    )
+
+
 def _install_python_package(
     request: ObservatoryPackageInstallRequest,
 ) -> ObservatoryPackageInstallResult:
@@ -160,6 +202,15 @@ def _install_python_package(
         version = str(registry_entry.get("version") or "").strip()
         if version:
             package_spec = f"{package_name}=={version}"
+
+    # The shared pure preflight decides before anything is installed; the
+    # mutation below is unreachable for rejected candidates (issue #857).
+    decision = _preflight_decision(registry_entry, request)
+    if not decision.accepted:
+        raise HTTPException(
+            status_code=400,
+            detail="Install rejected by preflight: " + "; ".join(decision.rejection_messages()),
+        )
 
     try:
         succeeded, install_message = _run_python_package_install(package_spec)
@@ -189,11 +240,17 @@ def _install_python_package(
         for service in _load_services()
         if service.metadata.get("package") == package_name
     ]
+    message = f"Installed {package_name}. Regenerate the Phlo service stack before starting it."
+    if decision.override_rule:
+        message += (
+            f" Installed under explicit override ({decision.override_rule}): the provider "
+            f"remains tier {decision.tier.value}; the override never changes a tier."
+        )
     return ObservatoryPackageInstallResult(
         package_name=package_name,
         package_spec=package_spec,
         status="succeeded",
-        message=f"Installed {package_name}. Regenerate the Phlo service stack before starting it.",
+        message=message,
         services=installed_services or [registry_name],
     )
 

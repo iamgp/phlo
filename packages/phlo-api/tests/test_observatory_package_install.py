@@ -112,6 +112,9 @@ def test_observatory_package_install_uses_trusted_registry_package(
                     "type": "service",
                     "package": "phlo-openmetadata",
                     "version": "0.1.0",
+                    "description": "OpenMetadata service plugin",
+                    "author": "Phlo Team",
+                    "tags": ["governance"],
                 }
             }
         },
