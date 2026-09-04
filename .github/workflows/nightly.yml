@@ -75,10 +75,10 @@ jobs:
         with:
           version: "0.12.1"
 
-      # The nightly is a non-promoting artifact-acceptance caller (ADR 0050 §5):
+      # The nightly only performs non-promoting artifact acceptance:
       # it only ever consumes one staged, immutable candidate BOM and never
       # stages, rebuilds, promotes, or authorizes anything. Candidate staging
-      # publication is owned by the release automation (issue #833), which
+      # publication is owned by the release automation, which
       # attaches bom.json plus every staged distribution to the candidate's
       # draft GitHub release.
       - name: Locate the staged candidate BOM

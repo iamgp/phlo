@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Validate one canonical Phlo release-candidate evidence bundle (ADR 0050 §4).
+"""Validate one canonical Phlo release-candidate evidence bundle.
 
 Exits 0 only when the bundle is canonical, sanitized, checksummed, complete
-for every Horizon A runtime demonstration, and — when a candidate BOM is
+for every required runtime demonstration, and — when a candidate BOM is
 supplied — bound to that BOM's candidate identity and artifact digests.
 """
 

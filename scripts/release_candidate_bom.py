@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage and validate one immutable Phlo release-candidate BOM (ADR 0050).
+"""Stage and validate one immutable Phlo release-candidate BOM.
 
 A release candidate is an exact, enumerable artifact set: the release commit
 source identity, one sdist and one wheel per published release-set package,
@@ -274,8 +274,8 @@ def _build_distributions_from_tree(
 ) -> list[dict[str, object]]:
     """Build each release-set package once from the pinned tree and stage the bytes.
 
-    ADR 0050 concern 1: Python distributions are "built once from the release
-    commit". When the release_set version is not published on PyPI (a
+    Python distributions are built once from the release commit. When the
+    release_set version is not published on PyPI (a
     pre-release candidate), the stager builds the exact set from the pinned
     tree, records the resulting content digests in the BOM, and stages the
     bytes append-only. The built bytes are never rebuilt or replaced.
@@ -362,7 +362,7 @@ def build_bom_artifacts(
     distributions_dir: Path | None = None,
     build_from_tree: bool = False,
 ) -> list[dict[str, object]]:
-    """Enumerate the exact ADR 0050 artifact inventory at the pinned identity."""
+    """Enumerate the exact artifact inventory at the pinned identity."""
     support_bytes = tree.read(SUPPORT_MANIFEST_PATH)
     try:
         support = json.loads(support_bytes)
@@ -680,7 +680,7 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Build the release_set distributions once from the pinned tree instead of "
             "downloading them from PyPI (for pre-release candidates whose version is "
-            "not yet published). ADR 0050 concern 1."
+            "not yet published)."
         ),
     )
 

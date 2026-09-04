@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Canonical Phlo release-candidate evidence bundles (ADR 0050 §4).
+"""Canonical Phlo release-candidate evidence bundles.
 
-One evidence bundle records every Horizon A runtime demonstration executed
+One evidence bundle records every required runtime demonstration executed
 against one immutable candidate BOM: the candidate identity pair, the digest
 of every artifact actually exercised, the executing environment identity, UTC
 timestamps, one structured result per demonstration, and a pass/fail
@@ -24,8 +24,8 @@ from pathlib import Path
 
 EVIDENCE_SCHEMA = "phlo.release-candidate-evidence/v1"
 
-#: Every Horizon A runtime demonstration the golden-path runner must record
-#: before a bundle can carry a ``passed`` conclusion (ADR 0050 §4).
+#: Every required runtime demonstration the golden-path runner must record
+#: before a bundle can carry a ``passed`` conclusion.
 REQUIRED_DEMONSTRATIONS: tuple[tuple[str, str], ...] = (
     ("candidate_bom_verification", "Candidate BOM verification"),
     ("operator_installation", "Exact BOM artifact installation"),

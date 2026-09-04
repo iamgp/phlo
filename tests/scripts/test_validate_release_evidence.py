@@ -1,8 +1,7 @@
 """Focused tests for the canonical release-candidate evidence bundle.
 
-Pins sanitization, canonical checksumming, BOM binding, required Horizon A
-demonstrations, and the failure-path invariants the #835 promotion gating
-consumes.
+Pins sanitization, canonical checksumming, BOM binding, required runtime
+demonstrations, and the failure-path invariants promotion gating consumes.
 """
 
 import importlib.util

@@ -958,7 +958,7 @@ def test_configure_non_dev_compose_uses_docker_ephemeral_ports(tmp_path: Path, m
 
 
 # ---------------------------------------------------------------------------
-# Candidate mode (ADR 0050): artifact-bound journey + evidence bundle.
+# Candidate mode: artifact-bound journey and evidence bundle.
 # ---------------------------------------------------------------------------
 
 

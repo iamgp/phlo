@@ -1,4 +1,4 @@
-"""Focused tests for the ADR 0050 release-candidate BOM module.
+"""Focused tests for the release-candidate BOM module.
 
 Pins the canonical candidate digest definition, every structural BOM
 invariant, staged-distribution digest verification, and the append-only

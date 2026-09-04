@@ -65,7 +65,7 @@ RUNTIME_DIAGNOSTIC_SERVICES = (
     "phlo-api",
 )
 
-# Candidate mode (ADR 0050): the quality gate reads this directive file inside
+# Candidate mode: the quality gate reads this directive file inside
 # the Dagster container at check time, so the harness can flip one owned file
 # between the promoted run and the deliberately rejected run.
 QUALITY_DIRECTIVE_CONTAINER_PATH = "/app/.phlo/quality_gate.json"
@@ -82,7 +82,7 @@ COMPOSE_PORT_PROBES: tuple[tuple[str, int, str], ...] = (
     ("dagster", 3000, "DAGSTER_PORT"),
     ("phlo-api", 4000, "PHLO_API_PORT"),
 )
-# First-party packages the operator venv needs for the full Horizon A journey.
+# First-party packages the operator venv needs for the complete runtime journey.
 OPERATOR_PACKAGES = ("phlo", "phlo-api", "phlo-iceberg", "phlo-dbt", "phlo-dlt", "phlo-pandera")
 PROJECT_PACKAGES = ("phlo-dbt", "phlo-dlt", "phlo-pandera")
 
@@ -967,7 +967,7 @@ def cleanup(
 
 
 # ---------------------------------------------------------------------------
-# Candidate mode (ADR 0050): the full Horizon A journey bound to one
+# Candidate mode: the complete runtime journey is bound to one
 # immutable candidate BOM, producing one canonical evidence bundle.
 # ---------------------------------------------------------------------------
 
@@ -1162,7 +1162,7 @@ def release_golden_path_wap_check(context) -> dg.AssetCheckResult:
 
 
 def write_operations_policy(config: RunConfig) -> None:
-    """Grant the run's service principal the ADR 0049 operations actions."""
+    """Grant the run's service principal the required operations actions."""
     authorization_dir = config.project_dir / ".phlo" / "authorization"
     roles_path = authorization_dir / "roles.yaml"
     if not roles_path.exists():
@@ -1314,7 +1314,7 @@ def start_stack_candidate(config: RunConfig) -> None:
 
 
 def production_preflight(config: RunConfig) -> dict[str, object]:
-    """Require the ADR 0047 production readiness report to pass."""
+    """Require the production readiness report to pass."""
     result = subprocess.run(
         command(str(config.operator_bin), "services", "preflight", "--production", "--json"),
         cwd=config.project_dir,
@@ -1375,7 +1375,7 @@ def compose_service_port(config: RunConfig, service: str, container_port: int) -
 
 
 def ops_environment(config: RunConfig, *, authorized: bool = False) -> dict[str, str]:
-    """Build the operator environment for ADR 0049 operations against the stack."""
+    """Build the operator environment for guarded operations against the stack."""
     environment = dict(os.environ)
     environment.pop("PHLO_SERVICE_ACCOUNT", None)
     environment.pop("PHLO_AUTH_SUBJECT", None)
