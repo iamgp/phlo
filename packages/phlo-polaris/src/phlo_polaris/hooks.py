@@ -38,13 +38,22 @@ def ensure_catalog(client, *, name: str, warehouse: str) -> bool:
     return True
 
 
-def ensure_principal(client, *, name: str) -> bool:
-    """Create one service principal when absent."""
+def ensure_principal(client, *, name: str, credentials: dict[str, str] | None = None) -> bool:
+    """Create one service principal when absent, capturing its credentials.
+
+    Polaris generates the client secret at creation time; the returned
+    credentials are merged into ``credentials`` (keyed by principal name) so
+    callers can persist them for REST catalog clients.
+    """
     principals = {principal.get("principalName") for principal in client.list_principals()}
     if name in principals:
         logger.info("polaris_bootstrap_principal_exists", principal=name)
         return False
-    client.create_principal(name=name)
+    created = client.create_principal(name=name)
+    payload = created.get("principal", {}) if isinstance(created, dict) else {}
+    creds = payload.get("credentials") or created.get("credentials") or {}
+    if isinstance(creds, dict) and credentials is not None:
+        credentials[name] = f"{creds.get('clientId', '')}:{creds.get('clientSecret', '')}"
     logger.info("polaris_bootstrap_principal_created", principal=name)
     return True
 
@@ -63,14 +72,41 @@ def bootstrap(client=None) -> int:
     settings = get_settings()
     warehouse = f"s3://lake/warehouse/{settings.polaris_catalog}"
     ensure_catalog(client, name=settings.polaris_catalog, warehouse=warehouse)
+    credentials: dict[str, str] = {}
     for principal in (
         settings.polaris_writer_client_id,
         settings.polaris_reader_client_id,
     ):
-        ensure_principal(client, name=principal)
+        ensure_principal(client, name=principal, credentials=credentials)
     grants = client.bootstrap_grants()
     logger.info("polaris_bootstrap_grants_applied", grants=grants)
+    _persist_credentials(credentials)
     return 0
+
+
+def _persist_credentials(credentials: dict[str, str]) -> None:
+    """Write captured principal credentials next to the project state.
+
+    Polaris returns each principal's secret exactly once at creation; the
+    file lets REST catalog clients authenticate without pre-shared secrets.
+    """
+    import json
+    import os
+    from pathlib import Path
+
+    if not credentials:
+        return
+    root = Path(os.getenv("PHLO_PROJECT_PATH", "."))
+    path = root / ".phlo" / "polaris-principals.json"
+    existing: dict[str, str] = {}
+    try:
+        existing = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        existing = {}
+    existing.update(credentials)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(existing, indent=2, sort_keys=True), encoding="utf-8")
+    logger.info("polaris_bootstrap_credentials_persisted", path=str(path))
 
 
 def main(argv: list[str] | None = None) -> int:

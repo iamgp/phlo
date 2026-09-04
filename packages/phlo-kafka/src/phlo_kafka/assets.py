@@ -3,18 +3,20 @@
 The lifecycle per consumed batch is:
 
 1. **Claim** the consumed offset ranges in the durable checkpoint store.
-2. **Stage** records through an idempotent merge on the declared unique key,
-   producing an Iceberg candidate snapshot (at-least-once Kafka, effectively-
-   once Iceberg results).
+2. **Stage** records through an idempotent unique-key merge. Under the
+   snapshot WAP strategy the batch lands in a candidate branch of the
+   destination (at-least-once Kafka, effectively-once Iceberg results,
+   invisible to readers until promotion); otherwise it merges directly into
+   the destination via the table store.
 3. **Audit** via schema policy: incompatible schema changes dead-letter the
    batch and retain offsets uncommitted.
-4. **Promote**: record the output snapshot on the checkpoint; the
-   ``snapshot_promoter`` seam advances a release pointer when a
-   snapshot-promotion catalog is wired into the run.
+4. **Promote**: record the output snapshot on the checkpoint; under the
+   snapshot strategy the promoter advances the release pointer.
 5. **Commit** the checkpoint (and consumer offsets) only after promotion.
 
-Replaying a committed range merges the same keyed rows again, producing no
-duplicate logical destination records.
+Replaying a committed range skips cleanly, and replaying an uncommitted
+range merges the same keyed rows again — either way no duplicate logical
+destination records.
 """
 
 from __future__ import annotations
@@ -59,6 +61,7 @@ class KafkaConsumerConfig:
     unique_key: list[str]
     group_id: str | None = None
     schema_policy: str = "additive"
+    schema: dict[str, str] = field(default_factory=dict)
     dead_letter_topic: str | None = None
     max_records_per_batch: int = 10_000
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -87,22 +90,31 @@ def _validate_consumer_config(config: KafkaConsumerConfig) -> None:
         )
 
 
+def _release_field(record: Any, name: str) -> Any:
+    if isinstance(record, dict):
+        return record.get(name)
+    return getattr(record, name, None)
+
+
 def ingest_batch(
     *,
     config: KafkaConsumerConfig,
     records: list[dict[str, Any]],
     ranges: list[SourceOffsetRange],
     checkpoint_adapter: KafkaCheckpointAdapter,
-    table_store: Any,
-    snapshot_promoter: Any | None = None,
+    stager: Callable[[str, list[dict[str, Any]]], dict[str, Any]],
+    promoter: Callable[[str], list[Any]] | None = None,
     dead_letter_sink: Callable[[str, list[dict[str, Any]]], int] | None = None,
     known_fields: dict[str, str] | None = None,
     logger: Any = None,
 ) -> dict[str, Any]:
     """Drive one consumed batch through claim→stage→audit→promote→commit.
 
-    On any failure the checkpoint is marked failed and its offsets stay
-    uncommitted so the range replays into an idempotent merge.
+    ``stager(checkpoint_id, records)`` lands the batch and returns at least
+    ``snapshot_id``; ``promoter(checkpoint_id)`` (snapshot strategy only)
+    advances the release pointer and returns release records. On any failure
+    the checkpoint is marked failed and its offsets stay uncommitted so the
+    range replays into an idempotent stage.
     """
     logger = logger or get_logger(__name__)
     if not records:
@@ -154,34 +166,49 @@ def ingest_batch(
             "dead_lettered": dead_lettered,
         }
 
-    # Stage: idempotent merge keyed on the declared unique key.
-    merge_result = table_store.merge_parquet_rows(
-        table_name=config.destination_table,
-        rows=records,
-        unique_key=config.unique_key,
-    )
-    snapshot_id = merge_result.get("snapshot_id")
+    # Stage: idempotent unique-key merge into the candidate (snapshot
+    # strategy) or the destination (legacy table-store path).
+    try:
+        stage_result = stager(checkpoint.checkpoint_id, records) or {}
+        snapshot_id = stage_result.get("snapshot_id")
+    except Exception as exc:
+        checkpoint_adapter.fail(
+            checkpoint_id=checkpoint.checkpoint_id, reason=f"stage failed: {exc}"
+        )
+        raise
 
     checkpoint = checkpoint_adapter.bind_snapshot(
-        checkpoint_id=checkpoint.checkpoint_id, snapshot_id=snapshot_id
+        checkpoint_id=checkpoint.checkpoint_id,
+        snapshot_id=snapshot_id if snapshot_id is not None else "unknown",
     )
 
-    # Promote: advance the release pointer when a promotion catalog exists.
-    release_id = checkpoint.checkpoint_id
-    if snapshot_promoter is not None:
-        release_id = str(
-            snapshot_promoter.promote_snapshot(
-                table_name=config.destination_table, snapshot_id=snapshot_id
+    # Promote: advance the release pointer when a promoter is configured.
+    release_id: Any = checkpoint.checkpoint_id
+    released_snapshot: Any = snapshot_id
+    if promoter is not None:
+        try:
+            promoted = promoter(checkpoint.checkpoint_id)
+        except Exception as exc:
+            checkpoint_adapter.fail(
+                checkpoint_id=checkpoint.checkpoint_id, reason=f"promote failed: {exc}"
             )
-        )
+            raise
+        if promoted:
+            release_id = _release_field(promoted[0], "release_id")
+            released_snapshot = _release_field(promoted[0], "snapshot_id")
+            checkpoint_adapter.bind_snapshot(
+                checkpoint_id=checkpoint.checkpoint_id,
+                snapshot_id=released_snapshot if released_snapshot is not None else "unknown",
+                release_id=release_id,
+            )
 
     checkpoint = checkpoint_adapter.commit(checkpoint_id=checkpoint.checkpoint_id)
     return {
         "checkpoint_id": checkpoint.checkpoint_id,
         "status": "committed",
-        "snapshot_id": snapshot_id,
+        "snapshot_id": released_snapshot,
         "release_id": release_id,
-        "rows": merge_result.get("rows_merged", len(records)),
+        "rows": stage_result.get("rows_merged", stage_result.get("appended", len(records))),
         "dead_lettered": 0,
         "ranges": [
             {
@@ -193,6 +220,62 @@ def ingest_batch(
             for item in ranges
         ],
     }
+
+
+def _resolve_promotion_catalog() -> Any:
+    """Resolve the snapshot-promotion catalog when the WAP strategy needs it."""
+    from phlo.capabilities.interfaces import SnapshotPromotionCatalog
+    from phlo.infrastructure import load_wap_config
+
+    if load_wap_config().strategy != "snapshot":
+        return None
+    resolution = resolve_capability("catalog")
+    if resolution is None or not (
+        resolution.support.supports_promote and resolution.support.supports_snapshots
+    ):
+        raise PhloConfigError(
+            message="Kafka snapshot-strategy ingestion requires a snapshot-promotion catalog.",
+            suggestions=["Install phlo-polaris, or set wap.strategy to 'branch'."],
+        )
+    if not isinstance(resolution.provider, SnapshotPromotionCatalog):
+        raise PhloConfigError(
+            message="Configured catalog does not implement snapshot-based WAP promotion.",
+            suggestions=["Install phlo-polaris, or set wap.strategy to 'branch'."],
+        )
+    return resolution.provider
+
+
+def _make_stager(config: KafkaConsumerConfig, catalog: Any, table_store: Any):
+    """Build the staging callable for the active WAP strategy."""
+    if catalog is not None:
+
+        def stager(checkpoint_id: str, records: list[dict[str, Any]]) -> dict[str, Any]:
+            catalog.create_candidate(table_name=config.destination_table, run_id=checkpoint_id)
+            return catalog.merge_rows_into_candidate(
+                table_name=config.destination_table,
+                run_id=checkpoint_id,
+                rows=records,
+                unique_key=config.unique_key,
+            )
+
+        return stager
+
+    def table_store_stager(checkpoint_id: str, records: list[dict[str, Any]]) -> dict[str, Any]:
+        import tempfile
+        from pathlib import Path
+
+        import pyarrow as pa
+
+        with tempfile.TemporaryDirectory(prefix="phlo-kafka-stage-") as tmp:
+            path = Path(tmp) / "batch.parquet"
+            pa.Table.from_pylist(records).write_parquet(path)
+            return table_store.merge_parquet(
+                table_name=config.destination_table,
+                data_path=str(path),
+                unique_key=",".join(config.unique_key),
+            )
+
+    return table_store_stager
 
 
 def _build_asset_run(
@@ -215,12 +298,16 @@ def _build_asset_run(
             group_id=config.resolved_group_id(),
             max_records=config.max_records_per_batch,
         )
-        resolution = resolve_capability("table_store")
-        if resolution is None:
-            raise PhloConfigError(
-                message="Kafka consumer assets require a table store capability.",
-                suggestions=["Install phlo-iceberg to write Kafka batches to Iceberg."],
-            )
+        promotion_catalog = _resolve_promotion_catalog()
+        table_store = None
+        if promotion_catalog is None:
+            resolution = resolve_capability("table_store")
+            if resolution is None:
+                raise PhloConfigError(
+                    message="Kafka consumer assets require a table store capability.",
+                    suggestions=["Install phlo-iceberg to write Kafka batches to Iceberg."],
+                )
+            table_store = resolution.provider
         checkpoint_adapter = KafkaCheckpointAdapter(
             source_id=f"kafka:{config.topic_pattern}",
             group_id=config.resolved_group_id(),
@@ -230,10 +317,22 @@ def _build_asset_run(
             records=records,
             ranges=ranges,
             checkpoint_adapter=checkpoint_adapter,
-            table_store=resolution.provider,
+            stager=_make_stager(config, promotion_catalog, table_store),
+            promoter=(
+                (
+                    lambda checkpoint_id: promotion_catalog.promote_candidates(
+                        namespace=f"pipeline-run-{checkpoint_id}",
+                        release_id=checkpoint_id,
+                        expected_revision=promotion_catalog.release_revision(),
+                    )
+                )
+                if promotion_catalog is not None
+                else None
+            ),
             dead_letter_sink=(
                 client.dead_letter_sink if hasattr(client, "dead_letter_sink") else None
             ),
+            known_fields=config.schema or None,
             logger=logger,
         )
         # Kafka offsets are committed only after the checkpoint committed;
@@ -272,12 +371,18 @@ def phlo_kafka_consumer(
     *,
     group_id: str | None = None,
     schema_policy: str = "additive",
+    schema: dict[str, str] | None = None,
     dead_letter_topic: str | None = None,
     max_records_per_batch: int = 10_000,
     description: str | None = None,
     client_factory: Callable[[], Any] | None = None,
 ) -> AssetSpec:
-    """Register a Kafka consumer asset and return its specification."""
+    """Register a Kafka consumer asset and return its specification.
+
+    ``schema`` declares the destination's known field types (used by the
+    schema policy to halt on incompatible changes); new fields are additive
+    compatible and pass through.
+    """
     normalized_key = [unique_key] if isinstance(unique_key, str) else list(unique_key)
     config = KafkaConsumerConfig(
         name=name,
@@ -287,6 +392,7 @@ def phlo_kafka_consumer(
         unique_key=normalized_key,
         group_id=group_id,
         schema_policy=schema_policy,
+        schema=dict(schema or {}),
         dead_letter_topic=dead_letter_topic,
         max_records_per_batch=max_records_per_batch,
     )
@@ -310,6 +416,7 @@ def phlo_kafka_consumer(
             "kafka_group": config.resolved_group_id(),
             "destination_table": destination_table,
             "unique_key": normalized_key,
+            "schema": config.schema,
             "schema_policy": schema_policy,
             "dead_letter_topic": config.resolved_dead_letter_topic(),
             "group": group,

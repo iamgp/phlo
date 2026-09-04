@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 from phlo_polaris.promotion import (
@@ -35,23 +36,35 @@ class FakeStore:
         )
 
 
-class FakeTable:
-    """Fake Iceberg table with snapshot-reference management."""
+class FakeArrow:
+    """Minimal arrow stand-in carrying rows and typed columns."""
 
-    def __init__(self, snapshot_id: int = 11) -> None:
-        self.snapshot_id = snapshot_id
-        self.refs: dict[str, int] = {}
-        self.dropped: list[str] = []
+    def __init__(self, rows: list[dict]) -> None:
+        self.rows = rows
 
-    def current_snapshot_id(self) -> int:
-        return self.snapshot_id
+    def column(self, name: str):
+        return SimpleNamespace(to_pylist=lambda name=name: [row.get(name) for row in self.rows])
 
-    def manage_snapshots(self) -> "FakeSnapshotManager":
-        return FakeSnapshotManager(self)
+    def to_pylist(self) -> list[dict]:
+        return list(self.rows)
+
+
+class FakeScan:
+    def __init__(self, rows: list[dict], columns: list[str] | None = None) -> None:
+        self._rows = rows
+        self._columns = columns
+
+    def select(self, names: list[str]) -> "FakeScan":
+        return FakeScan(self._rows, names)
+
+    def to_arrow(self) -> FakeArrow:
+        if self._columns is None:
+            return FakeArrow(self._rows)
+        return FakeArrow([{name: row.get(name) for name in self._columns} for row in self._rows])
 
 
 class FakeSnapshotManager:
-    def __init__(self, table: FakeTable) -> None:
+    def __init__(self, table: "FakeTable") -> None:
         self._table = table
         self._operations: list[tuple] = []
 
@@ -66,16 +79,64 @@ class FakeSnapshotManager:
     def commit(self) -> None:
         for operation in self._operations:
             if operation[0] == "create":
-                self._table.refs[operation[1]] = operation[2]
+                self._table.refs[operation[1]] = SimpleNamespace(snapshot_id=operation[2])
             else:
                 self._table.refs.pop(operation[1], None)
                 self._table.dropped.append(operation[1])
         self._operations = []
 
 
+class FakeTable:
+    """Fake Iceberg table with branch rows, overwrite, and ref management."""
+
+    def __init__(self, rows: list[dict] | None = None, snapshot_id: int = 11) -> None:
+        self.main_rows: list[dict] = list(rows or [])
+        self.snapshot_id = snapshot_id
+        self.refs: dict[str, object] = {}
+        self.branch_rows: dict[str, list[dict]] = {}
+        self.dropped: list[str] = []
+        self.overwrites: list[list[dict]] = []
+
+    @property
+    def metadata(self) -> SimpleNamespace:
+        return SimpleNamespace(refs=self.refs)
+
+    def current_snapshot_id(self) -> int:
+        return self.snapshot_id
+
+    def scan(self, *, branch: str | None = None) -> FakeScan:
+        rows = self.branch_rows.get(branch, self.main_rows) if branch else self.main_rows
+        return FakeScan(rows)
+
+    def append(self, arrow: FakeArrow, *, branch: str | None = None) -> None:
+        if hasattr(arrow, "to_pylist"):
+            arrow = FakeArrow(arrow.to_pylist())
+        if branch:
+            new_rows = list(self.branch_rows.get(branch, self.main_rows)) + list(arrow.rows)
+            self.branch_rows[branch] = new_rows
+            self.snapshot_id += 1
+            self.refs[branch] = SimpleNamespace(snapshot_id=self.snapshot_id)
+        else:
+            self.main_rows = self.main_rows + list(arrow.rows)
+            self.snapshot_id += 1
+
+    def overwrite(self, arrow: FakeArrow, **kwargs) -> None:
+        if hasattr(arrow, "to_pylist"):
+            arrow = FakeArrow(arrow.to_pylist())
+        self.overwrites.append(list(arrow.rows))
+        self.main_rows = list(arrow.rows)
+        self.snapshot_id += 1
+
+    def manage_snapshots(self) -> FakeSnapshotManager:
+        return FakeSnapshotManager(self)
+
+
 def _catalog() -> tuple[PolarisSnapshotPromotionCatalog, FakeStore, dict]:
     store = FakeStore()
-    tables = {"bronze.events": FakeTable(11), "bronze.orders": FakeTable(22)}
+    tables = {
+        "bronze.events": FakeTable([{"event_id": "seed"}], snapshot_id=11),
+        "bronze.orders": FakeTable([], snapshot_id=22),
+    }
     catalog = PolarisSnapshotPromotionCatalog(store=store, table_opener=lambda name: tables[name])
     return catalog, store, tables
 
@@ -86,19 +147,65 @@ def test_candidate_ref_is_deterministic_and_reversible() -> None:
     assert run_id_from_namespace("phlo_candidates__abc") == "abc"
 
 
-def test_create_candidate_opens_snapshot_ref_and_records_ledger_row() -> None:
+def test_create_candidate_opens_branch_and_records_ledger_row() -> None:
     catalog, store, tables = _catalog()
     candidate = catalog.create_candidate(table_name="bronze.events", run_id="run-1")
     assert candidate.snapshot_id == 11
     assert candidate.namespace == "pipeline-run-run-1"
-    assert tables["bronze.events"].refs == {CANDIDATE_REF_PREFIX + "run-1": 11}
+    assert CANDIDATE_REF_PREFIX + "run-1" in tables["bronze.events"].refs
     assert store.rows()[0]["kind"] == "candidate"
     assert store.rows()[0]["status"] == "open"
 
 
-def test_promote_advances_pointer_with_atomic_ledger_commit() -> None:
-    catalog, store, _ = _catalog()
+def test_merge_rows_into_candidate_dedups_against_branch_history() -> None:
+    catalog, _, tables = _catalog()
     catalog.create_candidate(table_name="bronze.events", run_id="run-1")
+    ref = CANDIDATE_REF_PREFIX + "run-1"
+
+    first = catalog.merge_rows_into_candidate(
+        table_name="bronze.events",
+        run_id="run-1",
+        rows=[{"event_id": "e1"}, {"event_id": "e2"}, {"event_id": "e2"}],
+        unique_key=["event_id"],
+    )
+    assert first["appended"] == 2
+    assert first["duplicates_dropped"] == 1
+
+    replay = catalog.merge_rows_into_candidate(
+        table_name="bronze.events",
+        run_id="run-1",
+        rows=[{"event_id": "e1"}, {"event_id": "e3"}],
+        unique_key=["event_id"],
+    )
+    assert replay["appended"] == 1
+    assert replay["duplicates_dropped"] == 1
+
+    table = tables["bronze.events"]
+    assert [row["event_id"] for row in table.branch_rows[ref]] == ["seed", "e1", "e2", "e3"]
+    # Main still hides the candidate rows before promotion.
+    assert [row["event_id"] for row in table.main_rows] == ["seed"]
+
+
+def test_merge_without_open_candidate_fails_closed() -> None:
+    catalog, _, _ = _catalog()
+    with pytest.raises(Exception, match="not open"):
+        catalog.merge_rows_into_candidate(
+            table_name="bronze.events",
+            run_id="ghost",
+            rows=[{"event_id": "e1"}],
+            unique_key=["event_id"],
+        )
+
+
+def test_promote_overwrites_main_and_advances_pointer() -> None:
+    catalog, store, tables = _catalog()
+    catalog.create_candidate(table_name="bronze.events", run_id="run-1")
+    catalog.merge_rows_into_candidate(
+        table_name="bronze.events",
+        run_id="run-1",
+        rows=[{"event_id": "e1"}],
+        unique_key=["event_id"],
+    )
     catalog.create_candidate(table_name="bronze.orders", run_id="run-1")
 
     records = catalog.promote_candidates(
@@ -107,6 +214,10 @@ def test_promote_advances_pointer_with_atomic_ledger_commit() -> None:
 
     assert {record.table_name for record in records} == {"bronze.events", "bronze.orders"}
     assert all(record.revision == 1 for record in records)
+    events = tables["bronze.events"]
+    # Candidate content became main content atomically; branch dropped.
+    assert [row["event_id"] for row in events.main_rows] == ["seed", "e1"]
+    assert events.refs == {}
     # One atomic append carries the release rows and the new pointer state.
     assert len(store.appended[-1]) == 3
     assert catalog.release_revision() == 1

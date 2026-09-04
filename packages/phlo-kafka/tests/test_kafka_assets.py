@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 import pytest
-from phlo.capabilities.interfaces import CheckpointRecord, SourceOffsetRange
+from phlo.capabilities.interfaces import CheckpointRecord, ReleaseRecord, SourceOffsetRange
 from phlo_kafka.assets import (
     KafkaConsumerConfig,
     clear_kafka_assets,
@@ -80,23 +80,25 @@ def _config() -> KafkaConsumerConfig:
     )
 
 
-class FakeTableStore:
-    def merge_parquet_rows(self, *, table_name, rows, unique_key):
-        return {"snapshot_id": 77, "rows_merged": len(rows)}
-
-
-class FakePromoter:
-    def __init__(self) -> None:
-        self.promoted: list[tuple[str, int]] = []
-
-    def promote_snapshot(self, *, table_name: str, snapshot_id: int) -> str:
-        self.promoted.append((table_name, snapshot_id))
-        return "release-1"
-
-
 def test_ingest_batch_full_lifecycle_commits_checkpoint() -> None:
     store = RecordingStore()
-    promoter = FakePromoter()
+    promoted: list[str] = []
+
+    def stager(checkpoint_id: str, records: list[dict]) -> dict:
+        store.transitions.append(("stage", checkpoint_id))
+        return {"snapshot_id": 77, "rows_merged": len(records)}
+
+    def promoter(checkpoint_id: str) -> list[ReleaseRecord]:
+        promoted.append(checkpoint_id)
+        return [
+            ReleaseRecord(
+                table_name="bronze.events",
+                snapshot_id=88,
+                release_id=checkpoint_id,
+                revision=1,
+            )
+        ]
+
     evidence = ingest_batch(
         config=_config(),
         records=[{"event_id": "e1", "count": 1}],
@@ -104,20 +106,62 @@ def test_ingest_batch_full_lifecycle_commits_checkpoint() -> None:
         checkpoint_adapter=KafkaCheckpointAdapter(
             source_id="kafka:events", group_id="phlo-events", store=store
         ),
-        table_store=FakeTableStore(),
-        snapshot_promoter=promoter,
+        stager=stager,
+        promoter=promoter,
         known_fields={"event_id": "string", "count": "int"},
     )
 
     assert evidence["status"] == "committed"
-    assert evidence["snapshot_id"] == 77
-    assert evidence["release_id"] == "release-1"
+    assert evidence["snapshot_id"] == 88
+    assert evidence["release_id"] == "cp-1"
     assert store.transitions == [
         ("claim", "phlo-events:events:0:100"),
+        ("stage", "cp-1"),
         ("snapshot", 77),
+        ("snapshot", 88),
         ("commit", "cp-1"),
     ]
-    assert promoter.promoted == [("bronze.events", 77)]
+    assert promoted == ["cp-1"]
+
+
+def test_ingest_batch_without_promoter_commits_staged_snapshot() -> None:
+    store = RecordingStore()
+
+    def stager(checkpoint_id: str, records: list[dict]) -> dict:
+        return {"snapshot_id": 77, "rows_merged": len(records)}
+
+    evidence = ingest_batch(
+        config=_config(),
+        records=[{"event_id": "e1", "count": 1}],
+        ranges=_ranges(),
+        checkpoint_adapter=KafkaCheckpointAdapter(
+            source_id="kafka:events", group_id="g", store=store
+        ),
+        stager=stager,
+        known_fields={"event_id": "string", "count": "int"},
+    )
+    assert evidence["status"] == "committed"
+    assert evidence["snapshot_id"] == 77
+
+
+def test_ingest_batch_stage_failure_marks_checkpoint_failed() -> None:
+    store = RecordingStore()
+
+    def stager(checkpoint_id: str, records: list[dict]) -> dict:
+        raise RuntimeError("catalog unreachable")
+
+    with pytest.raises(RuntimeError, match="catalog unreachable"):
+        ingest_batch(
+            config=_config(),
+            records=[{"event_id": "e1", "count": 1}],
+            ranges=_ranges(),
+            checkpoint_adapter=KafkaCheckpointAdapter(
+                source_id="kafka:events", group_id="g", store=store
+            ),
+            stager=stager,
+            known_fields={"event_id": "string", "count": "int"},
+        )
+    assert ("fail", "stage failed: catalog unreachable") in store.transitions
 
 
 def test_ingest_batch_schema_violation_dead_letters_and_retains_offsets() -> None:
@@ -135,7 +179,7 @@ def test_ingest_batch_schema_violation_dead_letters_and_retains_offsets() -> Non
         checkpoint_adapter=KafkaCheckpointAdapter(
             source_id="kafka:events", group_id="phlo-events", store=store
         ),
-        table_store=FakeTableStore(),
+        stager=lambda checkpoint_id, records: {"snapshot_id": 1, "rows_merged": 0},
         dead_letter_sink=sink,
         known_fields={"event_id": "string", "count": "int"},
     )
@@ -169,7 +213,7 @@ def test_ingest_batch_skips_already_committed_range_without_merging() -> None:
         records=[{"event_id": "e1", "count": 1}],
         ranges=_ranges(),
         checkpoint_adapter=adapter,
-        table_store=FakeTableStore(),
+        stager=lambda checkpoint_id, records: {"snapshot_id": 1},
         known_fields={"event_id": "string", "count": "int"},
     )
 
@@ -186,7 +230,7 @@ def test_ingest_batch_empty_records_is_no_data() -> None:
         checkpoint_adapter=KafkaCheckpointAdapter(
             source_id="kafka:events", group_id="g", store=RecordingStore()
         ),
-        table_store=FakeTableStore(),
+        stager=lambda checkpoint_id, records: {},
     )
     assert evidence["status"] == "no_data"
 

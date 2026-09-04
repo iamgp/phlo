@@ -3,24 +3,29 @@
 Implements the neutral ``SnapshotPromotionCatalog`` contract (see
 ``phlo.capabilities.interfaces``) on top of Iceberg snapshot references:
 
-- A run opens an immutable candidate snapshot reference per table, named
-  after the run, so audit reads the exact candidate snapshots while the
-  release pointer still hides them from consumers.
-- Promotion records the audited snapshot IDs as durable release rows and
-  advances a Phlo-controlled release pointer with a compare-and-swap guard
-  on the pointer revision. Candidates and releases live in a single Iceberg
-  table (``phlo_wap.releases``), so each promotion is one atomic Iceberg
-  commit; consumer-atomicity for a multi-table release comes from resolving
-  through the release records. The CAS guard rejects promotions computed
-  against a stale revision; it is a check-then-append, so concurrent
-  promoters must also serialize on the ledger table's optimistic
-  concurrency (a losing committer fails its Iceberg commit rather than
-  silently double-advancing).
-- Abort drops candidate references so rejected snapshots can never be
+- A run opens a candidate branch per table, named after the run and created
+  at the table's current snapshot, so audit reads the exact candidate
+  snapshots while main still hides them from consumers.
+- Writers land rows into the candidate branch with idempotent unique-key
+  semantics: replays of already-present keys are dropped and in-batch
+  duplicates keep their last occurrence, so at-least-once delivery produces
+  no duplicate logical records.
+- Promotion overwrites main with the audited candidate content in one
+  atomic Iceberg commit, drops the branch, and records durable release rows
+  while advancing a Phlo-controlled release pointer with a compare-and-swap
+  guard on the pointer revision. Promotion is crash-safe: the ledger append
+  happens last, so a retry after a crash re-applies an identical overwrite
+  and converges instead of guessing.
+- Abort drops candidate branches so rejected snapshots can never be
   promoted while remaining discoverable for audit until retention.
 
-This is deliberately not a branch/merge emulation: Nessie remains the
-branch-based catalog, Polaris the snapshot-promotion catalog.
+pyiceberg has no branch fast-forward, so promotion is a full-replace
+overwrite of main from the candidate branch content. This is the
+catalog-agnostic WAP move: readers see pre- or post-promotion data exactly,
+never intermediate state.
+
+This is deliberately not a branch/merge emulation of Nessie: Nessie remains
+the branch-based catalog, Polaris the snapshot-promotion catalog.
 """
 
 from __future__ import annotations
@@ -70,8 +75,8 @@ class IcebergReleaseStore:
     """Durable candidate/release ledger backed by one Iceberg table.
 
     All rows (pointer state, candidates, releases) live in a single table so
-    every promotion is one atomic Iceberg commit. PyIceberg's optimistic
-    concurrency serializes writers; the compare-and-swap check in
+    every promotion's ledger update is one atomic Iceberg commit. PyIceberg's
+    optimistic concurrency serializes writers; the compare-and-swap check in
     :class:`PolarisSnapshotPromotionCatalog` refuses stale revisions.
     """
 
@@ -94,7 +99,7 @@ class IcebergReleaseStore:
         except Exception:
             catalog.create_namespace_if_not_exists(RELEASES_NAMESPACE)
             from pyiceberg.schema import Schema
-            from pyiceberg.types import NestedField, LongType, StringType, TimestamptzType
+            from pyiceberg.types import LongType, NestedField, StringType, TimestamptzType
 
             schema = Schema(
                 NestedField(1, "kind", StringType(), required=True),
@@ -137,9 +142,9 @@ class IcebergReleaseStore:
 class PolarisSnapshotPromotionCatalog:
     """Polaris-backed snapshot promotion catalog.
 
-    ``store`` and the per-table client are injectable so tests can exercise
-    the promotion state machine without a live catalog; production wiring
-    uses :class:`IcebergReleaseStore` and PyIceberg.
+    ``store`` and the per-table opener are injectable so tests exercise the
+    promotion state machine without a live catalog; production wiring uses
+    :class:`IcebergReleaseStore` and the PyIceberg REST catalog.
     """
 
     def __init__(
@@ -160,18 +165,19 @@ class PolarisSnapshotPromotionCatalog:
     def _open_table(self, table_name: str) -> Any:
         if self._table_opener is not None:
             return self._table_opener(table_name)
-        catalog = self._store_catalog()
-        return catalog.load_table(table_name)
-
-    def _store_catalog(self) -> Any:
         from phlo_polaris.catalog_backend import load_pyiceberg_catalog
 
-        return load_pyiceberg_catalog()
+        return load_pyiceberg_catalog().load_table(table_name)
 
-    # -- SnapshotPromotionCatalog contract ---------------------------------
+    # -- Candidate lifecycle ------------------------------------------------
 
     def create_candidate(self, *, table_name: str, run_id: str) -> CandidateSnapshot:
-        """Open a run-scoped candidate snapshot reference on ``table_name``."""
+        """Open a run-scoped candidate branch on ``table_name``.
+
+        The branch is created at the table's current snapshot, so the
+        candidate starts as an exact copy of the released state and only
+        diverges when a writer lands rows into it.
+        """
         table = self._open_table(table_name)
         ref = candidate_ref_for_run(run_id)
         snapshot_id = table.current_snapshot_id()
@@ -180,7 +186,8 @@ class PolarisSnapshotPromotionCatalog:
                 message=f"Table {table_name!r} has no current snapshot to stage as a candidate.",
                 suggestions=["Materialize the table before opening a WAP candidate."],
             )
-        table.manage_snapshots().create_branch(ref, snapshot_id=snapshot_id).commit()
+        if ref not in table.metadata.refs:
+            table.manage_snapshots().create_branch(ref, snapshot_id=snapshot_id).commit()
         self.store.append(
             [
                 {
@@ -203,6 +210,116 @@ class PolarisSnapshotPromotionCatalog:
             created_at=_now(),
         )
 
+    def _branch_tip(self, table: Any, ref: str) -> int | None:
+        metadata_ref = table.metadata.refs.get(ref)
+        return int(metadata_ref.snapshot_id) if metadata_ref else None
+
+    def _existing_keys(self, table: Any, ref: str, unique_key: list[str]) -> set[tuple]:
+        """Return the unique-key tuples already present on the candidate branch."""
+        if not unique_key:
+            return set()
+        arrow = table.scan(branch=ref).select(unique_key).to_arrow()
+        columns = [arrow.column(name).to_pylist() for name in unique_key]
+        return set(zip(*columns))
+
+    def merge_rows_into_candidate(
+        self,
+        *,
+        table_name: str,
+        run_id: str,
+        rows: list[dict[str, Any]],
+        unique_key: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Land rows into the candidate branch with idempotent key semantics.
+
+        Rows whose unique key already exists anywhere on the branch (which
+        includes the full table history the branch was created from) are
+        dropped, and in-batch duplicates keep their last occurrence, so
+        replaying a range produces no duplicate logical records. Returns the
+        branch-tip snapshot the audit phase reads.
+        """
+        if not rows:
+            return {"appended": 0, "duplicates_dropped": 0, "snapshot_id": None}
+        table = self._open_table(table_name)
+        ref = candidate_ref_for_run(run_id)
+        if ref not in table.metadata.refs:
+            raise PhloTableError(
+                message=f"Candidate branch {ref!r} is not open on {table_name!r}.",
+                suggestions=["Call create_candidate before writing candidate rows."],
+            )
+
+        import pyarrow as pa
+
+        candidate_rows = list(rows)
+        duplicates_dropped = 0
+        if unique_key:
+            seen_in_batch: set[tuple] = set()
+            deduped: list[dict[str, Any]] = []
+            for row in reversed(candidate_rows):
+                key = tuple(row.get(column) for column in unique_key)
+                if key in seen_in_batch:
+                    duplicates_dropped += 1
+                    continue
+                seen_in_batch.add(key)
+                deduped.append(row)
+            deduped.reverse()
+
+            existing = self._existing_keys(table, ref, unique_key)
+            fresh = [
+                row for row in deduped if tuple(row.get(c) for c in unique_key) not in existing
+            ]
+            duplicates_dropped += len(deduped) - len(fresh)
+            candidate_rows = fresh
+
+        if not candidate_rows:
+            return {
+                "appended": 0,
+                "duplicates_dropped": duplicates_dropped,
+                "snapshot_id": self._branch_tip(table, ref),
+            }
+
+        arrow = pa.Table.from_pylist(candidate_rows)
+        table.append(arrow, branch=ref)
+        return {
+            "appended": len(candidate_rows),
+            "duplicates_dropped": duplicates_dropped,
+            "snapshot_id": self._branch_tip(table, ref),
+        }
+
+    # -- SnapshotPromotionCatalog contract ---------------------------------
+
+    def list_candidates(self, *, namespace: str) -> list[CandidateSnapshot]:
+        """List open candidate snapshots under ``namespace``.
+
+        The snapshot id reported is the candidate branch's live tip, i.e.
+        the exact snapshot an audit reads. The ledger is append-only, so the
+        latest row per candidate key decides open versus closed.
+        """
+        run_id = run_id_from_namespace(namespace)
+        candidates: list[CandidateSnapshot] = []
+        for row in self._open_candidate_rows(run_id):
+            snapshot_id: int | None = None
+            try:
+                table = self._open_table(str(row["table_name"]))
+                snapshot_id = self._branch_tip(table, candidate_ref_for_run(run_id))
+            except Exception:
+                logger.warning(
+                    "polaris_candidate_tip_read_failed",
+                    table_name=row.get("table_name"),
+                    run_id=run_id,
+                    exc_info=True,
+                )
+            candidates.append(
+                CandidateSnapshot(
+                    table_name=str(row["table_name"]),
+                    snapshot_id=snapshot_id if snapshot_id is not None else int(row["snapshot_id"]),
+                    run_id=run_id,
+                    namespace=namespace,
+                    created_at=row.get("recorded_at"),
+                )
+            )
+        return candidates
+
     def _open_candidate_rows(self, run_id: str) -> list[dict[str, Any]]:
         """Return the ledger rows whose latest status is ``open`` for a run."""
         latest: dict[tuple[str, int], dict[str, Any]] = {}
@@ -217,25 +334,6 @@ class PolarisSnapshotPromotionCatalog:
                 latest[key] = row
         return [row for row in latest.values() if row.get("status") == "open"]
 
-    def list_candidates(self, *, namespace: str) -> list[CandidateSnapshot]:
-        """List open candidate snapshots recorded under ``namespace``.
-
-        The ledger is append-only, so the latest row per candidate key wins:
-        a later ``aborted``/``pruned`` row closes the candidate even though
-        the original ``open`` row is still present.
-        """
-        run_id = run_id_from_namespace(namespace)
-        return [
-            CandidateSnapshot(
-                table_name=str(row["table_name"]),
-                snapshot_id=int(row["snapshot_id"]),
-                run_id=run_id,
-                namespace=namespace,
-                created_at=row.get("recorded_at"),
-            )
-            for row in self._open_candidate_rows(run_id)
-        ]
-
     def promote_candidates(
         self,
         *,
@@ -244,7 +342,14 @@ class PolarisSnapshotPromotionCatalog:
         expected_revision: int | None = None,
         tables: list[str] | None = None,
     ) -> list[ReleaseRecord]:
-        """Advance the release pointer to the audited candidate snapshots."""
+        """Publish audited candidate snapshots by overwriting main atomically.
+
+        The CAS guard on ``expected_revision`` rejects promotions computed
+        against a stale release pointer. Per table the move is one atomic
+        Iceberg overwrite of main with the candidate branch content; the
+        ledger release rows are appended after, so a crash between the two
+        converges on retry (the repeated overwrite is identical).
+        """
         rows = self.store.rows()
         current_revision = max(
             (
@@ -278,12 +383,27 @@ class PolarisSnapshotPromotionCatalog:
 
         promoted_at = _now()
         new_revision = current_revision + 1
+        ref = candidate_ref_for_run(run_id)
         rows_to_append: list[dict[str, Any]] = []
         records: list[ReleaseRecord] = []
         for row in selected:
+            table_name = str(row["table_name"])
+            table = self._open_table(table_name)
+            candidate_arrow = table.scan(branch=ref).to_arrow()
+            table.overwrite(candidate_arrow)
+            released_snapshot = table.current_snapshot_id()
+            try:
+                table.manage_snapshots().drop_branch(ref).commit()
+            except Exception:
+                logger.warning(
+                    "polaris_candidate_ref_drop_failed",
+                    table_name=table_name,
+                    ref=ref,
+                    exc_info=True,
+                )
             record = ReleaseRecord(
-                table_name=str(row["table_name"]),
-                snapshot_id=int(row["snapshot_id"]),
+                table_name=table_name,
+                snapshot_id=int(released_snapshot),
                 release_id=release_id,
                 revision=new_revision,
                 promoted_at=promoted_at,
@@ -293,7 +413,7 @@ class PolarisSnapshotPromotionCatalog:
             rows_to_append.append(
                 {
                     "kind": "release",
-                    "table_name": record.table_name,
+                    "table_name": table_name,
                     "snapshot_id": record.snapshot_id,
                     "release_id": record.release_id,
                     "revision": record.revision,
@@ -314,8 +434,8 @@ class PolarisSnapshotPromotionCatalog:
                 "recorded_at": promoted_at,
             }
         )
-        # One atomic Iceberg commit publishes every member table of the
-        # release together with the advanced pointer state row.
+        # One atomic ledger commit closes every member table of the release
+        # together with the advanced pointer state row.
         self.store.append(rows_to_append)
         return records
 
@@ -345,14 +465,15 @@ class PolarisSnapshotPromotionCatalog:
         return self.store.current_revision()
 
     def abort_candidates(self, *, namespace: str) -> bool:
-        """Drop candidate references under ``namespace``; they can never promote."""
+        """Drop candidate branches under ``namespace``; they can never promote."""
         run_id = run_id_from_namespace(namespace)
         open_rows = self._open_candidate_rows(run_id)
         ref = candidate_ref_for_run(run_id)
         for row in open_rows:
             try:
                 table = self._open_table(str(row["table_name"]))
-                table.manage_snapshots().drop_branch(ref).commit()
+                if ref in table.metadata.refs:
+                    table.manage_snapshots().drop_branch(ref).commit()
             except Exception:
                 logger.warning(
                     "polaris_candidate_ref_drop_failed",
@@ -383,7 +504,7 @@ class PolarisSnapshotPromotionCatalog:
         return True
 
     def prune_candidates(self, *, older_than: datetime) -> list[str]:
-        """Drop open candidate references created before the retention cutoff."""
+        """Drop open candidate branches created before the retention cutoff."""
         pruned: list[str] = []
         candidate_runs = {
             str(row.get("run_id"))
@@ -404,7 +525,8 @@ class PolarisSnapshotPromotionCatalog:
             for row in expired:
                 try:
                     table = self._open_table(str(row["table_name"]))
-                    table.manage_snapshots().drop_branch(ref).commit()
+                    if ref in table.metadata.refs:
+                        table.manage_snapshots().drop_branch(ref).commit()
                 except Exception:
                     logger.warning(
                         "polaris_candidate_prune_failed",

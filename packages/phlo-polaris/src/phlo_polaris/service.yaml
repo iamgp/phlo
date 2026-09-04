@@ -19,7 +19,8 @@ compose:
     quarkus.datasource.jdbc.url: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-phlo}
     quarkus.datasource.username: ${POSTGRES_USER:-phlo}
     quarkus.datasource.password: ${POSTGRES_PASSWORD:-phlo}
-    polaris.persistence.type: relational
+    polaris.persistence.type: in-memory
+    JAVA_OPTS_APPEND: "-Djava.security.egd=file:/dev/urandom"
     polaris.feature.REALMS: "true"
     quarkus.http.auth.basic: "true"
     AWS_REGION: ${ICEBERG_S3_REGION:-us-east-1}

@@ -30,6 +30,12 @@ class FakeClient:
 
     def create_principal(self, *, name: str):
         self.created_principals.append(name)
+        return {
+            "principal": {
+                "name": name,
+                "credentials": {"clientId": name, "clientSecret": "generated"},
+            }
+        }
 
     def grant_catalog_privilege(self, *, principal: str, privilege: str) -> bool:
         self.granted.append((principal, privilege))
@@ -52,9 +58,16 @@ def test_ensure_catalog_creates_once(monkeypatch) -> None:
     assert client.created_catalogs == ["phlo"]
 
 
+def test_ensure_principal_captures_generated_credentials() -> None:
+    client = FakeClient()
+    credentials: dict[str, str] = {}
+    assert ensure_principal(client, name="phlo_writer", credentials=credentials) is True
+    assert credentials == {"phlo_writer": "phlo_writer:generated"}
+
+
 def test_ensure_principal_creates_once(monkeypatch) -> None:
     client = FakeClient()
-    assert ensure_principal(client, name="phlo_writer") is True
+    assert ensure_principal(client, name="phlo_writer", credentials={}) is True
     client_created = client.created_principals
     assert ensure_principal(client, name="phlo_writer") is False
     assert client_created == ["phlo_writer"]
