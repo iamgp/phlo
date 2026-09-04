@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://registry.phlohouse.com/schema/registry.v2.json",
+  "title": "Phlo Plugin Registry v2 (ADR 0053)",
+  "description": "Strict v2 registry container. Entries carry static publisher descriptors only; the compatibility epoch counts the one-epoch legacy_verified compatibility window (ADR 0053 concern 5). legacy_verified is derived at migration and recorded only in the container-level legacy block, never on individual entries, so no registry author can assert it for a new entry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "compatibility_epoch", "updated_at", "plugins"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "2"
+    },
+    "compatibility_epoch": {
+      "type": "integer",
+      "const": 1,
+      "description": "The current registry-contract compatibility epoch, counted by this schema version. legacy_verified is valid only in epoch 1 and is removed at the next epoch."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "plugins": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "descriptor.v1.json"
+      }
+    },
+    "legacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["legacy_verified"],
+      "properties": {
+        "legacy_verified": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Registry keys whose pre-migration v1 entry had verified: true. Derived by migration tooling and cross-checked against the v1 registry; carries no trust beyond community and expires with epoch 1."
+        }
+      }
+    }
+  }
+}

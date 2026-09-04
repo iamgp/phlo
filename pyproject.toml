@@ -135,6 +135,9 @@ phlo = "phlo.cli.main:cli"
 include = [
     "src/phlo",
     "registry/schema/v1.json",
+    "registry/schema/descriptor.v1.json",
+    "registry/schema/conformance-result.v1.json",
+    "registry/schema/registry.v2.json",
     "registry/plugins.json",
     "registry/support/v1.json",
     "registry/support/schema/v1.json",
@@ -143,6 +146,7 @@ include = [
 [tool.hatch.build.targets.wheel]
 include = [
     "src/phlo/plugins/registry_data.json",
+    "src/phlo/plugins/schemas/*.json",
     "src/phlo/support_data/v1.json",
     "src/phlo/sql/*.sql",
 ]

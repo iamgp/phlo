@@ -1,0 +1,10 @@
+{
+  "type": "source_connectors",
+  "package": "acme-phlo-source",
+  "version": "2.1.0",
+  "description": "Example warehouse source connector",
+  "author": "ACME Data Ltd",
+  "homepage": "https://example.com/acme-phlo-source",
+  "tags": ["source", "warehouse"],
+  "core": false
+}

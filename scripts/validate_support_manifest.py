@@ -21,6 +21,39 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "registry/support/v1.json"
 SCHEMA_PATH = ROOT / "registry/support/schema/v1.json"
 REGISTRY_RELATIVE_PATHS = ("registry/plugins.json", "src/phlo/plugins/registry_data.json")
+
+# ADR 0053 concern 5: the registry-contract compatibility epoch is counted by
+# the v2 registry schema (registry/schema/registry.v2.json) and named here.
+# legacy_verified is valid only in this epoch; bumping the epoch retires it.
+COMPATIBILITY_EPOCH = 1
+REGISTRY_V2_SCHEMA_PATH = ROOT / "registry/schema/registry.v2.json"
+DESCRIPTOR_SCHEMA_PATH = ROOT / "registry/schema/descriptor.v1.json"
+BUNDLED_SCHEMA_DIR = ROOT / "src/phlo/plugins/schemas"
+
+# Fields that would let a registry author assert a tier or support fact about
+# their own artifact. The v2 descriptor field set must never contain any of
+# these, under any spelling (ADR 0053 concern 3).
+TIER_SYNONYM_FIELDS = frozenset(
+    {
+        "verified",
+        "tier",
+        "tiers",
+        "support",
+        "supported",
+        "release_supported",
+        "release-supported",
+        "conformance_tested",
+        "conformance-tested",
+        "community",
+        "legacy_verified",
+        "legacy-verified",
+        "certified",
+        "approved",
+        "trusted",
+        "endorsement",
+    }
+)
+
 REQUIRED_V1_CAPABILITIES = {
     "mandatory_authorization",
     "secure_production_deployment",
@@ -882,6 +915,141 @@ def validate_manifest(manifest: dict[str, Any], *, repo_root: Path = ROOT) -> li
     return errors
 
 
+def _load_trust_module(repo_root: Path):
+    """Load the pure trust-tier module from the repository source tree."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_phlo_trust_validator", repo_root / "src" / "phlo" / "plugins" / "trust.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def registry_tier_errors(repo_root: Path) -> list[str]:
+    """Enforce the ADR 0053 tier contract on the registry estate.
+
+    Checks the epoch pin between this validator and the v2 schema, the
+    closed descriptor field set (no tier synonym expressible), byte-identical
+    packaged schema copies, honest v1 ``verified`` normalization, and that
+    zero ``conformance-tested`` and zero ``release-supported`` tiers are
+    derived at HEAD — release-supported is impossible from registry inputs
+    by construction and any nonzero count is an authority violation.
+    """
+    trust = _load_trust_module(repo_root)
+    errors: list[str] = []
+
+    v2_schema = json.loads(REGISTRY_V2_SCHEMA_PATH.read_text(encoding="utf-8"))
+    epoch = v2_schema.get("properties", {}).get("compatibility_epoch", {}).get("const")
+    if epoch != COMPATIBILITY_EPOCH:
+        errors.append(
+            f"registry.v2.json: compatibility_epoch {epoch!r} does not match the validator "
+            f"epoch {COMPATIBILITY_EPOCH!r}"
+        )
+    descriptor_properties = json.loads(DESCRIPTOR_SCHEMA_PATH.read_text(encoding="utf-8")).get(
+        "properties", {}
+    )
+    synonyms = TIER_SYNONYM_FIELDS & set(descriptor_properties)
+    if synonyms:
+        errors.append(
+            f"descriptor.v1.json: registry authors must not be able to express trust fields; "
+            f"found {sorted(synonyms)!r}"
+        )
+
+    for schema_name in ("descriptor.v1.json", "conformance-result.v1.json", "registry.v2.json"):
+        canonical = repo_root / "registry" / "schema" / schema_name
+        bundled = repo_root / "src" / "phlo" / "plugins" / "schemas" / schema_name
+        if not bundled.is_file():
+            errors.append(f"bundled schema copy missing: {bundled.relative_to(repo_root)}")
+        elif bundled.read_bytes() != canonical.read_bytes():
+            errors.append(
+                f"bundled schema copy {bundled.relative_to(repo_root)} is not byte-identical to "
+                f"{canonical.relative_to(repo_root)}"
+            )
+
+    for registry_relative in REGISTRY_RELATIVE_PATHS:
+        data = json.loads((repo_root / registry_relative).read_text(encoding="utf-8"))
+        plugins = data.get("plugins", {})
+        for name, entry in plugins.items():
+            if not isinstance(entry, dict):
+                continue
+            trust_fields = TIER_SYNONYM_FIELDS & set(entry)
+            if trust_fields - {"verified"}:
+                errors.append(
+                    f"registry entry {name!r} in {registry_relative}: trust field(s) "
+                    f"{sorted(trust_fields - {'verified'})!r} are not expressible (ADR 0053 concern 3)"
+                )
+
+    registry_path = repo_root / "registry/plugins.json"
+    registry_data = json.loads(registry_path.read_text(encoding="utf-8"))
+    packaged_path = repo_root / "src/phlo/plugins/registry_data.json"
+    if packaged_path.read_text(encoding="utf-8") != registry_path.read_text(encoding="utf-8"):
+        errors.append(
+            f"{packaged_path.relative_to(repo_root)} is stale; run generate_plugin_registry_data.py"
+        )
+
+    legacy_expected = {
+        name
+        for name, entry in registry_data.get("plugins", {}).items()
+        if entry.get("verified") is True
+    }
+    try:
+        normalized = trust.normalize_v1_registry(registry_data, epoch=COMPATIBILITY_EPOCH)
+    except trust.UnknownFieldError as exc:
+        errors.append(f"registry normalization failed: {exc}")
+        normalized = {"legacy": {"legacy_verified": sorted(legacy_expected)}}
+    legacy_claimed = set(normalized.get("legacy", {}).get("legacy_verified", []))
+    if legacy_claimed != legacy_expected:
+        errors.append(
+            "legacy.legacy_verified must be exactly the v1 entries with verified: true "
+            f"(derived, never asserted); expected {sorted(legacy_expected)!r}"
+        )
+
+    descriptors: dict[str, Any] = {}
+    for name, entry in registry_data.get("plugins", {}).items():
+        try:
+            descriptors[name] = trust.normalize_v1_entry(
+                name, entry, epoch=COMPATIBILITY_EPOCH
+            ).descriptor
+        except trust.UnknownFieldError as exc:
+            errors.append(f"registry entry {name!r}: {exc}")
+    resolutions = trust.resolve_tiers(
+        descriptors,
+        conformance_results=(),
+        support_decisions=(),
+        legacy_verified_names=frozenset(legacy_claimed),
+        epoch=COMPATIBILITY_EPOCH,
+    )
+    counts = dict.fromkeys(trust.TrustTier, 0)
+    for resolution in resolutions.values():
+        counts[resolution.tier] += 1
+    if counts[trust.TrustTier.RELEASE_SUPPORTED] != 0:
+        errors.append(
+            "tier resolution derived a release-supported provider from registry inputs; "
+            "release-supported must enter only as a typed support-manifest decision with "
+            "matching Plan 016 receipts (ADR 0053 concern 1)"
+        )
+    if counts[trust.TrustTier.CONFORMANCE_TESTED] != 0:
+        errors.append(
+            "tier resolution derived conformance-tested without bundled conformance results; "
+            "no verdict may be invented for current providers (ADR 0053 concern 1)"
+        )
+    registry_tier_errors.last_summary = (
+        f"tiers: {counts[trust.TrustTier.COMMUNITY]} community, "
+        f"{counts[trust.TrustTier.CONFORMANCE_TESTED]} conformance-tested, "
+        f"{counts[trust.TrustTier.RELEASE_SUPPORTED]} release-supported, "
+        f"{sum(1 for r in resolutions.values() if r.legacy_verified)} legacy_verified "
+        f"(epoch {COMPATIBILITY_EPOCH})"
+    )
+    return errors
+
+
+registry_tier_errors.last_summary = ""
+
+
 def _package_inventory_at(repo_root: Path) -> dict[str, Path]:
     packages = {"phlo": repo_root / "pyproject.toml"}
     for path in sorted((repo_root / "packages").glob("*/pyproject.toml")):
@@ -896,9 +1064,21 @@ def _service_inventory_at(repo_root: Path) -> dict[str, Path]:
 
 def main() -> int:
     """Validate the support manifest and exit nonzero on failure."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Validate the checked-in v1 support boundary.")
+    parser.add_argument(
+        "manifest_path",
+        nargs="?",
+        type=Path,
+        default=MANIFEST_PATH,
+        help="path to the support manifest (default: registry/support/v1.json)",
+    )
+    args = parser.parse_args()
     try:
-        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        manifest = json.loads(args.manifest_path.read_text(encoding="utf-8"))
         errors = validate_manifest(manifest)
+        errors.extend(registry_tier_errors(ROOT))
     except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError) as exc:
         print(f"support manifest validation error: {exc}", file=sys.stderr)
         return 1
@@ -907,7 +1087,8 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print(f"validated {MANIFEST_PATH.relative_to(ROOT)}")
+    print(f"validated {args.manifest_path.resolve().relative_to(ROOT)}")
+    print(registry_tier_errors.last_summary)
     return 0
 
 

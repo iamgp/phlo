@@ -1,0 +1,28 @@
+{
+  "$schema": "https://registry.phlohouse.com/schema/registry.v2.json",
+  "schema_version": "2",
+  "compatibility_epoch": 1,
+  "updated_at": "2026-09-04T00:00:00Z",
+  "plugins": {
+    "acme-warehouse-source": {
+      "type": "source_connectors",
+      "package": "acme-phlo-source",
+      "version": "2.1.0",
+      "description": "Example warehouse source connector",
+      "author": "ACME Data Ltd",
+      "tags": ["source"]
+    },
+    "trino": {
+      "type": "service",
+      "package": "phlo-trino",
+      "version": "0.1.0",
+      "description": "Distributed SQL query engine for the data lake",
+      "author": "Phlo Team",
+      "tags": ["core", "sql", "query"],
+      "core": true
+    }
+  },
+  "legacy": {
+    "legacy_verified": ["trino"]
+  }
+}

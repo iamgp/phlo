@@ -1,0 +1,13 @@
+{
+  "subject": {
+    "package": "acme-phlo-source",
+    "version": "2.1.0",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "tracer": "query_engine.v1",
+  "result": "pass",
+  "evidence_refs": ["run-evidence:2026-09-04:acme:query_engine.v1:1"],
+  "executed_by": "phlo-conformance",
+  "run_at": "2026-09-04T00:00:00Z",
+  "expires_at": "2026-12-04T00:00:00Z"
+}

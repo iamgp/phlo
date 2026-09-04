@@ -1,0 +1,12 @@
+{
+  "subject": {
+    "package": "acme-phlo-source",
+    "version": "2.1.0",
+    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "tracer": "self_attested.v9",
+  "result": "pass",
+  "executed_by": "ACME Data Ltd",
+  "run_at": "2026-09-04T00:00:00Z",
+  "expires_at": "2026-12-04T00:00:00Z"
+}

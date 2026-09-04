@@ -1,0 +1,9 @@
+{
+  "type": "source_connectors",
+  "package": "acme-phlo-source",
+  "version": "2.1.0",
+  "description": "Example warehouse source connector",
+  "author": "",
+  "tier": "release-supported",
+  "release_supported": true
+}
