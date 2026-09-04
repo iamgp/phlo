@@ -999,12 +999,15 @@ def verify_candidate_bom(config: RunConfig) -> tuple[dict[str, object], list[dic
     )
     first_party = bom_artifacts(bom, bom_module.KIND_FIRST_PARTY_IMAGE)
     providers = bom_artifacts(bom, bom_module.KIND_PROVIDER_IMAGE)
+    for artifact in first_party:
+        bom_module.verify_first_party_image_revision(artifact, str(bom["release_commit"]))
     result = {
         "canonical_candidate_digest": bom["canonical_candidate_digest"],
         "release_commit": bom["release_commit"],
         "distribution_count": len(distributions),
         "first_party_image_count": len(first_party),
         "provider_image_count": len(providers),
+        "first_party_image_revisions_verified": len(first_party),
         "staging_dir": str(config.staging_dir),
         "source_checkout": False,
     }

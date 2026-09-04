@@ -18,6 +18,7 @@ build:
     PHLO_DBT_VERSION: ${PHLO_DBT_VERSION:-}
     PHLO_DAGSTER_VERSION: ${PHLO_DAGSTER_VERSION:-}
     PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
+    PHLO_RELEASE_COMMIT: ${PHLO_RELEASE_COMMIT:-}
 
 depends_on:
   - postgres
@@ -135,6 +136,9 @@ env_vars:
     default: ""
     package: phlo-dagster
     description: phlo-dagster version to install in the service image
+  PHLO_RELEASE_COMMIT:
+    default: ""
+    description: Source commit recorded in the released image OCI metadata
   PHLO_HOST_PLATFORM:
     default: ""
     description: Host platform for executor selection (Darwin/Linux)

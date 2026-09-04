@@ -16,6 +16,11 @@ ARG PHLO_VERSION=""
 ARG PHLO_DBT_VERSION=""
 ARG PHLO_DAGSTER_VERSION=""
 ARG PHLO_WHEELHOUSE=""
+ARG PHLO_RELEASE_COMMIT=""
+
+# Candidate qualification requires this OCI source identity to match the
+# immutable BOM's release commit before the image can run.
+LABEL org.opencontainers.image.revision="${PHLO_RELEASE_COMMIT}"
 
 # Install system dependencies and uv.
 # gosu performs the entrypoint privilege drop.

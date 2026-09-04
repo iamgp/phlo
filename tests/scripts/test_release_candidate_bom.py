@@ -182,6 +182,35 @@ def test_parse_image_reference_rejects_env_templates_and_bad_digests() -> None:
         release_candidate_bom.parse_image_reference("postgres:18@notadigest")
 
 
+def test_first_party_image_revision_must_match_candidate_commit(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        output = json.dumps({release_candidate_bom.IMAGE_REVISION_LABEL: COMMIT})
+        return subprocess.CompletedProcess(args, 0, output, "")
+
+    monkeypatch.setattr(release_candidate_bom.subprocess, "run", fake_run)
+    artifact = _bom()["artifacts"][4]
+
+    release_candidate_bom.verify_first_party_image_revision(artifact, COMMIT)
+
+    assert calls[0][:2] == ["docker", "pull"]
+    assert calls[1][:3] == ["docker", "image", "inspect"]
+
+
+def test_first_party_image_revision_fails_closed_when_missing_or_stale(monkeypatch) -> None:
+    def fake_run(args, **kwargs):
+        output = "{}" if args[1] == "image" else ""
+        return subprocess.CompletedProcess(args, 0, output, "")
+
+    monkeypatch.setattr(release_candidate_bom.subprocess, "run", fake_run)
+    artifact = _bom()["artifacts"][4]
+
+    with pytest.raises(release_candidate_bom.BomError, match="org.opencontainers.image.revision"):
+        release_candidate_bom.verify_first_party_image_revision(artifact, COMMIT)
+
+
 def test_staged_distributions_verify_against_bom_digests(tmp_path: Path) -> None:
     bom, staging_dir = _bom_with_staged_files(tmp_path)
     verified = release_candidate_bom.verify_staged_distributions(bom, staging_dir)

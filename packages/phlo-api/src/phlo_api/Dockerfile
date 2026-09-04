@@ -15,6 +15,11 @@ WORKDIR /app
 ARG PHLO_VERSION=
 ARG PHLO_API_VERSION=
 ARG PHLO_WHEELHOUSE=
+ARG PHLO_RELEASE_COMMIT=
+
+# Candidate qualification requires this OCI source identity to match the
+# immutable BOM's release commit before the image can run.
+LABEL org.opencontainers.image.revision="${PHLO_RELEASE_COMMIT}"
 
 RUN apk upgrade --no-cache \
     && apk add --no-cache ca-certificates=20260611-r0 \

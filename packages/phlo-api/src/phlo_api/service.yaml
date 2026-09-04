@@ -13,6 +13,7 @@ build:
         PHLO_VERSION: ${PHLO_VERSION:-}
         PHLO_API_VERSION: ${PHLO_API_VERSION:-}
         PHLO_WHEELHOUSE: ${PHLO_WHEELHOUSE:-}
+        PHLO_RELEASE_COMMIT: ${PHLO_RELEASE_COMMIT:-}
 
 depends_on:
     - postgres
@@ -65,6 +66,9 @@ env_vars:
         default: ""
         package: phlo-api
         description: phlo-api package version to install in the service image
+    PHLO_RELEASE_COMMIT:
+        default: ""
+        description: Source commit recorded in the released image OCI metadata
     PHLO_API_PORT:
         default: 4000
         description: Phlo API port

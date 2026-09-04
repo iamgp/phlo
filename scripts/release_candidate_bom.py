@@ -53,6 +53,7 @@ COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 FIRST_PARTY_IMAGE_PREFIX = "ghcr.io/phlohouse/"
 SUPPORT_MANIFEST_PATH = "registry/support/v1.json"
 PYPI_TIMEOUT_SECONDS = 60
+IMAGE_REVISION_LABEL = "org.opencontainers.image.revision"
 
 
 class BomError(ValueError):
@@ -171,6 +172,56 @@ def resolve_image_digest(reference: str) -> str:
     if match is None:
         raise BomError(f"digest resolution for {reference!r} returned no manifest digest")
     return match.group(1)
+
+
+def verify_first_party_image_revision(artifact: dict[str, object], release_commit: str) -> None:
+    """Require an immutable release image to declare the candidate source commit.
+
+    A version tag and image digest alone cannot prove that the image contains
+    the same WAP launch contract as the distributions in the BOM: a mutable
+    release tag can point at an older image. Pull the already-digest-pinned
+    image and require its OCI revision label to bind it to the candidate's
+    source identity before any candidate journey can start.
+    """
+    reference = f"{artifact['name']}@{artifact['digest']}"
+    pull = subprocess.run(
+        ["docker", "pull", reference], capture_output=True, text=True, check=False
+    )
+    if pull.returncode:
+        raise BomError(
+            f"could not pull first-party image {reference!r}: "
+            f"{pull.stderr.strip() or pull.stdout.strip()}"
+        )
+    inspect = subprocess.run(
+        [
+            "docker",
+            "image",
+            "inspect",
+            "--format",
+            "{{json .Config.Labels}}",
+            reference,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if inspect.returncode:
+        raise BomError(
+            f"could not inspect first-party image {reference!r}: "
+            f"{inspect.stderr.strip() or inspect.stdout.strip()}"
+        )
+    try:
+        labels = json.loads(inspect.stdout)
+    except json.JSONDecodeError as exc:
+        raise BomError(
+            f"first-party image {reference!r} has unreadable OCI labels: {inspect.stdout!r}"
+        ) from exc
+    revision = labels.get(IMAGE_REVISION_LABEL) if isinstance(labels, dict) else None
+    if revision != release_commit:
+        raise BomError(
+            f"first-party image {reference!r} has {IMAGE_REVISION_LABEL}={revision!r}; "
+            f"expected candidate release commit {release_commit!r}"
+        )
 
 
 def _pypi_release_files(project: str, version: str) -> dict[str, tuple[str, str]]:
