@@ -20,8 +20,8 @@ compose:
     quarkus.datasource.username: ${POSTGRES_USER:-phlo}
     quarkus.datasource.password: ${POSTGRES_PASSWORD:-phlo}
     polaris.persistence.type: in-memory
+    polaris.bootstrap.credentials: ${POLARIS_ROOT_CREDENTIALS:-root,s3cr3t}
     JAVA_OPTS_APPEND: "-Djava.security.egd=file:/dev/urandom"
-    polaris.feature.REALMS: "true"
     quarkus.http.auth.basic: "true"
     AWS_REGION: ${ICEBERG_S3_REGION:-us-east-1}
     polaris.storage.aws.access-key: ${ICEBERG_S3_ACCESS_KEY:-minio}
@@ -29,7 +29,7 @@ compose:
   ports:
     - "${POLARIS_PORT:-10018}:8181"
   healthcheck:
-    test: ["CMD", "curl", "-f", "http://localhost:8181/q/health"]
+    test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8181/api/catalog"]
     interval: 10s
     timeout: 5s
     retries: 12

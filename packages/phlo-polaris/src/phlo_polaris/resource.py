@@ -36,6 +36,27 @@ class PolarisResource:
         client_id, _, client_secret = self.settings.polaris_root_credentials.partition(":")
         return client_id, client_secret
 
+    def _token(self) -> str:
+        """Fetch an OAuth2 bearer token for the bootstrap principal.
+
+        The management API does not accept HTTP basic; principals
+        authenticate against the OAuth2 token endpoint like any Iceberg REST
+        client. Polaris seeds the bootstrap principal from the
+        ``polaris.bootstrap.credentials`` env (comma-separated).
+        """
+        client_id, _, client_secret = self.settings.polaris_root_credentials.partition(":")
+        if getattr(self, "_cached_token", None):
+            return self._cached_token
+        response = requests.post(
+            f"{self.settings.polaris_rest_catalog_uri()}/v1/oauth/tokens",
+            auth=(client_id, client_secret),
+            data={"grant_type": "client_credentials"},
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        self._cached_token = str(response.json()["access_token"])
+        return self._cached_token
+
     def _request(
         self,
         method: str,
@@ -48,11 +69,21 @@ class PolarisResource:
         response = requests.request(
             method,
             url,
-            auth=self._auth(),
+            headers={"Authorization": f"Bearer {self._token()}"},
             json=json_body,
             params=params,
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
+        if response.status_code == 401:
+            self._cached_token = None
+            response = requests.request(
+                method,
+                url,
+                headers={"Authorization": f"Bearer {self._token()}"},
+                json=json_body,
+                params=params,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
         logger.debug(
             "polaris_api_request",
             method=method,
@@ -62,26 +93,31 @@ class PolarisResource:
         return response
 
     def health_check(self) -> bool:
-        """Return whether the Polaris service responds on its health endpoint."""
+        """Return whether the Polaris service responds with HTTP.
+
+        The 1.7.0 production profile does not install the Quarkus health
+        endpoints, so any HTTP response (including 404 on the Iceberg REST
+        prefix) proves the server is up.
+        """
         try:
             response = requests.get(
-                f"{self.settings.polaris_api_uri()}/q/health",
+                f"{self.settings.polaris_api_uri()}/api/catalog",
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
         except requests.RequestException:
             logger.warning("polaris_health_check_failed", exc_info=True)
             return False
-        return response.status_code == 200
+        return response.status_code < 500
 
     def list_catalogs(self) -> list[dict[str, Any]]:
         """List catalogs registered in Polaris."""
-        response = self._request("GET", "/api/manager/v1/catalogs")
+        response = self._request("GET", "/api/management/v1/catalogs")
         response.raise_for_status()
         return list(response.json().get("catalogs", []))
 
     def get_catalog(self, name: str) -> dict[str, Any] | None:
         """Return one catalog by name, or None when absent."""
-        response = self._request("GET", f"/api/manager/v1/catalogs/{name}")
+        response = self._request("GET", f"/api/management/v1/catalogs/{name}")
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -102,7 +138,7 @@ class PolarisResource:
                 "allowedLocations": [warehouse],
             },
         }
-        response = self._request("POST", "/api/manager/v1/catalogs", json_body=payload)
+        response = self._request("POST", "/api/management/v1/catalogs", json_body=payload)
         if response.status_code not in (200, 201):
             raise RuntimeError(
                 f"Polaris catalog creation failed for {name!r}: "
@@ -112,14 +148,14 @@ class PolarisResource:
 
     def list_principals(self) -> list[dict[str, Any]]:
         """List service principals registered in Polaris."""
-        response = self._request("GET", "/api/manager/v1/principals")
+        response = self._request("GET", "/api/management/v1/principals")
         response.raise_for_status()
         return list(response.json().get("principals", []))
 
     def create_principal(self, *, name: str) -> dict[str, Any]:
         """Create a service principal and return its client credentials."""
         response = self._request(
-            "POST", "/api/manager/v1/principals", json_body={"principalName": name}
+            "POST", "/api/management/v1/principals", json_body={"principalName": name}
         )
         if response.status_code not in (200, 201):
             raise RuntimeError(
@@ -132,7 +168,7 @@ class PolarisResource:
         """Grant one catalog-level privilege to a principal."""
         response = self._request(
             "PUT",
-            f"/api/manager/v1/catalogs/{self.settings.polaris_catalog}/grants/{principal}",
+            f"/api/management/v1/catalogs/{self.settings.polaris_catalog}/grants/{principal}",
             json_body={"privilege": privilege},
         )
         if response.status_code in (200, 201):

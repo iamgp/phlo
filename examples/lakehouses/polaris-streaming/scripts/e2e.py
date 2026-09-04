@@ -29,16 +29,16 @@ sys.path.insert(0, str(PROJECT / "workflows"))
 os.environ.setdefault("PHLO_PROJECT", "polaris-streaming")
 os.environ.setdefault("PHLO_PROJECT_PATH", str(PROJECT))
 os.environ.setdefault("POLARIS_HOST", "localhost")
-os.environ.setdefault("POLARIS_PORT", "11018")
+os.environ.setdefault("POLARIS_PORT", "13018")
 os.environ.setdefault("POLARIS_CATALOG", "phlo")
 os.environ.setdefault("KAFKA_HOST", "localhost")
-os.environ.setdefault("KAFKA_PORT", "11021")
+os.environ.setdefault("KAFKA_PORT", "13021")
 os.environ.setdefault("POSTGRES_HOST", "localhost")
-os.environ.setdefault("POSTGRES_PORT", "11000")
-os.environ.setdefault("MINIO_API_PORT", "11001")
-os.environ.setdefault("ICEBERG_S3_ENDPOINT", "http://localhost:11001")
+os.environ.setdefault("POSTGRES_PORT", "13000")
+os.environ.setdefault("MINIO_API_PORT", "13001")
+os.environ.setdefault("ICEBERG_S3_ENDPOINT", "http://localhost:13001")
 os.environ.setdefault("AIRBYTE_HOST", "localhost")
-os.environ.setdefault("AIRBYTE_PORT", "11020")
+os.environ.setdefault("AIRBYTE_PORT", "13020")
 
 RESULTS: list[tuple[str, bool, str]] = []
 
@@ -55,10 +55,10 @@ def main() -> int:
     from phlo_polaris.resource import PolarisResource
 
     polaris = PolarisResource()
-    deadline = time.time() + 900
+    deadline = time.time() + 2700
     while time.time() < deadline and not polaris.health_check():
-        print("  waiting for Polaris (/q/health)...")
-        time.sleep(15)
+        print("  waiting for Polaris (/api/catalog)...")
+        time.sleep(20)
     check("polaris.health", polaris.health_check())
 
     if polaris.health_check():
