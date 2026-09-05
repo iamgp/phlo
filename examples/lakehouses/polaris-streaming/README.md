@@ -37,15 +37,15 @@ Captured while proving this stack on arm64 Docker Desktop 29.2.1:
   `CLUSTER_ID` must be a valid 22-char base64 UUID (both fixed in the package
   service.yaml); otherwise the broker shuts down with "unable to register with
   the controller quorum".
-- **Port isolation**: `.phlo/.env.local` remaps host ports to 11xxx so the
+- **Port isolation**: `.phlo/.env.local` remaps host ports to 13xxx so the
   example never collides with a developer's own running stack.
 
 ## Run it
 
 ```bash
-# from the repo root (packages installed in the workspace venv)
-uv run phlo services start postgres minio polaris kafka airbyte
-uv run python scripts/e2e.py
+# from this directory (packages installed in the workspace venv)
+uv run phlo services start postgres minio polaris kafka airbyte-temporal airbyte-manifest airbyte
+uv run --locked --with confluent-kafka python scripts/e2e.py
 ```
 
 The Airbyte control plane proves health/connection APIs; connector syncs
