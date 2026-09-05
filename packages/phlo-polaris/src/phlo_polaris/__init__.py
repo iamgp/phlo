@@ -5,7 +5,9 @@ promotion, Trino catalog properties, PyIceberg configuration, the bootstrap
 hook, and the Nessie migration command.
 """
 
+from importlib.metadata import version
+
 from phlo_polaris.plugin import PolarisServicePlugin
 
 __all__ = ["PolarisServicePlugin"]
-__version__ = "0.14.0"
+__version__ = version("phlo-polaris")

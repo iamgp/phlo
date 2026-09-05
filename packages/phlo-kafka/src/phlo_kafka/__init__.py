@@ -6,7 +6,9 @@ commit), schema policy enforcement with dead-letter routing, and topic
 administration.
 """
 
+from importlib.metadata import version
+
 from phlo_kafka.plugin import KafkaServicePlugin
 
 __all__ = ["KafkaServicePlugin"]
-__version__ = "0.14.0"
+__version__ = version("phlo-kafka")

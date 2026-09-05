@@ -15,6 +15,8 @@ Example:
 
 """
 
+from importlib.metadata import version
+
 from phlo_postgres.checkpoints import PostgresIngestionCheckpointStore
 from phlo_postgres.plugin import PostgresServicePlugin
 from phlo_postgres.publish_target import PostgresPublishTarget
@@ -31,4 +33,5 @@ __all__ = [
     "PostgresSettingsStore",
     "get_settings",
 ]
-__version__ = "0.14.0"
+
+__version__ = version("phlo-postgres")
