@@ -1,13 +1,19 @@
 /**
  * /datasets route. Parent layout listing promoted datasets and candidates
- * with owner, classification, publication, and readiness filters; the
- * selected dataset's child route renders in the outlet.
+ * with owner, classification, publication, readiness, and candidate filters;
+ * the selected dataset's child route renders in the outlet.
+ *
+ * Filter and query state is authoritative in the URL (TanStack validateSearch)
+ * and applied server-side by phlo-api before pagination; the route pages
+ * through the full filtered collection by consuming `next_cursor` explicitly
+ * instead of trusting a client-side cap.
  */
 import {
   Link,
   Outlet,
   createFileRoute,
   useMatches,
+  useNavigate,
 } from '@tanstack/react-router'
 import {
   Boxes,
@@ -21,60 +27,267 @@ import {
   UserPlus,
   XCircle,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { ObservatoryDataset } from '@/observatory/api/types'
+import type {
+  ObservatoryDataset,
+  ObservatoryDatasetFacets,
+  ObservatoryPublishingReadiness,
+} from '@/observatory/api/types'
+import type {
+  DatasetCandidateFilter,
+  DatasetFilters,
+} from '@/observatory/api/datasetDiscovery'
 import {
-  getObservatoryDatasetRecords,
+  getObservatoryDatasetFacets,
+  getObservatoryDatasetPage,
+  getObservatoryPublishingReadinessDirect,
   runObservatoryActionDirect,
 } from '@/observatory/api/resources'
+import {
+  createRequestGuard,
+  defaultDatasetPageLimit,
+  serializeDatasetFilters,
+  walkDatasetPages,
+} from '@/observatory/api/datasetDiscovery'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
-import {
-  invalidateCachedResources,
-  useLiveResource,
-} from '@/observatory/routes/liveResource'
+import { invalidateCachedResources } from '@/observatory/routes/liveResource'
+
+type DatasetsSearch = {
+  q?: string
+  owner?: string
+  classification?: string
+  publicationState?: string
+  readinessState?: string
+  candidate?: 'true' | 'false'
+}
+
+function validateSearch(search: Record<string, unknown>): DatasetsSearch {
+  const stringParam = (value: unknown) =>
+    typeof value === 'string' && value ? value : undefined
+  return {
+    q: stringParam(search.q),
+    owner: stringParam(search.owner),
+    classification: stringParam(search.classification),
+    publicationState: stringParam(search.publicationState),
+    readinessState: stringParam(search.readinessState),
+    candidate:
+      search.candidate === 'true' || search.candidate === 'false'
+        ? search.candidate
+        : undefined,
+  }
+}
 
 export const Route = createFileRoute('/datasets')({
   component: Datasets,
+  validateSearch,
 })
 
 export function Datasets() {
   const matches = useMatches()
-  const result = useLiveResource(
-    getObservatoryDatasetRecords,
-    120_000,
-    'observatory:datasets',
+  const navigate = useNavigate()
+  const search = Route.useSearch()
+  const filters: DatasetFilters = useMemo(
+    () => ({
+      query: search.q ?? '',
+      owner: search.owner ?? 'all',
+      classification: search.classification ?? 'all',
+      publicationState: search.publicationState ?? 'all',
+      readinessState: search.readinessState ?? 'all',
+      candidate: (search.candidate ?? 'all') as DatasetCandidateFilter,
+    }),
+    [
+      search.q,
+      search.owner,
+      search.classification,
+      search.publicationState,
+      search.readinessState,
+      search.candidate,
+    ],
   )
-  const isLoading = result.data === null && !result.error
-  const datasets = result.data ?? []
-  const [query, setQuery] = useState('')
-  const [owner, setOwner] = useState('all')
-  const [classification, setClassification] = useState('all')
-  const [publicationState, setPublicationState] = useState('all')
-  const [readinessState, setReadinessState] = useState('all')
+
+  // Cursor-aware collection state: what was loaded from phlo-api, the
+  // continuation cursor, and whether the bounded walk stopped early. Counts
+  // derived from this state are honest loaded counts, never totals.
+  const [datasets, setDatasets] = useState<Array<ObservatoryDataset>>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [collectionError, setCollectionError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [facets, setFacets] = useState<ObservatoryDatasetFacets | null>(null)
+  // Canonical publication readiness per dataset, served by phlo-api's bulk
+  // readiness endpoint (the canonical verdict). Rows render these reasons
+  // verbatim and never infer blockers from owner or classification fields.
+  const [readinessMap, setReadinessMap] = useState<
+    Record<string, ObservatoryPublishingReadiness | undefined>
+  >({})
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  // Bumping this re-runs the collection walk after a candidate action.
+  const [refreshTick, setRefreshTick] = useState(0)
+
+  // Stale-page guard: a walk request bumps the generation, and any response
+  // from an earlier generation is discarded instead of corrupting the newer
+  // query's state.
+  const guardRef = useRef<ReturnType<typeof createRequestGuard> | null>(null)
+  if (guardRef.current === null) {
+    guardRef.current = createRequestGuard()
+  }
+
+  // Full-collection facets for filter choices; computed by phlo-api across
+  // the whole Dataset collection, independent of the loaded pages.
+  useEffect(() => {
+    let cancelled = false
+    void getObservatoryDatasetFacets().then((result) => {
+      if (!cancelled) setFacets(result.data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // One bulk request serves the canonical readiness verdict for the
+  // inspector and row reasons; no per-dataset eligibility is computed here.
+  useEffect(() => {
+    let cancelled = false
+    void getObservatoryPublishingReadinessDirect().then((bulkResult) => {
+      if (cancelled) return
+      setReadinessMap(
+        Object.fromEntries(
+          (bulkResult.data ?? []).map((item) => [
+            item.dataset_id,
+            item.publishing,
+          ]),
+        ),
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [refreshTick])
+
+  useEffect(() => {
+    const guard = guardRef.current
+    let cancelled = false
+    const timer = window.setTimeout(
+      () => {
+        const token = guard?.begin()
+        void walkDatasetPages({
+          fetchPage: async ({ cursor, filters: pageFilters, limit }) => {
+            const result = await getObservatoryDatasetPage({
+              cursor,
+              filters: pageFilters,
+              limit,
+            })
+            return {
+              items: result.data?.items ?? [],
+              nextCursor: result.data?.nextCursor ?? null,
+              error: result.error,
+            }
+          },
+          filters,
+          limit: defaultDatasetPageLimit,
+        }).then((walk) => {
+          if (cancelled || (token !== undefined && !guard?.isCurrent(token))) {
+            return
+          }
+          setDatasets(walk.items)
+          setNextCursor(walk.nextCursor)
+          setCollectionError(
+            walk.items.length === 0 ? (walk.errors[0] ?? null) : null,
+          )
+          setIsLoading(false)
+        })
+      },
+      // Debounce so typing in the query field does not fire a walk per
+      // keystroke; the URL is already authoritative.
+      180,
+    )
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [filters, refreshTick])
+
+  const loadMore = () => {
+    const guard = guardRef.current
+    if (!nextCursor || isLoadingMore) return
+    const token = guard?.begin()
+    setIsLoadingMore(true)
+    void walkDatasetPages({
+      cursor: nextCursor,
+      fetchPage: async ({ cursor, filters: pageFilters, limit }) => {
+        const result = await getObservatoryDatasetPage({
+          cursor,
+          filters: pageFilters,
+          limit,
+        })
+        return {
+          items: result.data?.items ?? [],
+          nextCursor: result.data?.nextCursor ?? null,
+          error: result.error,
+        }
+      },
+      filters,
+      limit: defaultDatasetPageLimit,
+    }).then((walk) => {
+      if (token !== undefined && !guard?.isCurrent(token)) return
+      setDatasets((prev) => [...prev, ...walk.items])
+      setNextCursor(walk.nextCursor)
+      setCollectionError(
+        walk.items.length === 0 ? (walk.errors[0] ?? null) : null,
+      )
+      setIsLoadingMore(false)
+    })
+  }
+
+  // URL-authoritative filter updates: serialize only non-default values so
+  // the query string is a shareable description of the view.
+  const updateFilter = (patch: Partial<DatasetFilters>) => {
+    const params = serializeDatasetFilters({ ...filters, ...patch })
+    void navigate({
+      replace: true,
+      search: Object.fromEntries(params),
+      to: '/datasets',
+    })
+  }
+  const setQuery = (value: string) => updateFilter({ query: value })
+  const setOwner = (value: string) => updateFilter({ owner: value })
+  const setClassification = (value: string) =>
+    updateFilter({ classification: value })
+  const setPublicationState = (value: string) =>
+    updateFilter({ publicationState: value })
+  const setReadinessState = (value: string) =>
+    updateFilter({ readinessState: value })
+  const setCandidate = (value: string) =>
+    updateFilter({
+      candidate: value === 'true' || value === 'false' ? value : 'all',
+    })
 
   const promoted = datasets.filter((dataset) => !dataset.candidate)
   const candidates = datasets.filter((dataset) => dataset.candidate)
-  const owners = optionValues(datasets.map((dataset) => dataset.owner))
-  const classifications = optionValues(
-    datasets.flatMap((dataset) => dataset.classifications),
-  )
-  const filtered = useMemo(
-    () =>
-      datasets.filter((dataset) =>
-        matchesDataset(dataset, {
-          classification,
-          owner,
-          publicationState,
-          query,
-          readinessState,
-        }),
-      ),
-    [classification, datasets, owner, publicationState, query, readinessState],
-  )
+  // Facet choices come from the full-collection facets endpoint; fall back to
+  // whatever the loaded pages contain while facets are unavailable.
+  const owners =
+    facets?.owners ?? optionValues(datasets.map((dataset) => dataset.owner))
+  const classifications =
+    facets?.classifications ??
+    optionValues(datasets.flatMap((dataset) => dataset.classifications))
+  const publicationStates = facets?.publication_states ?? [
+    'draft',
+    'published',
+    'retired',
+  ]
+  const readinessStates = facets?.readiness_states ?? [
+    'ok',
+    'warning',
+    'error',
+    'unknown',
+  ]
+  // Server-side filtering means the loaded array is already the filtered
+  // collection; no client-side re-filtering that could hide matches.
+  const filtered = datasets
   const selectedDataset = filtered[0] ?? null
   const needsOwner = datasets.filter((dataset) => !dataset.owner).length
   const needsClassification = datasets.filter(
@@ -98,7 +311,9 @@ export function Datasets() {
       description="Browse governed datasets first, then inspect candidate tables that look ready to be claimed."
       action={
         <span className="phlo-observatory-pill">
-          {isLoading ? 'Loading' : `${datasets.length} datasets`}
+          {isLoading
+            ? 'Loading'
+            : `${datasets.length} loaded${nextCursor ? ' · more available' : ''}`}
         </span>
       }
     >
@@ -108,13 +323,13 @@ export function Datasets() {
             <DatasetQueueMetric
               icon={<Boxes className="size-4" />}
               label="Governed"
-              value={promoted.length}
+              value={loadedCount(promoted.length, nextCursor)}
               detail={`${candidates.length} candidates`}
             />
             <DatasetQueueMetric
               icon={<ShieldCheck className="size-4" />}
               label="Needs owner"
-              value={needsOwner}
+              value={loadedCount(needsOwner, nextCursor)}
               detail={`${needsClassification} missing classification`}
               state={
                 needsOwner > 0 || needsClassification > 0 ? 'warning' : 'ok'
@@ -123,7 +338,7 @@ export function Datasets() {
             <DatasetQueueMetric
               icon={<UploadCloud className="size-4" />}
               label="Release blocked"
-              value={releaseBlocked}
+              value={loadedCount(releaseBlocked, nextCursor)}
               detail={`${publishedCount(promoted)} published`}
               state={releaseBlocked > 0 ? 'error' : 'ok'}
             />
@@ -139,7 +354,7 @@ export function Datasets() {
                 aria-label="Search Datasets"
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search Datasets"
-                value={query}
+                value={filters.query}
               />
             </label>
           </div>
@@ -147,33 +362,53 @@ export function Datasets() {
             <SelectFilter
               label="Owner"
               onChange={setOwner}
-              value={owner}
+              value={filters.owner}
               values={owners}
             />
             <SelectFilter
               label="Classification"
               onChange={setClassification}
-              value={classification}
+              value={filters.classification}
               values={classifications}
             />
             <SelectFilter
               label="Publication"
               onChange={setPublicationState}
-              value={publicationState}
-              values={['draft', 'published', 'retired']}
+              value={filters.publicationState}
+              values={publicationStates}
             />
             <SelectFilter
               label="Readiness"
               onChange={setReadinessState}
-              value={readinessState}
-              values={['ok', 'warning', 'error', 'unknown']}
+              value={filters.readinessState}
+              values={readinessStates}
+            />
+            <SelectFilter
+              labels={{ false: 'Governed only', true: 'Candidates only' }}
+              label="Candidate"
+              onChange={setCandidate}
+              value={filters.candidate}
+              values={['true', 'false']}
             />
           </div>
           <DatasetList
-            error={result.error}
+            error={collectionError}
             isLoading={isLoading}
             datasets={filtered}
+            readinessMap={readinessMap}
           />
+          {!isLoading && nextCursor !== null && (
+            <button
+              className="phlo-observatory-load-more"
+              disabled={isLoadingMore}
+              onClick={loadMore}
+              type="button"
+            >
+              {isLoadingMore
+                ? 'Loading more…'
+                : `Load more datasets (${datasets.length} loaded)`}
+            </button>
+          )}
         </div>
 
         <aside className="phlo-observatory-inspector phlo-observatory-surface-inspector">
@@ -187,7 +422,10 @@ export function Datasets() {
           </h2>
           <p>
             {selectedDataset
-              ? datasetInspectorSummary(selectedDataset)
+              ? canonicalInspectorSummary(
+                  selectedDataset,
+                  readinessMap[selectedDataset.id] ?? null,
+                )
               : 'Use the queue to inspect readiness, ownership, publication, and candidate state.'}
           </p>
           {selectedDataset && (
@@ -197,8 +435,19 @@ export function Datasets() {
                 data-state={selectedDataset.readiness_state}
               >
                 <span>Blocker</span>
-                <strong>{datasetQueueReason(selectedDataset)}</strong>
-                <small>Next: {datasetNextAction(selectedDataset)}</small>
+                <strong>
+                  {canonicalQueueReason(
+                    selectedDataset,
+                    readinessMap[selectedDataset.id] ?? null,
+                  )}
+                </strong>
+                <small>
+                  Next:{' '}
+                  {canonicalNextAction(
+                    selectedDataset,
+                    readinessMap[selectedDataset.id] ?? null,
+                  )}
+                </small>
               </div>
               <dl className="phlo-observatory-facts">
                 <dt>Owner</dt>
@@ -240,7 +489,9 @@ export function Datasets() {
                       'observatory:datasets',
                       'observatory:operations',
                     ])
-                    window.dispatchEvent(new Event('focus'))
+                    // Re-run the cursor-aware collection walk; the old
+                    // liveResource focus refresh no longer applies here.
+                    setRefreshTick((tick) => tick + 1)
                     setActionMessage(
                       next.data?.message ?? next.error ?? 'Action requested',
                     )
@@ -275,7 +526,7 @@ function DatasetQueueMetric({
   icon: ReactNode
   label: string
   state?: 'ok' | 'warning' | 'error' | 'unknown'
-  value: number
+  value: string | number
 }) {
   return (
     <div className="phlo-observatory-dataset-queue-metric" data-state={state}>
@@ -339,10 +590,12 @@ function DatasetList({
   error,
   isLoading,
   datasets,
+  readinessMap,
 }: {
   error: string | null
   isLoading: boolean
   datasets: Array<ObservatoryDataset>
+  readinessMap: Record<string, ObservatoryPublishingReadiness | undefined>
 }) {
   if (isLoading) {
     return (
@@ -428,10 +681,10 @@ function DatasetList({
             {dataset.owner ?? 'unassigned'}
           </span>
           <span className="phlo-observatory-dataset-row-blocker">
-            {datasetQueueReason(dataset)}
+            {canonicalQueueReason(dataset, readinessMap[dataset.id] ?? null)}
           </span>
           <span className="phlo-observatory-dataset-row-next">
-            {datasetNextAction(dataset)}
+            {canonicalNextAction(dataset, readinessMap[dataset.id] ?? null)}
           </span>
         </article>
       ))}
@@ -490,11 +743,13 @@ function DatasetEvidenceLinks({
 }
 
 function SelectFilter({
+  labels = {},
   label,
   onChange,
   value,
   values,
 }: {
+  labels?: Record<string, string>
   label: string
   onChange: (value: string) => void
   value: string
@@ -508,7 +763,7 @@ function SelectFilter({
         <option value="all">All</option>
         {values.map((item) => (
           <option key={item} value={item}>
-            {item}
+            {labels[item] ?? item}
           </option>
         ))}
       </select>
@@ -516,36 +771,13 @@ function SelectFilter({
   )
 }
 
-function matchesDataset(
-  dataset: ObservatoryDataset,
-  filters: {
-    classification: string
-    owner: string
-    publicationState: string
-    query: string
-    readinessState: string
-  },
-) {
-  const query = filters.query.trim().toLowerCase()
-  const haystack = [
-    dataset.name,
-    dataset.description ?? '',
-    dataset.owner ?? '',
-    dataset.classifications.join(' '),
-    dataset.source_refs.map((ref) => ref.label).join(' '),
-  ]
-    .join(' ')
-    .toLowerCase()
-  return (
-    (!query || haystack.includes(query)) &&
-    (filters.owner === 'all' || dataset.owner === filters.owner) &&
-    (filters.classification === 'all' ||
-      dataset.classifications.includes(filters.classification)) &&
-    (filters.publicationState === 'all' ||
-      dataset.publication_state === filters.publicationState) &&
-    (filters.readinessState === 'all' ||
-      dataset.readiness_state === filters.readinessState)
-  )
+/**
+ * Honest loaded count: while a next cursor remains, the loaded array is a
+ * prefix of the collection, so counts are shown as lower bounds rather than
+ * fabricated totals.
+ */
+function loadedCount(value: number, hasMore: string | null): string {
+  return hasMore !== null && value > 0 ? `≥${value}` : String(value)
 }
 
 function optionValues(values: Array<string | null | undefined>) {
@@ -559,15 +791,56 @@ function publishedCount(datasets: Array<ObservatoryDataset>): number {
     .length
 }
 
-function datasetInspectorSummary(dataset: ObservatoryDataset): string {
+/**
+ * Canonical-only queue reason: the blocker, evidence gap, or
+ * warning comes verbatim from the canonical readiness verdict phlo-api
+ * serves. Candidates are a server identity fact. Nothing is inferred from
+ * owner or classification fields, and an unloaded verdict renders as
+ * pending rather than assumed-clear.
+ */
+function canonicalQueueReason(
+  dataset: ObservatoryDataset,
+  readiness: ObservatoryPublishingReadiness | null,
+): string {
+  if (dataset.candidate) {
+    return 'Candidate table needs review before it becomes governed.'
+  }
+  if (!readiness) {
+    return 'Canonical readiness loading from phlo-api.'
+  }
+  return (
+    readiness.blockers[0] ??
+    readiness.missing_evidence[0] ??
+    readiness.warnings[0] ??
+    'Readiness evidence is available.'
+  )
+}
+
+function canonicalNextAction(
+  dataset: ObservatoryDataset,
+  readiness: ObservatoryPublishingReadiness | null,
+): string {
+  if (dataset.candidate) return 'claim, promote, or reject'
+  if (!readiness) return 'await canonical readiness'
+  if (readiness.blockers.length > 0) return 'resolve release blockers'
+  if (readiness.missing_evidence.length > 0) return 'collect evidence'
+  if (dataset.publication_state === 'published') return 'retire if obsolete'
+  if (readiness.warnings.length > 0) return 'review warning evidence'
+  return 'review publishing readiness'
+}
+
+function canonicalInspectorSummary(
+  dataset: ObservatoryDataset,
+  readiness: ObservatoryPublishingReadiness | null,
+): string {
   if (dataset.candidate) {
     return 'Candidate dataset awaiting owner review, promotion, or rejection.'
   }
-  if (dataset.readiness_state === 'error') {
-    return 'Release is blocked until readiness evidence is resolved.'
+  if (readiness && readiness.blockers.length > 0) {
+    return 'Release is blocked by the canonical readiness verdict.'
   }
-  if (!dataset.owner || dataset.classifications.length === 0) {
-    return 'Governance evidence is incomplete before publication.'
+  if (readiness && readiness.missing_evidence.length > 0) {
+    return 'Canonical readiness is waiting on missing evidence.'
   }
   return (
     dataset.description ?? 'Governed dataset with readiness evidence available.'
@@ -592,34 +865,4 @@ function firstResourceHref(
     return `/tables?tableId=${encodeURIComponent(resource.id)}`
   }
   return null
-}
-
-function datasetQueueReason(dataset: ObservatoryDataset): string {
-  if (dataset.candidate) {
-    return 'Candidate table needs review before it becomes governed.'
-  }
-  if (dataset.readiness_state === 'error') {
-    return 'Publication is blocked by unresolved readiness evidence.'
-  }
-  if (!dataset.owner) {
-    return 'Ownership is missing.'
-  }
-  if (dataset.classifications.length === 0) {
-    return 'Classification is missing.'
-  }
-  if (dataset.readiness_state === 'warning') {
-    return 'Readiness has warnings that should be reviewed.'
-  }
-  return 'Readiness evidence is available.'
-}
-
-function datasetNextAction(dataset: ObservatoryDataset): string {
-  if (dataset.candidate) return 'claim, promote, or reject'
-  if (dataset.readiness_state === 'error') return 'open readiness cockpit'
-  if (!dataset.owner) return 'assign owner'
-  if (dataset.classifications.length === 0) return 'declare classification'
-  if (dataset.readiness_state === 'warning') return 'review warning evidence'
-  if (dataset.publication_state === 'draft')
-    return 'review publishing readiness'
-  return 'monitor evidence'
 }

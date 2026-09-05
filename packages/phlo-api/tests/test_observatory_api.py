@@ -503,47 +503,52 @@ def test_observatory_datasets_endpoint_returns_profile_summaries(
     observatory_loaders,
 ) -> None:
     observatory._clear_read_model_cache()
-    observatory_loaders(
-        assets=[
-            ObservatoryAsset(
-                id="gold.orders",
-                name="gold.orders",
-                group="gold",
-                description="Curated orders",
-                kinds=["table"],
-                metadata={
-                    "owner": "analytics",
-                    "classification": "internal",
-                    "published": True,
-                },
-            )
-        ],
-        tables_without_catalog=[
-            ObservatoryTable(
-                id="orders",
-                name="orders",
-                namespace="gold",
-                asset_id="gold.orders",
-            )
-        ],
-        quality=[
-            ObservatoryQualityCheck(
-                id="gold.orders:not_null_order_id",
-                name="not_null_order_id",
-                asset_id="gold.orders",
-                status="passing",
-            )
-        ],
-    )
+    import phlo
 
-    response = authenticated_client("admin").get("/api/observatory/datasets")
+    @phlo.contract(table="gold.orders", owner="analytics", metadata={"classification": "internal"})
+    def _orders_contract() -> None:
+        return None
+
+    try:
+        observatory_loaders(
+            assets=[
+                ObservatoryAsset(
+                    id="gold.orders",
+                    name="gold.orders",
+                    group="gold",
+                    description="Curated orders",
+                    kinds=["table"],
+                    metadata={"published": True},
+                )
+            ],
+            tables_without_catalog=[
+                ObservatoryTable(
+                    id="orders",
+                    name="orders",
+                    namespace="gold",
+                    asset_id="gold.orders",
+                )
+            ],
+            quality=[
+                ObservatoryQualityCheck(
+                    id="gold.orders:not_null_order_id",
+                    name="not_null_order_id",
+                    asset_id="gold.orders",
+                    status="passing",
+                )
+            ],
+        )
+
+        response = authenticated_client("admin").get("/api/observatory/datasets")
+    finally:
+        phlo.clear_flow_declarations()
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["items"][0]["id"] == "gold.orders"
     assert payload["items"][0]["owner"] == "analytics"
     assert payload["items"][0]["classifications"] == ["internal"]
-    assert payload["items"][0]["publication_state"] == "published"
+    assert payload["items"][0]["publication_state"] == "draft"
     assert payload["items"][0]["readiness_state"] == "ok"
     assert payload["items"][0]["candidate"] is False
 
@@ -582,7 +587,10 @@ def test_observatory_publishing_readiness_loads_shared_sources_once(
         "gold.payments",
     ]
     assert all(item["publishing"]["state"] == "unknown" for item in payload["items"])
-    assert calls == ["assets", "tables", "quality"]
+    # The readiness evidence crosses the neutral dataset_evidence interface, so
+    # the quality collection is loaded once for the read model and once more by
+    # the evidence source; every dataset readiness reuses the cached evidence.
+    assert calls == ["assets", "tables", "quality", "quality"]
 
 
 def test_observatory_datasets_endpoint_uses_project_read_model_cache(
@@ -676,7 +684,8 @@ def test_observatory_dataset_profile_returns_table_candidate(
     assert payload["dataset"]["candidate"] is True
     assert payload["asset"] is None
     assert payload["tables"][0]["id"] == "raw_orders"
-    assert payload["governance"][2]["status"] == "not_applicable"
+    assert payload["governance"][3]["id"] == "quality_checks_passed"
+    assert payload["governance"][3]["status"] == "not_applicable"
 
 
 def test_observatory_candidate_actions_persist_workflow_state(
@@ -687,6 +696,32 @@ def test_observatory_candidate_actions_persist_workflow_state(
     observatory._clear_read_model_cache()
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv("USER", "data-team")
+    import phlo
+    from phlo.capabilities.registry import get_capability_registry
+    from phlo.capabilities.specs import DatasetEvidenceSourceSpec
+    from phlo.dataset.evidence import EvidenceRecord
+
+    @phlo.contract(
+        table="raw_orders",
+        owner="data-team",
+        metadata={"classification": "internal"},
+    )
+    def _raw_orders_contract() -> None:
+        return None
+
+    class _PassingQualityEvidence:
+        def evidence(self, subject: str, kinds: object) -> tuple[EvidenceRecord, ...]:
+            if "quality_checks" not in kinds or subject != "raw_orders":
+                return ()
+            return (
+                EvidenceRecord(kind="quality_checks", subject=subject, payload={"passed": True}),
+            )
+
+    registry = get_capability_registry()
+    registry.register(
+        "dataset_evidence",
+        DatasetEvidenceSourceSpec(name="test-quality", provider=_PassingQualityEvidence()),
+    )
     observatory_loaders(
         assets=[],
         tables_without_catalog=[
@@ -698,25 +733,38 @@ def test_observatory_candidate_actions_persist_workflow_state(
     )
     client = authenticated_client("admin")
 
-    claim = client.post(
-        "/api/observatory/actions",
-        json={"action_id": "candidate:raw_orders:claim"},
-    )
-    assert claim.status_code == 200
-    assert claim.json()["status"] == "succeeded"
-    candidate = client.get("/api/observatory/datasets/candidate:raw_orders").json()
-    assert candidate["dataset"]["owner"] == "data-team"
-    promote = client.post(
-        "/api/observatory/actions",
-        json={"action_id": "candidate:raw_orders:promote"},
-    )
-    assert promote.status_code == 200
-    datasets = client.get("/api/observatory/datasets").json()["items"]
-    assert datasets[0]["id"] == "raw_orders"
-    assert datasets[0]["candidate"] is False
-    assert datasets[0]["owner"] == "data-team"
-    profile = client.get("/api/observatory/datasets/raw_orders").json()
-    assert profile["dataset"]["metadata"]["promoted_from_candidate"] is True
+    try:
+        claim = client.post(
+            "/api/observatory/actions",
+            json={"action_id": "candidate:raw_orders:claim"},
+        )
+        assert claim.status_code == 200
+        assert claim.json()["status"] == "succeeded"
+        candidate = client.get("/api/observatory/datasets/candidate:raw_orders").json()
+        assert candidate["dataset"]["owner"] == "data-team"
+        review = client.post(
+            "/api/observatory/actions",
+            json={"action_id": "candidate:raw_orders:review"},
+        )
+        assert review.status_code == 200
+        assert review.json()["status"] == "succeeded"
+        promote = client.post(
+            "/api/observatory/actions",
+            json={"action_id": "candidate:raw_orders:promote"},
+        )
+        assert promote.status_code == 200
+        assert promote.json()["status"] == "succeeded"
+        datasets = client.get("/api/observatory/datasets").json()["items"]
+        assert datasets[0]["id"] == "raw_orders"
+        assert datasets[0]["candidate"] is False
+        assert datasets[0]["owner"] == "data-team"
+        profile = client.get("/api/observatory/datasets/raw_orders").json()
+        assert profile["dataset"]["metadata"]["promoted_from_candidate"] is True
+        assert profile["canonical"]["publication_state"] == "draft"
+    finally:
+        registry.clear("dataset_evidence")
+        phlo.clear_flow_declarations()
+
     assert {
         "observatory.candidate.claim",
         "observatory.candidate.promote",
@@ -730,12 +778,22 @@ def test_observatory_publication_action_persists_dataset_state(
 ) -> None:
     observatory._clear_read_model_cache()
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    import phlo
+
+    @phlo.contract(
+        table="gold.orders",
+        owner="analytics",
+        metadata={"classification": "internal"},
+    )
+    def _gold_orders_contract() -> None:
+        return None
+
     observatory_loaders(
         assets=[
             ObservatoryAsset(
                 id="gold.orders",
                 name="gold.orders",
-                metadata={"owner": "analytics", "classification": "internal"},
+                metadata={},
             )
         ],
         tables_without_catalog=[
@@ -755,17 +813,46 @@ def test_observatory_publication_action_persists_dataset_state(
     )
     client = authenticated_client("admin")
 
-    result = client.post(
-        "/api/observatory/actions",
-        json={"action_id": "dataset:gold.orders:publish"},
-    )
+    # The publication state machine operates on promoted Datasets; seed the
+    # durable draft record a promotion (or overlay migration) would have
+    # committed, then drive the publication transition through the API.
+    from phlo.dataset.models import DatasetRecord
+    from phlo.dataset.store import StoreWrite
 
-    assert result.status_code == 200
-    assert result.json()["status"] == "succeeded"
-    profile = client.get("/api/observatory/datasets/gold.orders").json()
-    assert profile["dataset"]["publication_state"] == "published"
-    assert profile["dataset"]["metadata"]["approval_state"] == "approved"
-    assert profile["publishing"]["actions"][0]["enabled"] is False
+    authority = observatory._dataset_authority()
+    seed = authority.service.store.compare_and_set(
+        writes=(
+            StoreWrite(
+                record_id="gold.orders",
+                expected_state="open",
+                next_record=DatasetRecord(
+                    dataset_id="gold.orders",
+                    table_id="gold.orders",
+                    publication_state="draft",
+                    owner="analytics",
+                ),
+            ),
+        ),
+        action_id="test-seed-promotion",
+        action="promote",
+        fingerprint="test-seed-promotion",
+    )
+    assert seed.status.value == "committed"
+
+    try:
+        result = client.post(
+            "/api/observatory/actions",
+            json={"action_id": "dataset:gold.orders:publish"},
+        )
+
+        assert result.status_code == 200
+        assert result.json()["status"] == "succeeded"
+        profile = client.get("/api/observatory/datasets/gold.orders").json()
+        assert profile["dataset"]["publication_state"] == "published"
+        assert profile["canonical"]["approval_state"] == "published"
+        assert profile["publishing"]["actions"][0]["enabled"] is False
+    finally:
+        phlo.clear_flow_declarations()
     assert "observatory.dataset.publish" in _telemetry_event_names(tmp_path)
 
 
@@ -798,14 +885,19 @@ def test_observatory_governance_endpoint_returns_dataset_control_matrix(
     observatory_loaders,
 ) -> None:
     observatory._clear_read_model_cache()
+    import phlo
+
+    @phlo.contract(
+        table="gold.orders",
+        owner="analytics",
+        metadata={"classification": "internal"},
+    )
+    def _orders_contract() -> None:
+        return None
+
     observatory_loaders(
         assets=[
-            ObservatoryAsset(
-                id="gold.orders",
-                name="gold.orders",
-                group="gold",
-                metadata={"owner": "analytics", "classification": "internal"},
-            ),
+            ObservatoryAsset(id="gold.orders", name="gold.orders", group="gold", metadata={}),
             ObservatoryAsset(id="gold.customers", name="gold.customers", group="gold"),
         ],
         tables_without_catalog=[
@@ -824,29 +916,51 @@ def test_observatory_governance_endpoint_returns_dataset_control_matrix(
         ],
     )
 
-    response = authenticated_client("admin").get("/api/observatory/governance")
+    try:
+        response = authenticated_client("admin").get("/api/observatory/governance")
+    finally:
+        phlo.clear_flow_declarations()
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["controls"] == ["owner", "classification", "blocking_quality"]
+    assert payload["controls"] == [
+        "governance_declarations_present",
+        "owner_recorded",
+        "classification_declared",
+        "quality_checks_passed",
+    ]
     order_row = next(row for row in payload["rows"] if row["dataset"]["id"] == "gold.orders")
     assert order_row["owner"] == "analytics"
     assert order_row["classifications"] == ["internal"]
     assert order_row["status"] == "fail"
     quality_control = next(
-        control for control in order_row["controls"] if control["id"] == "blocking_quality"
+        control for control in order_row["controls"] if control["id"] == "quality_checks_passed"
     )
     assert quality_control["status"] == "fail"
     assert quality_control["evidence"][0]["kind"] == "quality_check"
 
     customer_row = next(row for row in payload["rows"] if row["dataset"]["id"] == "gold.customers")
+    # Undeclared tables are absent from the governance surface, so their
+    # evidence is *missing* (unknown), not failed.
     assert (
-        next(control for control in customer_row["controls"] if control["id"] == "owner")["status"]
-        == "fail"
+        next(
+            control
+            for control in customer_row["controls"]
+            if control["id"] == "governance_declarations_present"
+        )["status"]
+        == "unknown"
+    )
+    assert (
+        next(control for control in customer_row["controls"] if control["id"] == "owner_recorded")[
+            "status"
+        ]
+        == "unknown"
     )
     assert (
         next(
-            control for control in customer_row["controls"] if control["id"] == "blocking_quality"
+            control
+            for control in customer_row["controls"]
+            if control["id"] == "quality_checks_passed"
         )["status"]
         == "unknown"
     )
@@ -856,7 +970,9 @@ def test_observatory_governance_endpoint_returns_dataset_control_matrix(
     )
     assert (
         next(
-            control for control in candidate_row["controls"] if control["id"] == "blocking_quality"
+            control
+            for control in candidate_row["controls"]
+            if control["id"] == "quality_checks_passed"
         )["status"]
         == "not_applicable"
     )
@@ -982,6 +1098,12 @@ def test_observatory_dataset_profile_collects_related_context(
     observatory_loaders,
 ) -> None:
     observatory._clear_read_model_cache()
+    import phlo
+
+    @phlo.contract(table="gold.orders", owner="analytics")
+    def _orders_contract() -> None:
+        return None
+
     observatory_loaders(
         assets=[
             ObservatoryAsset(
@@ -994,7 +1116,7 @@ def test_observatory_dataset_profile_collects_related_context(
                 name="gold.orders",
                 group="gold",
                 dependencies=["silver.orders"],
-                metadata={"owner": "analytics"},
+                metadata={},
             ),
         ],
         tables_without_catalog=[
@@ -1041,9 +1163,10 @@ def test_observatory_dataset_profile_collects_related_context(
     assert payload["publishing"]["actions"][0]["enabled"] is False
     assert "external sharing" in payload["publishing"]["actions"][0]["consequences"][2]
     assert [control["id"] for control in payload["governance"]] == [
-        "owner",
-        "classification",
-        "blocking_quality",
+        "governance_declarations_present",
+        "owner_recorded",
+        "classification_declared",
+        "quality_checks_passed",
     ]
     assert payload["usage"]["dependency_activity"][0]["source"]["id"] == "silver.orders"
 
@@ -1624,10 +1747,10 @@ def test_observatory_run_operational_routes_use_observatory_paths(
             "operation": "retry_failed_run",
             "dry_run": payload.dry_run,
             "accepted": True,
-            "run_id": run_id,
-            "status": "DRY_RUN",
-            "message": "Run retry request is valid.",
-            "details": {"run_status": "FAILURE"},
+            "run_id": "run-new-456",
+            "status": "STARTED",
+            "message": "Dagster accepted retry_failed_run.",
+            "details": {},
         }
 
     async def fake_cancel(run_id: str, payload, dagster_url: str | None = None):
@@ -1653,7 +1776,9 @@ def test_observatory_run_operational_routes_use_observatory_paths(
     headers = {"Authorization": "Bearer operate-token"}
     status = client.get("/api/observatory/runs/run-123/status")
     retry = client.post(
-        "/api/observatory/runs/run-123/retry", json={"dry_run": False}, headers=headers
+        "/api/observatory/runs/run-123/retry",
+        json={"dry_run": False, "idempotency_key": "retry-key"},
+        headers=headers,
     )
     cancel = client.post(
         "/api/observatory/runs/run-123/cancel",
@@ -1663,10 +1788,22 @@ def test_observatory_run_operational_routes_use_observatory_paths(
 
     assert status.status_code == 200
     assert status.json()["status"] == "FAILURE"
+    # Run actions answer with the provider-neutral run-action contract (v1);
+    # the raw provider payload is preserved under "provider".
     assert retry.status_code == 200
-    assert retry.json()["run_id"] == "run-123"
+    retry_body = retry.json()
+    assert retry_body["contract_version"] == 1
+    assert retry_body["action_kind"] == "run.retry"
+    assert retry_body["status"] == "accepted"
+    assert retry_body["resulting_run"]["run_id"] == "run-new-456"
+    assert retry_body["verification_handle"].startswith("vh-")
+    assert retry_body["provider"]["run_id"] == "run-new-456"
     assert cancel.status_code == 200
-    assert cancel.json()["status"] == "CANCELING"
+    cancel_body = cancel.json()
+    assert cancel_body["action_kind"] == "run.cancel"
+    assert cancel_body["status"] == "accepted"
+    assert cancel_body["target"]["run_id"] == "run-123"
+    assert cancel_body["provider"]["status"] == "CANCELING"
     assert calls == [
         ("status", "run-123", None),
         ("retry", "run-123", False),
@@ -3716,6 +3853,214 @@ def test_observatory_search_endpoint_returns_provider_neutral_payload() -> None:
     assert set(payload) == {"items"}
     assert isinstance(payload["items"], list)
     _assert_no_provider_url_settings(payload)
+
+
+def _dataset_seed_asset(index: int, *, owner: str = "analytics") -> ObservatoryAsset:
+    return ObservatoryAsset(
+        id=f"gold.orders-{index:03d}",
+        name=f"orders {index:03d}",
+        group="gold",
+        description="Curated orders",
+        kinds=["table"],
+        metadata={"owner": owner, "classification": "internal", "published": True},
+    )
+
+
+def _dataset_seed_fixtures(
+    count: int,
+) -> tuple[list[ObservatoryAsset], list[ObservatoryQualityCheck]]:
+    """Seed Datasets split across two owners with a passing-readiness subset."""
+    assets = [
+        _dataset_seed_asset(index, owner="analytics" if index % 2 == 0 else "data-team")
+        for index in range(count)
+    ]
+    quality = [
+        ObservatoryQualityCheck(
+            id=f"gold.orders-{index:03d}:not_null",
+            name="not_null",
+            asset_id=f"gold.orders-{index:03d}",
+            status="passing",
+        )
+        for index in range(min(10, count))
+    ]
+    return assets, quality
+
+
+def test_observatory_search_endpoint_returns_dataset_results(
+    monkeypatch, observatory_loaders
+) -> None:
+    client = authenticated_client("admin")
+    observatory_loaders(
+        services=[],
+        assets=[_dataset_seed_asset(0)],
+        tables_without_catalog=[],
+        quality=[],
+        extensions=[],
+    )
+    observatory._clear_read_model_cache()
+
+    response = client.get("/api/observatory/search", params={"q": "orders"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) <= {"items", "next_cursor"}
+    dataset_hits = [item for item in payload["items"] if item["kind"] == "dataset"]
+    assert len(dataset_hits) == 1
+    hit = dataset_hits[0]
+    assert hit["id"] == "dataset:gold.orders-000"
+    assert hit["label"] == "orders 000"
+    assert hit["href"] == "/datasets/gold.orders-000"
+    assert hit["metadata"]["owner"] == "analytics"
+    assert hit["metadata"]["classifications"] == ["internal"]
+    assert hit["metadata"]["publication_state"] == "published"
+    _assert_no_provider_url_settings(payload)
+
+
+def test_observatory_search_endpoint_filters_apply_before_pagination(
+    monkeypatch, observatory_loaders
+) -> None:
+    client = authenticated_client("admin")
+    assets, quality = _dataset_seed_fixtures(12)
+    observatory_loaders(
+        services=[],
+        assets=assets,
+        tables_without_catalog=[],
+        quality=quality,
+        extensions=[],
+    )
+    observatory._clear_read_model_cache()
+
+    collected: list[dict[str, Any]] = []
+    cursor: str | None = None
+    while True:
+        params: dict[str, Any] = {
+            "q": "orders",
+            "kind": "dataset",
+            "owner": "data-team",
+            "limit": 2,
+        }
+        if cursor is not None:
+            params["cursor"] = cursor
+        response = client.get("/api/observatory/search", params=params)
+        assert response.status_code == 200
+        payload = response.json()
+        assert set(payload) <= {"items", "next_cursor"}
+        collected.extend(payload["items"])
+        cursor = payload.get("next_cursor")
+        if cursor is None:
+            break
+
+    ids = [item["id"] for item in collected]
+    assert len(ids) == 6
+    assert len(set(ids)) == 6
+    assert all(item["metadata"]["owner"] == "data-team" for item in collected)
+    _assert_no_provider_url_settings(collected)
+
+
+def test_observatory_datasets_endpoint_walks_filtered_matches_exactly_once(
+    monkeypatch, observatory_loaders
+) -> None:
+    client = authenticated_client("admin")
+    assets, quality = _dataset_seed_fixtures(110)
+    observatory_loaders(
+        assets=assets,
+        tables_without_catalog=[],
+        quality=quality,
+    )
+    observatory._clear_read_model_cache()
+
+    first = client.get(
+        "/api/observatory/datasets",
+        params={"owner": "analytics", "readiness_state": "unknown", "limit": 30},
+    )
+    assert first.status_code == 200
+    payload = first.json()
+    assert set(payload) == {"items", "next_cursor"}
+    assert len(payload["items"]) == 30
+
+    collected = list(payload["items"])
+    cursor = payload["next_cursor"]
+    while cursor is not None:
+        page = client.get(
+            "/api/observatory/datasets",
+            params={
+                "owner": "analytics",
+                "readiness_state": "unknown",
+                "cursor": cursor,
+                "limit": 30,
+            },
+        )
+        assert page.status_code == 200
+        page_payload = page.json()
+        assert set(page_payload) <= {"items", "next_cursor"}
+        collected.extend(page_payload["items"])
+        cursor = page_payload.get("next_cursor")
+
+    ids = [item["id"] for item in collected]
+    assert len(ids) == 50
+    assert len(set(ids)) == 50
+    assert all(item["owner"] == "analytics" for item in collected)
+    assert all(item["readiness_state"] == "unknown" for item in collected)
+    _assert_no_provider_url_settings(collected)
+
+
+def test_observatory_datasets_endpoint_applies_catalog_filters(
+    monkeypatch, observatory_loaders
+) -> None:
+    client = authenticated_client("admin")
+    observatory_loaders(
+        assets=_dataset_seed_fixtures(4)[0],
+        tables_without_catalog=[],
+        quality=[],
+    )
+    observatory._clear_read_model_cache()
+
+    by_owner = client.get("/api/observatory/datasets", params={"owner": "data-team"}).json()
+    assert {item["id"] for item in by_owner["items"]} == {
+        "gold.orders-001",
+        "gold.orders-003",
+    }
+
+    by_query = client.get("/api/observatory/datasets", params={"q": "orders 002"}).json()
+    assert [item["id"] for item in by_query["items"]] == ["gold.orders-002"]
+
+    by_readiness = client.get(
+        "/api/observatory/datasets", params={"readiness_state": "unknown", "limit": 500}
+    ).json()
+    assert len(by_readiness["items"]) == 4
+
+    by_classification = client.get(
+        "/api/observatory/datasets", params={"classification": "internal"}
+    ).json()
+    assert len(by_classification["items"]) == 4
+
+    by_publication = client.get(
+        "/api/observatory/datasets", params={"publication_state": "published", "limit": 500}
+    ).json()
+    assert len(by_publication["items"]) == 4
+
+
+def test_observatory_dataset_facets_describe_full_collection(
+    monkeypatch, observatory_loaders
+) -> None:
+    client = authenticated_client("admin")
+    assets, quality = _dataset_seed_fixtures(110)
+    observatory_loaders(
+        assets=assets,
+        tables_without_catalog=[],
+        quality=quality,
+    )
+    observatory._clear_read_model_cache()
+
+    response = client.get("/api/observatory/datasets/facets")
+
+    assert response.status_code == 200
+    facets = response.json()
+    assert facets["owners"] == ["analytics", "data-team"]
+    assert facets["classifications"] == ["internal"]
+    assert facets["publication_states"] == ["published"]
+    assert facets["readiness_states"] == ["ok", "unknown"]
+    assert facets["candidate_states"] == [False]
 
 
 def test_observatory_search_endpoint_url_encodes_resource_href_segments(monkeypatch) -> None:

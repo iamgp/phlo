@@ -165,6 +165,13 @@ class ObservatoryActionRequest(BaseModel):
     """Request to execute a guarded Observatory action."""
 
     action_id: str
+    expected_state: str | None = None
+    """Exact observed current state for Dataset workflow transitions.
+
+    Compare-and-set guard: the client repeats back the state it
+    saw when it explained the transition; a moved state conflicts instead of
+    applying. Ignored by non-Dataset actions.
+    """
 
 
 class ObservatoryActionResult(BaseModel):
@@ -505,6 +512,8 @@ class ObservatoryDatasetProfile(BaseModel):
         default_factory=ObservatoryPublishingReadiness
     )
     pipeline: ObservatoryDatasetPipeline = Field(default_factory=ObservatoryDatasetPipeline)
+    canonical: dict[str, Any] | None = None
+    """Canonical Dataset projection; identical to `phlo dataset show --json`."""
     sections: dict[str, bool] = Field(default_factory=dict)
 
 
@@ -852,6 +861,16 @@ class ObservatoryDatasetList(BaseModel):
 
     items: list[ObservatoryDataset]
     next_cursor: str | None = None
+
+
+class ObservatoryDatasetFacets(BaseModel):
+    """Filterable facet values across the full Dataset collection."""
+
+    owners: list[str] = Field(default_factory=list)
+    classifications: list[str] = Field(default_factory=list)
+    publication_states: list[str] = Field(default_factory=list)
+    readiness_states: list[str] = Field(default_factory=list)
+    candidate_states: list[bool] = Field(default_factory=list)
 
 
 class ObservatoryTableList(BaseModel):

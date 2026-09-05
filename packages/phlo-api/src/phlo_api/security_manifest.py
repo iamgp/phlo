@@ -319,6 +319,7 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
     *_specs(
         (
             "get_observatory_datasets",
+            "get_observatory_dataset_facets",
             "get_observatory_publishing_readiness",
             "get_observatory_tables",
             "get_observatory_pipelines",
@@ -461,6 +462,22 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
             ("name", "body"),
             ("package", "body"),
         ),
+    ),
+    *_specs(
+        (
+            "list_continuity_operations",
+            "post_continuity_plan",
+            "get_continuity_verification",
+        ),
+        action=CanonicalAction.MAINTENANCE_READ.value,
+        resource_type="maintenance",
+    ),
+    *_specs(
+        ("post_continuity_apply",),
+        action=CanonicalAction.ADMIN_MANAGE.value,
+        resource_type="maintenance",
+        resource_keys=("operation",),
+        resource_sources=(("operation", "body"),),
     ),
     *_specs(
         ("post_observatory_package_install",),

@@ -20,6 +20,9 @@ import type {
   ObservatoryBranchDetail,
   ObservatoryCapabilities,
   ObservatoryDataset,
+  ObservatoryDatasetFacets,
+  ObservatoryDatasetListPage,
+  ObservatoryDatasetPage,
   ObservatoryDatasetPipeline,
   ObservatoryDatasetProfile,
   ObservatoryDatasetWorkflowConfig,
@@ -44,6 +47,8 @@ import type {
   ObservatoryRunReport,
   ObservatoryRuntimeSettings,
   ObservatorySavedQuery,
+  ObservatorySearchListPage,
+  ObservatorySearchPage,
   ObservatorySearchResult,
   ObservatoryService,
   ObservatoryServiceDetail,
@@ -55,8 +60,16 @@ import type {
   ObservatoryWorkflowProposalRequest,
   ObservatoryWorkflowWizardPayload,
 } from './types'
+import type {
+  DatasetFilters,
+  SearchFilters,
+} from '@/observatory/api/datasetDiscovery'
 import { apiGet, apiPost } from '@/server/phlo-api'
 import { mutationAuthorization } from '@/server/authenticated-mutation'
+import {
+  datasetPageQuery,
+  searchPageQuery,
+} from '@/observatory/api/datasetDiscovery'
 
 const Observatory_API_PREFIX = '/api/observatory'
 
@@ -531,6 +544,43 @@ export function getObservatoryDatasetRecords() {
   return getRawCollection<ObservatoryDataset>('datasets')
 }
 
+export async function getObservatoryDatasetPage({
+  cursor = null,
+  filters,
+  limit = 100,
+}: {
+  cursor?: string | null
+  filters: DatasetFilters
+  limit?: number
+}): Promise<ObservatoryResourceResult<ObservatoryDatasetPage>> {
+  try {
+    // Unlike getRawCollection, the list envelope (including next_cursor) is
+    // preserved so the route can page through the full filtered collection.
+    const response = await observatoryApiGet<ObservatoryDatasetListPage>(
+      `${Observatory_API_PREFIX}/datasets${datasetPageQuery(filters, limit, cursor)}`,
+    )
+    return {
+      data: { items: response.items, nextCursor: response.next_cursor ?? null },
+      error: null,
+    }
+  } catch (error) {
+    return apiUnavailable<ObservatoryDatasetPage>(error)
+  }
+}
+
+export async function getObservatoryDatasetFacets(): Promise<
+  ObservatoryResourceResult<ObservatoryDatasetFacets>
+> {
+  try {
+    const data = await observatoryApiGet<ObservatoryDatasetFacets>(
+      `${Observatory_API_PREFIX}/datasets/facets`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryDatasetFacets>(error)
+  }
+}
+
 export async function getObservatoryPublishingReadinessDirect(): Promise<
   ObservatoryResourceResult<Array<ObservatoryPublishingReadinessItem>>
 > {
@@ -942,18 +992,49 @@ export async function searchObservatoryDirect({
   }
 }
 
+export async function searchObservatoryPage({
+  cursor = null,
+  filters,
+  limit = 100,
+}: {
+  cursor?: string | null
+  filters: SearchFilters
+  limit?: number
+}): Promise<ObservatoryResourceResult<ObservatorySearchPage>> {
+  try {
+    // Unlike searchObservatory, the list envelope (including next_cursor) is
+    // preserved and kind/owner filters apply server-side before pagination.
+    const response = await observatoryApiGet<ObservatorySearchListPage>(
+      `${Observatory_API_PREFIX}/search${searchPageQuery(filters, limit, cursor)}`,
+    )
+    return {
+      data: { items: response.items, nextCursor: response.next_cursor ?? null },
+      error: null,
+    }
+  } catch (error) {
+    return apiUnavailable<ObservatorySearchPage>(error)
+  }
+}
+
 export const runObservatoryAction = createServerFn()
   .middleware([mutationAuthorization])
-  .inputValidator((input: { actionId: string }) => input)
+  .inputValidator(
+    (input: { actionId: string; expectedState?: string | null }) => input,
+  )
   .handler(
     async ({
-      data: { actionId },
+      data: { actionId, expectedState },
       context,
     }): Promise<ObservatoryResourceResult<ObservatoryActionResult>> => {
       try {
         const data = await apiPost<ObservatoryActionResult>(
           `${Observatory_API_PREFIX}/actions`,
-          { action_id: actionId },
+          // Dataset transitions carry the exact observed state as the
+          // compare-and-set version; other actions ignore the field.
+          {
+            action_id: actionId,
+            ...(expectedState ? { expected_state: expectedState } : {}),
+          },
           130000,
           context.authorization,
         )
@@ -966,13 +1047,20 @@ export const runObservatoryAction = createServerFn()
 
 export async function runObservatoryActionDirect({
   actionId,
+  expectedState,
 }: {
   actionId: string
+  expectedState?: string | null
 }): Promise<ObservatoryResourceResult<ObservatoryActionResult>> {
   try {
     const data = await browserApiPost<ObservatoryActionResult>(
       `${Observatory_API_PREFIX}/actions`,
-      { action_id: actionId },
+      // Dataset transitions carry the exact observed state as the
+      // compare-and-set version; other actions ignore the field.
+      {
+        action_id: actionId,
+        ...(expectedState ? { expected_state: expectedState } : {}),
+      },
       130000,
     )
     return { data, error: null }

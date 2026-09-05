@@ -38,6 +38,10 @@ _PRODUCTION_CREDENTIAL_DEFAULTS = {
     "MINIO_ROOT_USER": "minio",
     "MINIO_ROOT_PASSWORD": "minio123",
 }
+# Project lock metadata staged into the generated build context for uv-managed
+# projects; kept out of version control because the project root owns the
+# source of truth (see `phlo services init`).
+UV_LOCK_METADATA_FILES = ("pyproject.toml", "uv.lock")
 _EMPTY_DEFAULT_ENVIRONMENT_EXPRESSION = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*):-\}$")
 
 
@@ -367,7 +371,7 @@ class ComposeGenerator:
         if service.name == "phlo-api" and platform.system() == "Linux":
             # The API reads project secrets (.phlo/.env, .phlo/.env.local) from
             # the read-only project mount through pydantic settings. Those files
-            # are host-owned with restrictive permissions (ADR 0047), so the
+            # are host-owned with restrictive permissions, so the
             # container must run as the generating host user to read them.
             config["user"] = f"{os.getuid()}:{os.getgid()}"
 
@@ -657,6 +661,11 @@ class ComposeGenerator:
         ]
 
         extra_entries: list[str] = []
+        staged_lock_entries = [
+            "# Staged uv lock metadata (source of truth lives at the project root)",
+            *UV_LOCK_METADATA_FILES,
+        ]
+
         for service in services:
             for entry in service.gitignore:
                 if entry not in extra_entries:
@@ -666,5 +675,8 @@ class ComposeGenerator:
             entries.append("")
             entries.append("# Service runtime data")
             entries.extend(extra_entries)
+
+        entries.append("")
+        entries.extend(staged_lock_entries)
 
         return "\n".join(entries) + "\n"

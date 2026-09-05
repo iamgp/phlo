@@ -34,4 +34,5 @@ __all__ = [
     "get_settings",
 ]
 
+
 __version__ = version("phlo-postgres")
