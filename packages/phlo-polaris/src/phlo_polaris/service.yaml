@@ -13,7 +13,7 @@ compose:
   restart: unless-stopped
   labels:
     phlo.metrics.enabled: "true"
-    phlo.metrics.port: "polaris:8181"
+    phlo.metrics.port: "polaris:8182"
     phlo.metrics.path: "/q/metrics"
   environment:
     quarkus.datasource.jdbc.url: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-phlo}
@@ -21,10 +21,9 @@ compose:
     quarkus.datasource.password: ${POSTGRES_PASSWORD:-phlo}
     polaris.persistence.type: in-memory
     JAVA_OPTS_APPEND: "-Djava.security.egd=file:/dev/urandom"
-    quarkus.http.auth.basic: "true"
     AWS_REGION: ${ICEBERG_S3_REGION:-us-east-1}
-    polaris.storage.aws.access-key: ${ICEBERG_S3_ACCESS_KEY:-minio}
-    polaris.storage.aws.secret-key: ${ICEBERG_S3_SECRET_KEY:-minio123}
+    AWS_ACCESS_KEY_ID: ${ICEBERG_S3_ACCESS_KEY:-minio}
+    AWS_SECRET_ACCESS_KEY: ${ICEBERG_S3_SECRET_KEY:-minio123}
   ports:
     - "${POLARIS_PORT:-10018}:8181"
   healthcheck:
@@ -32,7 +31,7 @@ compose:
     interval: 10s
     timeout: 5s
     retries: 12
-    start_period: 40s
+    start_period: 90s
 
 env_vars:
   POLARIS_PORT:

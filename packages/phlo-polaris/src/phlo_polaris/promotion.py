@@ -36,6 +36,7 @@ from typing import Any
 from phlo.capabilities.interfaces import CandidateSnapshot, ReleaseRecord
 from phlo.exceptions import PhloTableError
 from phlo.logging import get_logger
+from phlo_polaris.catalog_backend import current_snapshot_id
 
 logger = get_logger(__name__)
 
@@ -180,14 +181,14 @@ class PolarisSnapshotPromotionCatalog:
         """
         table = self._open_table(table_name)
         ref = candidate_ref_for_run(run_id)
-        snapshot_id = table.current_snapshot_id()
+        snapshot_id = current_snapshot_id(table)
         if snapshot_id is None:
             raise PhloTableError(
                 message=f"Table {table_name!r} has no current snapshot to stage as a candidate.",
                 suggestions=["Materialize the table before opening a WAP candidate."],
             )
         if ref not in table.metadata.refs:
-            table.manage_snapshots().create_branch(ref, snapshot_id=snapshot_id).commit()
+            table.manage_snapshots().create_branch(snapshot_id, ref).commit()
         self.store.append(
             [
                 {
@@ -218,7 +219,7 @@ class PolarisSnapshotPromotionCatalog:
         """Return the unique-key tuples already present on the candidate branch."""
         if not unique_key:
             return set()
-        arrow = table.scan(branch=ref).select(unique_key).to_arrow()
+        arrow = table.scan(snapshot_id=self._branch_tip(table, ref)).select(*unique_key).to_arrow()
         columns = [arrow.column(name).to_pylist() for name in unique_key]
         return set(zip(*columns))
 
@@ -389,9 +390,14 @@ class PolarisSnapshotPromotionCatalog:
         for row in selected:
             table_name = str(row["table_name"])
             table = self._open_table(table_name)
-            candidate_arrow = table.scan(branch=ref).to_arrow()
+            candidate_arrow = table.scan(snapshot_id=self._branch_tip(table, ref)).to_arrow()
             table.overwrite(candidate_arrow)
-            released_snapshot = table.current_snapshot_id()
+            released_snapshot = current_snapshot_id(table)
+            if released_snapshot is None:
+                raise PhloTableError(
+                    message=f"Table {table_name!r} has no snapshot after release overwrite.",
+                    suggestions=["Retry the promotion once the catalog responds."],
+                )
             try:
                 table.manage_snapshots().drop_branch(ref).commit()
             except Exception:

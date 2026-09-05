@@ -14,7 +14,6 @@ env:
   NESSIE_PORT: 13003
   POLARIS_PORT: 13018
   KAFKA_PORT: 13021
-  AIRBYTE_PORT: 13020
   ICEBERG_S3_ENDPOINT: http://minio:9000/
   ICEBERG_WAREHOUSE_PATH: s3://lake/warehouse
   WAREHOUSE_TABLE: bronze.events
@@ -36,6 +35,12 @@ services:
     enabled: true
   airbyte:
     enabled: true
+  airbyte-temporal:
+    enabled: true
+  airbyte-manifest:
+    enabled: true
+  airbyte-bootloader:
+    enabled: false
 
 wap:
   enabled: true

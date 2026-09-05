@@ -54,8 +54,8 @@ class FakeScan:
         self._rows = rows
         self._columns = columns
 
-    def select(self, names: list[str]) -> "FakeScan":
-        return FakeScan(self._rows, names)
+    def select(self, *columns: str) -> "FakeScan":
+        return FakeScan(self._rows, list(columns))
 
     def to_arrow(self) -> FakeArrow:
         if self._columns is None:
@@ -68,8 +68,8 @@ class FakeSnapshotManager:
         self._table = table
         self._operations: list[tuple] = []
 
-    def create_branch(self, ref: str, snapshot_id: int) -> "FakeSnapshotManager":
-        self._operations.append(("create", ref, snapshot_id))
+    def create_branch(self, snapshot_id: int, branch_name: str) -> "FakeSnapshotManager":
+        self._operations.append(("create", branch_name, snapshot_id))
         return self
 
     def drop_branch(self, ref: str) -> "FakeSnapshotManager":
@@ -101,12 +101,16 @@ class FakeTable:
     def metadata(self) -> SimpleNamespace:
         return SimpleNamespace(refs=self.refs)
 
-    def current_snapshot_id(self) -> int:
-        return self.snapshot_id
+    def current_snapshot(self) -> SimpleNamespace:
+        return SimpleNamespace(snapshot_id=self.snapshot_id)
 
-    def scan(self, *, branch: str | None = None) -> FakeScan:
-        rows = self.branch_rows.get(branch, self.main_rows) if branch else self.main_rows
-        return FakeScan(rows)
+    def scan(self, *, snapshot_id: int | None = None) -> FakeScan:
+        if snapshot_id is None:
+            return FakeScan(self.main_rows)
+        for ref, ref_ns in self.refs.items():
+            if ref_ns.snapshot_id == snapshot_id:
+                return FakeScan(self.branch_rows.get(ref, self.main_rows))
+        return FakeScan(self.main_rows)
 
     def append(self, arrow: FakeArrow, *, branch: str | None = None) -> None:
         if hasattr(arrow, "to_pylist"):

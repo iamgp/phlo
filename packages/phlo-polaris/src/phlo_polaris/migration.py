@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from phlo.logging import get_logger
+from phlo_polaris.catalog_backend import current_snapshot_id
 
 logger = get_logger(__name__)
 
@@ -85,7 +86,7 @@ def plan_migration(source_catalog: Any | None = None) -> list[MigrationPlanEntry
             try:
                 table = catalog.load_table(identifier)
                 location = table.location()
-                snapshot_id = table.current_snapshot_id()
+                snapshot_id = current_snapshot_id(table)
             except Exception:
                 logger.warning(
                     "polaris_migration_inventory_load_failed",

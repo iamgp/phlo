@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from phlo.logging import get_logger
+from phlo_polaris.catalog_backend import current_snapshot_id
 
 logger = get_logger(__name__)
 
@@ -63,7 +64,7 @@ class PolarisTableScanner:
                 "columns": [
                     {"name": field.name, "type": str(field.field_type)} for field in schema.fields
                 ],
-                "current_snapshot_id": table.current_snapshot_id(),
+                "current_snapshot_id": current_snapshot_id(table),
             }
         except Exception:
             logger.warning(

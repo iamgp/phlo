@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT / "workflows"))
+sys.path.insert(0, str(PROJECT))
 
 os.environ.setdefault("PHLO_PROJECT", "polaris-streaming")
 os.environ.setdefault("PHLO_PROJECT_PATH", str(PROJECT))
@@ -43,12 +43,47 @@ os.environ.setdefault("AIRBYTE_PORT", "13020")
 RESULTS: list[tuple[str, bool, str]] = []
 
 
+def _use_boot_root_credentials() -> None:
+    """Point POLARIS_ROOT_CREDENTIALS at this boot's one-time root creds.
+
+    Polaris persists in-memory here, so every container boot prints fresh
+    ``realm: POLARIS root principal credentials: <id>:<secret>`` to its log
+    and the ``root:s3cr3t`` default is wrong. Parse the live log; on any
+    failure leave the env alone so the auth error surfaces in check 1.
+    """
+    if os.environ.get("POLARIS_ROOT_CREDENTIALS"):
+        return
+    import re
+    import subprocess
+
+    try:
+        logs = subprocess.run(
+            ["docker", "logs", "polaris-streaming-polaris-1"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        matches = re.findall(
+            r"realm: POLARIS root principal credentials: (\S+)", logs.stdout + logs.stderr
+        )
+    except Exception as exc:  # noqa: BLE001 - diagnostics only, never fatal
+        print(f"  root-creds parse skipped: {exc}")
+        return
+    if matches:
+        # Creds rotate every boot (in-memory persistence); the last line wins.
+        os.environ["POLARIS_ROOT_CREDENTIALS"] = matches[-1]
+        print("  root credentials parsed from polaris boot log")
+    else:
+        print("  WARNING: no boot credentials in polaris log; using env/default")
+
+
 def check(name: str, ok: bool, detail: str = "") -> None:
     RESULTS.append((name, ok, detail))
     print(f"{'PASS' if ok else 'FAIL'}  {name}" + (f"  - {detail}" if detail else ""))
 
 
 def main() -> int:
+    _use_boot_root_credentials()
 
     # -- 1. Polaris health + bootstrap ------------------------------------
     from phlo_polaris.hooks import bootstrap
@@ -68,18 +103,18 @@ def main() -> int:
     # -- 2. PyIceberg REST catalog on Polaris ------------------------------
     os.environ["POLARIS_WRITER_CLIENT_SECRET"] = ""
     from phlo_polaris.catalog_backend import _pyiceberg_catalog_config, load_pyiceberg_catalog
-    from pyiceberg.schema import Schema
-    from pyiceberg.types import IntegerType, NestedField, StringType
 
     config = _pyiceberg_catalog_config()
     catalog = load_pyiceberg_catalog()
     check("polaris.rest_catalog", catalog is not None, config["uri"])
+    from pyiceberg.schema import Schema
+    from pyiceberg.types import LongType, NestedField, StringType
 
     schema = Schema(
         NestedField(1, "event_id", StringType(), required=False),
         NestedField(2, "user_id", StringType(), required=False),
         NestedField(3, "event_type", StringType(), required=False),
-        NestedField(4, "value", IntegerType(), required=False),
+        NestedField(4, "value", LongType(), required=False),
     )
     catalog.create_namespace_if_not_exists("bronze")
     events_table = catalog.create_table_if_not_exists("bronze.events", schema)
@@ -114,10 +149,22 @@ def main() -> int:
             for index in range(count)
         ]
 
-    # Kafka: produce a batch and consume it back through the lifecycle.
+    # Initial load: seed main directly so the table has a snapshot to branch
+    # WAP candidates from (Iceberg branches require a base snapshot).
+    import pyarrow as pa
+
     kafka = KafkaResource()
     producer = kafka.producer()
-    batch = make_events("e", 100)
+    seed = make_events("seed", 10)
+    catalog_table.append(pa.Table.from_pylist(seed))
+    catalog_table.refresh()
+    check("iceberg.initial_load", len(rows_main()) >= 10, f"{len(rows_main())} rows")
+
+    # Kafka: produce a batch and consume it back through the lifecycle.
+    # Event ids carry a per-run stamp so reruns never collide with rows
+    # committed by earlier runs (unique-key dedup would hide them).
+    stamp = f"{int(time.time()) % 1000000:06d}"
+    batch = make_events(f"e{stamp}", 100)
     for row in batch:
         producer.produce("events", value=json.dumps(row).encode())
     producer.flush(timeout=30)

@@ -28,12 +28,18 @@ def wait_for_polaris(client, *, timeout_seconds: int = BOOTSTRAP_TIMEOUT_SECONDS
     return False
 
 
-def ensure_catalog(client, *, name: str, warehouse: str) -> bool:
+def ensure_catalog(client, *, name: str, warehouse: str, endpoint: str | None = None) -> bool:
     """Create the Phlo catalog when absent."""
     if client.get_catalog(name) is not None:
         logger.info("polaris_bootstrap_catalog_exists", catalog=name)
         return False
-    client.create_catalog(name=name, warehouse=warehouse)
+    import os
+
+    client.create_catalog(
+        name=name,
+        warehouse=warehouse,
+        endpoint=endpoint or os.getenv("ICEBERG_S3_ENDPOINT", "http://minio:9000"),
+    )
     logger.info("polaris_bootstrap_catalog_created", catalog=name)
     return True
 
@@ -45,7 +51,7 @@ def ensure_principal(client, *, name: str, credentials: dict[str, str] | None = 
     credentials are merged into ``credentials`` (keyed by principal name) so
     callers can persist them for REST catalog clients.
     """
-    principals = {principal.get("principalName") for principal in client.list_principals()}
+    principals = {principal.get("name") for principal in client.list_principals()}
     if name in principals:
         logger.info("polaris_bootstrap_principal_exists", principal=name)
         return False

@@ -21,25 +21,19 @@ class FakeClient:
     def get_catalog(self, name: str):
         return next((c for c in self.catalogs if c.get("name") == name), None)
 
-    def create_catalog(self, *, name: str, warehouse: str):
+    def create_catalog(self, *, name: str, warehouse: str, endpoint: str | None = None):
         self.created_catalogs.append(name)
         self.catalogs.append({"name": name})
 
     def list_principals(self):
-        return [{"principalName": name} for name in self.created_principals]
+        return [{"name": name} for name in self.created_principals]
 
     def create_principal(self, *, name: str):
         self.created_principals.append(name)
         return {
-            "principal": {
-                "name": name,
-                "credentials": {"clientId": name, "clientSecret": "generated"},
-            }
+            "principal": {"name": name},
+            "credentials": {"clientId": name, "clientSecret": "generated"},
         }
-
-    def grant_catalog_privilege(self, *, principal: str, privilege: str) -> bool:
-        self.granted.append((principal, privilege))
-        return True
 
     def bootstrap_grants(self):
         self.grants_requested = True

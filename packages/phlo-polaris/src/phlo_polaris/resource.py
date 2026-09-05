@@ -125,19 +125,36 @@ class PolarisResource:
         response.raise_for_status()
         return dict(response.json())
 
-    def create_catalog(self, *, name: str, warehouse: str) -> dict[str, Any]:
-        """Create an internal Polaris catalog backed by the S3 warehouse."""
+    def create_catalog(
+        self,
+        *,
+        name: str,
+        warehouse: str,
+        endpoint: str = "http://minio:9000",
+        endpoint_internal: str = "http://minio:9000",
+    ) -> dict[str, Any]:
+        """Create an internal Polaris catalog backed by the S3 warehouse.
+
+        Payload follows the 1.7 management schema: the catalog nests under
+        ``catalog`` with ``default-base-location`` properties, and the S3
+        storage config carries the MinIO endpoint with STS vending enabled.
+        ``endpoint`` is advertised to REST clients (host-reachable in local
+        docker setups); ``endpoint_internal`` serves Polaris server-side IO.
+        """
         payload = {
-            "catalogName": name,
-            "catalogType": "INTERNAL",
-            "defaultBaseLocation": warehouse,
-            "properties": {},
-            "storageConfigInfo": {
-                "storageType": "S3",
-                "roleArn": "",
-                "externalId": "",
-                "userArn": "",
-                "allowedLocations": [warehouse],
+            "catalog": {
+                "name": name,
+                "type": "INTERNAL",
+                "properties": {"default-base-location": warehouse},
+                "storageConfigInfo": {
+                    "storageType": "S3",
+                    "allowedLocations": [warehouse if warehouse.endswith("/") else warehouse + "/"],
+                    "endpoint": endpoint,
+                    "endpointInternal": endpoint_internal,
+                    "region": "us-east-1",
+                    "pathStyleAccess": True,
+                    "stsUnavailable": False,
+                },
             },
         }
         response = self._request("POST", "/api/management/v1/catalogs", json_body=payload)
@@ -157,7 +174,9 @@ class PolarisResource:
     def create_principal(self, *, name: str) -> dict[str, Any]:
         """Create a service principal and return its client credentials."""
         response = self._request(
-            "POST", "/api/management/v1/principals", json_body={"principalName": name}
+            "POST",
+            "/api/management/v1/principals",
+            json_body={"principal": {"name": name}},
         )
         if response.status_code not in (200, 201):
             raise RuntimeError(
@@ -166,54 +185,104 @@ class PolarisResource:
             )
         return dict(response.json())
 
-    def grant_catalog_privilege(self, *, principal: str, privilege: str) -> bool:
-        """Grant one catalog-level privilege to a principal."""
+    def ensure_catalog_role(self, *, catalog: str, role: str) -> None:
+        """Create a catalog role when absent (re-creation is a no-op)."""
+        response = self._request(
+            "POST",
+            f"/api/management/v1/catalogs/{catalog}/catalog-roles",
+            json_body={"catalogRole": {"name": role}},
+        )
+        if response.status_code not in (200, 201, 409):
+            raise RuntimeError(
+                f"Polaris catalog-role creation failed for {role!r}: "
+                f"{response.status_code} {response.text[:200]}"
+            )
+
+    def add_catalog_grant(self, *, catalog: str, role: str, privilege: str) -> None:
+        """Grant one catalog-scope privilege to a catalog role."""
         response = self._request(
             "PUT",
-            f"/api/management/v1/catalogs/{self.settings.polaris_catalog}/grants/{principal}",
-            json_body={"privilege": privilege},
+            f"/api/management/v1/catalogs/{catalog}/catalog-roles/{role}/grants",
+            json_body={"grant": {"type": "catalog", "privilege": privilege}},
         )
-        if response.status_code in (200, 201):
-            return True
-        logger.warning(
-            "polaris_grant_failed",
-            principal=principal,
-            privilege=privilege,
-            status_code=response.status_code,
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Polaris grant failed for {role!r}/{privilege}: "
+                f"{response.status_code} {response.text[:200]}"
+            )
+
+    def ensure_principal_role(self, *, role: str) -> None:
+        """Create a principal role when absent (re-creation is a no-op)."""
+        response = self._request(
+            "POST",
+            "/api/management/v1/principal-roles",
+            json_body={"principalRole": {"name": role}},
         )
-        return False
+        if response.status_code not in (200, 201, 409):
+            raise RuntimeError(
+                f"Polaris principal-role creation failed for {role!r}: "
+                f"{response.status_code} {response.text[:200]}"
+            )
+
+    def assign_catalog_role(self, *, principal_role: str, catalog: str, catalog_role: str) -> None:
+        """Attach a catalog role to a principal role (idempotent)."""
+        response = self._request(
+            "PUT",
+            f"/api/management/v1/principal-roles/{principal_role}/catalog-roles/{catalog}",
+            json_body={"catalogRole": {"name": catalog_role}},
+        )
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Polaris catalog-role assignment failed for {principal_role!r}: "
+                f"{response.status_code} {response.text[:200]}"
+            )
+
+    def assign_principal_role(self, *, principal: str, principal_role: str) -> None:
+        """Attach a principal role to a principal (idempotent)."""
+        response = self._request(
+            "PUT",
+            f"/api/management/v1/principals/{principal}/principal-roles",
+            json_body={"principalRole": {"name": principal_role}},
+        )
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Polaris principal-role assignment failed for {principal!r}: "
+                f"{response.status_code} {response.text[:200]}"
+            )
 
     def bootstrap_grants(self) -> dict[str, list[str]]:
-        """Grant the standard Phlo writer/reader privilege sets.
+        """Build the writer/reader role chains on the Phlo catalog.
 
-        The writer manages catalog content and writes table data; the reader
-        lists and reads. Privilege names follow the pinned Polaris release and
-        are re-validated by the compatibility pass.
+        1.7 grants privileges to catalog roles (never directly to
+        principals): principal -> principal role -> catalog role -> grants.
+        Only catalog-scope privileges are valid here; table/view privileges
+        belong on narrower namespace/table grants.
         """
+        catalog = self.settings.polaris_catalog
+        writer = self.settings.polaris_writer_client_id
+        reader = self.settings.polaris_reader_client_id
         writer_privileges = [
             "CATALOG_MANAGE_CONTENT",
             "CATALOG_MANAGE_METADATA",
             "CATALOG_MANAGE_ACCESS",
-            "TABLE_WRITE_DATA",
-            "TABLE_READ_DATA",
-            "TABLE_LIST",
-            "TABLE_READ_PROPERTIES",
+            "NAMESPACE_CREATE",
+            "TABLE_CREATE",
+            "VIEW_CREATE",
         ]
         reader_privileges = [
-            "TABLE_READ_DATA",
-            "TABLE_LIST",
-            "TABLE_READ_PROPERTIES",
-            "VIEW_LIST",
+            "CATALOG_READ_PROPERTIES",
         ]
-        grants: dict[str, list[str]] = {
-            self.settings.polaris_writer_client_id: [],
-            self.settings.polaris_reader_client_id: [],
-        }
-        for principal, privileges in (
-            (self.settings.polaris_writer_client_id, writer_privileges),
-            (self.settings.polaris_reader_client_id, reader_privileges),
-        ):
+        grants: dict[str, list[str]] = {writer: [], reader: []}
+        for principal, privileges in ((writer, writer_privileges), (reader, reader_privileges)):
+            catalog_role = f"{principal}_catalog"
+            principal_role = f"{principal}_role"
+            self.ensure_catalog_role(catalog=catalog, role=catalog_role)
             for privilege in privileges:
-                if self.grant_catalog_privilege(principal=principal, privilege=privilege):
-                    grants[principal].append(privilege)
+                self.add_catalog_grant(catalog=catalog, role=catalog_role, privilege=privilege)
+                grants[principal].append(privilege)
+            self.ensure_principal_role(role=principal_role)
+            self.assign_catalog_role(
+                principal_role=principal_role, catalog=catalog, catalog_role=catalog_role
+            )
+            self.assign_principal_role(principal=principal, principal_role=principal_role)
         return grants

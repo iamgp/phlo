@@ -12,6 +12,7 @@ same range cannot both hold an open claim.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from phlo.capabilities.interfaces import (
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 
 _SCHEMA_NAME = "phlo"
 _TABLE_NAME = "ingestion_checkpoints"
-_OPEN_STATUSES = ("claimed", "staged")
+_OPEN_STATUSES = ("claimed", "staged", "failed")
 _RESTAGABLE_STATUSES = ("claimed", "staged", "failed")
 
 _DDL_STATEMENTS = (
@@ -182,7 +183,7 @@ class PostgresIngestionCheckpointStore(IngestionCheckpointStore):
                 (
                     source_id,
                     target_table,
-                    _ranges_to_json(ranges),
+                    json.dumps(_ranges_to_json(ranges)),
                     idempotency_key,
                 ),
             )

@@ -15,7 +15,7 @@ class AirbyteSettings(BaseConfig):
     """Settings for the Airbyte control-plane integration."""
 
     airbyte_host: str = Field(default="airbyte-server", description="Airbyte API host")
-    airbyte_port: int = Field(default=8006, description="Airbyte server API port")
+    airbyte_port: int = Field(default=8001, description="Airbyte server API port")
     airbyte_workspace_id: str | None = Field(
         default=None, description="Airbyte workspace id for connection lookups"
     )
