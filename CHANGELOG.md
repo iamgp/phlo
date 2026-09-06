@@ -1,5 +1,51 @@
 ## 0.15.1 (2026-09-06)
 
+## [phlo 0.15.2 + 37 packages] - 2026-09-06
+
+### Fixed
+- phlo: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-airbyte: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-alerting: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-alloy: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-api: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-clickhouse: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-clickstack: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-core-plugins: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-dagster: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-dbt: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-delta: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-dlt: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-grafana: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-hasura: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-iceberg: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-kafka: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-lineage: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-loki: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-mcp: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-minio: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-nessie: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-oauth2-proxy: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-observatory: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-observatory-example: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-openmetadata: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-otel: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-pandera: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-pgweb: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-polaris: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-postgres: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-postgrest: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-prometheus: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-rustfs: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-sling: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-superset: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-testing: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-traefik: prepare fresh workspace identities for release 0.15.1 (#914)
+- phlo-trino: prepare fresh workspace identities for release 0.15.1 (#914)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (38 commits)
+
 ### Fixed
 
 - Advance every published workspace package to a fresh version after the 0.15.0 publication preflight rejected reused 0.14.0 identities.
