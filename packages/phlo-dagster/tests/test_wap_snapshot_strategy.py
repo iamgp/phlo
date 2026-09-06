@@ -310,6 +310,21 @@ def test_snapshot_promotion_quality_rejection_retains_candidates(monkeypatch, tm
     assert report["failure_reason"] == "asset_checks_failed"
 
 
+def test_snapshot_promotion_refuses_revision_changed_since_launch(monkeypatch, tmp_path) -> None:
+    logical_run_id = "stale-snapshot"
+    namespace = f"pipeline-run-{logical_run_id}"
+    catalog = _PromotionCatalog(revision=1)
+    instance = _promotion_sensor_env(monkeypatch, tmp_path, catalog)
+    _write_snapshot_launch(logical_run_id, "run-stale", namespace, revision="0")
+    instance.get_runs.return_value = [_snap_run("run-stale", logical_run_id, namespace)]
+
+    wap_auto_promotion_sensor._raw_fn(MagicMock(instance=instance, cursor=None))
+
+    assert catalog.promoted == []
+    assert catalog.aborted == []
+    assert _read(logical_run_id)["failure_reason"] == "release_pointer_conflict"
+
+
 def test_snapshot_promotion_release_conflict_fails_without_promotion(monkeypatch, tmp_path) -> None:
     logical_run_id = "logical-snap-c"
     namespace = f"pipeline-run-{logical_run_id}"
@@ -389,6 +404,34 @@ def _read(logical_run_id: str):
     from phlo_dagster.wap_launch import read_wap_report
 
     return read_wap_report(logical_run_id)
+
+
+def test_snapshot_intent_retries_when_release_revision_is_unchanged(monkeypatch, tmp_path):
+    logical_run_id = "retry-intent"
+    namespace = f"pipeline-run-{logical_run_id}"
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    _write_snapshot_launch(logical_run_id, "retry-run", namespace)
+    write_wap_report(
+        logical_run_id,
+        status="promotion_pending",
+        merge_state="merge_started",
+        target_hash_before="0",
+    )
+    catalog = _PromotionCatalog()
+
+    result = _advance_snapshot_promotion(
+        catalog=catalog,
+        run=SimpleNamespace(run_id="retry-run"),
+        branch_name=namespace,
+        logical_run_id=logical_run_id,
+        prior_report=_read(logical_run_id),
+        quality_decision_id="q",
+        quality_metadata={},
+    )
+
+    assert result is not None
+    assert catalog.revision == 1
+    assert catalog.aborted == [namespace]
 
 
 # ---------------------------------------------------------------------------

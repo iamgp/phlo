@@ -22,7 +22,7 @@ destination records.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec
@@ -136,6 +136,7 @@ def ingest_batch(
             "status": "already_committed",
             "rows": 0,
             "dead_lettered": 0,
+            "ranges": [asdict(item) for item in checkpoint.ranges],
         }
 
     # Audit: schema policy. Incompatible changes dead-letter the batch and
@@ -265,15 +266,24 @@ def _make_stager(config: KafkaConsumerConfig, catalog: Any, table_store: Any):
         from pathlib import Path
 
         import pyarrow as pa
+        import pyarrow.parquet as pq
 
         with tempfile.TemporaryDirectory(prefix="phlo-kafka-stage-") as tmp:
             path = Path(tmp) / "batch.parquet"
-            pa.Table.from_pylist(records).write_parquet(path)
-            return table_store.merge_parquet(
+            pq.write_table(pa.Table.from_pylist(records), path)
+            result = table_store.merge_parquet(
                 table_name=config.destination_table,
                 data_path=str(path),
                 unique_key=",".join(config.unique_key),
             )
+            observed = table_store.observe_table_state(table_name=config.destination_table)
+            if observed.revision is None:
+                raise RuntimeError("Kafka staging could not resolve the written snapshot")
+            return {
+                **result,
+                "snapshot_id": observed.revision,
+                "rows_merged": result.get("rows_inserted", len(records)),
+            }
 
     return table_store_stager
 
@@ -323,7 +333,6 @@ def _build_asset_run(
                     lambda checkpoint_id: promotion_catalog.promote_candidates(
                         namespace=f"pipeline-run-{checkpoint_id}",
                         release_id=checkpoint_id,
-                        expected_revision=promotion_catalog.release_revision(),
                     )
                 )
                 if promotion_catalog is not None
@@ -337,8 +346,11 @@ def _build_asset_run(
         )
         # Kafka offsets are committed only after the checkpoint committed;
         # a crash before this point replays the range into an idempotent merge.
-        if evidence.get("status") == "committed" and hasattr(client, "commit_offsets"):
-            client.commit_offsets(ranges, group_id=config.resolved_group_id())
+        if evidence.get("status") in {"committed", "already_committed"} and hasattr(
+            client, "commit_offsets"
+        ):
+            committed_ranges = [SourceOffsetRange(**item) for item in evidence["ranges"]]
+            client.commit_offsets(committed_ranges, group_id=config.resolved_group_id())
         yield MaterializeResult(
             metadata={
                 "kafka_topic": config.topic_pattern,

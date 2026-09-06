@@ -39,6 +39,20 @@ phlo plugin install polaris
 Snapshot WAP additionally requires `wap.strategy: snapshot` in `phlo.yaml`
 alongside `wap.enabled: true`.
 
+Snapshot publication uses the shared Phlo PostgreSQL database to serialize
+publishers across destination writes and the Iceberg release-ledger commit.
+All writers for a warehouse must use the same PostgreSQL database. The ledger
+commit also checks the exact Iceberg snapshot read before publication. A
+candidate retains its original release revision; after another release wins,
+stage and audit a new run rather than rebasing the old candidate.
+An interrupted publication retains its candidate snapshots and durable intent;
+retry that release to finish it before publishing another run. Retention cleanup
+does not delete candidates belonging to an unfinished publication.
+
+For consistent multi-table reads, resolve snapshots through the release
+records. Individual table main snapshots are updated separately; ordinary
+latest-table reads do not provide multi-table atomicity.
+
 ## Usage
 
 ```bash

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -24,6 +25,17 @@ class FakeStore:
 
     def rows(self) -> list[dict]:
         return list(self._rows)
+
+    def read_for_update(self):
+        return self.rows(), len(self._rows)
+
+    def publication_lock(self):
+        return nullcontext()
+
+    def append_if_unchanged(self, rows, version):
+        if version != len(self._rows):
+            raise ReleaseConflictError(message="Release ledger changed during promotion.")
+        self.append(rows)
 
     def append(self, rows: list[dict]) -> None:
         self.appended.append(rows)
@@ -72,7 +84,7 @@ class FakeSnapshotManager:
         self._operations.append(("create", branch_name, snapshot_id))
         return self
 
-    def drop_branch(self, ref: str) -> "FakeSnapshotManager":
+    def remove_branch(self, ref: str) -> "FakeSnapshotManager":
         self._operations.append(("drop", ref))
         return self
 
@@ -92,6 +104,8 @@ class FakeTable:
     def __init__(self, rows: list[dict] | None = None, snapshot_id: int = 11) -> None:
         self.main_rows: list[dict] = list(rows or [])
         self.snapshot_id = snapshot_id
+        self.next_snapshot_id = snapshot_id
+        self.snapshot_properties: dict[str, str] = {}
         self.refs: dict[str, object] = {}
         self.branch_rows: dict[str, list[dict]] = {}
         self.dropped: list[str] = []
@@ -102,7 +116,10 @@ class FakeTable:
         return SimpleNamespace(refs=self.refs)
 
     def current_snapshot(self) -> SimpleNamespace:
-        return SimpleNamespace(snapshot_id=self.snapshot_id)
+        return SimpleNamespace(
+            snapshot_id=self.snapshot_id,
+            summary=SimpleNamespace(additional_properties=self.snapshot_properties),
+        )
 
     def scan(self, *, snapshot_id: int | None = None) -> FakeScan:
         if snapshot_id is None:
@@ -118,18 +135,21 @@ class FakeTable:
         if branch:
             new_rows = list(self.branch_rows.get(branch, self.main_rows)) + list(arrow.rows)
             self.branch_rows[branch] = new_rows
-            self.snapshot_id += 1
-            self.refs[branch] = SimpleNamespace(snapshot_id=self.snapshot_id)
+            self.next_snapshot_id += 1
+            self.refs[branch] = SimpleNamespace(snapshot_id=self.next_snapshot_id)
         else:
             self.main_rows = self.main_rows + list(arrow.rows)
-            self.snapshot_id += 1
+            self.next_snapshot_id += 1
+            self.snapshot_id = self.next_snapshot_id
 
     def overwrite(self, arrow: FakeArrow, **kwargs) -> None:
         if hasattr(arrow, "to_pylist"):
             arrow = FakeArrow(arrow.to_pylist())
         self.overwrites.append(list(arrow.rows))
         self.main_rows = list(arrow.rows)
-        self.snapshot_id += 1
+        self.next_snapshot_id += 1
+        self.snapshot_id = self.next_snapshot_id
+        self.snapshot_properties = kwargs.get("snapshot_properties", {})
 
     def manage_snapshots(self) -> FakeSnapshotManager:
         return FakeSnapshotManager(self)

@@ -9,8 +9,11 @@ checkpoint-driven consumer assets. Kafka delivery is **at-least-once**; Iceberg
 results are **effectively-once**: every consumed batch claims its offset range
 in the durable ingestion checkpoint store (Phlo Postgres), lands through an
 idempotent merge on a declared unique key, records the output snapshot, and
-commits only after audit and promotion. Replaying a committed range merges the
-same keyed rows again, producing no duplicate logical destination records.
+commits only after audit and promotion. An exact replay of a committed batch
+skips the merge and finishes the broker commit using the checkpoint's saved
+ranges. Batch identity includes the source, destination, consumer group, and
+every partition's start and end offsets. A retry containing additional records
+is a new batch and merges those records using the declared unique key.
 
 Schema policy is enforced per batch: additive compatible changes auto-register;
 incompatible changes halt the consumer, retain the source offsets uncommitted,

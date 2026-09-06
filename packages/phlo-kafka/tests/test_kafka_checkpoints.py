@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from phlo.capabilities.interfaces import CheckpointRecord, SourceOffsetRange
 from phlo_kafka.checkpoints import (
     KafkaCheckpointAdapter,
@@ -69,9 +70,22 @@ class FakeStore:
 
 
 def test_idempotency_key_is_deterministic_per_range() -> None:
-    assert (
-        idempotency_key(group_id="phlo-events", topic="events", partition=0, start_offset=100)
-        == "phlo-events:events:0:100"
+    ranges = _ranges() + [SourceOffsetRange("events", 1, 20, 30)]
+    assert idempotency_key(source_id="s", target_table="t", group_id="g", ranges=ranges) == (
+        idempotency_key(source_id="s", target_table="t", group_id="g", ranges=ranges[::-1])
+    )
+
+
+@pytest.mark.parametrize(
+    "ranges",
+    [
+        [SourceOffsetRange("events", 0, 100, 201)],
+        [SourceOffsetRange("events", 0, 100, 200), SourceOffsetRange("events", 1, 0, 10)],
+    ],
+)
+def test_changed_batch_does_not_resume_previous_checkpoint(ranges) -> None:
+    assert idempotency_key(source_id="s", target_table="t", group_id="g", ranges=_ranges()) != (
+        idempotency_key(source_id="s", target_table="t", group_id="g", ranges=ranges)
     )
 
 
@@ -84,7 +98,17 @@ def test_claim_ranges_derives_idempotency_key_from_group() -> None:
     adapter = KafkaCheckpointAdapter(source_id="kafka:events", group_id="phlo-events", store=store)
     checkpoint = adapter.claim_ranges(target_table="bronze.events", ranges=_ranges())
     assert checkpoint.status == "claimed"
-    assert store.claimed[0]["idempotency_key"] == "phlo-events:events:0:100"
+    assert checkpoint.ranges == tuple(_ranges())
+
+
+def test_checkpoint_with_different_ranges_is_rejected() -> None:
+    class MismatchedStore(FakeStore):
+        def claim(self, **kwargs):
+            return super().claim(**{**kwargs, "ranges": [SourceOffsetRange("events", 0, 100, 150)]})
+
+    adapter = KafkaCheckpointAdapter(source_id="s", group_id="g", store=MismatchedStore())
+    with pytest.raises(ValueError, match="does not match"):
+        adapter.claim_ranges(target_table="t", ranges=_ranges())
 
 
 def test_lifecycle_transitions_record_snapshot_before_commit() -> None:

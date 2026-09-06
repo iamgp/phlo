@@ -803,7 +803,12 @@ def _advance_snapshot_promotion(
         and prior_report.get("target_hash_before") != target_hash_before
         and _release_resolved_for_run(catalog, branch_name, logical_run_id)
     )
-    if merge_started and not resumed and prior_report is not None:
+    if (
+        merge_started
+        and not resumed
+        and prior_report is not None
+        and prior_report.get("target_hash_before") != target_hash_before
+    ):
         # The release pointer moved after our durable intent and our release
         # did not resolve: someone else published. Refuse to guess.
         write_wap_report(
@@ -838,6 +843,19 @@ def _advance_snapshot_promotion(
         return None
 
     if not resumed:
+        launch_revision = (prior_report or {}).get("launch_target_hash_before")
+        try:
+            expected_revision = int(launch_revision) if launch_revision is not None else -1
+        except (TypeError, ValueError):
+            expected_revision = -1
+        if expected_revision < 0 or expected_revision != current_revision:
+            write_wap_report(
+                logical_run_id,
+                status="promotion_failed",
+                branch=branch_name,
+                failure_reason="release_pointer_conflict",
+            )
+            return None
         if not write_wap_report(
             logical_run_id,
             status="promotion_pending",
@@ -854,9 +872,7 @@ def _advance_snapshot_promotion(
             promoted_records = catalog.promote_candidates(
                 namespace=branch_name,
                 release_id=logical_run_id,
-                expected_revision=(
-                    int(target_hash_before) if target_hash_before is not None else None
-                ),
+                expected_revision=expected_revision,
             )
             merged = bool(promoted_records)
         except Exception:

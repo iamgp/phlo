@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from types import SimpleNamespace
 
+import pyarrow.parquet as pq
 import pytest
+from phlo.logging import get_logger
 from phlo.capabilities.interfaces import CheckpointRecord, ReleaseRecord, SourceOffsetRange
 from phlo_kafka.assets import (
     KafkaConsumerConfig,
@@ -12,7 +16,7 @@ from phlo_kafka.assets import (
     ingest_batch,
     phlo_kafka_consumer,
 )
-from phlo_kafka.checkpoints import KafkaCheckpointAdapter
+from phlo_kafka.checkpoints import KafkaCheckpointAdapter, idempotency_key
 
 
 class RecordingStore:
@@ -115,7 +119,15 @@ def test_ingest_batch_full_lifecycle_commits_checkpoint() -> None:
     assert evidence["snapshot_id"] == 88
     assert evidence["release_id"] == "cp-1"
     assert store.transitions == [
-        ("claim", "phlo-events:events:0:100"),
+        (
+            "claim",
+            idempotency_key(
+                source_id="kafka:events",
+                target_table="bronze.events",
+                group_id="phlo-events",
+                ranges=_ranges(),
+            ),
+        ),
         ("stage", "cp-1"),
         ("snapshot", 77),
         ("snapshot", 88),
@@ -276,3 +288,130 @@ def test_registered_asset_emits_commit_evidence() -> None:
     assert spec.metadata["dead_letter_topic"] == "events.dlq"
     assert get_kafka_assets() == [spec]
     clear_kafka_assets()
+
+
+class DurableStore(RecordingStore):
+    """Retain checkpoint state across asset runs at the database seam."""
+
+    def __init__(self):
+        super().__init__()
+        self.records = {}
+
+    def claim(self, *, source_id, target_table, ranges, idempotency_key=None):
+        existing = next(
+            (r for r in self.records.values() if r.idempotency_key == idempotency_key), None
+        )
+        if existing is not None:
+            return existing
+        record = CheckpointRecord(
+            checkpoint_id=f"cp-{len(self.records)}",
+            source_id=source_id,
+            target_table=target_table,
+            ranges=tuple(ranges),
+            idempotency_key=idempotency_key,
+            status="claimed",
+        )
+        self.records[record.checkpoint_id] = record
+        return record
+
+    def record_snapshot(self, *, checkpoint_id, snapshot_id, release_id=None):
+        self.records[checkpoint_id] = replace(
+            self.records[checkpoint_id],
+            status="staged",
+            snapshot_id=snapshot_id,
+            release_id=release_id,
+        )
+        return self.records[checkpoint_id]
+
+    def commit(self, *, checkpoint_id):
+        record = self.records[checkpoint_id]
+        assert record.status == "staged" and record.snapshot_id is not None
+        self.records[checkpoint_id] = replace(record, status="committed")
+        return self.records[checkpoint_id]
+
+
+@pytest.mark.parametrize(
+    "retry_ranges",
+    [
+        _ranges(),
+        [SourceOffsetRange("events", 0, 100, 201)],
+        _ranges() + [SourceOffsetRange("events", 1, 0, 1)],
+    ],
+)
+def test_asset_recovers_offset_commit_without_skipping_new_records(monkeypatch, retry_ranges):
+    store = DurableStore()
+
+    class TableStore:
+        def __init__(self):
+            self.rows = {}
+            self.revision = 0
+
+        def merge_parquet(self, *, table_name, data_path, unique_key):
+            rows = pq.read_table(data_path).to_pylist()
+            self.rows.update({row[unique_key]: row for row in rows})
+            self.revision += 1
+            return {"rows_inserted": len(rows)}
+
+        def observe_table_state(self, *, table_name):
+            return SimpleNamespace(revision=self.revision)
+
+    table_store = TableStore()
+
+    class Client:
+        ranges = _ranges()
+        records = [{"event_id": "first"}]
+        crash = True
+        committed = []
+
+        def consume(self, **kwargs):
+            return self.records, self.ranges
+
+        def commit_offsets(self, ranges, *, group_id):
+            assert any(
+                record.status == "committed" and set(record.ranges) == set(ranges)
+                for record in store.records.values()
+            )
+            if self.crash:
+                raise RuntimeError("crash after checkpoint commit")
+            self.committed.append(ranges)
+
+    client = Client()
+    monkeypatch.setattr(
+        "phlo.infrastructure.load_wap_config", lambda: SimpleNamespace(strategy="branch")
+    )
+    monkeypatch.setattr(
+        "phlo_kafka.assets.resolve_capability", lambda _: SimpleNamespace(provider=table_store)
+    )
+    monkeypatch.setattr(
+        "phlo_kafka.checkpoints.resolve_capability", lambda *args: SimpleNamespace(provider=store)
+    )
+    clear_kafka_assets()
+    try:
+        spec = phlo_kafka_consumer(
+            name="events",
+            topic_pattern="events",
+            destination_table="bronze.events",
+            unique_key="event_id",
+            group="ingestion",
+            client_factory=lambda: client,
+        )
+        runtime = SimpleNamespace(logger=get_logger(__name__))
+        with pytest.raises(RuntimeError, match="crash after checkpoint commit"):
+            list(spec.run.fn(runtime))
+        assert table_store.rows == {"first": {"event_id": "first"}}
+        assert client.committed == []
+
+        client.crash = False
+        client.ranges = retry_ranges
+        changed_batch = retry_ranges != _ranges()
+        client.records = (
+            [{"event_id": "first"}, {"event_id": "new"}] if changed_batch else client.records
+        )
+        result = list(spec.run.fn(runtime))[0]
+
+        assert result.metadata["status"] == ("committed" if changed_batch else "already_committed")
+        assert client.committed == [retry_ranges]
+        assert set(table_store.rows) == ({"first", "new"} if changed_batch else {"first"})
+        assert table_store.revision == (2 if changed_batch else 1)
+    finally:
+        clear_kafka_assets()

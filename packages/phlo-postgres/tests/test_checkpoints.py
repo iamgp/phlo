@@ -6,6 +6,8 @@ and idempotent claim resumption against a fake PostgresResource.
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from contextlib import contextmanager
 
 import pytest
@@ -82,19 +84,61 @@ def test_store_implements_checkpoint_protocol() -> None:
     assert isinstance(store, IngestionCheckpointStore)
 
 
-def test_claim_inserts_open_checkpoint_and_serializes_on_key() -> None:
-    resource = FakeResource(results=[_row("cp-1")])
-    store = PostgresIngestionCheckpointStore(resource=resource, table_ensured=True)
-    record = store.claim(
-        source_id="kafka:events",
-        target_table="bronze.events",
-        ranges=_ranges(),
-        idempotency_key="kafka:events:0:100",
-    )
-    assert record.status == "claimed"
-    assert record.ranges[0].topic == "events"
-    advisory = [s for s in resource.cursor_obj.statements if "pg_advisory_xact_lock" in s]
-    assert advisory, "claim must serialize concurrent claims with an advisory lock"
+def test_claim_persists_a_new_checkpoint_and_resumes_it() -> None:
+    # Execute the claim SQL against an empty local database. Only adapt
+    # PostgreSQL placeholders, JSON decoding and the advisory-lock primitive.
+    database = sqlite3.connect(":memory:")
+    database.execute("ATTACH DATABASE ':memory:' AS phlo")
+    database.execute("""CREATE TABLE phlo.ingestion_checkpoints (
+        checkpoint_id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
+        source_id TEXT, target_table TEXT, status TEXT, ranges TEXT,
+        snapshot_id INTEGER, release_id TEXT, idempotency_key TEXT UNIQUE,
+        failure_reason TEXT, updated_at TEXT)""")
+
+    class ClaimCursor:
+        def __init__(self):
+            self.cursor = database.cursor()
+            self.locked = False
+
+        def execute(self, statement, params):
+            if "pg_advisory_xact_lock" in statement:
+                self.locked = True
+                return
+            assert self.locked, "claims must acquire their transaction lock first"
+            self.cursor.execute(statement.replace("%s", "?"), params)
+
+        def fetchone(self):
+            row = self.cursor.fetchone()
+            return (*row[:4], json.loads(row[4]), *row[5:]) if row else None
+
+    class ClaimResource:
+        @contextmanager
+        def transactional_cursor(self):
+            with database:
+                yield ClaimCursor()
+
+    try:
+        store = PostgresIngestionCheckpointStore(resource=ClaimResource(), table_ensured=True)
+        request = dict(
+            source_id="kafka:events",
+            target_table="bronze.events",
+            ranges=_ranges(),
+            idempotency_key="kafka:events:0:100",
+        )
+        record = store.claim(**request)
+        assert record.status == "claimed"
+        assert record.ranges == tuple(_ranges())
+        assert store.claim(**request) == record
+        persisted = database.execute(
+            "SELECT source_id, target_table, status, ranges FROM phlo.ingestion_checkpoints"
+        ).fetchall()
+        assert len(persisted) == 1
+        assert persisted[0][:3] == ("kafka:events", "bronze.events", "claimed")
+        assert json.loads(persisted[0][3]) == [
+            {"topic": "events", "partition": 0, "start_offset": 100, "end_offset": 200}
+        ]
+    finally:
+        database.close()
 
 
 def test_claim_returns_existing_checkpoint_for_same_idempotency_key() -> None:

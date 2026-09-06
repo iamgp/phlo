@@ -11,11 +11,10 @@ Implements the neutral ``SnapshotPromotionCatalog`` contract (see
   duplicates keep their last occurrence, so at-least-once delivery produces
   no duplicate logical records.
 - Promotion overwrites main with the audited candidate content in one
-  atomic Iceberg commit, drops the branch, and records durable release rows
+  atomic Iceberg commit and records durable release rows before dropping branches
   while advancing a Phlo-controlled release pointer with a compare-and-swap
-  guard on the pointer revision. Promotion is crash-safe: the ledger append
-  happens last, so a retry after a crash re-applies an identical overwrite
-  and converges instead of guessing.
+  guard on the ledger snapshot read before promotion. Candidates retain their
+  original release revision; retries never rebase them onto newer releases.
 - Abort drops candidate branches so rejected snapshots can never be
   promoted while remaining discoverable for audit until retention.
 
@@ -30,6 +29,7 @@ the branch-based catalog, Polaris the snapshot-promotion catalog.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
@@ -72,6 +72,15 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _pending_promotions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    completed = {row.get("release_id") for row in rows if row.get("kind") == "state"}
+    return [
+        row
+        for row in rows
+        if row.get("kind") == "promotion" and row.get("release_id") not in completed
+    ]
+
+
 class IcebergReleaseStore:
     """Durable candidate/release ledger backed by one Iceberg table.
 
@@ -91,6 +100,24 @@ class IcebergReleaseStore:
 
             self._catalog = load_pyiceberg_catalog()
         return self._catalog
+
+    @contextmanager
+    def publication_lock(self):
+        """Serialize publishers and ledger appends using the shared Phlo database.
+
+        The transaction lock spans destination writes and the ledger CAS, so
+        disjoint-table publishers cannot expose data and then lose to another
+        release. Every writer must use the same PostgreSQL database. Process
+        failure releases the lock when PostgreSQL closes the connection.
+        """
+        from phlo_postgres.resource import PostgresResource
+
+        with PostgresResource() as database, database.transactional_cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                (f"phlo:polaris:release:{self._full_table_name}",),
+            )
+            yield
 
     def ensure_table(self) -> Any:
         """Create the ledger table when absent and return it loaded."""
@@ -116,9 +143,29 @@ class IcebergReleaseStore:
 
     def rows(self) -> list[dict[str, Any]]:
         """Return every ledger row."""
+        rows, _ = self.read_for_update()
+        return rows
+
+    def read_for_update(self) -> tuple[list[dict[str, Any]], Any]:
+        """Read rows and retain the exact Iceberg table version for a later CAS."""
         table = self.ensure_table()
-        rows = table.scan().to_arrow().to_pylist()
-        return [dict(row) for row in rows]
+        return [dict(row) for row in table.scan().to_arrow().to_pylist()], table
+
+    def append_if_unchanged(self, rows: list[dict[str, Any]], version: Any) -> None:
+        """Append only if the ledger still has the snapshot that was read.
+
+        PyIceberg's append transaction asserts the original main snapshot at
+        catalog commit. Never reload or retry against a newer table here:
+        doing so would detach the write from the revision we validated.
+        """
+        import pyarrow as pa
+        from pyiceberg.exceptions import CommitFailedException
+
+        arrow = pa.Table.from_pylist(rows, schema=version.schema().as_arrow())
+        try:
+            version.append(arrow)
+        except CommitFailedException as exc:
+            raise ReleaseConflictError(message="Release ledger changed during promotion.") from exc
 
     def append(self, rows: list[dict[str, Any]]) -> None:
         """Append rows in one atomic Iceberg commit."""
@@ -126,9 +173,10 @@ class IcebergReleaseStore:
             return
         import pyarrow as pa
 
-        table = self.ensure_table()
-        arrow = pa.Table.from_pylist(rows, schema=table.schema().as_arrow())
-        table.append(arrow)
+        with self.publication_lock():
+            table = self.ensure_table()
+            arrow = pa.Table.from_pylist(rows, schema=table.schema().as_arrow())
+            table.append(arrow)
 
     def current_revision(self) -> int:
         """Return the latest recorded release-pointer revision (0 when unset)."""
@@ -179,6 +227,16 @@ class PolarisSnapshotPromotionCatalog:
         candidate starts as an exact copy of the released state and only
         diverges when a writer lands rows into it.
         """
+        existing = [
+            row for row in self._open_candidate_rows(run_id) if row["table_name"] == table_name
+        ]
+        if existing:
+            return next(
+                candidate
+                for candidate in self.list_candidates(namespace=f"pipeline-run-{run_id}")
+                if candidate.table_name == table_name
+            )
+        revision = self.release_revision()
         table = self._open_table(table_name)
         ref = candidate_ref_for_run(run_id)
         snapshot_id = current_snapshot_id(table)
@@ -187,8 +245,11 @@ class PolarisSnapshotPromotionCatalog:
                 message=f"Table {table_name!r} has no current snapshot to stage as a candidate.",
                 suggestions=["Materialize the table before opening a WAP candidate."],
             )
-        if ref not in table.metadata.refs:
-            table.manage_snapshots().create_branch(snapshot_id, ref).commit()
+        if ref in table.metadata.refs:
+            raise ReleaseConflictError(
+                message=f"Candidate branch {ref!r} has no ledger baseline; stage a new run."
+            )
+        table.manage_snapshots().create_branch(snapshot_id, ref).commit()
         self.store.append(
             [
                 {
@@ -196,7 +257,7 @@ class PolarisSnapshotPromotionCatalog:
                     "table_name": table_name,
                     "snapshot_id": int(snapshot_id),
                     "release_id": None,
-                    "revision": None,
+                    "revision": revision,
                     "run_id": run_id,
                     "status": "open",
                     "recorded_at": _now(),
@@ -209,6 +270,7 @@ class PolarisSnapshotPromotionCatalog:
             run_id=run_id,
             namespace=f"pipeline-run-{run_id}",
             created_at=_now(),
+            metadata={"release_revision": revision},
         )
 
     def _branch_tip(self, table: Any, ref: str) -> int | None:
@@ -317,14 +379,17 @@ class PolarisSnapshotPromotionCatalog:
                     run_id=run_id,
                     namespace=namespace,
                     created_at=row.get("recorded_at"),
+                    metadata={"release_revision": row.get("revision")},
                 )
             )
         return candidates
 
-    def _open_candidate_rows(self, run_id: str) -> list[dict[str, Any]]:
+    def _open_candidate_rows(
+        self, run_id: str, rows: list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
         """Return the ledger rows whose latest status is ``open`` for a run."""
         latest: dict[tuple[str, int], dict[str, Any]] = {}
-        for row in self.store.rows():
+        for row in self.store.rows() if rows is None else rows:
             if row.get("kind") != "candidate" or row.get("run_id") != run_id:
                 continue
             key = (str(row.get("table_name")), int(row.get("snapshot_id") or 0))
@@ -343,7 +408,24 @@ class PolarisSnapshotPromotionCatalog:
         expected_revision: int | None = None,
         tables: list[str] | None = None,
     ) -> list[ReleaseRecord]:
-        """Publish audited candidate snapshots by overwriting main atomically.
+        """Publish audited snapshots while holding the warehouse publication lock."""
+        with self.store.publication_lock():
+            return self._promote_candidates(
+                namespace=namespace,
+                release_id=release_id,
+                expected_revision=expected_revision,
+                tables=tables,
+            )
+
+    def _promote_candidates(
+        self,
+        *,
+        namespace: str,
+        release_id: str,
+        expected_revision: int | None,
+        tables: list[str] | None,
+    ) -> list[ReleaseRecord]:
+        """Publish one release under the store's exclusive publication lock.
 
         The CAS guard on ``expected_revision`` rejects promotions computed
         against a stale release pointer. Per table the move is one atomic
@@ -351,7 +433,7 @@ class PolarisSnapshotPromotionCatalog:
         ledger release rows are appended after, so a crash between the two
         converges on retry (the repeated overwrite is identical).
         """
-        rows = self.store.rows()
+        rows, ledger_version = self.store.read_for_update()
         current_revision = max(
             (
                 int(row["revision"])
@@ -371,9 +453,37 @@ class PolarisSnapshotPromotionCatalog:
                 ],
             )
         run_id = run_id_from_namespace(namespace)
+        # Acknowledgement loss must not overwrite tables a second time.
+        released = [
+            row
+            for row in rows
+            if row.get("kind") == "release"
+            and row.get("release_id") == release_id
+            and row.get("run_id") == run_id
+            and (tables is None or row.get("table_name") in tables)
+        ]
+        if released:
+            return [
+                ReleaseRecord(
+                    table_name=str(row["table_name"]),
+                    snapshot_id=int(row["snapshot_id"]),
+                    release_id=release_id,
+                    revision=int(row["revision"]),
+                    promoted_at=row.get("recorded_at"),
+                    run_id=run_id,
+                )
+                for row in released
+            ]
+        pending = _pending_promotions(rows)
+        if any(
+            row.get("release_id") != release_id or row.get("run_id") != run_id for row in pending
+        ):
+            raise ReleaseConflictError(
+                message="An interrupted promotion must be resumed before another release."
+            )
         selected = [
             row
-            for row in self._open_candidate_rows(run_id)
+            for row in self._open_candidate_rows(run_id, rows)
             if tables is None or row.get("table_name") in tables
         ]
         if not selected:
@@ -382,30 +492,80 @@ class PolarisSnapshotPromotionCatalog:
             )
             return []
 
+        if any(row.get("revision") != current_revision for row in selected):
+            raise ReleaseConflictError(
+                message="Candidate release revision is stale or missing; stage and audit a new run."
+            )
+
         promoted_at = _now()
         new_revision = current_revision + 1
         ref = candidate_ref_for_run(run_id)
-        rows_to_append: list[dict[str, Any]] = []
-        records: list[ReleaseRecord] = []
+        prepared = []
         for row in selected:
             table_name = str(row["table_name"])
             table = self._open_table(table_name)
-            candidate_arrow = table.scan(snapshot_id=self._branch_tip(table, ref)).to_arrow()
-            table.overwrite(candidate_arrow)
+            candidate_snapshot = self._branch_tip(table, ref)
+            if candidate_snapshot is None:
+                raise ReleaseConflictError(message=f"Candidate branch {ref!r} is missing.")
+            current = table.current_snapshot()
+            summary = current.summary if current is not None else None
+            properties = summary.additional_properties if summary is not None else {}
+            already_written = properties.get("phlo.release_id") == release_id and properties.get(
+                "phlo.candidate_snapshot_id"
+            ) == str(candidate_snapshot)
+            if not already_written:
+                # Pin main as well as the ledger: a concurrent publisher may
+                # have changed this table since the candidate was created.
+                if current_snapshot_id(table) != int(row["snapshot_id"]):
+                    raise ReleaseConflictError(message=f"Main changed for {table_name!r}.")
+            prepared.append((row, table, candidate_snapshot, already_written))
+
+        intended = {(str(row["table_name"]), int(row["snapshot_id"])) for row in pending}
+        actual = {(str(row["table_name"]), tip) for row, _, tip, _ in prepared}
+        if pending and intended != actual:
+            raise ReleaseConflictError(
+                message="Pending promotion candidates changed; refusing to publish."
+            )
+        if not pending:
+            # A process can fail after writing main but before the receipt.
+            # Persist ownership and the exact candidate set first so another
+            # publisher cannot overtake that recoverable operation.
+            self.store.append_if_unchanged(
+                [
+                    {
+                        "kind": "promotion",
+                        "table_name": row["table_name"],
+                        "snapshot_id": tip,
+                        "release_id": release_id,
+                        "revision": current_revision,
+                        "run_id": run_id,
+                        "status": "pending",
+                        "recorded_at": promoted_at,
+                    }
+                    for row, _, tip, _ in prepared
+                ],
+                ledger_version,
+            )
+            _, ledger_version = self.store.read_for_update()
+
+        rows_to_append: list[dict[str, Any]] = []
+        records: list[ReleaseRecord] = []
+        for row, table, candidate_snapshot, already_written in prepared:
+            table_name = str(row["table_name"])
+            if not already_written:
+                candidate_arrow = table.scan(snapshot_id=candidate_snapshot).to_arrow()
+                table.overwrite(
+                    candidate_arrow,
+                    snapshot_properties={
+                        "phlo.release_id": release_id,
+                        "phlo.candidate_snapshot_id": str(candidate_snapshot),
+                    },
+                )
             released_snapshot = current_snapshot_id(table)
             if released_snapshot is None:
                 raise PhloTableError(
                     message=f"Table {table_name!r} has no snapshot after release overwrite.",
                     suggestions=["Retry the promotion once the catalog responds."],
-                )
-            try:
-                table.manage_snapshots().drop_branch(ref).commit()
-            except Exception:
-                logger.warning(
-                    "polaris_candidate_ref_drop_failed",
-                    table_name=table_name,
-                    ref=ref,
-                    exc_info=True,
                 )
             record = ReleaseRecord(
                 table_name=table_name,
@@ -442,7 +602,19 @@ class PolarisSnapshotPromotionCatalog:
         )
         # One atomic ledger commit closes every member table of the release
         # together with the advanced pointer state row.
-        self.store.append(rows_to_append)
+        self.store.append_if_unchanged(rows_to_append, ledger_version)
+        # Keep candidates available when the CAS fails or acknowledgement is
+        # lost. Cleanup follows the durable release receipt, never precedes it.
+        for record in records:
+            try:
+                self._open_table(record.table_name).manage_snapshots().remove_branch(ref).commit()
+            except Exception:
+                logger.warning(
+                    "polaris_candidate_ref_drop_failed",
+                    table_name=record.table_name,
+                    ref=ref,
+                    exc_info=True,
+                )
         return records
 
     def resolve_release(self, *, table_name: str) -> ReleaseRecord | None:
@@ -473,13 +645,15 @@ class PolarisSnapshotPromotionCatalog:
     def abort_candidates(self, *, namespace: str) -> bool:
         """Drop candidate branches under ``namespace``; they can never promote."""
         run_id = run_id_from_namespace(namespace)
+        if any(row.get("run_id") == run_id for row in _pending_promotions(self.store.rows())):
+            return False
         open_rows = self._open_candidate_rows(run_id)
         ref = candidate_ref_for_run(run_id)
         for row in open_rows:
             try:
                 table = self._open_table(str(row["table_name"]))
                 if ref in table.metadata.refs:
-                    table.manage_snapshots().drop_branch(ref).commit()
+                    table.manage_snapshots().remove_branch(ref).commit()
             except Exception:
                 logger.warning(
                     "polaris_candidate_ref_drop_failed",
@@ -518,6 +692,8 @@ class PolarisSnapshotPromotionCatalog:
             if row.get("kind") == "candidate" and row.get("run_id")
         }
         for run_id in sorted(candidate_runs):
+            if any(row.get("run_id") == run_id for row in _pending_promotions(self.store.rows())):
+                continue
             open_rows = self._open_candidate_rows(run_id)
             expired = [
                 row
@@ -532,7 +708,7 @@ class PolarisSnapshotPromotionCatalog:
                 try:
                     table = self._open_table(str(row["table_name"]))
                     if ref in table.metadata.refs:
-                        table.manage_snapshots().drop_branch(ref).commit()
+                        table.manage_snapshots().remove_branch(ref).commit()
                 except Exception:
                     logger.warning(
                         "polaris_candidate_prune_failed",

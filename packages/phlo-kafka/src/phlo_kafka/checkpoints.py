@@ -1,13 +1,14 @@
 """Checkpoint lifecycle adapter binding Kafka offset ranges to Phlo state.
 
 Resolves the neutral ``IngestionCheckpointStore`` capability (backed by Phlo
-Postgres) and derives deterministic idempotency keys from the consumer group,
-topic, partition, and start offset, so replaying a committed range resumes
-its existing checkpoint instead of claiming a duplicate.
+Postgres) and identifies the complete batch, including source, destination,
+consumer group and every partition's half-open offset range.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 
 from phlo.capabilities.interfaces import (
     CheckpointRecord,
@@ -18,9 +19,19 @@ from phlo.capabilities.resolver import resolve_capability
 from phlo.exceptions import PhloConfigError
 
 
-def idempotency_key(*, group_id: str, topic: str, partition: int, start_offset: int) -> str:
-    """Return the deterministic claim key for one partition range."""
-    return f"{group_id}:{topic}:{partition}:{start_offset}"
+def idempotency_key(
+    *, source_id: str, target_table: str, group_id: str, ranges: list[SourceOffsetRange]
+) -> str:
+    """Identify an exact batch independently of partition polling order."""
+    if not ranges or any(item.start_offset >= item.end_offset for item in ranges):
+        raise ValueError("Kafka checkpoints require nonempty offset ranges")
+    batch = sorted(
+        (item.topic, item.partition, item.start_offset, item.end_offset) for item in ranges
+    )
+    if len({(item.topic, item.partition) for item in ranges}) != len(ranges):
+        raise ValueError("Kafka checkpoints require one range per topic partition")
+    payload = json.dumps([source_id, target_table, group_id, batch], separators=(",", ":"))
+    return f"kafka-batch-v2:{hashlib.sha256(payload.encode()).hexdigest()}"
 
 
 def resolve_checkpoint_store(name: str | None = None) -> IngestionCheckpointStore:
@@ -58,19 +69,25 @@ class KafkaCheckpointAdapter:
         self, *, target_table: str, ranges: list[SourceOffsetRange]
     ) -> CheckpointRecord:
         """Claim consumed ranges; resuming a claimed range is a no-op."""
-        first = ranges[0]
         key = idempotency_key(
+            source_id=self.source_id,
+            target_table=target_table,
             group_id=self.group_id,
-            topic=first.topic,
-            partition=first.partition,
-            start_offset=first.start_offset,
+            ranges=ranges,
         )
-        return self.store.claim(
+        checkpoint = self.store.claim(
             source_id=self.source_id,
             target_table=target_table,
             ranges=ranges,
             idempotency_key=key,
         )
+        if (
+            checkpoint.source_id != self.source_id
+            or checkpoint.target_table != target_table
+            or set(checkpoint.ranges) != set(ranges)
+        ):
+            raise ValueError("Checkpoint identity does not match the consumed batch")
+        return checkpoint
 
     def bind_snapshot(
         self, *, checkpoint_id: str, snapshot_id: int | str, release_id: str | None = None
