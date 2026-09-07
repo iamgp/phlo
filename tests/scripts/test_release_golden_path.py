@@ -1255,15 +1255,19 @@ def test_ops_environment_resolves_dynamic_ports_and_journal_dir(
 
 def test_production_preflight_reads_report_from_cli_envelope(tmp_path, monkeypatch):
     """Release qualification must inspect readiness data inside the CLI result."""
-    from phlo.cli.output import json_envelope
-
     report = {
         "passed": True,
         "environment": "production",
         "checks": [{"id": "storage", "state": "pass"}],
     }
-    envelope = json.loads(json_envelope(data=report))
-    envelope["exit_code"] = 0
+    # This standalone harness also runs without Phlo installed on Windows.
+    envelope = {
+        "schema_version": 1,
+        "status": "success",
+        "exit_code": 0,
+        "errors": [],
+        "data": report,
+    }
     monkeypatch.setattr(
         release_golden_path.subprocess,
         "run",
