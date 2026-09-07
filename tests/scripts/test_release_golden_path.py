@@ -1251,3 +1251,30 @@ def test_ops_environment_resolves_dynamic_ports_and_journal_dir(
 
     authorized = release_golden_path.ops_environment(config, authorized=True)
     assert authorized["PHLO_SERVICE_ACCOUNT"] == release_golden_path.OPERATOR_SERVICE_ACCOUNT
+
+
+def test_production_preflight_reads_report_from_cli_envelope(tmp_path, monkeypatch):
+    """Release qualification must inspect readiness data inside the CLI result."""
+    from phlo.cli.output import json_envelope
+
+    report = {
+        "passed": True,
+        "environment": "production",
+        "checks": [{"id": "storage", "state": "pass"}],
+    }
+    envelope = json.loads(json_envelope(data=report))
+    envelope["exit_code"] = 0
+    monkeypatch.setattr(
+        release_golden_path.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout=json.dumps(envelope), stderr=""
+        ),
+    )
+    assert release_golden_path.production_preflight(_config(tmp_path)) == {
+        "environment": "production",
+        "checks": [{"id": "storage", "state": "pass"}],
+    }
+    envelope["status"] = "error"
+    with pytest.raises(release_golden_path.CandidateError, match="production preflight failed"):
+        release_golden_path.production_preflight(_config(tmp_path))
