@@ -13,6 +13,11 @@ container-free pytest suite proves it.
 The project owns its uv environment and deterministic fixtures. It does not
 depend on another example's runtime state.
 
+## Illustrated end-to-end guide
+
+Open [the annotated workflow guide](guide/index.html) in a browser to follow the complete pipeline, with actual input/output examples, check failures and recorded WAP reports. See [guide instructions](guide/README.md) for offline use and source files.
+
+
 ## What it exercises
 
 | Area | Coverage |
