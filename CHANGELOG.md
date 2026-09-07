@@ -1,5 +1,24 @@
 ## 0.15.1 (2026-09-06)
 
+## [phlo 0.16.0 + 37 packages] - 2026-09-07
+
+### Added
+- phlo: unify human and agent command contracts (#919)
+- phlo-api: unify human and agent command contracts (#919)
+- phlo-dagster: unify human and agent command contracts (#919)
+
+### Fixed
+- phlo: accept successful one-shot setup services during readiness (#917)
+- phlo: parse services list JSON envelope (#921)
+- phlo: preserve failed publications and correlate run evidence (#920)
+- phlo-dagster: preserve failed publications and correlate run evidence (#920)
+- phlo-dlt: preserve failed publications and correlate run evidence (#920)
+- phlo-nessie: preserve failed publications and correlate run evidence (#920)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (9 commits)
+
 ### Fixed
 
 - Advance every published workspace package to a fresh version after the 0.15.0 publication preflight rejected reused 0.14.0 identities.
